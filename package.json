@@ -1,0 +1,22 @@
+{
+  "name": "com.twds0x13.fluxformula",
+  "displayName": "FluxFormula",
+  "author": {
+    "name": "Twds0x13",
+    "url": "https://github.com/twds0x13"
+  },
+  "version": "1.0.0",
+  "unity": "2021.3",
+  "description": "High-performance, Zero-GC linear formula pipeline for Unity.",
+  "keywords": [
+    "Flux",
+    "FluxFormula",
+    "formula",
+    "pipeline"
+  ],
+  "license": "MIT",
+  "dependencies": {},
+  "testAssemblies": [
+    "FluxFormula.Tests"
+  ]
+}

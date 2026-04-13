@@ -1,0 +1,19 @@
+{
+    "name": "FluxFormula.Tests",
+    "rootNamespace": "",
+    "references": [
+        "FluxFormula"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+    ],
+    "optionalUnityReferences": ["TestAssemblies"],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
