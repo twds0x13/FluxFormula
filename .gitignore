@@ -1,0 +1,19 @@
+# ===== Unity =====
+.ci/Library/
+.ci/Logs/
+.ci/UserSettings/
+
+# ===== .NET / Benchmark =====
+benchmarks/bin/
+benchmarks/obj/
+BenchmarkDotNet.Artifacts/
+standalone-tests/bin/
+standalone-tests/obj/
+
+# ===== Node / VitePress =====
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
+# ===== AI / Claude (local only) =====
+.claude/settings.local.json

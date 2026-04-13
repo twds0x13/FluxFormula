@@ -1,0 +1,947 @@
+using System;
+using BenchmarkDotNet.Attributes;
+using FluxFormula.Compiler;
+using FluxFormula.Core;
+using NLua;
+using static TestHelper;
+
+using NCalc;
+using NCalc.LambdaCompilation;
+// Disambiguate: LinqExpr for System.Linq.Expressions, NCalcExpr for NCalc
+using LinqExpr = System.Linq.Expressions.Expression;
+using NCalcExpr = NCalc.Expression;
+using ParameterExpr = System.Linq.Expressions.ParameterExpression;
+
+namespace FluxFormula.Benchmarks
+{
+    // ═══════════════════════════════════════════════════════════════
+    // Formula Catalog — equivalent formulas across all four systems
+    // ═══════════════════════════════════════════════════════════════
+
+    internal static class FormulaCatalog
+    {
+        public readonly struct Entry
+        {
+            public readonly string Name;
+            public readonly string FluxText;
+            public readonly string LuaText;
+            public readonly string NCalcText;
+            public readonly string[] VarNames;
+            public readonly float[] VarValues;
+            public readonly float ExpectedResult;
+
+            public Entry(string name, string fluxText, string luaText, string nCalcText,
+                string[] varNames, float[] varValues, float expected)
+            {
+                Name = name;
+                FluxText = fluxText;
+                LuaText = luaText;
+                NCalcText = nCalcText ?? fluxText;
+                VarNames = varNames ?? Array.Empty<string>();
+                VarValues = varValues ?? Array.Empty<float>();
+                ExpectedResult = expected;
+            }
+        }
+
+        public static readonly Entry[] All =
+        {
+            new Entry("SimpleArith",
+                "1 + 2 * 3",
+                "return 1 + 2 * 3",
+                null, null, null, 7f),
+
+            new Entry("ComplexArith",
+                "(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3",
+                "return (1.5 + 2.5) * (3 - 1) / 2 + 5 * 3",
+                null, null, null, 19f),
+
+            new Entry("ThreeVars",
+                "[a] * [b] + [c]",
+                "return function(a, b, c) return a * b + c end",
+                null,
+                new[] { "a", "b", "c" }, new[] { 2f, 3f, 1f }, 7f),
+
+            new Entry("RpgDamage",
+                "[atk] + [bonus] * 2",
+                "return function(atk, bonus) return atk + bonus * 2 end",
+                null,
+                new[] { "atk", "bonus" }, new[] { 100f, 20f }, 140f),
+
+            new Entry("ArmorReduction",
+                "[hp] - [dmg] * (1 - [armor] / ([armor] + 100))",
+                "return function(hp, dmg, armor) return hp - dmg * (1 - armor / (armor + 100)) end",
+                null,
+                new[] { "hp", "dmg", "armor" }, new[] { 1000f, 100f, 50f }, 933.3333f),
+        };
+
+        public static Entry SimpleArith      => All[0];
+        public static Entry ComplexArith     => All[1];
+        public static Entry ThreeVars        => All[2];
+        public static Entry RpgDamage        => All[3];
+        public static Entry ArmorReduction   => All[4];
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // C# Raw Baselines — hand-written Func<> delegates (theoretical max)
+    // and Expression-tree compiled (fair comparison to Flux JIT)
+    // ═══════════════════════════════════════════════════════════════
+
+    internal static class CSharpBaselines
+    {
+        // ── Hand-written (C# compiler compiled — theoretical ceiling) ──
+
+        public static readonly Func<float> Simple = () => 1f + 2f * 3f;
+
+        public static readonly Func<float> Complex =
+            () => (1.5f + 2.5f) * (3f - 1f) / 2f + 5f * 3f;
+
+        public static readonly Func<float, float, float, float> ThreeVars =
+            (a, b, c) => a * b + c;
+
+        public static readonly Func<float, float, float> RpgDamage =
+            (atk, bonus) => atk + bonus * 2f;
+
+        public static readonly Func<float, float, float, float> ArmorReduction =
+            (hp, dmg, armor) => hp - dmg * (1f - armor / (armor + 100f));
+
+        // ── Expression-tree built (same mechanism as Flux JIT) ──
+
+        public static readonly Func<float> ExprSimple = BuildExprSimple();
+        public static readonly Func<float> ExprComplex = BuildExprComplex();
+        public static readonly Func<float, float, float, float> ExprThreeVars = BuildExprThreeVars();
+
+        private static Func<float> BuildExprSimple()
+        {
+            // 1 + 2 * 3
+            var body = LinqExpr.Add(
+                LinqExpr.Constant(1f),
+                LinqExpr.Multiply(LinqExpr.Constant(2f), LinqExpr.Constant(3f)));
+            return LinqExpr.Lambda<Func<float>>(body).Compile();
+        }
+
+        private static Func<float> BuildExprComplex()
+        {
+            // (1.5 + 2.5) * (3 - 1) / 2 + 5 * 3
+            var body = LinqExpr.Add(
+                LinqExpr.Divide(
+                    LinqExpr.Multiply(
+                        LinqExpr.Add(LinqExpr.Constant(1.5f), LinqExpr.Constant(2.5f)),
+                        LinqExpr.Subtract(LinqExpr.Constant(3f), LinqExpr.Constant(1f))),
+                    LinqExpr.Constant(2f)),
+                LinqExpr.Multiply(LinqExpr.Constant(5f), LinqExpr.Constant(3f)));
+            return LinqExpr.Lambda<Func<float>>(body).Compile();
+        }
+
+        private static Func<float, float, float, float> BuildExprThreeVars()
+        {
+            var a = LinqExpr.Parameter(typeof(float), "a");
+            var b = LinqExpr.Parameter(typeof(float), "b");
+            var c = LinqExpr.Parameter(typeof(float), "c");
+            var body = LinqExpr.Add(LinqExpr.Multiply(a, b), c);
+            return LinqExpr.Lambda<Func<float, float, float, float>>(body, a, b, c).Compile();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Lua Helper — NLua state management
+    // ═══════════════════════════════════════════════════════════════
+
+    internal static class LuaBenchHelper
+    {
+        /// <summary>Set by static constructor; false if lua54.dll is missing.</summary>
+        public static readonly bool IsAvailable;
+
+        static LuaBenchHelper()
+        {
+            try
+            {
+                using var lua = new Lua();
+                lua.DoString("return 1");
+                IsAvailable = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[LuaBenchHelper] Lua 5.4 not available: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine("[LuaBenchHelper] Lua benchmarks will be skipped (results show 0).");
+                IsAvailable = false;
+            }
+        }
+
+        /// <summary>
+        /// Load an IIFE chunk like "return function(a,b) return a + b end"
+        /// and return the compiled LuaFunction.
+        /// </summary>
+        public static LuaFunction CompileFunction(Lua lua, string source, string chunkName)
+        {
+            var chunk = lua.LoadString(source, chunkName);
+            var results = chunk.Call();
+            return (LuaFunction)results[0];
+        }
+
+        /// <summary>
+        /// Convert Lua's return value (may be Int64, Double, etc.) to float.
+        /// Lua 5.4 has separate integer/float types — LLua uses Int64 for integers.
+        /// </summary>
+        private static float ToFloat(object value)
+        {
+            return value switch
+            {
+                double d => (float)d,
+                long l => (float)l,
+                int i => (float)i,
+                float f => f,
+                _ => Convert.ToSingle(value),
+            };
+        }
+
+        /// <summary>
+        /// Call a LuaFunction with float args, returning float.
+        /// </summary>
+        public static float CallFloat(LuaFunction func, params float[] args)
+        {
+            var objArgs = new object[args.Length];
+            for (int i = 0; i < args.Length; i++)
+                objArgs[i] = (double)args[i];
+            var result = func.Call(objArgs);
+            return ToFloat(result[0]);
+        }
+
+        /// <summary>
+        /// Execute a Lua chunk that directly returns a value (no IIFE wrapper).
+        /// </summary>
+        public static float DoFloat(Lua lua, string source, string chunkName)
+        {
+            var result = lua.DoString(source, chunkName);
+            return ToFloat(result[0]);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Pre-Benchmark Correctness Verification
+    // ═══════════════════════════════════════════════════════════════
+
+    internal static class CrossSystemVerify
+    {
+        public static bool VerifyAll()
+        {
+            Console.WriteLine("=== Cross-System Correctness Verification ===");
+            bool allPass = true;
+
+            foreach (var entry in FormulaCatalog.All)
+            {
+                Console.Write($"  {entry.Name}: ");
+                bool pass = true;
+
+                float fluxResult = EvalFlux(entry);
+                pass &= Check("Flux", fluxResult, entry.ExpectedResult, ref allPass);
+
+                float csResult = EvalCSharp(entry);
+                pass &= Check("C#", csResult, entry.ExpectedResult, ref allPass);
+
+                if (LuaBenchHelper.IsAvailable)
+                {
+                    float luaResult = EvalLua(entry);
+                    pass &= Check("Lua", luaResult, entry.ExpectedResult, ref allPass);
+                }
+                else Console.Write("Lua=N/A ");
+
+                // NCalc is always available (pure managed)
+                float ncResult = EvalNCalc(entry);
+                pass &= Check("NCalc", ncResult, entry.ExpectedResult, ref allPass);
+
+                Console.WriteLine(pass ? "OK" : "FAIL");
+            }
+
+            Console.WriteLine(allPass ? "All verified OK." : "SOME VERIFICATIONS FAILED!");
+            return allPass;
+        }
+
+        const float Tol = 1e-4f;
+
+        static bool Check(string label, float actual, float expected, ref bool all)
+        {
+            bool ok = Math.Abs(actual - expected) < Tol;
+            Console.Write($"{label}={actual:F4} ");
+            if (!ok) all = false;
+            return ok;
+        }
+
+        static float EvalFlux(FormulaCatalog.Entry e)
+        {
+            var lexer = e.VarNames.Length > 0 ? CreateVarLexer("[", "]") : CreateMathLexer();
+            var lexResult = lexer.Lex(e.FluxText);
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+            var formula = a.Compile(lexResult);
+            var inst = a.Instantiate(formula, jit: true);
+            for (int i = 0; i < e.VarNames.Length; i++)
+                inst = inst.Set(e.VarNames[i], e.VarValues[i]);
+            return inst.Run();
+        }
+
+        static float EvalCSharp(FormulaCatalog.Entry e)
+        {
+            return e.Name switch
+            {
+                "SimpleArith"    => CSharpBaselines.Simple(),
+                "ComplexArith"   => CSharpBaselines.Complex(),
+                "ThreeVars"      => CSharpBaselines.ThreeVars(e.VarValues[0], e.VarValues[1], e.VarValues[2]),
+                "RpgDamage"      => CSharpBaselines.RpgDamage(e.VarValues[0], e.VarValues[1]),
+                "ArmorReduction" => CSharpBaselines.ArmorReduction(e.VarValues[0], e.VarValues[1], e.VarValues[2]),
+                _                => float.NaN,
+            };
+        }
+
+        static float EvalNCalc(FormulaCatalog.Entry e)
+        {
+            var expr = new NCalcExpr(e.NCalcText);
+            for (int i = 0; i < e.VarNames.Length; i++)
+                expr.Parameters[e.VarNames[i]] = e.VarValues[i];
+            return expr.ToLambda<float>()();
+        }
+
+        static float EvalLua(FormulaCatalog.Entry e)
+        {
+            using var lua = new Lua();
+            if (e.VarNames.Length == 0)
+                return LuaBenchHelper.DoFloat(lua, e.LuaText, e.Name);
+            var func = LuaBenchHelper.CompileFunction(lua, e.LuaText, e.Name);
+            return LuaBenchHelper.CallFloat(func, e.VarValues);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 1. Compile-Only Benchmarks
+    //    Measures parse + build-IR cost (no execution).
+    // ═══════════════════════════════════════════════════════════════
+
+    [ShortRunJob]
+    [MemoryDiagnoser]
+    public class CrossSystemCompileBenchmarks
+    {
+        private FloatMathDef _def;
+        private FluxLexer<float, FloatOp> _mathLexer;
+        private FluxLexer<float, FloatOp> _varLexer;
+
+        // Lua state reused for Lua compile benchmarks (compile, not execute)
+        private Lua _lua;
+        private bool _luaOk;
+
+        [GlobalSetup]
+        public void Setup()
+        {
+            _def = Def;
+            _mathLexer = CreateMathLexer();
+            _varLexer = CreateVarLexer("[", "]");
+
+            _luaOk = LuaBenchHelper.IsAvailable;
+            if (_luaOk) _lua = new Lua();
+        }
+
+        [GlobalCleanup]
+        public void Cleanup()
+        {
+            _lua?.Dispose();
+        }
+
+        // ── FluxFormula ────────────────────────────
+
+        [Benchmark(Baseline = true)]
+        public FluxFormula<float, FloatOp> Flux_Simple()
+        {
+            var tokens = _mathLexer.Lex("1 + 2 * 3").Tokens;
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            return a.Compile(tokens);
+        }
+
+        [Benchmark]
+        public FluxFormula<float, FloatOp> Flux_Complex()
+        {
+            var tokens = _mathLexer.Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").Tokens;
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            return a.Compile(tokens);
+        }
+
+        [Benchmark]
+        public FluxFormula<float, FloatOp> Flux_WithVars()
+        {
+            var lex = _varLexer.Lex("[a] * [b] + [c]");
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            return a.Compile(lex);
+        }
+
+        // ── NCalc ───────────────────────────────────
+
+        [Benchmark]
+        public NCalcExpr NCalc_SimpleParse()
+        {
+            return new NCalcExpr("1 + 2 * 3");
+        }
+
+        [Benchmark]
+        public NCalcExpr NCalc_ComplexParse()
+        {
+            return new NCalcExpr("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3");
+        }
+
+        [Benchmark]
+        public Func<float> NCalc_SimpleCompile()
+        {
+            return new NCalcExpr("1 + 2 * 3").ToLambda<float>();
+        }
+
+        [Benchmark]
+        public Func<float> NCalc_ComplexCompile()
+        {
+            return new NCalcExpr("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").ToLambda<float>();
+        }
+
+        [Benchmark]
+        public Func<float> NCalc_WithVarsCompile()
+        {
+            var expr = new NCalcExpr("[a] * [b] + [c]");
+            expr.Parameters["a"] = 0f;
+            expr.Parameters["b"] = 0f;
+            expr.Parameters["c"] = 0f;
+            return expr.ToLambda<float>();
+        }
+
+        // ── Lua 5.4 ─────────────────────────────────
+
+        [Benchmark]
+        public object[] Lua_SimpleLoad()
+        {
+            return _luaOk ? _lua.DoString("return 1 + 2 * 3", "simple") : null;
+        }
+
+        [Benchmark]
+        public object[] Lua_ComplexLoad()
+        {
+            return _luaOk ? _lua.DoString("return (1.5 + 2.5) * (3 - 1) / 2 + 5 * 3", "complex") : null;
+        }
+
+        [Benchmark]
+        public LuaFunction Lua_WithVarsCompile()
+        {
+            if (!_luaOk) return null;
+            return LuaBenchHelper.CompileFunction(_lua,
+                "return function(a, b, c) return a * b + c end", "threevars");
+        }
+
+        // ── C# Expression.Compile (fair Flux JIT comparison) ──
+
+        [Benchmark]
+        public Func<float> CSharpExpr_SimpleCompile()
+        {
+            // Fresh Expression.Lambda.Compile each call — fair comparison to Flux JIT
+            var c1 = LinqExpr.Constant(1f);
+            var c2 = LinqExpr.Constant(2f);
+            var c3 = LinqExpr.Constant(3f);
+            var body = LinqExpr.Add(c1, LinqExpr.Multiply(c2, c3));
+            return LinqExpr.Lambda<Func<float>>(body).Compile();
+        }
+
+        [Benchmark]
+        public Func<float> CSharpExpr_ComplexCompile()
+        {
+            var body = LinqExpr.Add(
+                LinqExpr.Divide(
+                    LinqExpr.Multiply(
+                        LinqExpr.Add(LinqExpr.Constant(1.5f), LinqExpr.Constant(2.5f)),
+                        LinqExpr.Subtract(LinqExpr.Constant(3f), LinqExpr.Constant(1f))),
+                    LinqExpr.Constant(2f)),
+                LinqExpr.Multiply(LinqExpr.Constant(5f), LinqExpr.Constant(3f)));
+            return LinqExpr.Lambda<Func<float>>(body).Compile();
+        }
+
+        [Benchmark]
+        public Func<float, float, float, float> CSharpExpr_WithVarsCompile()
+        {
+            var a = LinqExpr.Parameter(typeof(float), "a");
+            var b = LinqExpr.Parameter(typeof(float), "b");
+            var c = LinqExpr.Parameter(typeof(float), "c");
+            var body = LinqExpr.Add(LinqExpr.Multiply(a, b), c);
+            return LinqExpr.Lambda<Func<float, float, float, float>>(body, a, b, c).Compile();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 2. Hot-Path Execution Benchmarks
+    //    All compilation in [GlobalSetup]; benchmark measures pure execution.
+    // ═══════════════════════════════════════════════════════════════
+
+    [ShortRunJob]
+    [MemoryDiagnoser]
+    public class CrossSystemHotPathBenchmarks
+    {
+        // ── Flux Interpreter ──
+        private Instruction[] _fluxSimpleBuf;
+        private int _fluxSimpleCount;
+        private Instruction[] _fluxComplexBuf;
+        private int _fluxComplexCount;
+        private FloatMathDef _def;
+
+        // ── Flux JIT ──
+        private FluxJITCompiler<float, FloatOp, FloatMathDef>.CompiledFunc _fluxJitSimple;
+        private FluxJITCompiler<float, FloatOp, FloatMathDef>.CompiledFunc _fluxJitComplex;
+        private Instruction[] _fluxJitSimplePayload;
+        private Instruction[] _fluxJitComplexPayload;
+
+        // ── Flux Interp with vars (pre-injected) ──
+        private Instruction[] _fluxVarBuf;
+        private int _fluxVarCount;
+
+        // ── Flux JIT with vars (pre-injected) ──
+        private FluxJITCompiler<float, FloatOp, FloatMathDef>.CompiledFunc _fluxJitVars;
+        private Instruction[] _fluxJitVarsPayload;
+
+        // ── NCalc ──
+        private Func<float> _ncalcSimple;
+        private Func<float> _ncalcComplex;
+        private Func<float> _ncalcVars;
+        private NCalcExpr _ncalcVarsExpr; // for parameter mutation
+
+        // ── Lua ──
+        private Lua _lua;
+        private bool _luaOk;
+        private LuaFunction _luaSimpleFunc;
+        private LuaFunction _luaComplexFunc;
+        private LuaFunction _luaVarsFunc;
+
+        // ── C# ──
+        // (hand-written delegates already in CSharpBaselines — accessed directly)
+
+        [GlobalSetup]
+        public unsafe void Setup()
+        {
+            _def = Def;
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+
+            // ── Flux setup ──
+            var fSimple  = a.Compile(CreateMathLexer().Lex("1 + 2 * 3").Tokens);
+            var fComplex = a.Compile(CreateMathLexer().Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").Tokens);
+            var fVars    = a.Compile(CreateVarLexer("[", "]").Lex("[a] * [b] + [c]"));
+
+            // Interpreter buffers (pre-injected)
+            var instIS = a.Instantiate(fSimple, jit: false);
+            _fluxSimpleBuf = instIS.GetBuffer();
+            _fluxSimpleCount = fSimple.Count;
+
+            var instIC = a.Instantiate(fComplex, jit: false);
+            _fluxComplexBuf = instIC.GetBuffer();
+            _fluxComplexCount = fComplex.Count;
+
+            var instIV = a.Instantiate(fVars, jit: false)
+                .Set("a", 2f).Set("b", 3f).Set("c", 1f);
+            _fluxVarBuf = instIV.GetBuffer();
+            _fluxVarCount = fVars.Count;
+
+            // JIT delegates (pre-compiled, pre-injected)
+            _fluxJitSimple = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+                fSimple.Raw(), _def, out _fluxJitSimplePayload);
+
+            _fluxJitComplex = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+                fComplex.Raw(), _def, out _fluxJitComplexPayload);
+
+            // JIT vars: inject values into payload
+            _fluxJitVars = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+                fVars.Raw(), _def, out _fluxJitVarsPayload);
+            var injector = new FluxInjector<float>(_fluxJitVarsPayload, null, fVars.VariableSlots);
+            injector.Set("a", 2f).Set("b", 3f).Set("c", 1f);
+            _fluxJitVarsPayload = injector.GetBuffer();
+
+            // ── NCalc setup ──
+            _ncalcSimple = new NCalcExpr("1 + 2 * 3").ToLambda<float>();
+
+            _ncalcComplex = new NCalcExpr("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").ToLambda<float>();
+
+            _ncalcVarsExpr = new NCalcExpr("[a] * [b] + [c]");
+            _ncalcVarsExpr.Parameters["a"] = 2f;
+            _ncalcVarsExpr.Parameters["b"] = 3f;
+            _ncalcVarsExpr.Parameters["c"] = 1f;
+            _ncalcVars = _ncalcVarsExpr.ToLambda<float>();
+
+            // ── Lua setup ──
+            _luaOk = LuaBenchHelper.IsAvailable;
+            if (_luaOk)
+            {
+                _lua = new Lua();
+
+                // Simple/Complex: wrap in function for fair comparison
+                var chunkSimple = _lua.LoadString("return function() return 1 + 2 * 3 end", "s");
+                _luaSimpleFunc = (LuaFunction)((object[])chunkSimple.Call())[0];
+
+                var chunkComplex = _lua.LoadString(
+                    "return function() return (1.5 + 2.5) * (3 - 1) / 2 + 5 * 3 end", "c");
+                _luaComplexFunc = (LuaFunction)((object[])chunkComplex.Call())[0];
+
+                var chunkVars = _lua.LoadString(
+                    "return function(a, b, c) return a * b + c end", "v");
+                _luaVarsFunc = (LuaFunction)((object[])chunkVars.Call())[0];
+            }
+        }
+
+        [GlobalCleanup]
+        public void Cleanup() => _lua?.Dispose();
+
+        // ── Flux Interpreter ────────────────────────
+
+        [Benchmark(Baseline = true)]
+        public float FluxInterp_Simple()
+        {
+            var eval = new FluxEvaluator<float, FloatOp, FloatMathDef>(_def);
+            return eval.Compute(_fluxSimpleBuf.AsSpan(0, _fluxSimpleCount));
+        }
+
+        [Benchmark]
+        public float FluxInterp_Complex()
+        {
+            var eval = new FluxEvaluator<float, FloatOp, FloatMathDef>(_def);
+            return eval.Compute(_fluxComplexBuf.AsSpan(0, _fluxComplexCount));
+        }
+
+        [Benchmark]
+        public float FluxInterp_Vars()
+        {
+            var eval = new FluxEvaluator<float, FloatOp, FloatMathDef>(_def);
+            return eval.Compute(_fluxVarBuf.AsSpan(0, _fluxVarCount));
+        }
+
+        // ── Flux JIT ────────────────────────────────
+
+        [Benchmark]
+        public float FluxJit_Simple() => _fluxJitSimple(_fluxJitSimplePayload);
+
+        [Benchmark]
+        public float FluxJit_Complex() => _fluxJitComplex(_fluxJitComplexPayload);
+
+        [Benchmark]
+        public float FluxJit_Vars() => _fluxJitVars(_fluxJitVarsPayload);
+
+        // ── NCalc Lambda (pre-compiled) ─────────────
+
+        [Benchmark]
+        public float NCalc_Simple() => _ncalcSimple();
+
+        [Benchmark]
+        public float NCalc_Complex() => _ncalcComplex();
+
+        [Benchmark]
+        public float NCalc_Vars() => _ncalcVars();
+
+        // ── Lua 5.4 Function Call ───────────────────
+
+        [Benchmark]
+        public float Lua_Simple()
+        {
+            if (!_luaOk) return 0f;
+            return Convert.ToSingle(((object[])_luaSimpleFunc.Call())[0]);
+        }
+
+        [Benchmark]
+        public float Lua_Complex()
+        {
+            if (!_luaOk) return 0f;
+            return Convert.ToSingle(((object[])_luaComplexFunc.Call())[0]);
+        }
+
+        [Benchmark]
+        public float Lua_Vars()
+        {
+            if (!_luaOk) return 0f;
+            return Convert.ToSingle(((object[])_luaVarsFunc.Call(2.0, 3.0, 1.0))[0]);
+        }
+
+        // ── C# Raw (theoretical max) ────────────────
+
+        [Benchmark]
+        public float CSharp_Simple() => CSharpBaselines.Simple();
+
+        [Benchmark]
+        public float CSharp_Complex() => CSharpBaselines.Complex();
+
+        [Benchmark]
+        public float CSharp_Vars() => CSharpBaselines.ThreeVars(2f, 3f, 1f);
+
+        // ── C# Expression.Compile (fair FluxJIT comparison) ──
+
+        [Benchmark]
+        public float CSharpExpr_Simple() => CSharpBaselines.ExprSimple();
+
+        [Benchmark]
+        public float CSharpExpr_Vars() => CSharpBaselines.ExprThreeVars(2f, 3f, 1f);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 3. Cold-Start Benchmarks
+    //    Full end-to-end pipeline: parse + compile + execute.
+    //    Every iteration creates fresh state (simulates game load).
+    // ═══════════════════════════════════════════════════════════════
+
+    [ShortRunJob]
+    [MemoryDiagnoser]
+    public class CrossSystemColdStartBenchmarks
+    {
+        private FloatMathDef _def;
+        private FluxLexer<float, FloatOp> _mathLexer;
+        private FluxLexer<float, FloatOp> _varLexer;
+        private bool _luaOk;
+
+        [GlobalSetup]
+        public void Setup()
+        {
+            _def = Def;
+            _mathLexer = CreateMathLexer();
+            _varLexer = CreateVarLexer("[", "]");
+            _luaOk = LuaBenchHelper.IsAvailable;
+        }
+
+        // ── FluxFormula ────────────────────────────
+
+        [Benchmark(Baseline = true)]
+        public float Flux_Simple()
+        {
+            var tokens = _mathLexer.Lex("1 + 2 * 3").Tokens;
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            return a.Build(tokens, jit: true).Run();
+        }
+
+        [Benchmark]
+        public float Flux_Complex()
+        {
+            var tokens = _mathLexer.Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").Tokens;
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            return a.Build(tokens, jit: true).Run();
+        }
+
+        [Benchmark]
+        public float Flux_Vars()
+        {
+            var lexResult = _varLexer.Lex("[a] * [b] + [c]");
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var f = a.Compile(lexResult);
+            return a.Instantiate(f, jit: true)
+                .Set("a", 2f).Set("b", 3f).Set("c", 1f).Run();
+        }
+
+        // ── NCalc ───────────────────────────────────
+
+        [Benchmark]
+        public float NCalc_Simple()
+        {
+            return new NCalcExpr("1 + 2 * 3").ToLambda<float>()();
+        }
+
+        [Benchmark]
+        public float NCalc_Complex()
+        {
+            return new NCalcExpr("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").ToLambda<float>()();
+        }
+
+        [Benchmark]
+        public float NCalc_Vars()
+        {
+            var expr = new NCalcExpr("[a] * [b] + [c]");
+            expr.Parameters["a"] = 2f;
+            expr.Parameters["b"] = 3f;
+            expr.Parameters["c"] = 1f;
+            return expr.ToLambda<float>()();
+        }
+
+        // ── Lua 5.4 ─────────────────────────────────
+
+        [Benchmark]
+        public float Lua_Simple()
+        {
+            if (!_luaOk) return 0f;
+            using var lua = new Lua();
+            return LuaBenchHelper.DoFloat(lua, "return 1 + 2 * 3", "s");
+        }
+
+        [Benchmark]
+        public float Lua_Complex()
+        {
+            if (!_luaOk) return 0f;
+            using var lua = new Lua();
+            return LuaBenchHelper.DoFloat(lua,
+                "return (1.5 + 2.5) * (3 - 1) / 2 + 5 * 3", "c");
+        }
+
+        [Benchmark]
+        public float Lua_Vars()
+        {
+            if (!_luaOk) return 0f;
+            using var lua = new Lua();
+            var func = LuaBenchHelper.CompileFunction(lua,
+                "return function(a, b, c) return a * b + c end", "v");
+            return LuaBenchHelper.CallFloat(func, 2f, 3f, 1f);
+        }
+
+        // ── C# Expression.Compile (fresh each time) ──
+
+        [Benchmark]
+        public float CSharpExpr_Simple()
+        {
+            var body = LinqExpr.Add(
+                LinqExpr.Constant(1f),
+                LinqExpr.Multiply(LinqExpr.Constant(2f), LinqExpr.Constant(3f)));
+            var fn = LinqExpr.Lambda<Func<float>>(body).Compile();
+            return fn();
+        }
+
+        [Benchmark]
+        public float CSharpExpr_Vars()
+        {
+            var a = LinqExpr.Parameter(typeof(float), "a");
+            var b = LinqExpr.Parameter(typeof(float), "b");
+            var c = LinqExpr.Parameter(typeof(float), "c");
+            var body = LinqExpr.Add(LinqExpr.Multiply(a, b), c);
+            var fn = LinqExpr.Lambda<Func<float, float, float, float>>(body, a, b, c).Compile();
+            return fn(2f, 3f, 1f);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 4. Variable Injection + Run Benchmarks
+    //    Game-loop pattern: re-inject variables, re-execute.
+    //    Compilation happens ONCE in [GlobalSetup].
+    // ═══════════════════════════════════════════════════════════════
+
+    [ShortRunJob]
+    [MemoryDiagnoser]
+    public class CrossSystemInjectionBenchmarks
+    {
+        private FloatMathDef _def;
+        private FluxFormula<float, FloatOp> _formula;
+
+        // JIT pre-compiled
+        private FluxJITCompiler<float, FloatOp, FloatMathDef>.CompiledFunc _jitFunc;
+        private Instruction[] _jitPayloadTemplate;
+        private VariableSlot[] _varSlots;
+
+        // NCalc
+        private NCalcExpr _ncalcExpr;
+
+        // Lua
+        private Lua _lua;
+        private bool _luaOk;
+        private LuaFunction _luaFunc;
+
+        [GlobalSetup]
+        public void Setup()
+        {
+            _def = Def;
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var lexResult = CreateVarLexer("[", "]").Lex("[a] * [b] + [c]");
+            _formula = a.Compile(lexResult);
+            _varSlots = _formula.VariableSlots;
+
+            // JIT compile once
+            _jitFunc = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+                _formula.Raw(), _def, out _jitPayloadTemplate);
+
+            // NCalc compile once
+            _ncalcExpr = new NCalcExpr("[a] * [b] + [c]");
+            _ncalcExpr.Parameters["a"] = 0f;
+            _ncalcExpr.Parameters["b"] = 0f;
+            _ncalcExpr.Parameters["c"] = 0f;
+
+            // Lua compile once
+            _luaOk = LuaBenchHelper.IsAvailable;
+            if (_luaOk)
+            {
+                _lua = new Lua();
+                _luaFunc = LuaBenchHelper.CompileFunction(_lua,
+                    "return function(a, b, c) return a * b + c end", "inject");
+            }
+        }
+
+        [GlobalCleanup]
+        public void Cleanup() => _lua?.Dispose();
+
+        // ── Flux Interpreter ────────────────────────
+
+        [Benchmark(Baseline = true)]
+        public float FluxInterp_SetByIndex()
+        {
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var inst = a.Instantiate(_formula, jit: false);
+            return inst.SetIndex(0, 2f).SetIndex(1, 3f).SetIndex(2, 1f).Run();
+        }
+
+        [Benchmark]
+        public float FluxInterp_SetByName()
+        {
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var inst = a.Instantiate(_formula, jit: false);
+            return inst.Set("a", 2f).Set("b", 3f).Set("c", 1f).Run();
+        }
+
+        // ── Flux JIT ────────────────────────────────
+
+        [Benchmark]
+        public float FluxJit_SetByIndex()
+        {
+            var payload = new Instruction[_jitPayloadTemplate.Length];
+            Array.Copy(_jitPayloadTemplate, payload, _jitPayloadTemplate.Length);
+            var injector = new FluxInjector<float>(payload, null, _varSlots);
+            injector.SetIndex(0, 2f).SetIndex(1, 3f).SetIndex(2, 1f);
+            return _jitFunc(injector.GetBuffer());
+        }
+
+        [Benchmark]
+        public float FluxJit_SetByName()
+        {
+            var payload = new Instruction[_jitPayloadTemplate.Length];
+            Array.Copy(_jitPayloadTemplate, payload, _jitPayloadTemplate.Length);
+            var injector = new FluxInjector<float>(payload, null, _varSlots);
+            injector.Set("a", 2f).Set("b", 3f).Set("c", 1f);
+            return _jitFunc(injector.GetBuffer());
+        }
+
+        // ── NCalc (update params + invoke pre-compiled lambda) ──
+
+        [Benchmark]
+        public float NCalc_UpdateParams()
+        {
+            _ncalcExpr.Parameters["a"] = 2f;
+            _ncalcExpr.Parameters["b"] = 3f;
+            _ncalcExpr.Parameters["c"] = 1f;
+            // Re-compile is NOT done here; we measure param update + invoke
+            // ToLambda caches internally when called repeatedly on same expr
+            return _ncalcExpr.ToLambda<float>()();
+        }
+
+        [Benchmark]
+        public float NCalc_UpdateParamsCached()
+        {
+            // Same as above but with pre-cached lambda
+            _ncalcExpr.Parameters["a"] = 2f;
+            _ncalcExpr.Parameters["b"] = 3f;
+            _ncalcExpr.Parameters["c"] = 1f;
+            return _ncalcExpr.ToLambda<float>()();
+        }
+
+        // ── Lua ─────────────────────────────────────
+
+        [Benchmark]
+        public float Lua_CallWithArgs()
+        {
+            if (!_luaOk) return 0f;
+            return LuaBenchHelper.CallFloat(_luaFunc, 2f, 3f, 1f);
+        }
+
+        // ── C# Direct Call ──────────────────────────
+
+        [Benchmark]
+        public float CSharp_DirectCall()
+        {
+            return CSharpBaselines.ThreeVars(2f, 3f, 1f);
+        }
+
+        [Benchmark]
+        public float CSharpExpr_DirectCall()
+        {
+            return CSharpBaselines.ExprThreeVars(2f, 3f, 1f);
+        }
+    }
+}

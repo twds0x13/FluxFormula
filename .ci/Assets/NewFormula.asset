@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3068dc270d1b9ea47959d9ce10215339, type: 3}
+  m_Name: NewFormula
+  m_EditorClassIdentifier: 
+  _rawData: 1200000001060000000200000000020000000000000000000000000000000300000000000000000000000000000201020300000000000400000000000000004040000000000301010400000000000500000000000000008642000000000201010500000000000600000000000000a9df47000000000101010600000000000700000000000039f4ae4900000000020101070000000008010000000000000300000061746b000000000300000064656601000000
+  _typeId: FloatMathDef, FluxFormula.Tests, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  _formatVersion: 1.0.0
+  _source: ( [atk] - [def] ) * 3 - 67 + 114514 - 1433223.111
+  _variablePatterns:
+  - Prefix: '['
+    Suffix: ']'

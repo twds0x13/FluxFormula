@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Discussions
+    url: https://github.com/twds0x13/FluxFormula/discussions
+    about: Use GitHub Discussions for Q&A, ideas, and general conversation.
+  - name: Documentation
+    url: https://twds0x13.github.io/FluxFormula/
+    about: Read the docs before opening an issue — most usage questions are answered there.

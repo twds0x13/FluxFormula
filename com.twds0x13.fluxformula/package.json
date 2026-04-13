@@ -1,0 +1,29 @@
+{
+  "name": "com.twds0x13.fluxformula",
+  "displayName": "FluxFormula",
+  "version": "1.3.2",
+  "author": {
+    "name": "Twds0x13",
+    "url": "https://github.com/twds0x13"
+  },
+  "unity": "2021.3",
+  "description": "High-performance, Zero-GC linear formula pipeline for Unity.",
+  "keywords": [
+    "flux",
+    "formula",
+    "pipeline",
+    "FluxFormula"
+  ],
+  "license": "MIT",
+  "documentationUrl": "https://twds0x13.github.io/FluxFormula/",
+  "samples": [
+    {
+      "displayName": "FloatMath",
+      "description": "Basic floating-point arithmetic (add, sub, mul, div, negate) with lexer and direct token construction.",
+      "path": "Samples~/FloatMath"
+    }
+  ],
+  "testAssemblies": [
+    "FluxFormula.Tests"
+  ]
+}

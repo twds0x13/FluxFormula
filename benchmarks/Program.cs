@@ -1,0 +1,254 @@
+using System;
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Running;
+using FluxFormula.Compiler;
+using FluxFormula.Core;
+using static TestHelper;
+
+namespace FluxFormula.Benchmarks
+{
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            BenchmarkSwitcher.FromTypes(new[]
+            {
+                typeof(LexerBenchmarks),
+                typeof(CompileBenchmarks),
+                typeof(InterpreterBenchmarks),
+                typeof(JitBenchmarks),
+                typeof(InjectionBenchmarks),
+            }).Run(args);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Lexer（一次性 setup 操作，直接测）
+    // ═══════════════════════════════════════════════════════════════
+
+    [ShortRunJob]
+    [MemoryDiagnoser]
+    public class LexerBenchmarks
+    {
+        private FluxLexer<float, FloatOp> _mathLexer;
+        private FluxLexer<float, FloatOp> _varLexer;
+        private FluxLexer<float, FloatOp> _implicitMulLexer;
+
+        [GlobalSetup]
+        public void Setup()
+        {
+            _mathLexer       = CreateMathLexer();
+            _varLexer        = CreateVarLexer("[", "]");
+            _implicitMulLexer = CreateImplicitMulLexer();
+        }
+
+        [Benchmark] public void Simple()          => _mathLexer.Lex("1 + 2 * 3");
+        [Benchmark] public void Complex()         => _mathLexer.Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3");
+        [Benchmark] public void WithVariables()   => _varLexer.Lex("[atk] * (1 + [crit_rate]) - [target_def]");
+        [Benchmark] public void ImplicitMul()     => _implicitMulLexer.Lex("2(3+4) + (1+2)(3+4)");
+        [Benchmark] public void ManyTokens()      => _mathLexer.Lex("1+2+3+4+5+6+7+8+9+10+11+12+13+14+15");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 编译（一次性 setup 操作，直接测）
+    // ═══════════════════════════════════════════════════════════════
+
+    [ShortRunJob]
+    [MemoryDiagnoser]
+    public class CompileBenchmarks
+    {
+        private FluxToken<float, FloatOp>[] _simple;
+        private FluxToken<float, FloatOp>[] _complex;
+        private LexResult<float, FloatOp> _withVars;
+        private FloatMathDef _def;
+
+        [GlobalSetup]
+        public void Setup()
+        {
+            _def      = Def;
+            _simple   = CreateMathLexer().Lex("1 + 2 * 3").Tokens;
+            _complex  = CreateMathLexer().Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").Tokens;
+            _withVars = CreateVarLexer("[", "]").Lex("[a] * [b] + [c] - [d]");
+        }
+
+        [Benchmark]
+        public FluxFormula<float, FloatOp> Simple()
+        {
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            return a.Compile(_simple);
+        }
+
+        [Benchmark]
+        public FluxFormula<float, FloatOp> Complex()
+        {
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            return a.Compile(_complex);
+        }
+
+        [Benchmark]
+        public FluxFormula<float, FloatOp> WithVariables()
+        {
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            return a.Compile(_withVars);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 解释器热路径：纯 Compute()——buffer 在 Setup 中预分配并注入
+    // ═══════════════════════════════════════════════════════════════
+
+    [ShortRunJob]
+    [MemoryDiagnoser]
+    public class InterpreterBenchmarks
+    {
+        private FloatMathDef _def;
+        private Instruction[] _simpleBuf;
+        private Instruction[] _complexBuf;
+        private int _simpleCount;
+        private int _complexCount;
+
+        [GlobalSetup]
+        public void Setup()
+        {
+            _def = Def;
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+
+            // 编译 + 实例化 + 注入 → 全部在 Setup 中完成
+            var fSimple  = a.Compile(CreateMathLexer().Lex("1 + 2 * 3").Tokens);
+            var fComplex = a.Compile(CreateMathLexer().Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").Tokens);
+
+            var instS = a.Instantiate(fSimple, jit: false);
+            var instC = a.Instantiate(fComplex, jit: false);
+
+            // 捕获已注入的 buffer（Instruction[] 是堆对象，生存期不受 ref struct 限制）
+            _simpleBuf   = instS.GetBuffer();
+            _complexBuf  = instC.GetBuffer();
+            _simpleCount = fSimple.Count;
+            _complexCount = fComplex.Count;
+        }
+
+        [Benchmark(Baseline = true)]
+        public float Simple()
+        {
+            var eval = new FluxEvaluator<float, FloatOp, FloatMathDef>(_def);
+            return eval.Compute(_simpleBuf.AsSpan(0, _simpleCount));
+        }
+
+        [Benchmark]
+        public float Complex()
+        {
+            var eval = new FluxEvaluator<float, FloatOp, FloatMathDef>(_def);
+            return eval.Compute(_complexBuf.AsSpan(0, _complexCount));
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // JIT 热路径：纯委托调用——编译 + 注入在 Setup 中完成
+    // ═══════════════════════════════════════════════════════════════
+
+    [ShortRunJob]
+    [MemoryDiagnoser]
+    public class JitBenchmarks
+    {
+        private FluxJITCompiler<float, FloatOp, FloatMathDef>.CompiledFunc _jitSimple;
+        private FluxJITCompiler<float, FloatOp, FloatMathDef>.CompiledFunc _jitComplex;
+        private Instruction[] _simplePayload;
+        private Instruction[] _complexPayload;
+
+        [GlobalSetup]
+        public void Setup()
+        {
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+
+            var fSimple  = a.Compile(CreateMathLexer().Lex("1 + 2 * 3").Tokens);
+            var fComplex = a.Compile(CreateMathLexer().Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").Tokens);
+
+            _jitSimple  = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+                fSimple.Raw(), Def, out _simplePayload, pruneRegisters: true);
+            _jitComplex = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+                fComplex.Raw(), Def, out _complexPayload, pruneRegisters: true);
+        }
+
+        [Benchmark(Baseline = true)]
+        public float Simple() => _jitSimple(_simplePayload);
+
+        [Benchmark]
+        public float Complex() => _jitComplex(_complexPayload);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 注入 + Run：解释器 vs JIT，SetByIndex vs SetByName
+    // JIT 委托预编译；每轮 copy payload + 注入 + Run
+    // ═══════════════════════════════════════════════════════════════
+
+    [ShortRunJob]
+    [MemoryDiagnoser]
+    public class InjectionBenchmarks
+    {
+        private FloatMathDef _def;
+        private FluxFormula<float, FloatOp> _formula;
+
+        // JIT 预编译缓存
+        private FluxJITCompiler<float, FloatOp, FloatMathDef>.CompiledFunc _jitFunc;
+        private Instruction[] _jitPayloadTemplate;
+        private int _dataSlots;
+
+        [GlobalSetup]
+        public void Setup()
+        {
+            _def     = Def;
+            var a    = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            _formula = a.Compile(CreateVarLexer("[", "]").Lex("[a] + [b] * [c]"));
+
+            // JIT 编译只发生一次
+            _jitFunc = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+                _formula.Raw(), _def, out _jitPayloadTemplate, pruneRegisters: true);
+
+            unsafe { _dataSlots = (sizeof(float) + sizeof(Instruction) - 1) / sizeof(Instruction); }
+        }
+
+        // ── 解释器 ──────────────────────────────
+
+        [Benchmark(Baseline = true)]
+        public float Interp_SetByIndex()
+        {
+            var a    = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var inst = a.Instantiate(_formula, jit: false);
+            return inst.SetIndex(0, 10f).SetIndex(1, 30f).SetIndex(2, 2f).Run();
+        }
+
+        [Benchmark]
+        public float Interp_SetByName()
+        {
+            var a    = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var inst = a.Instantiate(_formula, jit: false);
+            return inst.Set("a", 10f).Set("b", 30f).Set("c", 2f).Run();
+        }
+
+        // ── JIT（委托已预编译，仅测注入 + 调用）──
+
+        [Benchmark]
+        public float Jit_SetByIndex()
+        {
+            // Copy payload（Set 会覆写，不能污染模板）
+            var payload = new Instruction[_jitPayloadTemplate.Length];
+            Array.Copy(_jitPayloadTemplate, payload, _jitPayloadTemplate.Length);
+
+            // 模拟 Instantiate(jit:true) 的 injector 构建（不含 Expression.Compile）
+            var injector = new FluxInjector<float>(payload, null, _formula.VariableSlots);
+            injector.SetIndex(0, 10f).SetIndex(1, 30f).SetIndex(2, 2f);
+            return _jitFunc(injector.GetBuffer());
+        }
+
+        [Benchmark]
+        public float Jit_SetByName()
+        {
+            var payload = new Instruction[_jitPayloadTemplate.Length];
+            Array.Copy(_jitPayloadTemplate, payload, _jitPayloadTemplate.Length);
+
+            var injector = new FluxInjector<float>(payload, null, _formula.VariableSlots);
+            injector.Set("a", 10f).Set("b", 30f).Set("c", 2f);
+            return _jitFunc(injector.GetBuffer());
+        }
+    }
+}
