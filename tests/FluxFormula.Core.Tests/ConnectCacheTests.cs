@@ -84,6 +84,74 @@ public unsafe class ConnectCacheTests
     }
 
     // ═══════════════════════════════════════════════════════
+    // Per-link JIT 求值
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void JitChain_PerLink_ProducesCorrectResult()
+    {
+        ConnectCache.Reset();
+
+        var lexer = CreateMathLexer();
+        var fBase = Compile(lexer, "3 + 4");            // = 7
+        var fMod  = Compile(lexer, "2 * 3").ToMultiplier(); // R1 * 3
+
+        var chain = fBase.Connect(fMod);
+        Assert.That(chain.IsChained, Is.True);
+
+        // JIT per-link: 不合并，逐 link 调用 delegate
+        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var inst = runner.Instantiate(chain, jit: true);
+        float result = inst.Run();
+
+        Assert.That(result, Is.EqualTo(21f).Within(1e-6f)); // (3+4) * 3 = 21
+
+        // 第二次：delegate 缓存命中
+        var inst2 = runner.Instantiate(chain, jit: true);
+        Assert.That(inst2.Run(), Is.EqualTo(21f).Within(1e-6f));
+    }
+
+    [Test]
+    public void JitChain_WithMultipleModifiers_ProducesCorrectResult()
+    {
+        ConnectCache.Reset();
+
+        var lexer = CreateMathLexer();
+        var current = Compile(lexer, "1 + 2"); // = 3
+
+        // 串联 2 个 modifier：乘 3、乘 4
+        current = current.Connect(Compile(lexer, "2 * 3").ToMultiplier());
+        current = current.Connect(Compile(lexer, "5 * 4").ToMultiplier());
+        // 语义: ((3 * 3) * 4) = 36
+
+        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        float result = runner.Instantiate(current, jit: true).Run();
+        Assert.That(result, Is.EqualTo(36f).Within(1e-6f));
+    }
+
+    [Test]
+    public void JitChain_ComparedWithInterpreter_ProducesSameResult()
+    {
+        ConnectCache.Reset();
+
+        var lexer = CreateMathLexer();
+        var fA = Compile(lexer, "10 + 2");
+        var fB = Compile(lexer, "2 * 2").ToMultiplier();
+
+        var chain = fA.Connect(fB);
+        // (10+2) * 2 = 24
+
+        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+
+        float jitResult = runner.Instantiate(chain, jit: true).Run();
+        float intResult = runner.Instantiate(chain, jit: false).Run();
+
+        Assert.That(jitResult, Is.EqualTo(24f).Within(1e-6f));
+        Assert.That(intResult, Is.EqualTo(jitResult).Within(1e-6f),
+            "JIT per-link 和解释器 per-link 应产出一致结果");
+    }
+
+    // ═══════════════════════════════════════════════════════
     // ToAtomic vs per-link 语义一致性（解决 semantic gap）
     // ═══════════════════════════════════════════════════════
 

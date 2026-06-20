@@ -6,7 +6,7 @@ namespace FluxFormula.Core
 {
     /// <summary>
     /// 可执行的公式流式包装器 (Fluent API)。
-    /// 支持原子公式（单次 JIT/解释器求值）和链式公式（per-link 解释器求值）。
+    /// 支持原子公式（单次 JIT/解释器求值）、链式解释器求值、链式 JIT 求值。
     /// </summary>
     public ref struct FluxInstance<TData, TOper, TDef>
         where TData : unmanaged
@@ -20,6 +20,10 @@ namespace FluxFormula.Core
 
         private FluxInjector<TData> _injector;
 
+        // ── 链式 JIT ──
+        private readonly FluxJITCompiler<TData, TOper, TDef>.CompiledFunc[] _chainFuncs;
+        private readonly FluxInjector<TData>[] _chainInjectors;
+
         internal FluxInstance(
             TDef definition,
             FluxFormula<TData, TOper> formula,
@@ -27,11 +31,29 @@ namespace FluxFormula.Core
             FluxJITCompiler<TData, TOper, TDef>.CompiledFunc jitFunc,
             bool isJit)
         {
-            _definition = definition;
-            _formula    = formula;
-            _injector   = injector;
-            _jitFunc    = jitFunc;
-            _isJit      = isJit;
+            _definition     = definition;
+            _formula        = formula;
+            _injector       = injector;
+            _jitFunc        = jitFunc;
+            _isJit          = isJit;
+            _chainFuncs     = null;
+            _chainInjectors = null;
+        }
+
+        internal FluxInstance(
+            TDef definition,
+            FluxFormula<TData, TOper> formula,
+            FluxInjector<TData> mergedInjector,
+            FluxJITCompiler<TData, TOper, TDef>.CompiledFunc[] chainFuncs,
+            FluxInjector<TData>[] chainInjectors)
+        {
+            _definition     = definition;
+            _formula        = formula;
+            _injector       = mergedInjector;
+            _jitFunc        = null;
+            _isJit          = true;
+            _chainFuncs     = chainFuncs;
+            _chainInjectors = chainInjectors;
         }
 
         // ================= 流式数据注入 =================
@@ -57,7 +79,11 @@ namespace FluxFormula.Core
             if (_formula.Type != FluxType.Formula)
                 throw new InvalidOperationException("Modifier cannot run standalone.");
 
-            if (_isJit)
+            if (_chainFuncs != null)
+            {
+                return RunJitChain();
+            }
+            else if (_isJit)
             {
                 return _jitFunc(_injector.GetBuffer());
             }
@@ -70,6 +96,28 @@ namespace FluxFormula.Core
                 var kernel = new FluxEvaluator<TData, TOper, TDef>(_definition);
                 return kernel.Compute(_injector.GetBuffer().AsSpan(0, _formula.Count));
             }
+        }
+
+        /// <summary>
+        /// Per-link JIT 链式求值：逐 link 调用 JIT delegate，通过内部变量注入串联结果。
+        /// Modifier 链路已在 Instantiate 中通过 ToFormula(CHAIN_LINK_INTERNAL_0) 适配。
+        /// </summary>
+        private readonly TData RunJitChain()
+        {
+            TData prevResult = default;
+
+            for (int i = 0; i < _chainFuncs.Length; i++)
+            {
+                var injector = _chainInjectors[i];
+                if (i > 0)
+                {
+                    // 将前一个 link 的输出注入到当前 link 的第一个数据槽位
+                    injector = injector.SetIndex(0, prevResult);
+                }
+                prevResult = _chainFuncs[i](injector.GetBuffer());
+            }
+
+            return prevResult;
         }
 
         /// <summary>
