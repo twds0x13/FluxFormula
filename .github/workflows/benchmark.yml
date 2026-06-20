@@ -39,7 +39,7 @@ jobs:
           dotnet run
           --project benchmarks/benchmarks.csproj
           -c Release
-          --filter *
+          --filter '*'
           --exporters GitHub
 
       - name: Upload results
