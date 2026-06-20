@@ -14,14 +14,16 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "sed -i 's/\"version\":\\s*\"[^\"]*\"/\"version\": \"${nextRelease.version}\"/g' com.twds0x13.fluxformula/package.json"
+        "prepareCmd": "for pkg in packages/fluxformula.core packages/fluxformula packages/fluxformula.addressables; do sed -i 's/\"version\":\\s*\"[^\"]*\"/\"version\": \"${nextRelease.version}\"/g' \"$pkg/package.json\"; done"
       }
     ],
     [
       "@semantic-release/git",
       {
         "assets": [
-          "com.twds0x13.fluxformula/package.json",
+          "packages/fluxformula.core/package.json",
+          "packages/fluxformula/package.json",
+          "packages/fluxformula.addressables/package.json",
           "CHANGELOG.md"
         ],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
