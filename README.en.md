@@ -33,21 +33,43 @@ BenchmarkDotNet on Intel Core Ultra 9 275HX, .NET 9, ShortRun:
 
 One-time compilation cost: ~30–110 ns + a few hundred bytes. Execution: zero allocation. JIT is ~5–11× faster than the interpreter.
 
+## Package Structure
+
+This is a monorepo containing three independent packages:
+
+| Package | Purpose | Dependencies |
+|---------|---------|-------------|
+| `fluxformula.core` | Pure C# formula pipeline (zero Unity dependency) | None |
+| `fluxformula` | Unity integration (ScriptableObject container + editor) | Core |
+| `fluxformula.addressables` | Optional Addressables loading support | Core + FluxFormula + Addressables |
+
 ## Installation
 
-```bash
-# Unity Package Manager → Add package from git URL
-https://github.com/twds0x13/FluxFormula.git?path=/com.twds0x13.fluxformula
-```
-
-Or add to `Packages/manifest.json`:
+**Minimum install (Core runtime only):**
 
 ```json
 {
   "dependencies": {
-    "com.twds0x13.fluxformula": "https://github.com/twds0x13/FluxFormula.git?path=/com.twds0x13.fluxformula"
+    "com.twds0x13.fluxformula.core": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.core"
   }
 }
+```
+
+**Unity users (recommended):**
+
+```json
+{
+  "dependencies": {
+    "com.twds0x13.fluxformula.core": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.core",
+    "com.twds0x13.fluxformula": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula"
+  }
+}
+```
+
+**For Addressables loading, add the third package:**
+
+```json
+"com.twds0x13.fluxformula.addressables": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.addressables"
 ```
 
 Minimum Unity version: 2021.3
