@@ -14,7 +14,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "for pkg in packages/fluxformula.core packages/fluxformula packages/fluxformula.addressables; do sed -i 's/\"version\":\\s*\"[^\"]*\"/\"version\": \"${nextRelease.version}\"/g' \"$pkg/package.json\"; done"
+        "prepareCmd": "for pkg in packages/fluxformula.core packages/fluxformula packages/fluxformula.addressables packages/fluxformula.addressables.unitask; do sed -i 's/\"version\":\\s*\"[^\"]*\"/\"version\": \"${nextRelease.version}\"/g' \"$pkg/package.json\"; done"
       }
     ],
     [
@@ -24,6 +24,7 @@
           "packages/fluxformula.core/package.json",
           "packages/fluxformula/package.json",
           "packages/fluxformula.addressables/package.json",
+          "packages/fluxformula.addressables.unitask/package.json",
           "CHANGELOG.md"
         ],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"

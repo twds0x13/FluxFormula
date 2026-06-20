@@ -1,0 +1,22 @@
+{
+  "name": "com.twds0x13.fluxformula.addressables.unitask",
+  "displayName": "FluxFormula Addressables UniTask",
+  "version": "1.4.0",
+  "author": {
+    "name": "Twds0x13",
+    "url": "https://github.com/twds0x13"
+  },
+  "unity": "2021.3",
+  "description": "UniTask-based async overloads for FluxFormula Addressables loading. Install only if your project uses UniTask — otherwise use the base ValueTask API.",
+  "keywords": [
+    "flux",
+    "formula",
+    "addressables",
+    "unitask"
+  ],
+  "license": "MIT",
+  "documentationUrl": "https://twds0x13.github.io/FluxFormula/",
+  "dependencies": {
+    "com.twds0x13.fluxformula.addressables": "1.4.0"
+  }
+}

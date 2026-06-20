@@ -1,0 +1,24 @@
+{
+    "name": "FluxFormula.Addressables.UniTask",
+    "rootNamespace": "",
+    "references": [
+        "FluxFormula.Core",
+        "FluxFormula.Addressables",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.cysharp.unitask",
+            "expression": "2.0.0",
+            "define": "FLUX_UNITASK"
+        }
+    ],
+    "noEngineReferences": false
+}
