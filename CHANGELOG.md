@@ -1,3 +1,18 @@
+# [1.4.0](https://github.com/twds0x13/FluxFormula/compare/v1.3.2...v1.4.0) (2026-06-20)
+
+
+### Bug Fixes
+
+* quote benchmark filter to prevent shell glob expansion ([9cf5585](https://github.com/twds0x13/FluxFormula/commit/9cf55857fa56aa929890ff0cf70a3f8ebda4311d))
+* replace Unsafe.SizeOf<T> with sizeof in unsafe blocks ([f8dfd32](https://github.com/twds0x13/FluxFormula/commit/f8dfd3296fb6b4c6c293f8debf9dce0b47d61571))
+* update .releaserc to monorepo package paths ([4776dec](https://github.com/twds0x13/FluxFormula/commit/4776dece9ae611daf94014a565045758903e1cf9))
+* update CI and all paths from old com.twds0x13.fluxformula/ to monorepo packages/ ([d646bd7](https://github.com/twds0x13/FluxFormula/commit/d646bd776894609708393a22abc29b99b5823917))
+
+
+### Features
+
+* compile-cache pipeline — DualHash, FormulaCache, ChainLink, delegate caching ([5541a3f](https://github.com/twds0x13/FluxFormula/commit/5541a3ffe2cad66dc1f4a816e9a6fe52dee3838e))
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
