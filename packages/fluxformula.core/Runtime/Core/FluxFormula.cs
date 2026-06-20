@@ -147,7 +147,7 @@ namespace FluxFormula.Core
             // 通过 TDef 我们无法访问 GetKind，这里用 Formula 自身的上下文。
             // 第一个指令的 Dest 寄存器就是第一操作数所在寄存器。
             byte destReg = _buffer[0].Dest;
-            int dataSlots = (Unsafe.SizeOf<TData>() + Unsafe.SizeOf<Instruction>() - 1) / Unsafe.SizeOf<Instruction>();
+            int dataSlots; unsafe { dataSlots = (sizeof(TData) + sizeof(Instruction) - 1) / sizeof(Instruction); }
 
             // 新指令数 = 原指令数 - 1(Immediate) - dataSlots(Immediate 数据)
             int newCount = Count - 1 - dataSlots;
@@ -202,7 +202,7 @@ namespace FluxFormula.Core
             if (Type == FluxType.Formula) return this;
             if (IsChained) return ToAtomic().ToFormula(varName);
 
-            int dataSlots = (Unsafe.SizeOf<TData>() + Unsafe.SizeOf<Instruction>() - 1) / Unsafe.SizeOf<Instruction>();
+            int dataSlots; unsafe { dataSlots = (sizeof(TData) + sizeof(Instruction) - 1) / sizeof(Instruction); }
 
             // 新指令数 = 原指令数 + 1(Immediate) + dataSlots(Immediate 数据)
             int newCount = Count + 1 + dataSlots;

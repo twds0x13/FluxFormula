@@ -102,7 +102,7 @@ namespace FluxFormula.Core
 
             if (link.VarSlots.Length > 0)
             {
-                int dataSlotsPerParam = (Unsafe.SizeOf<TData>() + Unsafe.SizeOf<Instruction>() - 1) / Unsafe.SizeOf<Instruction>();
+                int dataSlotsPerParam; unsafe { dataSlotsPerParam = (sizeof(TData) + sizeof(Instruction) - 1) / sizeof(Instruction); }
                 int varIdx = 0;
                 for (int ip = 0; ip < link.InstructionCount && varIdx < link.VarSlots.Length; )
                 {
