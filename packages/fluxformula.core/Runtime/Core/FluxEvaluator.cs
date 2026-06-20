@@ -36,7 +36,22 @@ namespace FluxFormula.Core
             _definition = definition;
         }
 
+        /// <summary>标准求值，R1 从 default(TData) 开始</summary>
         public TData Compute(ReadOnlySpan<Instruction> raw)
+        {
+            return ComputeCore(raw, default);
+        }
+
+        /// <summary>
+        /// 链式求值入口：R1 从 initialR1 开始而非 default(TData)。
+        /// 用于链式公式的 per-link 解释器求值——前一个 link 的输出通过 R1 总线传入下一个 link。
+        /// </summary>
+        public TData Compute(ReadOnlySpan<Instruction> raw, TData initialR1)
+        {
+            return ComputeCore(raw, initialR1);
+        }
+
+        private TData ComputeCore(ReadOnlySpan<Instruction> raw, TData initialR1)
         {
             byte* rawPtr = stackalloc byte[sizeof(TData) * FluxPlatform.MaxRegisters + 63];
             long addr = (long)rawPtr;
@@ -44,7 +59,7 @@ namespace FluxFormula.Core
             Span<TData> registers = new(regsPtr, FluxPlatform.MaxRegisters);
 
             regsPtr[0] = default;
-            regsPtr[1] = default;
+            regsPtr[1] = initialR1;
             byte returnReg = 1; // 默认总线寄存器
 
             fixed (Instruction* pBase = raw)
@@ -70,8 +85,17 @@ namespace FluxFormula.Core
                     }
                     else if (kind == OpType.Return)
                     {
-                        returnReg = inst->Dest; // 记录 Return 的目标寄存器
-                        break;
+                        returnReg = inst->Dest;
+                        // 链式合并的字节码中，Return 之后可能还有后续 link 的指令。
+                        // 此时不退出——将输出复制到 R1 总线供下一个 link 消费。
+                        if (ip + 1 < raw.Length)
+                        {
+                            regsPtr[1] = regsPtr[inst->Dest];
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
                 }
             }

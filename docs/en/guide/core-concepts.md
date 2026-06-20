@@ -112,6 +112,62 @@ var combined = f42.Connect(mod);  // 42 + 5
 | `Instruction` | Reads operands from registers, invokes `Compute()` or JIT Expression, writes result to Dest register |
 | `Return` | Terminates execution. Returns the value in the destination register (if no error) or R0 (if error) |
 
+## Chain Connect: Deferred Materialization
+
+`Connect()` no longer merges bytecode. Each call appends a `ChainLink` — a reference slice to the original formula's bytecode — without allocating a new `Instruction[]`.
+
+```mermaid
+graph LR
+    A["fA: x + y"] -->|Connect| C["Chain: [Link(fA), Link(fB)]"]
+    B["fB: z * 2"] -->|Connect| C
+    C -->|"Run (short ≤8)"| D["Per-link interpreter<br/>R1 bus chaining"]
+    C -->|"ToAtomic (long >8 / JIT)"| E["Merge into contiguous<br/>bytecode, single eval"]
+```
+
+This mirrors LINQ's deferred execution: `Where().Select()` builds iterator decorators; `foreach` / `ToList()` materializes. Chain Connect only appends references to `ChainLink[]`; physical bytecode merging is deferred to evaluation time.
+
+**ChainLink fields:**
+
+| Field | Description |
+|-------|-------------|
+| `Key` | `DualHash64` of the fragment — cache lookup key |
+| `Bytecode` | Reference to original `Instruction[]` (not copied) |
+| `InstructionCount` | Number of instructions |
+| `ImmediateCount` | Number of immediate data slots |
+| `VarSlots` | Variable slots for this fragment |
+
+## Delegate Caching
+
+JIT-compiled delegates (`Expression.Compile()` → `Func<Instruction[], TData>`) are cached in `FormulaCache`, keyed by `DualHash64`.
+
+```
+Instantiate(formula, jit: true)
+  ├─ GetByteHash() → FormulaCache.TryGetDelegate(hash)
+  │    ├─ Hit → reuse cached delegate + rebuild payload
+  │    └─ Miss → FluxJITCompiler.Compile() → GCHandle.Alloc → PutDelegate(hash)
+  └─ Return FluxInstance
+```
+
+The same formula compiles only once regardless of how many times it is instantiated. On IL2CPP/AOT platforms where `Expression.Compile()` is unsupported, evaluation automatically degrades to the interpreter.
+
+## Formula ↔ Modifier Conversion
+
+Formula and Modifier are two views of the same bytecode. `ToMultiplier()` removes the first data operand and renames its register references to R1. `ToFormula(varName)` inserts a named variable in place of the R1 input.
+
+```csharp
+var f = Compile("x + y");           // Formula: Immediate(x)→R2, Immediate(y)→R3, Add R2,R3→R4
+
+var m = f.ToMultiplier();           // Modifier: Immediate(y)→R3, Add R1,R3→R4
+// m cannot Run standalone — missing left operand
+
+var restored = m.ToFormula("input"); // Formula: Immediate(input)→RX, Immediate(y)→R3, Add RX,R3→R4
+restored.Set("input", 5f).Set("y", 3f).Run(); // 8
+```
+
+Round-trip evaluation equivalence is maintained. The `CHAIN_LINK_INTERNAL_` prefix is reserved for internal variables; users must not declare variables with this prefix.
+
+> `Connect` does not automatically call `ToMultiplier` on Formula arguments. To let B consume A's output, explicitly use `fA.Connect(fB.ToMultiplier())`.
+
 ## Interpreter vs JIT
 
 | | Interpreter | JIT |

@@ -19,5 +19,7 @@
   ],
   "license": "MIT",
   "documentationUrl": "https://twds0x13.github.io/FluxFormula/",
-  "dependencies": {}
+  "dependencies": {
+    "com.unity.collections": "1.2.4"
+  }
 }

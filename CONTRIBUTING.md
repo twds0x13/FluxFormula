@@ -36,14 +36,19 @@ FluxFormula/
 ├── packages/
 │   ├── fluxformula.core/            # Pure C# pipeline (zero Unity dependency)
 │   │   └── Runtime/Core/
-│   │       ├── FluxAssembler.cs     # Compilation entry point
+│   │       ├── FluxAssembler.cs     # Compilation + Instantiate entry point
 │   │       ├── FluxCompiler.cs      # Shunting-yard algorithm (internal)
 │   │       ├── FluxEvaluator.cs     # Interpreter execution (internal)
 │   │       ├── FluxJITCompiler.cs   # LINQ Expression Tree compiler (internal)
-│   │       ├── FluxFormula.cs       # Immutable bytecode container
+│   │       ├── FluxFormula.cs       # Bytecode container + ChainLink + Connect
 │   │       ├── FluxInstance.cs      # ref struct streaming executor
 │   │       ├── FluxLexer.cs         # Hand-written span lexer
 │   │       ├── FluxToken.cs         # Lexical token
+│   │       ├── FluxInjector.cs      # Data injection + value readback
+│   │       ├── DualHash64.cs        # xxHash64 + FNV-1a 64 dual hash
+│   │       ├── FormulaCache.cs      # 2048-slot open-addressing hashmap
+│   │       ├── IFluxCacheProvider.cs # Cache provider interface
+│   │       ├── ConnectCache.cs      # Managed-to-native buffer bridge
 │   │       └── ...
 │   ├── fluxformula/                 # Unity integration (ScriptableObject + Editor)
 │   │   ├── Runtime/Unity/           # FluxAsset, FormulaLibrary
@@ -51,7 +56,7 @@ FluxFormula/
 │   │   └── Tests/                   # In-package tests
 │   └── fluxformula.addressables/    # Optional Addressables loading
 ├── tests/
-│   └── FluxFormula.Core.Tests/      # Dotnet test project (no Unity needed)
+│   └── FluxFormula.Core.Tests/      # 149 dotnet tests (no Unity needed)
 ├── benchmarks/                      # BenchmarkDotNet project
 └── docs/                            # VitePress documentation (zh-CN + en)
 ```

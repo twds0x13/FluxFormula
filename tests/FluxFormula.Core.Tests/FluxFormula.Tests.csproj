@@ -7,6 +7,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <IsTestProject>true</IsTestProject>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +20,10 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInjector.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxLexer.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/DualHash64.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FormulaCache.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxCacheProvider.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/ConnectCache.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxJITCompiler.cs" />
     <!-- 测试文件 (同目录) -->
@@ -30,6 +35,10 @@
     <Compile Include="FluxInstanceTests.cs" />
     <Compile Include="LexerTests.cs" />
     <Compile Include="PersistenceTests.cs" />
+    <Compile Include="DualHashTests.cs" />
+    <Compile Include="FormulaCacheTests.cs" />
+    <Compile Include="ConnectCacheTests.cs" />
+    <Compile Include="ModifierFormulaTests.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,6 +46,7 @@
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
     <PackageReference Include="FastExpressionCompiler" Version="5.4.1" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.9" />
   </ItemGroup>
 
 </Project>

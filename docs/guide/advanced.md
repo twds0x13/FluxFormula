@@ -1,38 +1,43 @@
 # 高级用法
 
-## Connect：公式拼接
+## Connect：链式组合
 
-`Connect()` 将两个公式连接：去掉第一个公式末尾的 Return，拼接第二个公式的全部内容。
+`Connect()` 不合并字节码——它在 `ChainLink[]` 末尾追加对原始公式的引用切片，物理拼接推迟到求值时刻。
+
+```
+Connect(fA, fB):
+  ChainLink[] = [Link(fA), Link(fB)]   // 零字节码复制，仅追加引用
+```
+
+求值时，短链（≤8）逐 link 求值，通过 R1 总线传递结果；长链或 JIT 路径自动合并为原子公式后单次求值。详见 [ChainLink 深度解析](../technical/chainlink-deep-dive)。
+
+### Formula ↔ Modifier
+
+`ToMultiplier()` 将 Formula 的第一个操作数替换为 R1 输入（从前一个 link 的输出读）；`ToFormula(name)` 将 Modifier 的 R1 输入替换为命名变量。
 
 ```csharp
-var f42 = runner.Compile(new[] { C(42f) });
-// Bytecode: [Immediate(R2,42), Return(Dest=R2)]
+var fA = Compile("x + y");                 // Formula
+var fB = Compile("z * 2");                 // Formula
 
-// 空公式拼接，卫语句保护
-var result = FluxFormula<float, FloatOp>.Empty.Connect(f42);
-// Count=0 → 直接返回 f42
+// B 消费 A 的输出：显式转换
+var chain = fA.Connect(fB.ToMultiplier());  // B 的第一操作数来自 R1
+
+// B 独立运行：不转换
+var chain2 = fA.Connect(fB);               // B 从自身第一操作数开始
+
+// Round-trip 保持求值等价
+var restored = fB.ToMultiplier().ToFormula("input");
+restored.Set("input", 5f).Set("z", 3f).Run(); // 等价于 fB
 ```
 
-```mermaid
-graph LR
-    A["F1 (3条)"] -->|"Connect<br/>去Return"| B["合并 (5条)"]
-    C["F2 (3条)"] --> B
-```
+### 链求值路径
 
-### 寄存器冲突
+| 路径 | 链长 ≤ 8 | 链长 > 8 |
+|------|----------|----------|
+| 解释器 | 逐 link Compute（R1 串联） | ToAtomic 合并 → 单次 Compute |
+| JIT | ToAtomic 合并 → 单 delegate | ToAtomic 合并 → 单 delegate |
 
-`Connect()` 是机械拼接，不重映射寄存器号。如果 F1 使用 R2-R5，F2 也使用了 R2-R5，拼接后 F2 覆写 F1 的寄存器值。适用场景：
-
-- 连接空公式（无寄存器冲突）
-- F2 为单操作数 modifier 且引用 R1（总线）
-
-```csharp
-// F2 的 Add 缺操作数时编译器自动注入 R1
-var f1 = runner.Compile(new[] { C(40f) });               // R2 ← 40
-var f2 = runner.Compile(new[] { Op(FloatOp.Add), C(2f) }); // R1 + 2
-// F1 的结果在 R2，不在 R1。Connect 后 F2 读 R1 取不到 40。
-// Connect 的寄存器一致性由调用方保证。
-```
+短链 per-link 求值避免合并分配；JIT 始终合并（需要连续字节码）。合并后委托自动缓存，同链再次求值零编译开销。
 
 ## Set：命名变量注入
 
@@ -92,43 +97,24 @@ flowchart TD
 | 公式执行次数远大于编译次数 | JIT（编译一次，反复调用） |
 | 公式频繁构建 | 解释器（免编译开销） |
 
-## 公式缓存模式
+## Delegate 缓存
 
-编译一次，缓存复用：
+FluxFormula 内置 JIT 委托缓存。`Instantiate(formula, jit: true)` 首次调用时 JIT 编译并存入全局缓存，后续同公式实例化直接复用：
 
 ```csharp
-public class FormulaCache<TData, TOper, TDef>
-    where TData : unmanaged
-    where TOper : unmanaged, Enum
-    where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
-{
-    private readonly FluxAssembler<TData, TOper, TDef> _assembler;
-    private readonly Dictionary<string, FluxFormula<TData, TOper>> _cache = new();
+var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+var f = runner.Compile(lexer.Lex("2 + 3"));
 
-    public FormulaCache(TDef def) => _assembler = new FluxAssembler<TData, TOper, TDef>(def);
+// 首次：JIT 编译 → 委托存入全局缓存
+var r1 = runner.Instantiate(f, jit: true).Run(); // 5
 
-    public FluxFormula<TData, TOper> GetOrCompile(
-        string key, ReadOnlySpan<FluxToken<TData, TOper>> tokens)
-    {
-        if (!_cache.TryGetValue(key, out var formula))
-        {
-            formula = _assembler.Compile(tokens);
-            _cache[key] = formula;
-        }
-        return formula;
-    }
-
-    public FluxInstance<TData, TOper, TDef> Execute(
-        string key, ReadOnlySpan<FluxToken<TData, TOper>> tokens, bool jit = false)
-    {
-        return _assembler.Instantiate(GetOrCompile(key, tokens), jit);
-    }
-}
+// 再次：缓存命中，零编译
+var r2 = runner.Instantiate(f, jit: true).Run(); // 5
 ```
 
-`_cache` 的 `Dictionary` 在插入时产生 GC。若需零分配，可用数组索引代替字符串 key。
+缓存后端 `IFluxCacheProvider` 默认使用 `FormulaCache`（2048 槽开放寻址 hashmap）。可替换为自定义实现——实现 `TryGet`/`Put`/`TryGetDelegate`/`PutDelegate` 四个方法即可接入自定义缓存策略。详见 [编译缓存管线](../technical/compile-cache)。
 
-## 持久化：ToBytes / FromBytes
+## 公式序列化：ToBytes / FromBytes
 
 ```csharp
 // 序列化

@@ -20,6 +20,10 @@
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxInjector.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxLexer.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/DualHash64.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FormulaCache.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/IFluxCacheProvider.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/ConnectCache.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/Compiler/FluxJITCompiler.cs" />
     <!-- 测试定义 -->
@@ -29,6 +33,7 @@
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
     <PackageReference Include="FastExpressionCompiler" Version="5.4.1" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
   </ItemGroup>
 
 </Project>

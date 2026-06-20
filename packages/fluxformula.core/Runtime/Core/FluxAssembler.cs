@@ -92,7 +92,8 @@ namespace FluxFormula.Core
         }
 
         /// <summary>
-        /// 将已有的图纸 (FluxFormula) 激活为流式流水线
+        /// 将已有的图纸 (FluxFormula) 激活为流式流水线。
+        /// 对链式公式自动转换为原子公式后再执行。
         /// </summary>
         public FluxInstance<TData, TOper, TDef> Instantiate(
             FluxFormula<TData, TOper> formula,
@@ -101,6 +102,30 @@ namespace FluxFormula.Core
         {
             if (jit && !FluxPlatform.IsJitDisabled)
             {
+                // ── JIT 路径：链式公式需先转为原子公式 ──
+                if (formula.IsChained)
+                    formula = formula.ToAtomic();
+
+                // ── 尝试委托缓存 ──
+                var hash = formula.GetByteHash();
+                var cache = ConnectCache.Cache;
+
+                if (cache.TryGetDelegate(hash, out IntPtr cachedHandle))
+                {
+                    var handle = System.Runtime.InteropServices.GCHandle.FromIntPtr(cachedHandle);
+                    var func = (FluxJITCompiler<TData, TOper, TDef>.CompiledFunc)handle.Target;
+                    // 重建与 Compile 产出一致的紧凑数据 payload
+                    var cachedPayload = CreateJitPayload(formula);
+                    var cachedInjector = new FluxInjector<TData>(cachedPayload, null, formula.VariableSlots);
+                    return new FluxInstance<TData, TOper, TDef>(
+                        _definition,
+                        formula,
+                        cachedInjector,
+                        func,
+                        true
+                    );
+                }
+
                 try
                 {
                     var func = FluxJITCompiler<TData, TOper, TDef>.Compile(
@@ -108,6 +133,10 @@ namespace FluxFormula.Core
                         _definition,
                         out var payload
                     );
+                    // ── 将编译产物存入委托缓存 ──
+                    var delegateHandle = System.Runtime.InteropServices.GCHandle.Alloc(func);
+                    cache.PutDelegate(hash, System.Runtime.InteropServices.GCHandle.ToIntPtr(delegateHandle));
+
                     var injector = new FluxInjector<TData>(payload, null, formula.VariableSlots);
                     return new FluxInstance<TData, TOper, TDef>(
                         _definition,
@@ -123,19 +152,39 @@ namespace FluxFormula.Core
                     || ex is InvalidOperationException)
                 {
                     // IL2CPP / AOT 平台不支持 Expression.Compile()
-                    // 标记 JIT 不可用，后续调用直接走解释器
                     FluxPlatform.DisableJit();
                 }
             }
 
-            var injector2 = CreateInjector(formula);
-            return new FluxInstance<TData, TOper, TDef>(
-                _definition,
-                formula,
-                injector2,
-                null,
-                false
-            );
+            // ── 解释器路径 ──
+            if (formula.IsChained)
+            {
+                // 长链（> MergeThreshold）：合并为原子公式，单次解释器求值
+                // 短链：保留链式，Run() 中 per-link 求值（R1 串联）
+                if (formula.ChainLength > ChainReserved.MergeThreshold)
+                    formula = formula.ToAtomic();
+
+                var mergedForInjector = formula.IsChained ? formula.ToAtomic() : formula;
+                var injector = CreateInjector(mergedForInjector);
+                return new FluxInstance<TData, TOper, TDef>(
+                    _definition,
+                    formula,       // 可能仍是链式（短链）或原子（长链）
+                    injector,
+                    null,
+                    false
+                );
+            }
+            else
+            {
+                var injector2 = CreateInjector(formula);
+                return new FluxInstance<TData, TOper, TDef>(
+                    _definition,
+                    formula,
+                    injector2,
+                    null,
+                    false
+                );
+            }
         }
 
         /// <summary>
@@ -174,6 +223,37 @@ namespace FluxFormula.Core
             }
 
             return new FluxInjector<TData>(buffer.ToArray(), offsets, formula.VariableSlots);
+        }
+
+        /// <summary>
+        /// 从公式重建紧凑数据 payload（与 FluxJITCompiler.Compile 产生的格式一致）。
+        /// 用于 delegate 缓存命中时重建委托所需的 Instruction[] 数据缓冲区。
+        /// </summary>
+        private Instruction[] CreateJitPayload(FluxFormula<TData, TOper> formula)
+        {
+            var raw = formula.Raw();
+            int dataSlotsPerParam = (sizeof(TData) + sizeof(Instruction) - 1) / sizeof(Instruction);
+            int totalDataSlots = 0;
+            for (int i = 0; i < raw.Length; i++)
+            {
+                if (_definition.GetKind(raw[i].OpCode) == OpType.Immediate)
+                {
+                    totalDataSlots += dataSlotsPerParam;
+                    i += dataSlotsPerParam;
+                }
+            }
+            var payload = new Instruction[totalDataSlots];
+            int dst = 0;
+            for (int i = 0; i < raw.Length; i++)
+            {
+                if (_definition.GetKind(raw[i].OpCode) == OpType.Immediate)
+                {
+                    raw.Slice(i + 1, dataSlotsPerParam).CopyTo(payload.AsSpan(dst));
+                    dst += dataSlotsPerParam;
+                    i += dataSlotsPerParam;
+                }
+            }
+            return payload;
         }
     }
 }

@@ -1,38 +1,41 @@
 # Advanced Usage
 
-## Connect: Formula Concatenation
+## Connect: Chain Composition
 
-`Connect()` joins two formulas: removes the trailing Return from the first, then appends the second formula's entire content.
+`Connect()` no longer merges bytecode. It appends reference slices to `ChainLink[]` — zero bytecode copy, deferred materialization.
+
+```
+Connect(fA, fB):
+  ChainLink[] = [Link(fA), Link(fB)]   // references only, no merge
+```
+
+At evaluation time, short chains (≤8) evaluate per-link through the R1 bus; long chains or JIT paths automatically merge to atomic. See [ChainLink Deep Dive](../technical/chainlink-deep-dive).
+
+### Formula ↔ Modifier
+
+`ToMultiplier()` replaces a Formula's first operand with R1 input (from previous link output). `ToFormula(name)` replaces a Modifier's R1 input with a named variable.
 
 ```csharp
-var f42 = runner.Compile(new[] { C(42f) });
-// Bytecode: [Immediate(R2,42), Return(Dest=R2)]
+var fA = Compile("x + y");                 // Formula
+var fB = Compile("z * 2");                 // Formula
 
-// Empty formula concatenation, guard clause
-var result = FluxFormula<float, FloatOp>.Empty.Connect(f42);
-// Count=0 → returns f42 directly
+// B consumes A's output: explicit conversion
+var chain = fA.Connect(fB.ToMultiplier());  // B's first operand from R1
+
+// B runs independently: no conversion
+var chain2 = fA.Connect(fB);               // B from own first operand
+
+// Round-trip preserves evaluation equivalence
+var restored = fB.ToMultiplier().ToFormula("input");
+restored.Set("input", 5f).Set("z", 3f).Run(); // equivalent to fB
 ```
 
-```mermaid
-graph LR
-    A["F1 (3 instrs)"] -->|"Connect<br/>drop Return"| B["Merged (5 instrs)"]
-    C["F2 (3 instrs)"] --> B
-```
+### Chain Evaluation Paths
 
-### Register Conflicts
-
-`Connect()` is a mechanical concatenation — it does not remap register numbers. If F1 uses R2-R5 and F2 also uses R2-R5, F2 will overwrite F1's register values. Suitable scenarios:
-
-- Connecting an empty formula (no register conflict)
-- F2 is a single-operand modifier that references R1 (the bus)
-
-```csharp
-// F2's Add injects R1 when missing an operand
-var f1 = runner.Compile(new[] { C(40f) });               // R2 ← 40
-var f2 = runner.Compile(new[] { Op(FloatOp.Add), C(2f) }); // R1 + 2
-// F1's result is in R2, not R1. After Connect, F2 reads R1 and gets nothing.
-// Register consistency across Connect is the caller's responsibility.
-```
+| Path | Chain ≤ 8 | Chain > 8 |
+|------|-----------|-----------|
+| Interpreter | Per-link Compute (R1 chaining) | ToAtomic merge → single Compute |
+| JIT | ToAtomic merge → single delegate | ToAtomic merge → single delegate |
 
 ## Set: Named Variable Injection
 
@@ -92,31 +95,24 @@ flowchart TD
 | Formula executed far more often than compiled | JIT (compile once, invoke repeatedly) |
 | Formula rebuilt frequently | Interpreter (no compilation overhead) |
 
-## Formula Caching Pattern
+## Delegate Caching
 
-Compile once, cache, reuse:
+FluxFormula includes built-in JIT delegate caching. The first `Instantiate(formula, jit: true)` call compiles and stores the delegate; subsequent instantiations of the same formula reuse it:
 
 ```csharp
-public class FormulaCache<TData, TOper, TDef>
-    where TData : unmanaged
-    where TOper : unmanaged, Enum
-    where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
-{
-    private readonly FluxAssembler<TData, TOper, TDef> _assembler;
-    private readonly Dictionary<string, FluxFormula<TData, TOper>> _cache = new();
+var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+var f = runner.Compile(lexer.Lex("2 + 3"));
 
-    public FormulaCache(TDef def) => _assembler = new FluxAssembler<TData, TOper, TDef>(def);
+// First: JIT compile → delegate stored in global cache
+var r1 = runner.Instantiate(f, jit: true).Run(); // 5
 
-    public FluxFormula<TData, TOper> GetOrCompile(
-        string key, ReadOnlySpan<FluxToken<TData, TOper>> tokens)
-    {
-        if (!_cache.TryGetValue(key, out var formula))
-        {
-            formula = _assembler.Compile(tokens);
-            _cache[key] = formula;
-        }
-        return formula;
-    }
+// Second: cache hit, zero compilation
+var r2 = runner.Instantiate(f, jit: true).Run(); // 5
+```
+
+The cache backend `IFluxCacheProvider` defaults to `FormulaCache` (2048-slot open-addressing hashmap). Replace it by implementing `TryGet`/`Put`/`TryGetDelegate`/`PutDelegate`. See [Compile Cache Pipeline](../technical/compile-cache).
+
+## Persistence: ToBytes / FromBytes
 
     public FluxInstance<TData, TOper, TDef> Execute(
         string key, ReadOnlySpan<FluxToken<TData, TOper>> tokens, bool jit = false)

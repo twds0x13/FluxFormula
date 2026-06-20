@@ -112,6 +112,62 @@ var combined = f42.Connect(mod);  // 42 + 5
 | `Instruction` | 从寄存器读取操作数，调用 `Compute()` 或 JIT Expression 求值，结果写入 Dest 寄存器 |
 | `Return` | 终止执行。返回目标寄存器中的值（若无错误）或 R0（若有错误） |
 
+## 链式 Connect：延迟物化
+
+`Connect()` 不再合并字节码。每次 Connect 追加一个 `ChainLink`——对原始公式字节码的引用切片——而非分配新的 `Instruction[]`。
+
+```mermaid
+graph LR
+    A["fA: x + y"] -->|Connect| C["链: [Link(fA), Link(fB)]"]
+    B["fB: z * 2"] -->|Connect| C
+    C -->|"Run (短链≤8)"| D["逐 link 解释器求值<br/>R1 串联传递"]
+    C -->|"ToAtomic (长链>8 / JIT)"| E["合并为连续字节码<br/>单次求值"]
+```
+
+这等效于 LINQ 的延迟求值：`Where().Select()` 只构造迭代器装饰器，`foreach` / `ToList()` 才真正遍历。链式 Connect 只在 `ChainLink[]` 末尾追加引用，字节码的物理合并推迟到实际求值时。
+
+**ChainLink 结构：**
+
+| 字段 | 说明 |
+|------|------|
+| `Key` | 该片段字节码的 `DualHash64`——缓存查找键 |
+| `Bytecode` | 指向原始 `Instruction[]` 的引用（不复制） |
+| `InstructionCount` | 指令数 |
+| `ImmediateCount` | 立即数槽位数 |
+| `VarSlots` | 该片段的变量槽 |
+
+## Delegate 缓存
+
+JIT 编译的委托（`Expression.Compile()` → `Func<Instruction[], TData>`）被缓存在 `FormulaCache` 中，由 `DualHash64` 键索引。
+
+```
+Instantiate(formula, jit: true)
+  ├─ GetByteHash() → FormulaCache.TryGetDelegate(hash)
+  │    ├─ 命中 → 复用 cached delegate + 重建 payload
+  │    └─ 未命中 → FluxJITCompiler.Compile() → GCHandle.Alloc → PutDelegate(hash)
+  └─ 返回 FluxInstance
+```
+
+同一个公式多次实例化只编译一次。IL2CPP/AOT 平台不支持 `Expression.Compile()` 时自动降级为解释器。
+
+## Formula ↔ Modifier 互转
+
+Formula 和 Modifier 是同一种字节码的两种视图。`ToMultiplier()` 移除第一数据操作数并将其寄存器引用重命名为 R1；`ToFormula(varName)` 插入命名变量替代 R1 输入。
+
+```csharp
+var f = Compile("x + y");           // Formula: Immediate(x)→R2, Immediate(y)→R3, Add R2,R3→R4
+
+var m = f.ToMultiplier();           // Modifier: Immediate(y)→R3, Add R1,R3→R4
+// m 不能独立 Run——缺少左操作数
+
+var restored = m.ToFormula("input"); // Formula: Immediate(input)→RX, Immediate(y)→R3, Add RX,R3→R4
+restored.Set("input", 5f).Set("y", 3f).Run(); // 8
+```
+
+Round-trip 保持求值等价。`CHAIN_LINK_INTERNAL_` 前缀保留为内部变量名，用户不得使用。
+
+> `Connect` 当前不自动对 Formula 调用 `ToMultiplier`。如需让 B 消费 A 的输出，显式使用 `fA.Connect(fB.ToMultiplier())`。
+
 ## 解释器 vs JIT
 
 | | 解释器 | JIT |

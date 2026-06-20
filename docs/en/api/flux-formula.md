@@ -33,10 +33,52 @@ public readonly struct FluxFormula<TData, TOper>
 public FluxFormula<TData, TOper> Connect(FluxFormula<TData, TOper> next)
 ```
 
-Concatenates two formulas. Removes the trailing Return instruction from the current formula and appends all of `next`'s content.
+Chains two formulas. Does not merge bytecode — appends `ChainLink` reference slices. Physical concatenation is deferred to evaluation time.
 
 - Guard clause: if either side is empty, returns the other directly
-- Does not remap register numbers; ensure `next` does not overwrite the current formula's register allocation
+- If `next` is not a Modifier, it is kept as-is (first operand does not read from R1). To let `next` consume the current formula's output, explicitly call `next.ToMultiplier()`
+- See [ChainLink Deep Dive](../technical/chainlink-deep-dive)
+
+### ToMultiplier
+
+```csharp
+public FluxFormula<TData, TOper> ToMultiplier()
+```
+
+Converts Formula to Modifier. Removes the first Immediate instruction and its data slots, renames its destination register to 1 (R1). Returns self if already a Modifier. Chain formulas are converted to atomic first.
+
+### ToFormula
+
+```csharp
+public FluxFormula<TData, TOper> ToFormula(string varName)
+```
+
+Converts Modifier to Formula. Inserts an Immediate instruction named `varName` in place of R1 input, renames R1 references to the new register. Returns self if already a Formula.
+
+### ToAtomic
+
+```csharp
+internal FluxFormula<TData, TOper> ToAtomic()
+```
+
+Merges a chain formula into an atomic formula. All links' `Instruction[]` arrays are concatenated in full (including intermediate Returns). Called automatically for JIT paths and long chains (>8).
+
+### GetByteHash
+
+```csharp
+public DualHash64 GetByteHash()
+```
+
+Returns the `DualHash64` of the formula's bytecode. For atomic formulas, equivalent to hashing `ToBytes()`. For chain formulas, the sequential `Combine` of all link keys. Used as cache lookup key.
+
+### IsChained / ChainLength
+
+```csharp
+public bool IsChained { get; }
+public int ChainLength { get; }
+```
+
+`IsChained`: whether the formula is chained (holds a `ChainLink[]` internally). `ChainLength`: number of links in the chain; 0 for atomic formulas.
 
 ### Raw
 

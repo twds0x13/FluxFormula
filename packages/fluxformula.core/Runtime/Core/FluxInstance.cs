@@ -5,15 +5,15 @@ using System.Runtime.CompilerServices;
 namespace FluxFormula.Core
 {
     /// <summary>
-    /// 可执行的公式流式包装器 (Fluent API)
-    /// 允许无缝连缀注入参数并执行，零 GC 分配
+    /// 可执行的公式流式包装器 (Fluent API)。
+    /// 支持原子公式（单次 JIT/解释器求值）和链式公式（per-link 解释器求值）。
     /// </summary>
     public ref struct FluxInstance<TData, TOper, TDef>
         where TData : unmanaged
         where TOper : unmanaged, Enum
         where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
     {
-        private readonly TDef _provider;
+        private readonly TDef _definition;
         private readonly FluxFormula<TData, TOper> _formula;
         private readonly FluxJITCompiler<TData, TOper, TDef>.CompiledFunc _jitFunc;
         private readonly bool _isJit;
@@ -21,22 +21,21 @@ namespace FluxFormula.Core
         private FluxInjector<TData> _injector;
 
         internal FluxInstance(
-            TDef provider,
+            TDef definition,
             FluxFormula<TData, TOper> formula,
             FluxInjector<TData> injector,
             FluxJITCompiler<TData, TOper, TDef>.CompiledFunc jitFunc,
             bool isJit)
         {
-            _provider = provider;
-            _formula = formula;
-            _injector = injector;
-            _jitFunc = jitFunc;
-            _isJit = isJit;
+            _definition = definition;
+            _formula    = formula;
+            _injector   = injector;
+            _jitFunc    = jitFunc;
+            _isJit      = isJit;
         }
 
         // ================= 流式数据注入 =================
 
-        /// <summary>按位置注入（非安全：错位不报错，但结果错误）</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FluxInstance<TData, TOper, TDef> SetIndex(int index, TData value)
         {
@@ -44,7 +43,6 @@ namespace FluxFormula.Core
             return this;
         }
 
-        /// <summary>按变量名安全注入。名称不存在则抛 ArgumentException。</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FluxInstance<TData, TOper, TDef> Set(string name, TData value)
         {
@@ -52,9 +50,8 @@ namespace FluxFormula.Core
             return this;
         }
 
-        /// <summary>
-        /// 启动计算引擎 (自动适配底层是 JIT 还是 解释器)
-        /// </summary>
+        // ================= 求值 =================
+
         public readonly TData Run()
         {
             if (_formula.Type != FluxType.Formula)
@@ -62,20 +59,75 @@ namespace FluxFormula.Core
 
             if (_isJit)
             {
-                // JIT 路径：将注入后的 Payload 传递给编译好的委托
                 return _jitFunc(_injector.GetBuffer());
+            }
+            else if (_formula.IsChained)
+            {
+                return RunChainInterpreter();
             }
             else
             {
-                // 解释器路径：使用 injector 持有的缓冲副本（已通过 Set() 覆写数据）
-                var kernel = new FluxEvaluator<TData, TOper, TDef>(_provider);
+                var kernel = new FluxEvaluator<TData, TOper, TDef>(_definition);
                 return kernel.Compute(_injector.GetBuffer().AsSpan(0, _formula.Count));
             }
         }
 
         /// <summary>
-        /// 获取注入后的指令缓冲（仅供调试/基准测试，正常使用请走 Run()）
+        /// 链式解释器求值：逐 link 通过 R1 总线串联。
         /// </summary>
+        private readonly TData RunChainInterpreter()
+        {
+            var links  = _formula.GetChainLinks();
+            var kernel = new FluxEvaluator<TData, TOper, TDef>(_definition);
+            TData prevResult = default;
+
+            for (int i = 0; i < links.Length; i++)
+            {
+                var buffer = BuildLinkBuffer(links[i]);
+                prevResult = (i == 0)
+                    ? kernel.Compute(buffer)
+                    : kernel.Compute(buffer, prevResult);
+            }
+
+            return prevResult;
+        }
+
+        /// <summary>
+        /// 为单个 chain link 构建求值用 Instruction[]，从 injector 回读变量值注入。
+        /// </summary>
+        private readonly Instruction[] BuildLinkBuffer(ChainLink link)
+        {
+            var buffer = new Instruction[link.InstructionCount];
+            Array.Copy(link.Bytecode, 0, buffer, 0, link.InstructionCount);
+
+            if (link.VarSlots.Length > 0)
+            {
+                int dataSlotsPerParam = (Unsafe.SizeOf<TData>() + Unsafe.SizeOf<Instruction>() - 1) / Unsafe.SizeOf<Instruction>();
+                int varIdx = 0;
+                for (int ip = 0; ip < link.InstructionCount && varIdx < link.VarSlots.Length; )
+                {
+                    if (_definition.GetKind(buffer[ip].OpCode) == OpType.Immediate)
+                    {
+                        // 从 injector 直接按 SlotIndex 读取已注入的值
+                        TData value = _injector.GetValue(link.VarSlots[varIdx].SlotIndex);
+                        unsafe
+                        {
+                            fixed (Instruction* pBase = buffer)
+                                *(TData*)(pBase + ip + 1) = value;
+                        }
+                        varIdx++;
+                        ip += 1 + dataSlotsPerParam;
+                    }
+                    else
+                    {
+                        ip++;
+                    }
+                }
+            }
+
+            return buffer;
+        }
+
         public readonly Instruction[] GetBuffer() => _injector.GetBuffer();
     }
 }

@@ -33,10 +33,52 @@ public readonly struct FluxFormula<TData, TOper>
 public FluxFormula<TData, TOper> Connect(FluxFormula<TData, TOper> next)
 ```
 
-拼接两个公式。去掉当前公式末尾的 Return 指令，拼接 next 的全部内容。
+链式组合两条公式。不合并字节码——追加 `ChainLink` 引用切片。物理拼接推迟到求值时刻。
 
-- 卫语句：若任一方为空则直接返回另一方
-- 不重映射寄存器号，需确保 next 不覆写当前公式的寄存器分配
+- 卫语句：任一方为空则直接返回另一方
+- `next` 若非 Modifier，保持原样（第一操作数不从 R1 读取）。若需 `next` 消费当前公式的输出，显式使用 `next.ToMultiplier()`
+- 参见 [ChainLink 深度解析](../technical/chainlink-deep-dive)
+
+### ToMultiplier
+
+```csharp
+public FluxFormula<TData, TOper> ToMultiplier()
+```
+
+将 Formula 转为 Modifier。移除第一 Immediate 指令及数据槽位，将其 dest 寄存器重命名为 1（R1）。已为 Modifier 则返回自身。链式公式先 `ToAtomic` 再转换。
+
+### ToFormula
+
+```csharp
+public FluxFormula<TData, TOper> ToFormula(string varName)
+```
+
+将 Modifier 转为 Formula。插入以 `varName` 命名的 Immediate 指令替代 R1 输入，R1 引用重命名为新寄存器。已为 Formula 则返回自身。
+
+### ToAtomic
+
+```csharp
+internal FluxFormula<TData, TOper> ToAtomic()
+```
+
+将链式公式合并为原子公式。所有 link 的 `Instruction[]` 完整拼接（含中间 Return）。JIT 路径和长链（>8）解释器路径自动调用。
+
+### GetByteHash
+
+```csharp
+public DualHash64 GetByteHash()
+```
+
+返回公式字节码的 `DualHash64`。原子公式哈希等价于 `ToBytes()` 的哈希；链式公式为所有 link Key 的顺序 `Combine`。用于缓存键计算。
+
+### IsChained / ChainLength
+
+```csharp
+public bool IsChained { get; }
+public int ChainLength { get; }
+```
+
+`IsChained`：公式是否为链式（内部持有 `ChainLink[]`）。`ChainLength`：链式公式的 link 数量，原子公式返回 0。
 
 ### Raw
 

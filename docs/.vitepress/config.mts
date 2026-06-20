@@ -50,13 +50,22 @@ export default withMermaid(
                 { text: "游戏伤害公式", link: "/examples/damage-formula" },
                 { text: "R0 短路错误处理", link: "/examples/error-handling" },
                 { text: "Vector3 运算", link: "/examples/vector3" },
+                { text: "链式 Connect", link: "/examples/chain-connect" },
+              ],
+            },
+            {
+              text: "技术深度",
+              items: [
+                { text: "内部原理", link: "/technical/internals" },
+                { text: "编译缓存管线", link: "/technical/compile-cache" },
+                { text: "ChainLink 深度解析", link: "/technical/chainlink-deep-dive" },
+                { text: "架构决策记录", link: "/technical/architecture-decisions" },
               ],
             },
             {
               text: "更多",
               items: [
                 { text: "常见问题", link: "/faq" },
-                { text: "内部原理", link: "/technical/internals" },
               ],
             },
           ],
@@ -112,13 +121,22 @@ export default withMermaid(
                 { text: "Damage Formula", link: "/en/examples/damage-formula" },
                 { text: "R0 Error Handling", link: "/en/examples/error-handling" },
                 { text: "Vector3 Operations", link: "/en/examples/vector3" },
+                { text: "Chain Connect", link: "/en/examples/chain-connect" },
+              ],
+            },
+            {
+              text: "Technical Depth",
+              items: [
+                { text: "Internals", link: "/en/technical/internals" },
+                { text: "Compile Cache Pipeline", link: "/en/technical/compile-cache" },
+                { text: "ChainLink Deep Dive", link: "/en/technical/chainlink-deep-dive" },
+                { text: "Architecture Decisions", link: "/en/technical/architecture-decisions" },
               ],
             },
             {
               text: "More",
               items: [
                 { text: "FAQ", link: "/en/faq" },
-                { text: "Internals", link: "/en/technical/internals" },
               ],
             },
           ],

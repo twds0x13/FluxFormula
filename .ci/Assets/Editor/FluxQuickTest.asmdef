@@ -2,6 +2,7 @@
     "name": "FluxQuickTest",
     "rootNamespace": "",
     "references": [
+        "FluxFormula.Core",
         "FluxFormula",
         "FluxFormula.Editor",
         "FluxFormula.Tests"
