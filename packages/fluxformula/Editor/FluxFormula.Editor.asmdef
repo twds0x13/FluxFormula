@@ -1,0 +1,19 @@
+{
+    "name": "FluxFormula.Editor",
+    "rootNamespace": "",
+    "references": [
+        "FluxFormula.Core",
+        "FluxFormula"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>FLUX_FAST_EXPRESSION_COMPILER</DefineConstants>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 核心 Runtime 源码 (monorepo: packages/fluxformula.core/Runtime/) -->
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxDefinition.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxEvaluator.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxFormula.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxToken.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxAssembler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInjector.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxLexer.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxJITCompiler.cs" />
+    <!-- 测试文件 (同目录) -->
+    <Compile Include="TestDefinition.cs" />
+    <Compile Include="SmokeTest.cs" />
+    <Compile Include="ArithmeticTests.cs" />
+    <Compile Include="JitConsistencyTests.cs" />
+    <Compile Include="ConnectTests.cs" />
+    <Compile Include="FluxInstanceTests.cs" />
+    <Compile Include="LexerTests.cs" />
+    <Compile Include="PersistenceTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="4.1.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
+    <PackageReference Include="FastExpressionCompiler" Version="5.4.1" />
+  </ItemGroup>
+
+</Project>

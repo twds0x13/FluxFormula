@@ -1,0 +1,33 @@
+{
+  "name": "com.twds0x13.fluxformula",
+  "displayName": "FluxFormula",
+  "version": "2.0.0",
+  "author": {
+    "name": "Twds0x13",
+    "url": "https://github.com/twds0x13"
+  },
+  "unity": "2021.3",
+  "description": "Unity integration for FluxFormula Core — ScriptableObject asset container and editor tooling.",
+  "keywords": [
+    "flux",
+    "formula",
+    "pipeline",
+    "unity",
+    "editor"
+  ],
+  "license": "MIT",
+  "documentationUrl": "https://twds0x13.github.io/FluxFormula/",
+  "dependencies": {
+    "com.twds0x13.fluxformula.core": "2.0.0"
+  },
+  "samples": [
+    {
+      "displayName": "FloatMath",
+      "description": "Basic floating-point arithmetic (add, sub, mul, div, negate) with lexer and direct token construction.",
+      "path": "Samples~/FloatMath"
+    }
+  ],
+  "testAssemblies": [
+    "FluxFormula.Tests"
+  ]
+}

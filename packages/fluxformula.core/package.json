@@ -1,0 +1,23 @@
+{
+  "name": "com.twds0x13.fluxformula.core",
+  "displayName": "FluxFormula Core",
+  "version": "2.0.0",
+  "author": {
+    "name": "Twds0x13",
+    "url": "https://github.com/twds0x13"
+  },
+  "unity": "2021.3",
+  "description": "Zero-allocation, pure-C# formula pipeline. Lex → Compile → Evaluate — no Unity dependency. Forkable to any .NET runtime.",
+  "keywords": [
+    "flux",
+    "formula",
+    "pipeline",
+    "expression",
+    "compiler",
+    "jit",
+    "interpreter"
+  ],
+  "license": "MIT",
+  "documentationUrl": "https://twds0x13.github.io/FluxFormula/",
+  "dependencies": {}
+}
