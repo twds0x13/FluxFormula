@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/twds0x13/FluxFormula/compare/v1.4.0...v1.5.0) (2026-06-20)
+
+
+### Features
+
+* per-link JIT chain evaluation ([1a5df32](https://github.com/twds0x13/FluxFormula/commit/1a5df32e4c032f7305f2d26b0b2f797083c30606))
+
 # [1.4.0](https://github.com/twds0x13/FluxFormula/compare/v1.3.2...v1.4.0) (2026-06-20)
 
 
