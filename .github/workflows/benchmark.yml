@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - "com.twds0x13.fluxformula/Runtime/**"
+      - "packages/fluxformula.core/Runtime/**"
       - "benchmarks/**"
       - ".github/workflows/benchmark.yml"
   pull_request:
     branches: [main]
     paths:
-      - "com.twds0x13.fluxformula/Runtime/**"
+      - "packages/fluxformula.core/Runtime/**"
       - "benchmarks/**"
       - ".github/workflows/benchmark.yml"
   workflow_dispatch:

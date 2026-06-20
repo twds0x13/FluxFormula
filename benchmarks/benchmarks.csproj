@@ -11,19 +11,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 核心 Runtime 源码（与 standalone-tests 一致） -->
-    <Compile Include="../com.twds0x13.fluxformula/Runtime/Core/FluxDefinition.cs" />
-    <Compile Include="../com.twds0x13.fluxformula/Runtime/Core/FluxEvaluator.cs" />
-    <Compile Include="../com.twds0x13.fluxformula/Runtime/Core/FluxFormula.cs" />
-    <Compile Include="../com.twds0x13.fluxformula/Runtime/Core/FluxToken.cs" />
-    <Compile Include="../com.twds0x13.fluxformula/Runtime/Core/FluxAssembler.cs" />
-    <Compile Include="../com.twds0x13.fluxformula/Runtime/Core/FluxInjector.cs" />
-    <Compile Include="../com.twds0x13.fluxformula/Runtime/Core/FluxInstance.cs" />
-    <Compile Include="../com.twds0x13.fluxformula/Runtime/Core/FluxLexer.cs" />
-    <Compile Include="../com.twds0x13.fluxformula/Runtime/Compiler/FluxCompiler.cs" />
-    <Compile Include="../com.twds0x13.fluxformula/Runtime/Compiler/FluxJITCompiler.cs" />
+    <!-- 核心 Runtime 源码（monorepo: packages/fluxformula.core/Runtime/） -->
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxDefinition.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxEvaluator.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxFormula.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxToken.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxAssembler.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxInjector.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxLexer.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/Compiler/FluxJITCompiler.cs" />
     <!-- 测试定义 -->
-    <Compile Include="../com.twds0x13.fluxformula/Tests/TestDefinition.cs" />
+    <Compile Include="../packages/fluxformula/Tests/TestDefinition.cs" />
   </ItemGroup>
 
   <ItemGroup>

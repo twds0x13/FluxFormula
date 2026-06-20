@@ -1,10 +1,27 @@
 {
   "dependencies": {
-    "com.twds0x13.fluxformula": {
-      "version": "file:../../com.twds0x13.fluxformula",
+    "com.twds0x13.fluxformula.addressables": {
+      "version": "file:../../packages/fluxformula.addressables",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.twds0x13.fluxformula.core": "2.0.0",
+        "com.twds0x13.fluxformula": "2.0.0"
+      }
+    },
+    "com.twds0x13.fluxformula.core": {
+      "version": "file:../../packages/fluxformula.core",
       "depth": 0,
       "source": "local",
       "dependencies": {}
+    },
+    "com.twds0x13.fluxformula": {
+      "version": "file:../../packages/fluxformula",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.twds0x13.fluxformula.core": "2.0.0"
+      }
     },
     "com.unity.addressables": {
       "version": "1.22.3",

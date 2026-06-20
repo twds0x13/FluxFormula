@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - "docs/**"
-      - "com.twds0x13.fluxformula/package.json"
+      - "packages/fluxformula/package.json"
       - "package-lock.json"
   workflow_dispatch:
 

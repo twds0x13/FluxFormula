@@ -21,8 +21,8 @@ Use the [Feature Request](https://github.com/twds0x13/FluxFormula/issues/new?tem
 ```bash
 git clone https://github.com/twds0x13/FluxFormula.git
 cd FluxFormula
-dotnet restore standalone-tests/FluxFormula.Tests.csproj
-dotnet build standalone-tests/FluxFormula.Tests.csproj
+dotnet restore tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj
+dotnet build tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj
 ```
 
 Prerequisites:
@@ -33,21 +33,26 @@ Prerequisites:
 
 ```
 FluxFormula/
-├── com.twds0x13.fluxformula/        # UPM package
-│   ├── Runtime/                     # FluxFormula.Core assembly
-│   │   ├── FluxAssembler.cs         # Compilation entry point
-│   │   ├── FluxCompiler.cs          # Shunting-yard algorithm (internal)
-│   │   ├── FluxEvaluator.cs         # Interpreter execution (internal)
-│   │   ├── FluxJITCompiler.cs       # LINQ Expression Tree compiler (internal)
-│   │   ├── FluxFormula.cs           # Immutable bytecode container
-│   │   ├── FluxInstance.cs          # ref struct streaming executor
-│   │   ├── FluxLexer.cs             # Hand-written span lexer
-│   │   ├── FluxToken.cs             # Lexical token
-│   │   ├── Instruction.cs           # 8-byte instruction struct
-│   │   └── ...
-│   ├── Editor/                      # Unity Editor extensions
-│   └── Tests/                       # In-package tests
-├── standalone-tests/                # Dotnet test project (no Unity needed)
+├── packages/
+│   ├── fluxformula.core/            # Pure C# pipeline (zero Unity dependency)
+│   │   └── Runtime/Core/
+│   │       ├── FluxAssembler.cs     # Compilation entry point
+│   │       ├── FluxCompiler.cs      # Shunting-yard algorithm (internal)
+│   │       ├── FluxEvaluator.cs     # Interpreter execution (internal)
+│   │       ├── FluxJITCompiler.cs   # LINQ Expression Tree compiler (internal)
+│   │       ├── FluxFormula.cs       # Immutable bytecode container
+│   │       ├── FluxInstance.cs      # ref struct streaming executor
+│   │       ├── FluxLexer.cs         # Hand-written span lexer
+│   │       ├── FluxToken.cs         # Lexical token
+│   │       └── ...
+│   ├── fluxformula/                 # Unity integration (ScriptableObject + Editor)
+│   │   ├── Runtime/Unity/           # FluxAsset, FormulaLibrary
+│   │   ├── Editor/                  # Unity Editor extensions
+│   │   └── Tests/                   # In-package tests
+│   └── fluxformula.addressables/    # Optional Addressables loading
+├── tests/
+│   └── FluxFormula.Core.Tests/      # Dotnet test project (no Unity needed)
+├── benchmarks/                      # BenchmarkDotNet project
 └── docs/                            # VitePress documentation (zh-CN + en)
 ```
 
@@ -65,13 +70,13 @@ When contributing code, keep these in mind:
 The standalone test suite runs without Unity:
 
 ```bash
-dotnet test standalone-tests/FluxFormula.Tests.csproj
+dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj
 ```
 
 For a single test:
 
 ```bash
-dotnet test standalone-tests/FluxFormula.Tests.csproj --filter "FullyQualifiedName~SmokeTest"
+dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --filter "FullyQualifiedName~SmokeTest"
 ```
 
 Tests cover compilation, interpreter, JIT, lexer, Connect, and serialization paths. If you fix a bug or add a feature, adding a test is strongly appreciated but not a hard requirement — mention it in the PR if a test is impractical.

@@ -116,4 +116,4 @@ Assert.That(runner.Build(tokens).Run(), Is.EqualTo(7f).Within(1e-6f));
 // 1 / 0 → NaN
 ```
 
-Full source at `com.twds0x13.fluxformula/Tests/SmokeTest.cs` (standalone, no Unity required).
+Full source at `tests/FluxFormula.Core.Tests/SmokeTest.cs` (standalone, no Unity required).
