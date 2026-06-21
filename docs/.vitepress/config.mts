@@ -60,6 +60,7 @@ export default withMermaid(
                 { text: "编译缓存管线", link: "/technical/compile-cache" },
                 { text: "ChainLink 深度解析", link: "/technical/chainlink-deep-dive" },
                 { text: "架构决策记录", link: "/technical/architecture-decisions" },
+                { text: "源码技术分析", link: "/technical/technical-analysis" },
               ],
             },
             {
@@ -131,6 +132,7 @@ export default withMermaid(
                 { text: "Compile Cache Pipeline", link: "/en/technical/compile-cache" },
                 { text: "ChainLink Deep Dive", link: "/en/technical/chainlink-deep-dive" },
                 { text: "Architecture Decisions", link: "/en/technical/architecture-decisions" },
+                { text: "Source Technical Analysis", link: "/en/technical/technical-analysis" },
               ],
             },
             {
