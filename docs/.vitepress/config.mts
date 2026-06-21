@@ -41,6 +41,8 @@ export default withMermaid(
                 { text: "IFluxDefinition", link: "/api/idefinition" },
                 { text: "Instruction", link: "/api/instruction" },
                 { text: "FluxToken", link: "/api/flux-token" },
+                { text: "VffFormat", link: "/api/vff-format" },
+                { text: "FormulaCache", link: "/api/formula-cache" },
               ],
             },
             {
@@ -115,6 +117,8 @@ export default withMermaid(
                 { text: "IFluxDefinition", link: "/en/api/idefinition" },
                 { text: "Instruction", link: "/en/api/instruction" },
                 { text: "FluxToken", link: "/en/api/flux-token" },
+                { text: "VffFormat", link: "/en/api/vff-format" },
+                { text: "FormulaCache", link: "/en/api/formula-cache" },
               ],
             },
             {
