@@ -493,5 +493,181 @@ public unsafe class VffFormatTests
         finally { gcF.Free(); }
     }
 
-    // 循环检测 (Circular VFF reference) 由 Unity 端 VffRecursiveTests 覆盖。
+    // ═══════════════════════════════════════════════════════
+    // 嵌套 VFF — 变量槽偏移 (cumImm > 0)
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void Resolve_NestedVff_WithVariableSlots_OffsetsSlotIndex()
+    {
+        // 外层 VFF: [const formula (2 imm)] + [inner VFF with variables]
+        // inner VFF 的变量槽 SlotIndex 应偏移 const formula 的 ImmediateCount
+        var varLexer = CreateVarLexer("[", "]");
+        var mathLexer = CreateMathLexer();
+
+        var fVar = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+            .Compile(varLexer.Lex("[a] + [b]"));
+        byte[] varBytes = fVar.ToBytes();
+        var (varHash, gcVar) = PutInCache(varBytes);
+
+        var fConst = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+            .Compile(mathLexer.Lex("10 + 5"));
+        byte[] constBytes = fConst.ToBytes();
+        var (constHash, gcConst) = PutInCache(constBytes);
+
+        try
+        {
+            var varHdr = FormulaFormat.ReadHeader(varBytes);
+            // Inner VFF: wraps the variable formula
+            var innerLink = new VffLinkEntry(varHash, (byte)varHdr.ImmediateCount,
+                (ushort)varHdr.Count, FluxType.Formula, (ushort)varHdr.VarSlotCount);
+            byte[] innerVffBytes = BuildVffBytes(new[] { innerLink });
+            var (innerVffHash, gcInnerVff) = PutInCache(innerVffBytes);
+
+            try
+            {
+                var constHdr = FormulaFormat.ReadHeader(constBytes);
+                // Outer VFF: const formula first (cumImm = constHdr.ImmediateCount),
+                //            then the inner VFF
+                var outerLinks = new[]
+                {
+                    new VffLinkEntry(constHash, (byte)constHdr.ImmediateCount,
+                        (ushort)constHdr.Count, FluxType.Formula, (ushort)constHdr.VarSlotCount),
+                    new VffLinkEntry(innerVffHash, immCount: 0, instCount: 0,
+                        type: FluxType.Formula, varSlotCount: 2),
+                };
+                byte[] outerVffBytes = BuildVffBytes(outerLinks);
+                var (outerVffHash, gcOuterVff) = PutInCache(outerVffBytes);
+
+                try
+                {
+                    var result = VffFormat.Resolve<float, FloatOp>(outerVffHash);
+                    var slots = result.Formula.VariableSlots;
+
+                    Assert.That(slots.Length, Is.EqualTo(2));
+                    Assert.That(slots[0].Name, Is.EqualTo("a"));
+                    Assert.That(slots[0].SlotIndex, Is.EqualTo(constHdr.ImmediateCount),
+                        "SlotIndex should be offset by preceding immediates");
+                    Assert.That(slots[1].Name, Is.EqualTo("b"));
+                    Assert.That(slots[1].SlotIndex, Is.EqualTo(constHdr.ImmediateCount + 1));
+                }
+                finally { gcOuterVff.Free(); }
+            }
+            finally { gcInnerVff.Free(); }
+        }
+        finally { gcVar.Free(); gcConst.Free(); }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 嵌套 VFF — Override GlobalSlot 偏移
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void Resolve_NestedVff_WithOverrides_OffsetsGlobalSlot()
+    {
+        // 外层 VFF: [const formula] + [inner VFF with override]
+        // inner VFF 的 override GlobalSlot 应偏移外层累积的 immediates
+        var mathLexer = CreateMathLexer();
+
+        var fInner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+            .Compile(mathLexer.Lex("42"));
+        byte[] innerBytes = fInner.ToBytes();
+        var (innerHash, gcInner) = PutInCache(innerBytes);
+
+        var fConst = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+            .Compile(mathLexer.Lex("99"));
+        byte[] constBytes = fConst.ToBytes();
+        var (constHash, gcConst) = PutInCache(constBytes);
+
+        try
+        {
+            var innerHdr = FormulaFormat.ReadHeader(innerBytes);
+            var innerLink = new VffLinkEntry(innerHash, (byte)innerHdr.ImmediateCount,
+                (ushort)innerHdr.Count, FluxType.Formula, (ushort)innerHdr.VarSlotCount);
+            // Inner VFF: formula + inject override at slot 0
+            byte[] innerVffBytes = BuildVffBytes(new[] { innerLink },
+                new[] { (globalSlot: 0, kind: VffOverrideKind.Inject, value: 0f) });
+            var (innerVffHash, gcInnerVff) = PutInCache(innerVffBytes);
+
+            try
+            {
+                var constHdr = FormulaFormat.ReadHeader(constBytes);
+                var outerLinks = new[]
+                {
+                    new VffLinkEntry(constHash, (byte)constHdr.ImmediateCount,
+                        (ushort)constHdr.Count, FluxType.Formula, (ushort)constHdr.VarSlotCount),
+                    new VffLinkEntry(innerVffHash, immCount: 0, instCount: 0,
+                        type: FluxType.Formula, varSlotCount: 0),
+                };
+                byte[] outerVffBytes = BuildVffBytes(outerLinks);
+                var (outerVffHash, gcOuterVff) = PutInCache(outerVffBytes);
+
+                try
+                {
+                    var result = VffFormat.Resolve<float, FloatOp>(outerVffHash);
+                    Assert.That(result.Overrides.Length, Is.EqualTo(1));
+                    Assert.That(result.Overrides[0].Kind, Is.EqualTo(VffOverrideKind.Inject));
+                    Assert.That(result.Overrides[0].GlobalSlot,
+                        Is.EqualTo(constHdr.ImmediateCount),
+                        "GlobalSlot should be offset by outer VFF's preceding immediates");
+                }
+                finally { gcOuterVff.Free(); }
+            }
+            finally { gcInnerVff.Free(); }
+        }
+        finally { gcInner.Free(); gcConst.Free(); }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 错误路径 — 循环引用
+    // ═══════════════════════════════════════════════════════
+    //
+    // 注：内容寻址哈希导致无法构造静态的互相引用循环（A→B→A 要求
+    // hashA = Hash([link_to_hashB]) 且 hashB = Hash([link_to_hashA])，
+    // 这是一个无解的不动点方程）。真机上的循环检测依赖运行时注入
+    // （VFF 递归解析过程中 visited 集合）。此路径由 Unity 端
+    // VffRecursiveTests 覆盖（blob 场景下 VFF 可互相引用）。
+
+    [Test]
+    public void Resolve_BrokenNestedLink_ThrowsLinkNotFound()
+    {
+        // 外层 VFF 引用的内层 VFF 在缓存中缺失 → 抛 "not in cache"
+        var lexer = CreateMathLexer();
+        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("42"));
+        byte[] fBytes = f.ToBytes();
+        var (fHash, gcF) = PutInCache(fBytes);
+
+        try
+        {
+            var hdr = FormulaFormat.ReadHeader(fBytes);
+            var link = new VffLinkEntry(fHash, (byte)hdr.ImmediateCount,
+                (ushort)hdr.Count, FluxType.Formula, (ushort)hdr.VarSlotCount);
+            byte[] innerVffBytes = BuildVffBytes(new[] { link });
+            var (innerVffHash, gcInnerVff) = PutInCache(innerVffBytes);
+
+            try
+            {
+                // 外层 VFF 引用 inner VFF + 一个不存在的链接
+                var bogusHash = DualHash64.Compute(new byte[] { 0xDE, 0xAD });
+                var outerLinks = new[]
+                {
+                    new VffLinkEntry(innerVffHash, immCount: 0, instCount: 0,
+                        type: FluxType.Formula, varSlotCount: 0),
+                    new VffLinkEntry(bogusHash, immCount: 1, instCount: 1,
+                        type: FluxType.Formula, varSlotCount: 0),
+                };
+                byte[] outerVffBytes = BuildVffBytes(outerLinks);
+                var (outerVffHash, gcOuterVff) = PutInCache(outerVffBytes);
+                try
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        VffFormat.Resolve<float, FloatOp>(outerVffHash));
+                    Assert.That(ex.Message, Does.Contain("not in cache"));
+                }
+                finally { gcOuterVff.Free(); }
+            }
+            finally { gcInnerVff.Free(); }
+        }
+        finally { gcF.Free(); }
+    }
 }

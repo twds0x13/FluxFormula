@@ -139,4 +139,308 @@ public class ArithmeticTests
             Throws.TypeOf<FormatException>()
         );
     }
+
+    // ── 多元运算符（Select / Lerp）─────────────────
+
+    [Test]
+    public void Select_WhenFirstArgNonzero_ReturnsSecond()
+    {
+        // select(1, 10, 20) → 10
+        float r = Eval(new[] { C(1f), C(10f), C(20f), Op(FloatOp.Select) });
+        Assert.That(r, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Select_WhenFirstArgZero_ReturnsThird()
+    {
+        // select(0, 10, 20) → 20
+        float r = Eval(new[] { C(0f), C(10f), C(20f), Op(FloatOp.Select) });
+        Assert.That(r, Is.EqualTo(20f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Select_JitPath()
+    {
+        float r = Eval(new[] { C(1f), C(10f), C(20f), Op(FloatOp.Select) }, jit: true);
+        Assert.That(r, Is.EqualTo(10f).Within(1e-6f));
+
+        r = Eval(new[] { C(0f), C(10f), C(20f), Op(FloatOp.Select) }, jit: true);
+        Assert.That(r, Is.EqualTo(20f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Lerp_InterpolatesCorrectly()
+    {
+        // lerp(0, 10, 0.5) → 5
+        float r = Eval(new[] { C(0f), C(10f), C(0.5f), Op(FloatOp.Lerp) });
+        Assert.That(r, Is.EqualTo(5f).Within(1e-6f));
+
+        // lerp(0, 10, 0) → 0
+        r = Eval(new[] { C(0f), C(10f), C(0f), Op(FloatOp.Lerp) });
+        Assert.That(r, Is.EqualTo(0f).Within(1e-6f));
+
+        // lerp(0, 10, 1) → 10
+        r = Eval(new[] { C(0f), C(10f), C(1f), Op(FloatOp.Lerp) });
+        Assert.That(r, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Lerp_JitPath()
+    {
+        float r = Eval(new[] { C(0f), C(10f), C(0.5f), Op(FloatOp.Lerp) }, jit: true);
+        Assert.That(r, Is.EqualTo(5f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Select_WithArithmeticInArgs()
+    {
+        // select(1+0, 2*5, 30) → 10  (1+0 != 0, pick 2*5)
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("select(1 + 0, 2 * 5, 30)");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Select_WithArithmeticInArgs_Jit()
+    {
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("select(1 + 0, 2 * 5, 30)");
+        float r = Eval(result.Tokens, jit: true);
+        Assert.That(r, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void NestedSelects_Interpreter()
+    {
+        // select(0, 10, select(1, 20, 30)) → 20
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("select(0, 10, select(1, 20, 30))");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(20f).Within(1e-6f));
+    }
+
+    [Test]
+    public void NestedSelects_JitPath()
+    {
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("select(0, 10, select(1, 20, 30))");
+        float r = Eval(result.Tokens, jit: true);
+        Assert.That(r, Is.EqualTo(20f).Within(1e-6f));
+    }
+
+    [Test]
+    public void NestedLerp_InSelect()
+    {
+        // select(1, lerp(0, 10, 0.5), 100) → select(1, 5, 100) → 5
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("select(1, lerp(0, 10, 0.5), 100)");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(5f).Within(1e-6f));
+    }
+
+    // ── 三元表达式 A ? B : C ─────────────────────
+
+    [Test]
+    public void Question_GetPair_ReturnsEmitOnMatch()
+    {
+        var pair = Def.GetPair(FloatOp.Question);
+        Assert.That(pair.EmitOnMatch, Is.True, "Question.EmitOnMatch should be true");
+        Assert.That(pair.EmitOpCode, Is.EqualTo(FloatOp.Select), "Question.EmitOpCode should be Select");
+        Assert.That(pair.PairRole, Is.EqualTo(Pair.None), "Question.PairRole should be None");
+    }
+
+    [Test]
+    public void Ternary_DirectTokens_DumpBytecode()
+    {
+        var tokens = new[]
+        {
+            C(1f), Op(FloatOp.Question), C(10f), Op(FloatOp.Colon), C(20f)
+        };
+        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var formula = runner.Compile(tokens);
+        var raw = formula.Raw();
+
+        // Verify: should have 3 immediates + 1 select + 1 return = 5+dataSlots instructions
+        Assert.That(formula.ImmediateCount, Is.EqualTo(3), "Should have 3 immediates");
+        Assert.That(formula.Type, Is.EqualTo(FluxType.Formula), "Should be Formula");
+
+        // Check last non-Return instruction is Select (opcode 6)
+        Assert.That(raw[formula.Count - 2].OpCode, Is.EqualTo(6), "Second-to-last inst should be Select(op=6)");
+
+        float r = runner.Instantiate(formula, jit: false).Run();
+        Assert.That(r, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Ternary_DirectTokens_False()
+    {
+        var tokens = new[]
+        {
+            C(0f), Op(FloatOp.Question), C(10f), Op(FloatOp.Colon), C(20f)
+        };
+        float r = Eval(tokens);
+        Assert.That(r, Is.EqualTo(20f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Ternary_Basic_TrueBranch()
+    {
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("1 ? 10 : 20");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Ternary_Basic_FalseBranch()
+    {
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("0 ? 10 : 20");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(20f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Ternary_JitPath()
+    {
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("1 ? 10 : 20");
+        float r = Eval(result.Tokens, jit: true);
+        Assert.That(r, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Ternary_WithArithmeticInCondition()
+    {
+        // 2*3 ? 10 : 20 → 6 != 0 → 10
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("2 * 3 ? 10 : 20");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Ternary_ArithmeticInBranches()
+    {
+        // 1 ? 2+3 : 10*2 → 5
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("1 ? 2 + 3 : 10 * 2");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(5f).Within(1e-6f));
+
+        // 0 ? 2+3 : 10*2 → 20
+        result = lexer.Lex("0 ? 2 + 3 : 10 * 2");
+        r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(20f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Ternary_LowestPrecedence()
+    {
+        // 1+1 ? 0 : 100 → (1+1)?0:100 → 2!=0 → 0
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("1 + 1 ? 0 : 100");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(0f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Ternary_NestedInFunctionCall()
+    {
+        // lerp(0, 1 ? 10 : 20, 0.5) → lerp(0, 10, 0.5) → 5
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("lerp(0, 1 ? 10 : 20, 0.5)");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(5f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Ternary_NestedInParentheses()
+    {
+        // (1 ? 2 : 3) + 10 → 2 + 10 → 12
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("(1 ? 2 : 3) + 10");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(12f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Ternary_NestedTernary()
+    {
+        // 1 ? (0 ? 100 : 200) : 300 → 1!=0 → (0?100:200) → 0==0 → 200
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("1 ? (0 ? 100 : 200) : 300");
+        float r = Eval(result.Tokens);
+        Assert.That(r, Is.EqualTo(200f).Within(1e-6f));
+    }
+
+    // ── 六元联合加法 Sum6 (arity 6, 测试 Arg3-Arg5 全部路径) ──
+
+    [Test]
+    public void Sum6_Basic_Interpreter()
+    {
+        // sum6(1, 2, 3, 4, 5, 6) → 21
+        var tokens = new[]
+        {
+            C(1f), C(2f), C(3f), C(4f), C(5f), C(6f), Op(FloatOp.Sum6)
+        };
+        float r = Eval(tokens);
+        Assert.That(r, Is.EqualTo(21f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Sum6_Basic_Jit()
+    {
+        var tokens = new[]
+        {
+            C(1f), C(2f), C(3f), C(4f), C(5f), C(6f), Op(FloatOp.Sum6)
+        };
+        float r = Eval(tokens, jit: true);
+        Assert.That(r, Is.EqualTo(21f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Sum6_WithNegativeValues()
+    {
+        var tokens = new[]
+        {
+            C(10f), C(-2f), C(3f), C(-4f), C(5f), C(-6f), Op(FloatOp.Sum6)
+        };
+        float r = Eval(tokens);
+        Assert.That(r, Is.EqualTo(6f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Sum6_AsPartOfLargerExpression()
+    {
+        // 10 + sum6(1,2,3,4,5,6) → 10 + 21 → 31
+        // Use direct RPN: push sum6 result first, then add
+        var tokens = new[]
+        {
+            C(10f),
+            C(1f), C(2f), C(3f), C(4f), C(5f), C(6f), Op(FloatOp.Sum6),
+            Op(FloatOp.Add)
+        };
+        float r = Eval(tokens);
+        Assert.That(r, Is.EqualTo(31f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Sum6_Jit_PruneRegisters_ScansArg3To5()
+    {
+        // JIT compile with pruneRegisters: verifies Arg3/Arg4/Arg5 scanning path
+        // sum6 uses all 6 register fields → pruneRegisters must scan Arg2-Arg5
+        var tokens = new[]
+        {
+            C(1f), C(2f), C(3f), C(4f), C(5f), C(6f), Op(FloatOp.Sum6)
+        };
+        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var formula = runner.Compile(tokens);
+
+        // JIT with pruneRegisters=true (triggered via internal path)
+        // The Instantiate JIT path uses maxRegister from formula — if > 2, pruneRegisters activates
+        float r = runner.Instantiate(formula, jit: true).Run();
+        Assert.That(r, Is.EqualTo(21f).Within(1e-6f));
+    }
 }

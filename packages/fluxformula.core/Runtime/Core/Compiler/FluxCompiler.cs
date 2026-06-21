@@ -109,11 +109,14 @@ namespace FluxFormula.Compiler
                     {
                         while (opTop >= 0 && !opStack[opTop].Equals(pairInfo.TargetLeft))
                         {
+                            TOper emitOp = opStack[opTop--];
+                            var emitPair = _provider.GetPair(emitOp);
+                            TOper actualOp = emitPair.EmitOnMatch ? emitPair.EmitOpCode : emitOp;
                             EmitOp(
                                 pDest,
                                 ref instIdx,
                                 instructions.Length,
-                                opStack[opTop--],
+                                actualOp,
                                 regStack,
                                 ref regTop,
                                 ref nextReg
@@ -121,23 +124,50 @@ namespace FluxFormula.Compiler
                         }
 
                         if (opTop < 0)
-                            throw new FormatException($"Unmatched right parenthesis: {token.Oper}");
+                            throw new FormatException($"Unmatched right bracket: {token.Oper}");
 
-                        TOper leftOp = opStack[opTop--];
-                        var leftParenBehavior = _provider.GetPair(leftOp);
-                        if (leftParenBehavior.EmitOnMatch)
+                        if (pairInfo.IsSeparator)
                         {
-                            EmitOp(
-                                pDest,
-                                ref instIdx,
-                                instructions.Length,
-                                leftParenBehavior.EmitOpCode,
-                                regStack,
-                                ref regTop,
-                                ref nextReg
-                            );
+                            // 逗号分隔符：发射中间运算符但不弹出 '('
+                            ctx = TokenContext.OperandExpected; // 逗号后期待下一个参数
                         }
-                        ctx = TokenContext.OperatorExpected; // ')' 后期待运算符
+                        else
+                        {
+                            TOper leftOp = opStack[opTop--];
+                            var leftParenBehavior = _provider.GetPair(leftOp);
+                            if (leftParenBehavior.EmitOnMatch)
+                            {
+                                EmitOp(
+                                    pDest,
+                                    ref instIdx,
+                                    instructions.Length,
+                                    leftParenBehavior.EmitOpCode,
+                                    regStack,
+                                    ref regTop,
+                                    ref nextReg
+                                );
+                            }
+
+                            // 检查 '(' 下方是否有函数运算符（如 select/lerp）待发射
+                            if (opTop >= 0)
+                            {
+                                byte checkByte = *(byte*)&opStack[opTop];
+                                if (_provider.GetArity(checkByte) > 0
+                                    && _provider.GetPair(opStack[opTop]).PairRole == Pair.None)
+                                {
+                                    EmitOp(
+                                        pDest,
+                                        ref instIdx,
+                                        instructions.Length,
+                                        opStack[opTop--],
+                                        regStack,
+                                        ref regTop,
+                                        ref nextReg
+                                    );
+                                }
+                            }
+                            ctx = TokenContext.OperatorExpected; // ')' 后期待运算符
+                        }
                     }
                     else
                     {
@@ -181,14 +211,27 @@ namespace FluxFormula.Compiler
                 while (opTop >= 0)
                 {
                     TOper topOp = opStack[opTop--];
-                    if (_provider.GetPair(topOp).PairRole == Pair.Left)
-                        throw new FormatException("Unmatched left parenthesis.");
+                    var topPair = _provider.GetPair(topOp);
 
+                    if (topPair.PairRole == Pair.Left)
+                    {
+                        if (topPair.EmitOnMatch)
+                        {
+                            EmitOp(pDest, ref instIdx, instructions.Length, topPair.EmitOpCode, regStack, ref regTop, ref nextReg);
+                        }
+                        else
+                        {
+                            throw new FormatException("Unmatched left parenthesis.");
+                        }
+                        continue;
+                    }
+
+                    TOper actualOp = topPair.EmitOnMatch ? topPair.EmitOpCode : topOp;
                     EmitOp(
                         pDest,
                         ref instIdx,
                         instructions.Length,
-                        topOp,
+                        actualOp,
                         regStack,
                         ref regTop,
                         ref nextReg

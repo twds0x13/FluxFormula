@@ -19,3 +19,9 @@ docs/.vitepress/cache/
 
 # ===== AI / Claude (local only) =====
 .claude/settings.local.json
+
+# Coverage reports
+coverage.xml
+coverage2.xml
+coverage-report/
+coverage-report2/

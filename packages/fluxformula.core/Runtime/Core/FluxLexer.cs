@@ -28,11 +28,17 @@ namespace FluxFormula.Core
     {
         public readonly string Symbol;
         public readonly TOper Oper;
+        /// <summary>函数调用左括号符号，如 "("。null 表示不使用括号语法。</summary>
+        public readonly string BracketOpen;
+        /// <summary>函数调用右括号符号，如 ")"。</summary>
+        public readonly string BracketClose;
 
-        public OperatorRule(string symbol, TOper oper)
+        public OperatorRule(string symbol, TOper oper, string bracketOpen = null, string bracketClose = null)
         {
-            Symbol = symbol;
-            Oper   = oper;
+            Symbol       = symbol;
+            Oper         = oper;
+            BracketOpen  = bracketOpen;
+            BracketClose = bracketClose;
         }
     }
 

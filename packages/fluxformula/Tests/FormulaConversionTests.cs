@@ -208,12 +208,9 @@ public class FormulaConversionTests
     [Test]
     public void ToFormula_PreservesOriginalVariableSlots()
     {
-        // modifier with a variable: _ * [scale] + [offset]
-        // → formula: [base] * [scale] + [offset]
+        // modifier with variables [b] and [c] (from [a] * [b] + [c] → ToMultiplier)
+        // → formula: [newbase] * [b] + [c]
         var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-        var lex    = CreateVarLexer("[", "]").Lex("_ * [scale] + [offset]");
-        // "_" 不会被识别为变量（没有前缀匹配），所以这不是变量。
-        // 改为直接构造有变量的 modifier：先创建 formula，再 ToMultiplier
         var formulaOrig = runner.Compile(CreateVarLexer("[", "]").Lex("[a] * [b] + [c]"));
         var modifier    = formulaOrig.ToMultiplier();
 
@@ -339,13 +336,12 @@ public class FormulaConversionTests
     [Test]
     public void ToMultiplier_TooFewInstructions_Throws()
     {
-        // 只有 1 条 Immediate 指令的 formula 不能转 modifier
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-        var formula = runner.Compile(new[] { C(1f) });
+        // 空公式不能转 modifier（Count=0 < 2）
+        var formula = FluxFormula<float, FloatOp>.Empty;
 
         bool threw = false;
         try { formula.ToMultiplier(); }
         catch (InvalidOperationException) { threw = true; }
-        Assert.That(threw, Is.True, "Formula with < 2 instructions should throw on ToMultiplier");
+        Assert.That(threw, Is.True, "Empty formula should throw on ToMultiplier");
     }
 }

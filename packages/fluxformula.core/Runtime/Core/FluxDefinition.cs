@@ -47,6 +47,8 @@ namespace FluxFormula.Core
         public TOper TargetLeft;
         public bool EmitOnMatch;
         public TOper EmitOpCode;
+        /// <summary>参数分隔符（如逗号）：触发 emit 但不弹出 Left 括号。</summary>
+        public bool IsSeparator;
 
         public override readonly string ToString() =>
             PairRole == Pair.None

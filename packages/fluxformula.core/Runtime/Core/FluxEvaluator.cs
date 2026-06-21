@@ -53,7 +53,20 @@ namespace FluxFormula.Core
 
         private TData ComputeCore(ReadOnlySpan<Instruction> raw, TData initialR1, byte maxRegister)
         {
-            int regCount = maxRegister > Registers.Bus ? maxRegister + 1 : FluxPlatform.MaxRegisters;
+            // 扫描 bytecode 获取实际最大寄存器号（防御 ToFormula 等操作后 MaxRegister 未更新）
+            byte actualMax = maxRegister > Registers.Bus ? maxRegister : Registers.Bus;
+            for (int i = 0; i < raw.Length; i++)
+            {
+                var inst = raw[i];
+                if (inst.Dest > actualMax) actualMax = inst.Dest;
+                if (inst.Arg0 > actualMax) actualMax = inst.Arg0;
+                if (inst.Arg1 > actualMax) actualMax = inst.Arg1;
+                if (inst.Arg2 > actualMax) actualMax = inst.Arg2;
+                if (inst.Arg3 > actualMax) actualMax = inst.Arg3;
+                if (inst.Arg4 > actualMax) actualMax = inst.Arg4;
+                if (inst.Arg5 > actualMax) actualMax = inst.Arg5;
+            }
+            int regCount = actualMax + 1;
             byte* rawPtr = stackalloc byte[sizeof(TData) * regCount + 63];
             long addr = (long)rawPtr;
             TData* regsPtr = (TData*)((addr + 63) & ~63);

@@ -40,37 +40,32 @@ namespace FluxFormula.Compiler
             payload = new Instruction[totalDataSlots];
             var bufferParam = Expression.Parameter(typeof(Instruction[]), "dataBuffer");
 
-            int regCount = maxRegister > Registers.Bus ? maxRegister + 1 : FluxPlatform.MaxRegisters + 1;
-            if (pruneRegisters)
+            // 扫描 bytecode 查找实际最大寄存器号（防御 ToFormula 等场景未更新 MaxRegister）
+            byte actualMax = maxRegister > Registers.Bus ? maxRegister : Registers.FirstAlloc;
+            for (int i = 0; i < raw.Length; i++)
             {
-                // Scan instructions to find the highest register index actually used.
-                // Error(R0) and Bus(R1) are always kept.
-                int maxReg = Registers.FirstAlloc;
-                for (int i = 0; i < raw.Length; i++)
+                var inst = raw[i];
+                OpType kind = definition.GetKind(inst.OpCode);
+                if (kind == OpType.Return) break;
+                if (inst.Dest > actualMax) actualMax = inst.Dest;
+                if (kind == OpType.Instruction)
                 {
-                    var inst = raw[i];
-                    OpType kind = definition.GetKind(inst.OpCode);
-                    if (kind == OpType.Return) break;
-                    if (inst.Dest > maxReg) maxReg = inst.Dest;
-                    if (kind == OpType.Instruction)
-                    {
-                        int a = definition.GetArity(inst.OpCode);
-                        if (a > 0 && inst.Arg0 > maxReg) maxReg = inst.Arg0;
-                        if (a > 1 && inst.Arg1 > maxReg) maxReg = inst.Arg1;
-                        if (a > 2 && inst.Arg2 > maxReg) maxReg = inst.Arg2;
-                        if (a > 3 && inst.Arg3 > maxReg) maxReg = inst.Arg3;
-                        if (a > 4 && inst.Arg4 > maxReg) maxReg = inst.Arg4;
-                        if (a > 5 && inst.Arg5 > maxReg) maxReg = inst.Arg5;
-                    }
-                    else if (kind != OpType.Immediate)
-                    {
-                        throw new InvalidOperationException(
-                            $"Unknown OpType in JIT compiler (reg scan): {kind}. " +
-                            "If you added a new OpType, update the JIT compiler dispatch.");
-                    }
+                    int a = definition.GetArity(inst.OpCode);
+                    if (a > 0 && inst.Arg0 > actualMax) actualMax = inst.Arg0;
+                    if (a > 1 && inst.Arg1 > actualMax) actualMax = inst.Arg1;
+                    if (a > 2 && inst.Arg2 > actualMax) actualMax = inst.Arg2;
+                    if (a > 3 && inst.Arg3 > actualMax) actualMax = inst.Arg3;
+                    if (a > 4 && inst.Arg4 > actualMax) actualMax = inst.Arg4;
+                    if (a > 5 && inst.Arg5 > actualMax) actualMax = inst.Arg5;
                 }
-                regCount = maxReg + 1;
+                else if (kind != OpType.Immediate)
+                {
+                    throw new InvalidOperationException(
+                        $"Unknown OpType in JIT compiler (reg scan): {kind}. " +
+                        "If you added a new OpType, update the JIT compiler dispatch.");
+                }
             }
+            int regCount = actualMax + 1;
 
             var regs = new ParameterExpression[regCount];
             for (int i = 0; i < regs.Length; i++)

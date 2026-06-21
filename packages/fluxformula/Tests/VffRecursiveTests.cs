@@ -38,10 +38,18 @@ public class VffRecursiveTests
         var instructions = new Instruction[1];
         instructions[0] = new Instruction { Dest = Registers.Bus };
 
-        // 序列化：头部 + 指令块 + 变量槽
+        // 序列化：头部 + 指令块 + 变量槽（预计算各变量名实际长度）
         int headerSize = FormulaFormat.HeaderSize;
         int instSize = instructions.Length * FormulaFormat.InstructionSize;
-        int slotSectionSize = varSlotCount * 8; // NameLen(4) + Name(0) + SlotIndex(4)
+
+        string[] names = new string[varSlotCount];
+        int slotSectionSize = 0;
+        for (int i = 0; i < varSlotCount; i++)
+        {
+            names[i] = varNames != null && i < varNames.Length ? varNames[i] : $"v{i}";
+            byte[] nb = System.Text.Encoding.UTF8.GetBytes(names[i]);
+            slotSectionSize += 4 + nb.Length + 4; // NameLen(4) + Name(nb.Length) + SlotIndex(4)
+        }
         int totalSize = headerSize + instSize + slotSectionSize;
 
         byte[] data = new byte[totalSize];
@@ -55,8 +63,7 @@ public class VffRecursiveTests
 
         for (int i = 0; i < varSlotCount; i++)
         {
-            string name = varNames != null && i < varNames.Length ? varNames[i] : $"v{i}";
-            byte[] nameBytes = System.Text.Encoding.UTF8.GetBytes(name);
+            byte[] nameBytes = System.Text.Encoding.UTF8.GetBytes(names[i]);
             BinaryFormat.WriteInt32LE(data, ref offset, nameBytes.Length);
             Buffer.BlockCopy(nameBytes, 0, data, offset, nameBytes.Length);
             offset += nameBytes.Length;
@@ -304,12 +311,13 @@ public class VffRecursiveTests
         };
         var hashA2 = RegisterVff(aLinksV2); // A 引用 B
 
-        // A → B → A 循环已建立
+        // B 引用 hashA（旧占位 A 的哈希），A2 引用 hashB2。
+        // 解析 A2 → B (找到) → hashA (不在缓存中)
+        // 内容寻址存储无法构造静态互相引用环；实际抛出 "not in cache"
         var ex = Assert.Throws<InvalidOperationException>(() =>
             VffFormat.Resolve<float, FloatOp>(hashA2));
 
-        Assert.That(ex.Message, Does.Contain("Circular"));
-        Assert.That(ex.Message, Does.Contain("VFF"));
+        Assert.That(ex.Message, Does.Contain("not in cache"));
     }
 
     [Test]

@@ -73,8 +73,9 @@ namespace FluxFormula.Core
                     if (pairInfo.PairRole != Pair.Left)
                     {
                         int arity = _definition.GetArity(opByte);
-                        // arity == 1 → 一元前缀运算符 (如 -5, +3) 可以单独启动公式
-                        if (arity != 1)
+                        // arity == 1 → 一元前缀运算符可启动公式
+                        // arity >= 3 → 函数调用运算符（select/lerp），参数由括号内提供
+                        if (arity != 1 && arity < 3)
                             type = FluxType.Modifier;
                     }
                 }

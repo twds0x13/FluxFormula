@@ -359,4 +359,103 @@ public class LexerTests
         float v = inst.Set("a", 10f).Set("b", 7f).Run();
         Assert.That(v, Is.EqualTo(17f).Within(1e-6f));
     }
+
+    // ── 函数调用语法（逗号分隔）────────────────────
+
+    [Test]
+    public void Lex_SelectFunctionCall_ProducesCorrectTokens()
+    {
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("select(1, 2, 3)");
+
+        Assert.That(result.Tokens.Length, Is.EqualTo(8));
+        Assert.That(result.Tokens[0].Oper, Is.EqualTo(FloatOp.Select));
+        Assert.That(result.Tokens[1].Oper, Is.EqualTo(FloatOp.LParen));
+        Assert.That(result.Tokens[2].Oper, Is.EqualTo(FloatOp.Const));
+        Assert.That(result.Tokens[2].Data, Is.EqualTo(1f).Within(1e-6f));
+        Assert.That(result.Tokens[3].Oper, Is.EqualTo(FloatOp.Comma));
+        Assert.That(result.Tokens[4].Oper, Is.EqualTo(FloatOp.Const));
+        Assert.That(result.Tokens[4].Data, Is.EqualTo(2f).Within(1e-6f));
+        Assert.That(result.Tokens[5].Oper, Is.EqualTo(FloatOp.Comma));
+        Assert.That(result.Tokens[6].Oper, Is.EqualTo(FloatOp.Const));
+        Assert.That(result.Tokens[6].Data, Is.EqualTo(3f).Within(1e-6f));
+        Assert.That(result.Tokens[7].Oper, Is.EqualTo(FloatOp.RParen));
+    }
+
+    [Test]
+    public void Lex_LerpFunctionCall_ProducesCorrectTokens()
+    {
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("lerp(0, 10, 0.5)");
+
+        Assert.That(result.Tokens.Length, Is.EqualTo(8));
+        Assert.That(result.Tokens[0].Oper, Is.EqualTo(FloatOp.Lerp));
+        Assert.That(result.Tokens[1].Oper, Is.EqualTo(FloatOp.LParen));
+        Assert.That(result.Tokens[2].Data, Is.EqualTo(0f).Within(1e-6f));
+        Assert.That(result.Tokens[4].Data, Is.EqualTo(10f).Within(1e-6f));
+        Assert.That(result.Tokens[6].Data, Is.EqualTo(0.5f).Within(1e-6f));
+    }
+
+    [Test]
+    public void FuncCall_CompileAndRun_Select()
+    {
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("select(1, 10, 20)");
+        float v = Eval(result.Tokens);
+        Assert.That(v, Is.EqualTo(10f).Within(1e-6f));
+
+        result = lexer.Lex("select(0, 10, 20)");
+        v = Eval(result.Tokens);
+        Assert.That(v, Is.EqualTo(20f).Within(1e-6f));
+    }
+
+    [Test]
+    public void FuncCall_CompileAndRun_Select_Jit()
+    {
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("select(1, 10, 20)");
+        float v = Eval(result.Tokens, jit: true);
+        Assert.That(v, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void FuncCall_CompileAndRun_Lerp()
+    {
+        var lexer = CreateFuncLexer();
+        var result = lexer.Lex("lerp(0, 10, 0.5)");
+        float v = Eval(result.Tokens);
+        Assert.That(v, Is.EqualTo(5f).Within(1e-6f));
+    }
+
+    [Test]
+    public void FuncCall_NestedExpressions()
+    {
+        var lexer = CreateFuncLexer();
+        // select(0, lerp(0, 10, 0.5), 100) → cond=0 → third arg 100
+        var result = lexer.Lex("select(0, lerp(0, 10, 0.5), 100)");
+        float v = Eval(result.Tokens);
+        Assert.That(v, Is.EqualTo(100f).Within(1e-6f));
+    }
+
+    [Test]
+    public void FuncCall_ArithmeticInArgs()
+    {
+        var lexer = CreateFuncLexer();
+        // select(1+0, 2*5, 30) → 10
+        var result = lexer.Lex("select(1 + 0, 2 * 5, 30)");
+        float v = Eval(result.Tokens);
+        Assert.That(v, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void FuncCall_CommaOutsideParens_Throws()
+    {
+        var lexer = CreateFuncLexer();
+        // 逗号在括号外：语法错误
+        var result = lexer.Lex("1 , 2");
+        Assert.That(
+            () => Eval(result.Tokens),
+            Throws.TypeOf<FormatException>()
+        );
+    }
 }

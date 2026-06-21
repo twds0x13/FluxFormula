@@ -9,7 +9,7 @@ using FluxFormula.Core;
 
 public enum FloatOp : byte
 {
-    Const, Add, Sub, Mul, Div, Neg, LParen, RParen, Return,
+    Const, Add, Sub, Mul, Div, Neg, Select, Lerp, Sum6, Question, Colon, Comma, LParen, RParen, Return,
 }
 
 public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
@@ -21,7 +21,10 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
     public int GetArity(byte op) => (FloatOp)op switch
     {
         FloatOp.Add => 2, FloatOp.Sub => 2, FloatOp.Mul => 2,
-        FloatOp.Div => 2, FloatOp.Neg => 1, _ => 0,
+        FloatOp.Div => 2, FloatOp.Neg => 1,
+        FloatOp.Select => 3, FloatOp.Lerp => 3,
+        FloatOp.Sum6 => 6,
+        _ => 0,
     };
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -36,7 +39,10 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
     public int GetPrecedence(FloatOp op) => op switch
     {
         FloatOp.Add => 1, FloatOp.Sub => 1, FloatOp.Mul => 2,
-        FloatOp.Div => 2, FloatOp.Neg => 3, _ => 0,
+        FloatOp.Div => 2, FloatOp.Neg => 3,
+        FloatOp.Select => 4, FloatOp.Lerp => 4, FloatOp.Sum6 => 4,
+        FloatOp.Question => -100,
+        _ => 0,
     };
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -47,6 +53,24 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
         {
             PairRole   = Pair.Right,
             TargetLeft = FloatOp.LParen,
+        },
+        FloatOp.Question => new OpPair<FloatOp>
+        {
+            PairRole    = Pair.None,
+            EmitOnMatch = true,
+            EmitOpCode  = FloatOp.Select,
+        },
+        FloatOp.Colon => new OpPair<FloatOp>
+        {
+            PairRole    = Pair.Right,
+            TargetLeft  = FloatOp.Question,
+            IsSeparator = true,
+        },
+        FloatOp.Comma => new OpPair<FloatOp>
+        {
+            PairRole    = Pair.Right,
+            TargetLeft  = FloatOp.LParen,
+            IsSeparator = true,
         },
         _ => new OpPair<FloatOp> { PairRole = Pair.None },
     };
@@ -69,6 +93,10 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
             FloatOp.Div => Math.Abs(regs[inst.Arg1]) < float.Epsilon
                 ? float.NaN : regs[inst.Arg0] / regs[inst.Arg1],
             FloatOp.Neg => -regs[inst.Arg0],
+            FloatOp.Select => regs[inst.Arg0] != 0f ? regs[inst.Arg1] : regs[inst.Arg2],
+            FloatOp.Lerp => regs[inst.Arg0] + (regs[inst.Arg1] - regs[inst.Arg0]) * regs[inst.Arg2],
+            FloatOp.Sum6 => regs[inst.Arg0] + regs[inst.Arg1] + regs[inst.Arg2]
+                          + regs[inst.Arg3] + regs[inst.Arg4] + regs[inst.Arg5],
             _ => 0f,
         };
     }
@@ -86,6 +114,19 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
                 Expression.Equal(regs[inst.Arg1], zero), nan,
                 Expression.Divide(regs[inst.Arg0], regs[inst.Arg1])),
             FloatOp.Neg => Expression.Negate(regs[inst.Arg0]),
+            FloatOp.Select => Expression.Condition(
+                Expression.NotEqual(regs[inst.Arg0], zero),
+                regs[inst.Arg1], regs[inst.Arg2]),
+            FloatOp.Lerp => Expression.Add(
+                regs[inst.Arg0],
+                Expression.Multiply(
+                    Expression.Subtract(regs[inst.Arg1], regs[inst.Arg0]),
+                    regs[inst.Arg2])),
+            FloatOp.Sum6 => Expression.Add(
+                Expression.Add(
+                    Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
+                    Expression.Add(regs[inst.Arg2], regs[inst.Arg3])),
+                Expression.Add(regs[inst.Arg4], regs[inst.Arg5])),
             _ => Expression.Constant(0f),
         };
     }
@@ -164,6 +205,31 @@ public static class TestHelper
             ImplicitOperators = { FloatOp.Mul },
         });
         return lexer;
+    }
+
+    /// <summary>创建支持函数调用语法的 Lexer（select, lerp + 逗号分隔）</summary>
+    public static FluxLexer<float, FloatOp> CreateFuncLexer()
+    {
+        return new FluxLexer<float, FloatOp>(new LexerConfig<float, FloatOp>
+        {
+            LiteralPattern = @"\d+(\.\d+)?f?",
+            LiteralParser  = s => float.Parse(s.TrimEnd('f')),
+            LiteralOper    = FloatOp.Const,
+            Operators =
+            {
+                new("select", FloatOp.Select, "(", ")"),
+                new("lerp", FloatOp.Lerp, "(", ")"),
+                new("?", FloatOp.Question),
+                new(":", FloatOp.Colon),
+                new("+", FloatOp.Add), new("-", FloatOp.Sub),
+                new("*", FloatOp.Mul), new("/", FloatOp.Div),
+                new(",", FloatOp.Comma),
+            },
+            Brackets =
+            {
+                new("(", ")", FloatOp.LParen, FloatOp.RParen),
+            },
+        });
     }
 
     /// <summary>创建支持变量模式的 Lexer，如 ("[", "]") 或 ("{var:", "}")</summary>
