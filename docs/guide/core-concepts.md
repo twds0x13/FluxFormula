@@ -122,8 +122,8 @@ var combined = f42.Connect(mod);  // 42 + 5
 graph LR
     A["fA: x + y"] -->|Connect| C["链: [Link(fA), Link(fB)]"]
     B["fB: z * 2"] -->|Connect| C
-    C -->|"Run (短链≤8)"| D["逐 link 解释器求值<br/>R1 串联传递"]
-    C -->|"ToAtomic (长链>8 / JIT)"| E["合并为连续字节码<br/>单次求值"]
+    C -->|"Run"| D["解释器: 短链逐 link / 长链 ToAtomic"]
+    C -->|"Run (jit: true)"| E["JIT: 逐 link delegate 串联"]
 ```
 
 这等效于 LINQ 的延迟求值：`Where().Select()` 只构造迭代器装饰器，`foreach` / `ToList()` 才真正遍历。链式 Connect 只在 `ChainLink[]` 末尾追加引用，字节码的物理合并推迟到实际求值时。
@@ -135,8 +135,10 @@ graph LR
 | `Key` | 该片段字节码的 `DualHash64`——缓存查找键 |
 | `Bytecode` | 指向原始 `Instruction[]` 的引用（不复制） |
 | `InstructionCount` | 指令数 |
+| `Type` | `FluxType`（Formula 或 Modifier） |
 | `ImmediateCount` | 立即数槽位数 |
 | `VarSlots` | 该片段的变量槽 |
+| `MaxRegister` | 编译期分析的最高寄存器索引（0=未分析） |
 
 ## Delegate 缓存
 

@@ -32,12 +32,12 @@ restored.Set("input", 5f).Set("z", 3f).Run(); // 等价于 fB
 
 ### 链求值路径
 
-| 路径 | 链长 ≤ 8 | 链长 > 8 |
-|------|----------|----------|
+| 路径 | 链长 ≤ MergeThreshold | 链长 > MergeThreshold |
+|------|----------------------|----------------------|
 | 解释器 | 逐 link Compute（R1 串联） | ToAtomic 合并 → 单次 Compute |
-| JIT | ToAtomic 合并 → 单 delegate | ToAtomic 合并 → 单 delegate |
+| JIT | 逐 link delegate（`RunJitChain`） | 逐 link delegate（`RunJitChain`） |
 
-短链 per-link 求值避免合并分配；JIT 始终合并（需要连续字节码）。合并后委托自动缓存，同链再次求值零编译开销。
+JIT 路径为每 link 独立编译委托，`SetIndex(0, prevResult)` 串联各 link 的输出/输入。解释器短链 per-link 求值避免合并分配；长链合并为连续字节码后单次 Compute 减少循环开销。合并阈值通过 `FluxConfig.MergeThreshold` 配置（默认 8）。
 
 ## Set：命名变量注入
 

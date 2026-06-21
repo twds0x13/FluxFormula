@@ -58,7 +58,7 @@ The Core package depends on `com.unity.collections` (≥1.2.4) to provide `Syste
 
 ## Local Testing
 
-Run the full test suite without Unity (149 test cases):
+Run the full test suite without Unity (152 test cases):
 
 ```bash
 dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj

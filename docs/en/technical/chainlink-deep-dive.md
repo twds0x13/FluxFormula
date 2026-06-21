@@ -35,6 +35,7 @@ struct ChainLink
     FluxType     Type;             // Formula or Modifier
     int          ImmediateCount;   // Data slot count
     VariableSlot[] VarSlots;       // This fragment's variables
+    byte         MaxRegister;      // Compile-time max register index (0 = unanalyzed)
 }
 ```
 
@@ -112,7 +113,7 @@ ChainLink does not auto-convert — `Connect(A, B)` keeps B as-is. To let B cons
 
 ## ToAtomic: Chain → Atomic Merge
 
-When a chain must become a single contiguous block of bytecode (JIT path, or long chain interpreter path), `ToAtomic()` concatenates all links' `Instruction[]` arrays in full. Intermediate Returns are preserved and handled by the interpreter.
+When a chain must become a single contiguous block of bytecode (long chain interpreter path, AOT fallback scenarios), `ToAtomic()` concatenates all links' `Instruction[]` arrays in full. The JIT path defaults to per-link delegates (`RunJitChain`) and does not trigger a merge.
 
 ```csharp
 // Full concatenation — no instructions dropped

@@ -76,7 +76,16 @@ npx vitepress dev
 | `examples/damage-formula.md` | `en/examples/damage-formula.md` | ✅ |
 | `examples/error-handling.md` | `en/examples/error-handling.md` | ✅ |
 | `examples/vector3.md` | `en/examples/vector3.md` | ✅ |
+| `examples/chain-connect.md` | `en/examples/chain-connect.md` | ✅ |
 | `technical/internals.md` | `en/technical/internals.md` | ✅ |
+| `technical/compile-cache.md` | `en/technical/compile-cache.md` | ✅ |
+| `technical/chainlink-deep-dive.md` | `en/technical/chainlink-deep-dive.md` | ✅ |
+| `technical/architecture-decisions.md` | `en/technical/architecture-decisions.md` | ✅ |
+| `technical/technical-analysis.md` | `en/technical/technical-analysis.md` | ✅ |
+| `technical/pipeline/overview.md` | `en/technical/pipeline/overview.md` | ✅ |
+| `technical/pipeline/injector.md` | `en/technical/pipeline/injector.md` | ✅ |
+| `migration-guide.md` | `en/migration-guide.md` | ✅ |
+| `translation-guide.md` | `en/translation-guide.md` | ✅ |
 
 ## 技术支持
 

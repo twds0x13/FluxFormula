@@ -58,7 +58,7 @@ Core 包依赖 `com.unity.collections` (≥1.2.4)，为 Unity 2021.3 提供 `Sys
 
 ## 本地测试
 
-在无 Unity 环境下运行完整单元测试（149 个测试用例）：
+在无 Unity 环境下运行完整单元测试（152 个测试用例）：
 
 ```bash
 dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj

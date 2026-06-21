@@ -153,6 +153,7 @@ struct ChainLink
     FluxType Type;           // Formula / Modifier
     int ImmediateCount;      // 数据槽数
     VariableSlot[] VarSlots; // 该片段的变量槽
+    byte MaxRegister;        // 编译期最高寄存器索引（0=未分析）
 }
 ```
 
@@ -160,9 +161,9 @@ struct ChainLink
 
 `Connect` 始终产链——不判断长度，不合并字节码。合并决策集中在 `Instantiate`：
 
-| 路径 | 链长 ≤ 8 | 链长 > 8 |
-|------|----------|----------|
-| JIT | `ToAtomic()` 合并 → 单 delegate | `ToAtomic()` 合并 → 单 delegate |
+| 路径 | 链长 ≤ MergeThreshold | 链长 > MergeThreshold |
+|------|----------------------|----------------------|
+| JIT | 逐 link delegate（`RunJitChain`） | 逐 link delegate（`RunJitChain`） |
 | 解释器 | 逐 link `Compute(span, initialR1)` | `ToAtomic()` 合并 → 单次 `Compute` |
 
 ### 链式解释器求值

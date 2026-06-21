@@ -18,6 +18,9 @@ public readonly struct FluxFormula<TData, TOper>
 | `Type` | `FluxType` | `Formula` (executable standalone) or `Modifier` (requires Connect) |
 | `ImmediateCount` | `int` | Number of Immediate instructions; upper bound for `SetIndex()` |
 | `VariableSlots` | `VariableSlot[]` | Variable name to slot index mapping table, populated by the Lexer path |
+| `MaxRegister` | `byte` | Compile-time max register index (0 = unanalyzed, fallback to full 255) |
+| `IsChained` | `bool` | Whether this instance is a chain formula (contains multiple ChainLinks) |
+| `ChainLength` | `int` | Number of chain links (1 for non-chained formulas) |
 
 ## Static Members
 
@@ -100,9 +103,10 @@ Serializes the formula to a byte array. Format: 14-byte header (Count(4) + Type(
 
 ```csharp
 public static FluxFormula<TData, TOper> FromBytes(byte[] data)
+public static FluxFormula<TData, TOper> FromBytes(ReadOnlySpan<byte> data)
 ```
 
-Deserializes from the byte array produced by `ToBytes()`. No recompilation needed; the bytecode is ready to use.
+Deserializes from the byte array produced by `ToBytes()`. No recompilation needed; the bytecode is ready to use. The `ReadOnlySpan<byte>` overload enables zero-copy deserialization from pinned memory pointers.
 
 ```csharp
 // Persist
@@ -112,6 +116,9 @@ File.WriteAllBytes("damage.ff", raw);
 // Load (zero compilation)
 var loaded = FluxFormula<float, FloatOp>.FromBytes(raw);
 float r = runner.Instantiate(loaded).Set("atk", 100f).Run();
+
+// Zero-copy load from blob pointer
+var fromBlob = FluxFormula<float, FloatOp>.FromBytes(blobSpan.Slice(offset, length));
 ```
 
 `FromBytes` validates `sizeof(TOper) == 1` during type initialization, throwing `TypeInitializationException` on failure.

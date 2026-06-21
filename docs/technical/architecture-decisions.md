@@ -155,14 +155,22 @@ Connect 最初内置了阈值判断（>8 links → 合并），将"何时合并"
 ### 后果
 - Connect 代码简化（`Connect` → `GetLinks` + `ChainConnect`，3 方法变为 2）
 - 合并策略统一在一处（Instantiate），便于后续调优
-- JIT：始终合并（需要连续字节码）。解释器：短链 per-link，长链合并
+- 解释器：短链 per-link，长链合并。JIT：per-link delegate 串联（SetIndex(0, prevResult) 注入 R1）
 
 ---
+
+## 已采纳（v1.7.0）
+
+| 议题 | 说明 |
+|------|------|
+| Per-link JIT 求值 | `FluxAssembler.InstantiateJitChain()` 为每 link 独立编译 delegate，`FluxInstance.RunJitChain()` 通过 `SetIndex(0, prevResult)` 串联。消除 JIT 路径的 ToAtomic 强制合并。 |
+| MaxRegister 按需分配 | 公式头部第 14 字节存储编译期最高寄存器号。`FluxEvaluator` 和 `FluxJITCompiler` 按需 stackalloc 和创建 ParameterExpression，替代全量 255。 |
+| FormulaFormat / BinaryFormat 集中化 | 格式定义和字节级 I/O 各集中为单一源文件，消除此前 9+ 个散落 helper。 |
+| FluxConfig 全局配置 | 替代硬编码常量（缓存容量、合并阈值、缓冲区大小）。Unity 端通过 `FluxConfigAsset` ScriptableObject 自动注入。 |
 
 ## 待决策
 
 | 议题 | 说明 |
 |------|------|
-| ChainLink 存储格式 | 当前为 `Instruction[]` 引用。可考虑 `byte[]` 副本以消除 GC 边界问题（低优先级） |
+| ChainLink 存储格式 | 当前为 `Instruction[]` 引用。可考虑 `byte[]` 副本以消除 GC 边界问题（低优先级）。 |
 | Connect 自动 `ToMultiplier` | 当前 Connect 不自动转换。`Connect(A, B)` = B 独立，`Connect(A, B.ToMultiplier())` = B 消费 A。是否需要默认语义？ |
-| Per-link JIT 求值 | 当前 JIT 路径始终 ToAtomic 合并后单 delegate。Per-link JIT（多个小 delegate 串联）可用于 IL2CPP fallback 但需解决 delegate 的 R1 注入问题 |

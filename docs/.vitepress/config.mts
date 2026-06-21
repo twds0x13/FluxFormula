@@ -61,6 +61,8 @@ export default withMermaid(
                 { text: "ChainLink 深度解析", link: "/technical/chainlink-deep-dive" },
                 { text: "架构决策记录", link: "/technical/architecture-decisions" },
                 { text: "源码技术分析", link: "/technical/technical-analysis" },
+                { text: "管线全景", link: "/technical/pipeline/overview" },
+                { text: "数据注入器", link: "/technical/pipeline/injector" },
               ],
             },
             {
@@ -133,6 +135,8 @@ export default withMermaid(
                 { text: "ChainLink Deep Dive", link: "/en/technical/chainlink-deep-dive" },
                 { text: "Architecture Decisions", link: "/en/technical/architecture-decisions" },
                 { text: "Source Technical Analysis", link: "/en/technical/technical-analysis" },
+                { text: "Pipeline Overview", link: "/en/technical/pipeline/overview" },
+                { text: "Data Injector", link: "/en/technical/pipeline/injector" },
               ],
             },
             {

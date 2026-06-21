@@ -50,9 +50,20 @@ graph TD
 | `VariablePatternRule` | — | Variable prefix/suffix pattern definition |
 | `OpPair<TOper>` | `<TOper>` | Bracket pair descriptor |
 | `FluxAsset` | — | ScriptableObject asset container |
+| `FluxConfigAsset` | — | ScriptableObject global config container (auto-loaded via `Resources.Load`) |
 | `FormulaLibrary<TData, TOper, TDef>` | `<TData, TOper, TDef>` | Asset creation and loading (requires FLUX_ADDRESSABLES) |
 | `FluxFormulaRef<TData, TOper, TDef>` | `<TData, TOper, TDef>` | Type-safe AssetReference wrapper (requires FLUX_ADDRESSABLES) |
 | `VariableSlot` | — | Variable name to slot index mapping |
+| `DualHash64` | — | 128-bit dual hash (xxHash64 + FNV-1a 64), content-addressable cache key |
+| `Registers` | — | Register semantic constants (Error=0, Bus=1, FirstAlloc=2, Max=255) |
+| `FluxConfig` | — | Project-level global configuration (FormulaCacheCapacity, MergeThreshold, ConnectBufferSize) |
+| `FormulaCache` | — | 2048-slot open-addressing hashmap cache |
+| `IFluxCacheProvider` | — | Replaceable cache backend interface |
+| `FormulaFormat` | — | `.ff` formula bytecode format definition (HeaderSize=14) |
+| `BinaryFormat` | — | Little-endian binary read/write primitives |
+| `VffFormat` | — | `.vff` virtual formula format definition and resolution |
+| `FluxBlob` | — | Blob pinned memory manager (Initialize/Shutdown/VerifyIntegrity) |
+| `FluxBlobBuilder` | — | Offline build pipeline (scan FluxAsset → concatenate blob → generate C# offset table) |
 
 ### Internal Types
 
@@ -60,6 +71,10 @@ The following types are not public API, listed for reference only:
 
 - `FluxPlatform` — JIT degradation state control
 - `FluxEvaluator<TData, TOper, TDef>` — Interpreter execution engine
+- `FluxCompiler<TData, TOper, TDef>` — Shunting-yard algorithm compiler
+- `FluxJITCompiler<TData, TOper, TDef>` — LINQ Expression Tree JIT
+- `FluxInjector<TData>` — Data injector
+- `ConnectCache` — Managed-to-native cache bridge
 - `FluxCompiler<TData, TOper, TDef>` — Shunting-yard algorithm implementation
 - `FluxJITCompiler<TData, TOper, TDef>` — LINQ Expression Tree compilation
 - `FluxInjector<TData>` — Data injector

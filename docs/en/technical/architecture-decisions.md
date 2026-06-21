@@ -155,14 +155,22 @@ Connect originally contained the threshold check (>8 links → merge), coupling 
 ### Consequences
 - Simplified Connect code
 - Single decision point for merge strategy
-- JIT: always merges. Interpreter: short chains per-link, long chains merged
+- Interpreter: short chains per-link, long chains merged. JIT: per-link delegates chained via SetIndex(0, prevResult)
 
 ---
+
+## Adopted (v1.7.0)
+
+| Topic | Notes |
+|-------|-------|
+| Per-link JIT evaluation | `FluxAssembler.InstantiateJitChain()` compiles each link into an independent delegate; `FluxInstance.RunJitChain()` chains them via `SetIndex(0, prevResult)`. Eliminates forced ToAtomic merging on the JIT path. |
+| MaxRegister on-demand allocation | Formula header stores compile-time maximum register number. `FluxEvaluator` and `FluxJITCompiler` allocate registers on demand instead of full 255. |
+| FormulaFormat / BinaryFormat centralization | Format definition and byte-level I/O each centralized into a single source file, eliminating 9+ scattered helpers. |
+| FluxConfig global configuration | Replaces hardcoded constants (cache capacity, merge threshold, buffer size). Unity integration via `FluxConfigAsset` ScriptableObject auto-injection. |
 
 ## Pending
 
 | Topic | Notes |
 |-------|-------|
-| ChainLink storage format | Currently `Instruction[]` reference. Could use `byte[]` copy to eliminate GC edge cases (low priority) |
+| ChainLink storage format | Currently `Instruction[]` reference. Could use `byte[]` copy to eliminate GC edge cases (low priority). |
 | Connect auto-ToMultiplier | Currently manual. Should Connect default to `ToMultiplier` on non-first links? |
-| Per-link JIT evaluation | Currently JIT always ToAtomics. Per-link JIT could benefit IL2CPP but needs R1 injection for delegates |

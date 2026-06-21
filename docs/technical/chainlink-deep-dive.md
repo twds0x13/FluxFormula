@@ -35,6 +35,7 @@ struct ChainLink
     FluxType     Type;             // Formula 或 Modifier
     int          ImmediateCount;   // 数据槽数量
     VariableSlot[] VarSlots;       // 该片段的变量
+    byte         MaxRegister;      // 编译期最高寄存器索引（0=未分析）
 }
 ```
 
@@ -112,7 +113,7 @@ ChainLink 本身不做自动转换——`Connect(A, B)` 中 B 保持原样。若
 
 ## ToAtomic：链→原子合并
 
-当链需要合并为单块连续字节码时（JIT 路径，或长链解释器路径），`ToAtomic()` 将所有 link 的 `Instruction[]` 原样拼接为一个数组。中间 Return 由解释器处理（见上文）。
+当链需要合并为单块连续字节码时（长链解释器路径、AOT 降级场景），`ToAtomic()` 将所有 link 的 `Instruction[]` 原样拼接为一个数组。JIT 路径默认使用 per-link delegate（`RunJitChain`），不触发合并。
 
 ```csharp
 // 所有 link 的字节码完整拼接，不丢弃任何指令

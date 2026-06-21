@@ -142,7 +142,7 @@ Each formula's delegate is keyed by `GetByteHash()`:
 
 `FluxAssembler.Instantiate(formula, jit: true)`:
 
-1. Chain formula → `ToAtomic()` conversion
+1. Chain formula → per-link JIT chain via `InstantiateJitChain()`
 2. `GetByteHash()` → `FormulaCache.TryGetDelegate(hash)`
 3. Hit: `GCHandle.FromIntPtr` → cast to `CompiledFunc` → `CreateJitPayload` rebuild → return
 4. Miss: `FluxJITCompiler.Compile()` → `GCHandle.Alloc(func)` → `PutDelegate(hash, handle)` → return

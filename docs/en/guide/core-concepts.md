@@ -122,8 +122,8 @@ Runtime allocation can be reduced per-formula via the `MaxRegister` header field
 graph LR
     A["fA: x + y"] -->|Connect| C["Chain: [Link(fA), Link(fB)]"]
     B["fB: z * 2"] -->|Connect| C
-    C -->|"Run (short ≤8)"| D["Per-link interpreter<br/>R1 bus chaining"]
-    C -->|"ToAtomic (long >8 / JIT)"| E["Merge into contiguous<br/>bytecode, single eval"]
+    C -->|"Run"| D["Interpreter: short per-link / long ToAtomic"]
+    C -->|"Run (jit: true)"| E["JIT: per-link delegate chaining"]
 ```
 
 This mirrors LINQ's deferred execution: `Where().Select()` builds iterator decorators; `foreach` / `ToList()` materializes. Chain Connect only appends references to `ChainLink[]`; physical bytecode merging is deferred to evaluation time.
@@ -135,8 +135,10 @@ This mirrors LINQ's deferred execution: `Where().Select()` builds iterator decor
 | `Key` | `DualHash64` of the fragment — cache lookup key |
 | `Bytecode` | Reference to original `Instruction[]` (not copied) |
 | `InstructionCount` | Number of instructions |
+| `Type` | `FluxType` (Formula or Modifier) |
 | `ImmediateCount` | Number of immediate data slots |
 | `VarSlots` | Variable slots for this fragment |
+| `MaxRegister` | Compile-time max register index (0 = unanalyzed) |
 
 ## Delegate Caching
 

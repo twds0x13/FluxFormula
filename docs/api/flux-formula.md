@@ -18,6 +18,9 @@ public readonly struct FluxFormula<TData, TOper>
 | `Type` | `FluxType` | `Formula`（可独立执行）或 `Modifier`（需拼接） |
 | `ImmediateCount` | `int` | Immediate 指令数量，即 `SetIndex()` 的有效索引上限 |
 | `VariableSlots` | `VariableSlot[]` | 变量名到槽位索引的映射表，由 Lexer 路径填充 |
+| `MaxRegister` | `byte` | 编译期分析的最高寄存器索引（0=未分析，回退到全量 255） |
+| `IsChained` | `bool` | 该实例是否为链式公式（含多个 ChainLink） |
+| `ChainLength` | `int` | 链长（非链式公式为 1） |
 
 ## 静态成员
 
@@ -100,9 +103,10 @@ public byte[] ToBytes()
 
 ```csharp
 public static FluxFormula<TData, TOper> FromBytes(byte[] data)
+public static FluxFormula<TData, TOper> FromBytes(ReadOnlySpan<byte> data)
 ```
 
-从 `ToBytes()` 产出的字节数组反序列化。无需重新编译，字节码直接可用。
+从 `ToBytes()` 产出的字节数组反序列化。无需重新编译，字节码直接可用。`ReadOnlySpan<byte>` 重载允许从 pinned 内存指针零拷贝反序列化。
 
 ```csharp
 // 持久化
@@ -112,6 +116,9 @@ File.WriteAllBytes("damage.ff", raw);
 // 加载（零编译）
 var loaded = FluxFormula<float, FloatOp>.FromBytes(raw);
 float r = runner.Instantiate(loaded).Set("atk", 100f).Run();
+
+// 从 blob 指针零拷贝加载
+var fromBlob = FluxFormula<float, FloatOp>.FromBytes(blobSpan.Slice(offset, length));
 ```
 
 `FromBytes` 在类型初始化阶段校验 `sizeof(TOper) == 1`，不满足则抛出 `TypeInitializationException`。

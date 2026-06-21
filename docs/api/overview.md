@@ -50,9 +50,20 @@ graph TD
 | `VariablePatternRule` | — | 变量前缀/后缀模式定义 |
 | `OpPair<TOper>` | `<TOper>` | 括号配对描述 |
 | `FluxAsset` | — | ScriptableObject 资产容器 |
+| `FluxConfigAsset` | — | ScriptableObject 全局配置容器（`Resources.Load` 自动加载） |
 | `FormulaLibrary<TData, TOper, TDef>` | `<TData, TOper, TDef>` | 资产创建与加载（需 FLUX_ADDRESSABLES） |
 | `FluxFormulaRef<TData, TOper, TDef>` | `<TData, TOper, TDef>` | AssetReference 类型安全包装（需 FLUX_ADDRESSABLES） |
 | `VariableSlot` | — | 变量名到槽位索引的映射 |
+| `DualHash64` | — | 128-bit 双哈希（xxHash64 + FNV-1a 64），内容寻址缓存键 |
+| `Registers` | — | 寄存器语义常量（Error=0, Bus=1, FirstAlloc=2, Max=255） |
+| `FluxConfig` | — | 项目级全局配置（FormulaCacheCapacity, MergeThreshold, ConnectBufferSize） |
+| `FormulaCache` | — | 2048 槽开放寻址哈希表缓存 |
+| `IFluxCacheProvider` | — | 可替换缓存后端接口 |
+| `FormulaFormat` | — | `.ff` 公式字节码格式定义（HeaderSize=14） |
+| `BinaryFormat` | — | 小端序二进制读写原语 |
+| `VffFormat` | — | `.vff` 虚拟公式格式定义与解析 |
+| `FluxBlob` | — | Blob pinned 内存管理器（Initialize/Shutdown/VerifyIntegrity） |
+| `FluxBlobBuilder` | — | 离线构建管线（扫描 FluxAsset → 拼接 blob → 生成 C# 偏移表） |
 
 ### 内部类型
 
@@ -60,6 +71,10 @@ graph TD
 
 - `FluxPlatform` — JIT 降级状态控制
 - `FluxEvaluator<TData, TOper, TDef>` — 解释器执行引擎
+- `FluxCompiler<TData, TOper, TDef>` — 调车场算法编译器
+- `FluxJITCompiler<TData, TOper, TDef>` — LINQ Expression Tree JIT
+- `FluxInjector<TData>` — 数据注入器
+- `ConnectCache` — 托管到 Native 的缓存桥接
 - `FluxCompiler<TData, TOper, TDef>` — 调车场算法实现
 - `FluxJITCompiler<TData, TOper, TDef>` — LINQ Expression Tree 编译
 - `FluxInjector<TData>` — 数据注入器

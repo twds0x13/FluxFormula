@@ -52,7 +52,7 @@ sequenceDiagram
 ## JIT 编译过程
 
 1. 扫描字节码，提取 Immediate 数据到 `payload[]`（紧凑数据数组）
-2. 创建 256 个 `ParameterExpression` 作为寄存器变量
+2. 创建 `MaxRegister + 1` 个 `ParameterExpression` 作为寄存器变量——公式头部的 `MaxRegister` 字段（0=未分析，回退 255）决定了按需分配的寄存器数量
 3. 逐条指令生成 LINQ Expression：
    - Immediate → `SafeCast(payload, index)` 从数据数组读取
    - Instruction → `GetExpression()` + 赋值 + R0 错误检查
@@ -70,7 +70,7 @@ fixed (Instruction* pBase = _buffer)
 }
 ```
 
-- 解释器路径：offsets 由 `CreateInjector()` 双次扫描预计算
+- 解释器路径：offsets 由编译期 `ImmediateCount` 精确预知，单次扫描 `CreateInjector()` 完成
 - JIT 路径：线性索引 `index * slotsPerData`
 
 ## 平台兼容性

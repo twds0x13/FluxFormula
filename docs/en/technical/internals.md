@@ -52,7 +52,7 @@ sequenceDiagram
 ## JIT Compilation Process
 
 1. Scan bytecode, extract Immediate data into `payload[]` (compact data array)
-2. Create 256 `ParameterExpression` instances as register variables
+2. Create `MaxRegister + 1` `ParameterExpression` instances as register variables — the `MaxRegister` field in the formula header (0 = unanalyzed, fallback 255) determines on-demand register count
 3. Generate LINQ Expressions per instruction:
    - Immediate → `SafeCast(payload, index)` to read from the data array
    - Instruction → `GetExpression()` + assignment + R0 error check
@@ -70,7 +70,7 @@ fixed (Instruction* pBase = _buffer)
 }
 ```
 
-- Interpreter path: offsets pre-computed by `CreateInjector()` via a two-pass scan
+- Interpreter path: offsets pre-computed in a single `CreateInjector()` pass thanks to compile-time `ImmediateCount`
 - JIT path: linear index `index * slotsPerData`
 
 ## Platform Compatibility

@@ -32,10 +32,12 @@ restored.Set("input", 5f).Set("z", 3f).Run(); // equivalent to fB
 
 ### Chain Evaluation Paths
 
-| Path | Chain ≤ 8 | Chain > 8 |
-|------|-----------|-----------|
+| Path | Chain ≤ MergeThreshold | Chain > MergeThreshold |
+|------|----------------------|----------------------|
 | Interpreter | Per-link Compute (R1 chaining) | ToAtomic merge → single Compute |
-| JIT | ToAtomic merge → single delegate | ToAtomic merge → single delegate |
+| JIT | Per-link delegates (`RunJitChain`) | Per-link delegates (`RunJitChain`) |
+
+The JIT path compiles each link into an independent delegate, chained via `SetIndex(0, prevResult)`. The interpreter uses per-link evaluation for short chains (avoiding merge allocations) and merges long chains into contiguous bytecode for a single Compute (reducing loop overhead). The merge threshold is configurable via `FluxConfig.MergeThreshold` (default 8).
 
 ## Set: Named Variable Injection
 
