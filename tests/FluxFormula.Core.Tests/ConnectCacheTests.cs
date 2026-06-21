@@ -3,12 +3,12 @@ using FluxFormula.Core;
 using NUnit.Framework;
 using static TestHelper;
 
-public unsafe class ConnectCacheTests
+public unsafe class FormulaCacheAndChainTests
 {
     [SetUp]
     public void SetUp()
     {
-        ConnectCache.Reset();
+        FormulaCache.Reset();
     }
 
     // ═══════════════════════════════════════════════════════
@@ -90,7 +90,7 @@ public unsafe class ConnectCacheTests
     [Test]
     public void JitChain_PerLink_ProducesCorrectResult()
     {
-        ConnectCache.Reset();
+        FormulaCache.Reset();
 
         var lexer = CreateMathLexer();
         var fBase = Compile(lexer, "3 + 4");            // = 7
@@ -114,7 +114,7 @@ public unsafe class ConnectCacheTests
     [Test]
     public void JitChain_WithMultipleModifiers_ProducesCorrectResult()
     {
-        ConnectCache.Reset();
+        FormulaCache.Reset();
 
         var lexer = CreateMathLexer();
         var current = Compile(lexer, "1 + 2"); // = 3
@@ -132,7 +132,7 @@ public unsafe class ConnectCacheTests
     [Test]
     public void JitChain_ComparedWithInterpreter_ProducesSameResult()
     {
-        ConnectCache.Reset();
+        FormulaCache.Reset();
 
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "10 + 2");
@@ -242,8 +242,6 @@ public unsafe class ConnectCacheTests
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "42");
 
-        var link = FluxFormula<float, FloatOp>.Empty.Connect(f);
-        // Empty.Connect(f) returns f directly (Count zero check) → f is atomic
         // Force a chain: Connect two non-empty formulas
         var fA = Compile(lexer, "10");
         var chain = fA.Connect(Compile(lexer, "5"));
@@ -308,7 +306,7 @@ public unsafe class ConnectCacheTests
     [Test]
     public void Instantiate_CachesJitDelegate()
     {
-        ConnectCache.Reset();
+        FormulaCache.Reset();
 
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "2 + 3");
@@ -330,7 +328,7 @@ public unsafe class ConnectCacheTests
     [Test]
     public void Instantiate_ChainFormula_UsesJitCache()
     {
-        ConnectCache.Reset();
+        FormulaCache.Reset();
 
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "6 + 4");
@@ -375,95 +373,6 @@ public unsafe class ConnectCacheTests
         var inst = runner.Instantiate(atomic).Set("x", 4f).Set("y", 6f).Set("z", 2f);
         // Connect(A,B) 返回 B=z（不消费 A 的输出）
         Assert.That(inst.Run(), Is.EqualTo(2f).Within(1e-6f));
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // ConnectCache buffer 重置
-    // ═══════════════════════════════════════════════════════
-
-    [Test]
-    public void BufferFull_ResetsAndClearsBytecodeCache()
-    {
-        ConnectCache.Reset();
-
-        var data1 = new byte[600_000];
-        new Random(42).NextBytes(data1);
-
-        var key1 = DualHash64.Compute(data1);
-        ConnectCache.Put(key1, data1);
-        Assert.That(ConnectCache.TryGet(key1, out _, out _), Is.True);
-        long used1 = ConnectCache.BufferUsed;
-
-        // 再写 500K → 600K + 500K > 1MB → 满重置
-        var data2 = new byte[500_000];
-        new Random(99).NextBytes(data2);
-
-        var key2 = DualHash64.Compute(data2);
-        ConnectCache.Put(key2, data2);
-
-        Assert.That(ConnectCache.TryGet(key2, out _, out _), Is.True);
-        Assert.That(ConnectCache.BufferUsed, Is.LessThan(used1));
-        Assert.That(ConnectCache.TryGet(key1, out _, out _), Is.False);
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // 自定义 IFluxCacheProvider 注入
-    // ═══════════════════════════════════════════════════════
-
-    private class TestCache : IFluxCacheProvider
-    {
-        private readonly System.Collections.Generic.Dictionary<string, (IntPtr, int)> _dict = new();
-        private readonly System.Collections.Generic.Dictionary<string, IntPtr> _delegateDict = new();
-
-        public bool TryGet(DualHash64 key, out IntPtr ptr, out int length)
-        {
-            string k = key.ToString();
-            if (_dict.TryGetValue(k, out var v))
-            {
-                ptr = v.Item1; length = v.Item2; return true;
-            }
-            ptr = IntPtr.Zero; length = 0; return false;
-        }
-
-        public void Put(DualHash64 key, IntPtr ptr, int length)
-            => _dict[key.ToString()] = (ptr, length);
-
-        public bool TryGetDelegate(DualHash64 key, out IntPtr gcHandle)
-            => _delegateDict.TryGetValue(key.ToString(), out gcHandle);
-
-        public void PutDelegate(DualHash64 key, IntPtr gcHandle)
-            => _delegateDict[key.ToString()] = gcHandle;
-    }
-
-    [Test]
-    public void CustomCacheProvider_WorksWithFormulaInstantiate()
-    {
-        var original = ConnectCache.Cache;
-        var custom   = new TestCache();
-
-        try
-        {
-            ConnectCache.Cache = custom;
-            ConnectCache.Reset();
-
-            var lexer = CreateMathLexer();
-            var f = Compile(lexer, "5 + 5");
-
-            var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-            var r1 = runner.Instantiate(f, jit: true).Run();
-
-            // 第二次 — 通过自定义缓存取 delegate
-            ConnectCache.Reset();
-            ConnectCache.Cache = custom;
-            var r2 = runner.Instantiate(f, jit: true).Run();
-
-            Assert.That(r2, Is.EqualTo(r1).Within(1e-6f));
-        }
-        finally
-        {
-            ConnectCache.Cache = original;
-            ConnectCache.Reset();
-        }
     }
 
     // ═══════════════════════════════════════════════════════

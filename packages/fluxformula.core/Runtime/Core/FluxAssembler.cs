@@ -93,7 +93,7 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 将已有的图纸 (FluxFormula) 激活为流式流水线。
-        /// 优先从 <see cref="ConnectCache"/> 获取字节码——命中时直接从 blob fixed 指针重建指令序列，
+        /// 优先从 <see cref="FormulaCache"/> 获取字节码——命中时直接从 blob fixed 指针重建指令序列，
         /// 避免 ToBytes()/FromBytes() 的分配开销。未命中则回退到 formula.Raw()。
         /// 对链式公式自动转换为原子公式后再执行。
         /// </summary>
@@ -110,7 +110,7 @@ namespace FluxFormula.Core
 
                 // ── JIT 原子路径 ──
                 var hash = formula.GetByteHash();
-                var cache = ConnectCache.Cache;
+                var cache = FormulaCache.Instance;
 
                 if (cache.TryGetDelegate(hash, out IntPtr cachedHandle))
                 {
@@ -208,13 +208,13 @@ namespace FluxFormula.Core
         // ── 字节码缓存解析 ──
 
         /// <summary>
-        /// 尝试从 <see cref="ConnectCache"/> 获取公式的缓存字节码，返回指令序列。
+        /// 尝试从 <see cref="FormulaCache"/> 获取公式的缓存字节码，返回指令序列。
         /// 命中时零拷贝指向 blob fixed 内存；未命中则回退到 formula.Raw()。
         /// </summary>
         private static ReadOnlySpan<Instruction> ResolveBytecodeSpan(
             DualHash64 hash, FluxFormula<TData, TOper> formula)
         {
-            if (ConnectCache.Cache.TryGet(hash, out IntPtr ptr, out int length))
+            if (FormulaCache.Instance.TryGet(hash, out IntPtr ptr, out int length))
             {
                 unsafe
                 {
@@ -294,7 +294,7 @@ namespace FluxFormula.Core
             var links = formula.GetChainLinks();
             var funcs = new FluxJITCompiler<TData, TOper, TDef>.CompiledFunc[links.Length];
             var injectors = new FluxInjector<TData>[links.Length];
-            var cache = ConnectCache.Cache;
+            var cache = FormulaCache.Instance;
 
             for (int i = 0; i < links.Length; i++)
             {

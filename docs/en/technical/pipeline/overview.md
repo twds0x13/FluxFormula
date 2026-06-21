@@ -103,7 +103,7 @@ Key design: **Compilation products (FluxFormula) are immutable**, cacheable in F
 ```
 Compile ──→ DualHash64.Compute(bytecode) ──→ FormulaCache.Put(hash, ptr, len)
                                                 │
-Instantiate ──→ ConnectCache.TryGetDelegate(hash) ──→ hit → reuse delegate
+Instantiate ──→ FormulaCache.Instance.TryGetDelegate(hash) ──→ hit → reuse delegate
                                                 │
                                                 └──→ miss → JIT Compile → PutDelegate
 ```

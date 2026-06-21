@@ -12,7 +12,7 @@
 
 ### 新增
 
-- **编译缓存管线**：`DualHash64` + `FormulaCache` + `ConnectCache`。编译和 JIT 委托自动缓存，零用户介入。
+- **编译缓存管线**：`DualHash64` + `FormulaCache`。编译和 JIT 委托自动缓存，零用户介入。
 - **Blob 构建管线**：`FluxBlobBuilder` 扫描所有 `FluxAsset` → 拼接 blob → 生成 C# 偏移表。Play Build 自动触发。
 - **VFF 虚拟公式**：`VffFormat` 实现持久化公式引用 + 参数覆写，DLL 式符号解析。
 - **FluxConfig 全局配置**：`FluxConfig` 替代硬编码常量。Unity 端通过 `FluxConfigAsset` ScriptableObject 注入。

@@ -287,7 +287,7 @@ namespace FluxFormula.Benchmarks
         [IterationSetup(Targets = new[] {
             nameof(JitColdSimple), nameof(JitColdComplex), nameof(JitColdChain)
         })]
-        public void ResetCache() => ConnectCache.Reset();
+        public void ResetCache() => FormulaCache.Reset();
 
         [Benchmark(Baseline = true)]
         public float JitColdSimple()
@@ -317,7 +317,7 @@ namespace FluxFormula.Benchmarks
         })]
         public void PrimeJitCache()
         {
-            ConnectCache.Reset();
+            FormulaCache.Reset();
             var a = A();
             a.Instantiate(_fSimple,  jit: true);
             a.Instantiate(_fComplex, jit: true);
@@ -350,7 +350,7 @@ namespace FluxFormula.Benchmarks
         [IterationSetup(Targets = new[] {
             nameof(InterpColdSimple), nameof(InterpColdComplex), nameof(InterpColdChain)
         })]
-        public void ResetCacheForInterp() => ConnectCache.Reset();
+        public void ResetCacheForInterp() => FormulaCache.Reset();
 
         [Benchmark]
         public float InterpColdSimple()

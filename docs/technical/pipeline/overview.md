@@ -103,7 +103,7 @@ FluxFormula 的编译与执行管线分为四个阶段：**Lex（词法分析）
 ```
 Compile ──→ DualHash64.Compute(bytecode) ──→ FormulaCache.Put(hash, ptr, len)
                                                 │
-Instantiate ──→ ConnectCache.TryGetDelegate(hash) ──→ 命中 → 复用委托
+Instantiate ──→ FormulaCache.Instance.TryGetDelegate(hash) ──→ 命中 → 复用委托
                                                 │
                                                 └──→ 未命中 → JIT Compile → PutDelegate
 ```

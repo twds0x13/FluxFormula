@@ -126,17 +126,13 @@ _valueLengths[capacity] int[]      状态标记 + 长度
 
 ### GCHandle 生命周期
 
-Delegate 通过 `GCHandle.Alloc(func)` → `GCHandle.ToIntPtr()` 存储。驱逐或 Compact 时自动 `GCHandle.Free()`。字节码指针不管理生命周期（由 ConnectCache 或 blob 持有）。
+Delegate 通过 `GCHandle.Alloc(func)` → `GCHandle.ToIntPtr()` 存储。驱逐或 Compact 时自动 `GCHandle.Free()`。字节码指针由 blob（预编译）或公式自身的 `Instruction[]`（运行时 `Raw()` 回退）持有，不经中间层。
 
-## ConnectCache：托管到 Native 的桥接
+## FormulaCache 静态单例
 
-运行时 Connect 产物是托管 `byte[]`，无法获得持久稳定的 `byte*` 供 FormulaCache 存储。ConnectCache 用 pinned `byte[]` 做中转（大小由 `FluxConfig.ConnectBufferSize` 控制，默认 1 MB）：
+所有缓存操作通过 `FormulaCache.Instance` 全局单例。预编译公式由 `FluxBlob.Initialize()` 在启动时注册——字节码指针直接来自 pinned blob，零拷贝存入 FormulaCache。运行时 JIT delegate 编译后通过 `PutDelegate` 缓存。
 
-```
-Connect 产物 byte[] → CopyTo(pinnedBuffer) → IntPtr 指针 → FormulaCache.Put()
-```
-
-Buffer 满时全量重置（旧指针全部失效，缓存清空）。预编译公式通过 `FluxBlob` 直接在 blob 的 fixed 指针上注册——字节码零拷贝存入 FormulaCache，不经过 ConnectCache buffer。
+ConnectCache（原 1 MB pinned buffer 中间复制层）已移除——blob 管线完成后不再需要运行时字节码中转。
 
 ## 链式 Connect
 

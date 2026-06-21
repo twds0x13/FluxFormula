@@ -74,7 +74,7 @@ The following types are not public API, listed for reference only:
 - `FluxCompiler<TData, TOper, TDef>` — Shunting-yard algorithm compiler
 - `FluxJITCompiler<TData, TOper, TDef>` — LINQ Expression Tree JIT
 - `FluxInjector<TData>` — Data injector
-- `ConnectCache` — Managed-to-native cache bridge
+- `FormulaCache` — Static singleton cache, DualHash64 → (bytecode pointer + length / JIT delegate)
 - `FluxCompiler<TData, TOper, TDef>` — Shunting-yard algorithm implementation
 - `FluxJITCompiler<TData, TOper, TDef>` — LINQ Expression Tree compilation
 - `FluxInjector<TData>` — Data injector

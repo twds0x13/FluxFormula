@@ -18,7 +18,6 @@ namespace FluxFormula.Core
         {
             FormulaCacheCapacity = 2048,
             MergeThreshold       = 8,
-            ConnectBufferSize    = 1 * 1024 * 1024,
         };
 
         private static FluxConfig _current;
@@ -46,7 +45,6 @@ namespace FluxFormula.Core
         /// </summary>
         public int MergeThreshold { get; init; }
 
-        /// <summary><see cref="ConnectCache"/> pinned buffer 大小（字节）。默认 1 MB。</summary>
-        public int ConnectBufferSize { get; init; }
     }
+}
 }

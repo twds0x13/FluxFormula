@@ -32,7 +32,7 @@ String expression / FluxToken[]
           └─ JIT path:       FluxJITCompiler.Compile() → Expression.Lambda.Compile() delegate
 ```
 
-Compared to v1.0.0, v1.5.0 adds FluxLexer (lexical analysis), FluxPlatform (JIT degradation), compile-cache pipeline (DualHash64 + FormulaCache + ConnectCache), blob build pipeline (FluxBlobBuilder + FluxBlob), VFF virtual formula format, global configuration (FluxConfig), and MaxRegister on-demand allocation.
+Compared to v1.0.0, v1.5.0 adds FluxLexer (lexical analysis), FluxPlatform (JIT degradation), compile-cache pipeline (DualHash64 + FormulaCache), blob build pipeline (FluxBlobBuilder + FluxBlob), VFF virtual formula format, global configuration (FluxConfig), and MaxRegister on-demand allocation.
 
 ### Three-Layer Generic Constraints (shared by all core types)
 
@@ -552,7 +552,7 @@ The following issues are confirmed fixed in the current version:
 
 | Capability | Description | Location |
 |-----------|-------------|----------|
-| Compile cache | DualHash64 → FormulaCache → Delegate cache, significant cold/warm latency divergence | `DualHash64.cs`, `FormulaCache.cs`, `ConnectCache.cs` |
+| Compile cache | DualHash64 → FormulaCache → Delegate cache, significant cold/warm latency divergence | `DualHash64.cs`, `FormulaCache.cs` |
 | Blob build pipeline | FluxBlobBuilder scans FluxAsset → concatenates blob → generates C# offset table | `FluxBlobBuilder.cs`, `FluxBlob.cs` |
 | VFF virtual formula | "VFF\0" format persistent formula references + parameter overrides, DLL-style symbol resolution | `VffFormat.cs` |
 | Format centralization | FormulaFormat/BinaryFormat eliminate scattered helpers; single source of truth for format definitions | `FormulaFormat.cs`, `BinaryFormat.cs` |

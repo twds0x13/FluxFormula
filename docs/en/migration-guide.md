@@ -12,7 +12,7 @@ No breaking changes.
 
 ### Additions
 
-- **Compile-cache pipeline**: `DualHash64` + `FormulaCache` + `ConnectCache`. Compilation and JIT delegates are automatically cached, zero user intervention.
+- **Compile-cache pipeline**: `DualHash64` + `FormulaCache`. Compilation and JIT delegates are automatically cached, zero user intervention.
 - **Blob build pipeline**: `FluxBlobBuilder` scans all `FluxAsset` → concatenates blob → generates C# offset table. Triggers automatically before Play Build.
 - **VFF virtual formulas**: `VffFormat` provides persistent formula references + parameter overrides, DLL-style symbol resolution.
 - **FluxConfig global configuration**: `FluxConfig` replaces hardcoded constants. Unity integration via `FluxConfigAsset` ScriptableObject injection.

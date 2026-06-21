@@ -22,10 +22,6 @@ namespace FluxFormula
         [Min(256)]
         public int formulaCacheCapacity = 2048;
 
-        [Tooltip("ConnectCache native buffer 大小（字节）。")]
-        [Min(65536)]
-        public int connectBufferSize = 1 * 1024 * 1024;
-
         [Header("Chain")]
         [Tooltip("链式公式合并阈值——链长超过此值时合并为原子公式。")]
         [Range(2, 64)]
@@ -37,7 +33,6 @@ namespace FluxFormula
             FluxConfig.Set(new FluxConfig
             {
                 FormulaCacheCapacity = formulaCacheCapacity,
-                ConnectBufferSize    = connectBufferSize,
                 MergeThreshold       = mergeThreshold,
             });
         }

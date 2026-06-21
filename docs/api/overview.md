@@ -74,7 +74,7 @@ graph TD
 - `FluxCompiler<TData, TOper, TDef>` — 调车场算法编译器
 - `FluxJITCompiler<TData, TOper, TDef>` — LINQ Expression Tree JIT
 - `FluxInjector<TData>` — 数据注入器
-- `ConnectCache` — 托管到 Native 的缓存桥接
+- `FormulaCache` — 静态单例缓存，DualHash64 → (字节码指针 + 长度 / JIT delegate)
 - `FluxCompiler<TData, TOper, TDef>` — 调车场算法实现
 - `FluxJITCompiler<TData, TOper, TDef>` — LINQ Expression Tree 编译
 - `FluxInjector<TData>` — 数据注入器

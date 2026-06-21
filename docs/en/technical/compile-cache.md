@@ -90,17 +90,13 @@ Open-addressing hashmap (default 2048 slots, adjustable via `FluxConfig.FormulaC
 
 ### GCHandle Lifecycle
 
-Delegates are stored via `GCHandle.Alloc(func)` → `GCHandle.ToIntPtr()`. Eviction or Compact automatically calls `GCHandle.Free()`. Bytecode pointers are not lifecycle-managed (held by ConnectCache or blob).
+Delegates are stored via `GCHandle.Alloc(func)` → `GCHandle.ToIntPtr()`. Eviction or Compact automatically calls `GCHandle.Free()`. Bytecode pointers are held by blob (pre-compiled) or the formula's own `Instruction[]` (runtime `Raw()` fallback), with no intermediate layer.
 
-## ConnectCache: Managed-to-Native Bridge
+## FormulaCache Static Singleton
 
-Connect results are managed `byte[]` arrays. FormulaCache requires stable `IntPtr` pointers. A pinned `byte[]` serves as the bridge (size controlled by `FluxConfig.ConnectBufferSize`, default 1 MB):
+All cache operations go through `FormulaCache.Instance`, the global singleton. Pre-compiled formulas are registered at startup by `FluxBlob.Initialize()` — bytecode pointers come directly from the pinned blob, zero-copy into FormulaCache. Runtime JIT delegates are cached via `PutDelegate` after compilation.
 
-```
-Connect byte[] → CopyTo(pinned buffer) → IntPtr → FormulaCache.Put()
-```
-
-When the buffer is full, it resets entirely (all old pointers invalidated, cache cleared). Pre-compiled formulas register via `FluxBlob` directly from blob fixed pointers — zero-copy into FormulaCache, bypassing the ConnectCache buffer.
+ConnectCache (the former 1 MB pinned buffer intermediate copy layer) has been removed — the blob pipeline made runtime bytecode staging unnecessary.
 
 ## Chain Connect
 

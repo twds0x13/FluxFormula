@@ -193,7 +193,7 @@ namespace FluxFormula.Core
             where TData : unmanaged
             where TOper : unmanaged, Enum
         {
-            if (!ConnectCache.Cache.TryGet(vffHash, out IntPtr vffPtr, out int vffLen))
+            if (!FormulaCache.Instance.TryGet(vffHash, out IntPtr vffPtr, out int vffLen))
                 throw new InvalidOperationException(
                     $"VFF entry not found in cache for hash: {vffHash}");
 
@@ -204,18 +204,54 @@ namespace FluxFormula.Core
                 throw new InvalidOperationException(
                     $"Blob entry is not a VFF (magic mismatch). Hash: {vffHash}");
 
-            byte version       = vffBytes[4];
-            byte linkCount     = vffBytes[5];
-            byte overrideCount = vffBytes[6];
-            byte flags         = vffBytes[7];
-
+            byte version = vffBytes[4];
             if (version != 1)
                 throw new InvalidOperationException(
                     $"Unsupported VFF version: {version}. Expected: 1.");
 
-            // ── 解析 Link Table ──
+            // ── 递归解析链接表 ──
+            var visited = new System.Collections.Generic.HashSet<DualHash64>();
+            visited.Add(vffHash); // 顶层 VFF 自身入栈
+            var (links, overrides, totalImm) = ResolveLinks<TData, TOper>(vffBytes, visited);
+
+            // ── 合并变量槽 ──
+            int totalSlots = 0;
+            for (int i = 0; i < links.Length; i++)
+                totalSlots += links[i].VarSlots.Length;
+
+            var mergedSlots = new VariableSlot[totalSlots];
+            int sidx = 0;
+            for (int i = 0; i < links.Length; i++)
+                for (int j = 0; j < links[i].VarSlots.Length; j++)
+                    mergedSlots[sidx++] = links[i].VarSlots[j];
+
+            var chainType = (links.Length > 0 && links[0].Type == FluxType.Modifier)
+                ? FluxType.Modifier : FluxType.Formula;
+
+            var formula = new FluxFormula<TData, TOper>(links, chainType, totalImm, mergedSlots);
+
+            return new VffResolveResult<TData, TOper>(formula, overrides);
+        }
+
+        /// <summary>
+        /// 递归解析 VFF 链接表。当 link 引用的目标是另一个 VFF 时，递归展开其链接并展平到当前链路中。
+        /// </summary>
+        /// <param name="vffBytes">当前 VFF 条目的完整字节码</param>
+        /// <param name="visited">当前递归栈中的 VFF 哈希集合（用于循环检测）</param>
+        /// <returns>(展平的 ChainLink[], 展平的覆写列表, 总 ImmediateCount)</returns>
+        private static unsafe (ChainLink[] links, VffOverride<TData>[] overrides, int totalImm)
+            ResolveLinks<TData, TOper>(
+                ReadOnlySpan<byte> vffBytes,
+                System.Collections.Generic.HashSet<DualHash64> visited)
+            where TData : unmanaged
+            where TOper : unmanaged, Enum
+        {
+            byte linkCount     = vffBytes[5];
+            byte overrideCount = vffBytes[6];
+
             int linkTableStart = HeaderSize;
-            var links = new ChainLink[linkCount];
+            var links = new System.Collections.Generic.List<ChainLink>();
+            var ovrds = new System.Collections.Generic.List<VffOverride<TData>>();
             int cumImm = 0;
 
             for (int i = 0; i < linkCount; i++)
@@ -223,45 +259,82 @@ namespace FluxFormula.Core
                 int lo = linkTableStart + i * LinkEntrySize;
                 var entry = MemoryMarshal.Read<VffLinkEntry>(vffBytes.Slice(lo));
 
-                // 从 FormulaCache 查找被引用公式的字节码
-                if (!ConnectCache.Cache.TryGet(entry.Hash, out IntPtr fPtr, out int fLen))
+                // 从 FormulaCache 查找被引用条目的字节码
+                if (!FormulaCache.Instance.TryGet(entry.Hash, out IntPtr fPtr, out int fLen))
                     throw new InvalidOperationException(
-                        $"VFF link [{i}] references formula not in cache. Hash: {entry.Hash}");
+                        $"VFF link [{i}] references entry not in cache. Hash: {entry.Hash}");
 
                 var fBytes = new ReadOnlySpan<byte>((void*)fPtr, fLen);
 
                 if (IsVff(fBytes))
-                    throw new InvalidOperationException(
-                        $"VFF link [{i}] references another VFF — recursive resolve not supported in v1. Hash: {entry.Hash}");
-
-                // 从公式字节码提取 Instruction[]（零拷贝）
-                var fHeader = FormulaFormat.ReadHeader(fBytes);
-                var instSpan = FormulaFormat.GetInstructionSpan(fBytes);
-                var bytecode = instSpan.ToArray();
-
-                // 读取变量槽（SlotIndex 全局化为 cumImm 偏移）
-                var varSlots = FormulaFormat.ReadVariableSlots(fBytes, baseSlotOffset: cumImm);
-
-                links[i] = new ChainLink
                 {
-                    Key              = entry.Hash,
-                    Bytecode         = bytecode,
-                    InstructionCount = bytecode.Length,
-                    Type             = entry.Type,
-                    ImmediateCount   = entry.ImmCount,
-                    VarSlots         = varSlots,
-                    MaxRegister      = fHeader.MaxRegister,
-                };
+                    // ── 嵌套 VFF：递归展开 ──
+                    if (!visited.Add(entry.Hash))
+                        throw new InvalidOperationException(
+                            $"Circular VFF reference detected: link [{i}] references VFF " +
+                            $"{entry.Hash} which is already in the resolution stack. " +
+                            "VFF recursion must form a DAG, not a cycle.");
 
-                cumImm += entry.ImmCount;
+                    var (nestedLinks, nestedOverrides, nestedImm) =
+                        ResolveLinks<TData, TOper>(fBytes, visited);
+
+                    // 展平嵌套 links——SlotIndex 偏移 cumImm
+                    for (int ni = 0; ni < nestedLinks.Length; ni++)
+                    {
+                        var nl = nestedLinks[ni];
+                        if (nl.VarSlots.Length > 0 && cumImm > 0)
+                        {
+                            var offsetSlots = new VariableSlot[nl.VarSlots.Length];
+                            for (int s = 0; s < nl.VarSlots.Length; s++)
+                                offsetSlots[s] = new VariableSlot(
+                                    nl.VarSlots[s].Name,
+                                    nl.VarSlots[s].SlotIndex + cumImm);
+                            nl.VarSlots = offsetSlots;
+                        }
+                        links.Add(nl);
+                    }
+
+                    // 展平嵌套 overrides——GlobalSlot 偏移 cumImm
+                    for (int no = 0; no < nestedOverrides.Length; no++)
+                    {
+                        var nov = nestedOverrides[no];
+                        ovrds.Add(new VffOverride<TData>(
+                            nov.GlobalSlot + cumImm, nov.Kind, nov.ConstantValue));
+                    }
+
+                    cumImm += nestedImm;
+                    visited.Remove(entry.Hash); // 允许 DAG 中不同分支共享同一 VFF
+                }
+                else
+                {
+                    // ── 普通公式 link：构建 ChainLink ──
+                    var fHeader = FormulaFormat.ReadHeader(fBytes);
+                    var instSpan = FormulaFormat.GetInstructionSpan(fBytes);
+                    var bytecode = instSpan.ToArray();
+
+                    var varSlots = FormulaFormat.ReadVariableSlots(fBytes, baseSlotOffset: cumImm);
+
+                    links.Add(new ChainLink
+                    {
+                        Key              = entry.Hash,
+                        Bytecode         = bytecode,
+                        InstructionCount = bytecode.Length,
+                        Type             = entry.Type,
+                        ImmediateCount   = entry.ImmCount,
+                        VarSlots         = varSlots,
+                        MaxRegister      = fHeader.MaxRegister,
+                    });
+
+                    cumImm += entry.ImmCount;
+                }
             }
 
-            // ── 解析 Override Table ──
+            // ── 解析当前 VFF 的 Override Table ──
             int ovrdTableStart = linkTableStart + linkCount * LinkEntrySize;
             var overrides = new VffOverride<TData>[overrideCount];
             int ovOff = ovrdTableStart;
-
             int dataLen = sizeof(TData);
+
             for (int i = 0; i < overrideCount; i++)
             {
                 int globalSlot = vffBytes[ovOff] | (vffBytes[ovOff + 1] << 8);
@@ -282,27 +355,14 @@ namespace FluxFormula.Core
                 overrides[i] = new VffOverride<TData>(globalSlot, kind, constVal);
             }
 
-            // ── 合并变量槽 ──
-            int totalSlots = 0;
-            for (int i = 0; i < linkCount; i++)
-                totalSlots += links[i].VarSlots.Length;
+            // 合并当前 VFF 自身的 overrides 和递归展平的 overrides
+            var allOverrides = new VffOverride<TData>[overrideCount + ovrds.Count];
+            if (overrideCount > 0)
+                Array.Copy(overrides, 0, allOverrides, 0, overrideCount);
+            if (ovrds.Count > 0)
+                ovrds.CopyTo(allOverrides, overrideCount);
 
-            var mergedSlots = new VariableSlot[totalSlots];
-            int sidx = 0;
-            for (int i = 0; i < linkCount; i++)
-                for (int j = 0; j < links[i].VarSlots.Length; j++)
-                    mergedSlots[sidx++] = links[i].VarSlots[j];
-
-            int totalImm = 0;
-            for (int i = 0; i < linkCount; i++)
-                totalImm += links[i].ImmediateCount;
-
-            var chainType = (links.Length > 0 && links[0].Type == FluxType.Modifier)
-                ? FluxType.Modifier : FluxType.Formula;
-
-            var formula = new FluxFormula<TData, TOper>(links, chainType, totalImm, mergedSlots);
-
-            return new VffResolveResult<TData, TOper>(formula, overrides);
+            return (links.ToArray(), allOverrides, cumImm);
         }
     }
 }

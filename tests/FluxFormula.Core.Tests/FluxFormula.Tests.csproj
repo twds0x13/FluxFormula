@@ -23,7 +23,6 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/DualHash64.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FormulaCache.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxCacheProvider.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/ConnectCache.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/BinaryFormat.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FormulaFormat.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Registers.cs" />

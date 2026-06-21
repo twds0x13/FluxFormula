@@ -8,9 +8,8 @@ namespace FluxFormula.Core
     /// Blob 公式数据库——管理预编译公式字节码的 pinned 内存块和偏移表注册。
     /// </summary>
     /// <remarks>
-    /// <para>设计目标：替代 <see cref="ConnectCache"/> 的 1 MB native buffer 中间复制层。
-    /// 预编译公式的字节码直接来自 blob 的 fixed 指针，零拷贝存入 <see cref="FormulaCache"/>。
-    /// ConnectCache 仅保留为运行时新建公式的 fallback 暂存区。</para>
+    /// <para>预编译公式的字节码直接来自 blob 的 fixed 指针，零拷贝存入 <see cref="FormulaCache"/>。
+    /// 运行时新建公式通过 <see cref="FormulaCache.Instance"/> 缓存 JIT delegate，字节码从 <c>formula.Raw()</c> 直接读取。</para>
     ///
     /// <para>使用方式（由生成代码调用，用户一般不直接接触）：
     /// <code>
@@ -104,7 +103,7 @@ namespace FluxFormula.Core
 
             // 将每条公式的字节码指针注册到 FormulaCache
             // FormulaCache 以 (key → IntPtr, length) 存储，不关心指针来源
-            var cache = ConnectCache.Cache;
+            var cache = FormulaCache.Instance;
             for (int i = 0; i < entries.Length; i++)
             {
                 var e = entries[i];
@@ -137,7 +136,7 @@ namespace FluxFormula.Core
             EntryCount  = 0;
 
             // 清空 FormulaCache（旧指针指向已释放的 blob）
-            ConnectCache.Reset();
+            FormulaCache.Reset();
 
             IsInitialized = false;
         }
@@ -157,7 +156,7 @@ namespace FluxFormula.Core
             if (!IsInitialized)
                 return false;
 
-            if (!ConnectCache.Cache.TryGet(expectedHash, out IntPtr ptr, out int length))
+            if (!FormulaCache.Instance.TryGet(expectedHash, out IntPtr ptr, out int length))
                 return false;
 
             ReadOnlySpan<byte> bytes = new ReadOnlySpan<byte>((void*)ptr, length);

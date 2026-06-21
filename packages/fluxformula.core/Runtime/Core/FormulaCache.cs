@@ -1,6 +1,9 @@
 using System;
 using System.Runtime.CompilerServices;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula.Tests")]
+
 namespace FluxFormula.Core
 {
     /// <summary>
@@ -67,6 +70,9 @@ namespace FluxFormula.Core
         /// <summary>墓碑计数器——超过阈值触发全表压缩</summary>
         private int _tombstoneCount;
 
+        /// <summary>是否对 TryGet/TryGetDelegate 增量静态 HitCount/MissCount。仅单例实例启用。</summary>
+        private bool _trackStats;
+
         // ═══════════════════════════════════════════════════════
         // 构造
         // ═══════════════════════════════════════════════════════
@@ -99,11 +105,13 @@ namespace FluxFormula.Core
             {
                 ptr    = _valuePtrs[slot];
                 length = _valueLengths[slot];
+                if (_trackStats) HitCount++;
                 return true;
             }
 
             ptr    = IntPtr.Zero;
             length = 0;
+            if (_trackStats) MissCount++;
             return false;
         }
 
@@ -233,10 +241,12 @@ namespace FluxFormula.Core
             if (slot >= 0 && _valueLengths[slot] == DelegateSlot)
             {
                 gcHandle = _valuePtrs[slot];
+                if (_trackStats) HitCount++;
                 return true;
             }
 
             gcHandle = IntPtr.Zero;
+            if (_trackStats) MissCount++;
             return false;
         }
 
@@ -408,6 +418,47 @@ namespace FluxFormula.Core
                 >= 0       => $"[{slot}] Key={_xxHashKeys[slot]:X16}{_fnvHashKeys[slot]:X16} Len={state}",
                 _          => $"[{slot}] Unknown({state})"
             };
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 静态单例（替代 ConnectCache）
+        // ═══════════════════════════════════════════════════════
+
+        private static FormulaCache _instance;
+
+        /// <summary>
+        /// 全局单例缓存实例。首次访问时延迟初始化。
+        /// 替代已移除的 <see cref="ConnectCache"/>。
+        /// </summary>
+        public static FormulaCache Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    _instance = new FormulaCache();
+                    _instance._trackStats = true;
+                }
+                return _instance;
+            }
+        }
+
+        /// <summary>缓存命中计数（诊断用）。仅单例实例增量。</summary>
+        public static long HitCount { get; private set; }
+
+        /// <summary>缓存未命中计数（诊断用）。仅单例实例增量。</summary>
+        public static long MissCount { get; private set; }
+
+        /// <summary>
+        /// 重置单例缓存：创建全新的 <see cref="FormulaCache"/> 实例，清零所有计数器。
+        /// 所有旧缓存条目（blob 字节码指针、JIT delegate）均被丢弃。
+        /// </summary>
+        public static void Reset()
+        {
+            _instance = new FormulaCache();
+            _instance._trackStats = true;
+            HitCount = 0;
+            MissCount = 0;
         }
     }
 }

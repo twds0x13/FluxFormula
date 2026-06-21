@@ -32,7 +32,7 @@ string 表达式 / FluxToken[]
           └─ JIT 路径:    FluxJITCompiler.Compile() → Expression.Lambda.Compile() 委托
 ```
 
-与 v1.0.0 相比，v1.5.0 新增了 FluxLexer（词法分析）、FluxPlatform（JIT 降级）、编译缓存管线（DualHash64 + FormulaCache + ConnectCache）、blob 构建管线（FluxBlobBuilder + FluxBlob）、VFF 虚拟公式格式、全局配置系统（FluxConfig）、以及 MaxRegister 按需分配。
+与 v1.0.0 相比，v1.5.0 新增了 FluxLexer（词法分析）、FluxPlatform（JIT 降级）、编译缓存管线（DualHash64 + FormulaCache）、blob 构建管线（FluxBlobBuilder + FluxBlob）、VFF 虚拟公式格式、全局配置系统（FluxConfig）、以及 MaxRegister 按需分配。
 
 ### 三层泛型约束 (所有核心类型通用)
 
@@ -552,7 +552,7 @@ Expression.Condition(
 
 | 能力 | 说明 | 位置 |
 |------|------|------|
-| 编译缓存 | DualHash64 → FormulaCache → Delegate 缓存, 冷/热路径延迟显著分化 | `DualHash64.cs`, `FormulaCache.cs`, `ConnectCache.cs` |
+| 编译缓存 | DualHash64 → FormulaCache → Delegate 缓存, 冷/热路径延迟显著分化 | `DualHash64.cs`, `FormulaCache.cs` |
 | Blob 构建管线 | FluxBlobBuilder 扫描 FluxAsset → 拼接 blob → 生成 C# 偏移表 | `FluxBlobBuilder.cs`, `FluxBlob.cs` |
 | VFF 虚拟公式 | "VFF\0" 格式持久化公式引用 + 参数覆写, DLL 式符号解析 | `VffFormat.cs` |
 | 格式集中化 | FormulaFormat/BinaryFormat 消除散落 helper, 格式定义单一来源 | `FormulaFormat.cs`, `BinaryFormat.cs` |
