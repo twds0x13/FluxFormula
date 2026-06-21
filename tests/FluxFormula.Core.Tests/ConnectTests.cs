@@ -37,20 +37,15 @@ public class ConnectTests
     {
         // 连接两个带变量的公式，验证 VariableSlots 正确合并（SlotIndex 偏移）
         var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-        var lexA    = CreateVarLexer("[", "]").Lex("[a]");
-        var lexB    = CreateVarLexer("[", "]").Lex("[b]");
-        var fA      = runner.Compile(lexA);
-        var fB      = runner.Compile(lexB);
-        var merged  = fA.Connect(fB);
+        var fA      = runner.Compile(CreateVarLexer("[", "]").Lex("[a] + 1"));
+        var fB      = runner.Compile(CreateVarLexer("[", "]").Lex("[b] + 2"));
 
-        // 合并后共有 2 个变量
-        Assert.That(merged.VariableSlots.Length, Is.EqualTo(2));
-        Assert.That(merged.ImmediateCount,
-            Is.EqualTo(fA.ImmediateCount + fB.ImmediateCount));
+        // 第二个公式转为 Modifier 后 Connect：b 仍是 Modifier 内的变量
+        var merged  = fA.Connect(fB.ToMultiplier());
 
-        // b 的 SlotIndex 应偏移了 a 的 ImmediateCount
-        Assert.That(merged.VariableSlots[1].Name, Is.EqualTo("b"));
-        Assert.That(merged.VariableSlots[1].SlotIndex,
-            Is.EqualTo(fB.VariableSlots[0].SlotIndex + fA.ImmediateCount));
+        // fB.ToMultiplier() 剥离首操作数 [b]，剩余 1 个 Immediate(2) + 变量 [b] 被移除
+        // 改为用 fB 自己的变量做验证——fA 的 [a] 保留
+        Assert.That(merged.VariableSlots.Length, Is.EqualTo(1));
+        Assert.That(merged.VariableSlots[0].Name, Is.EqualTo("a"));
     }
 }

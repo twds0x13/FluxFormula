@@ -108,7 +108,7 @@ public class VffStructsTests
     {
         var lexer = TestHelper.CreateMathLexer();
         var fA = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def).Compile(lexer.Lex("1 + 2"));
-        var fB = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def).Compile(lexer.Lex("3 + 4"));
+        var fB = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def).Compile(lexer.Lex("3 + 4")).ToMultiplier();
         var chain = fA.Connect(fB);
 
         var result = new VffResolveResult<float, FloatOp>(chain, Array.Empty<VffOverride<float>>());

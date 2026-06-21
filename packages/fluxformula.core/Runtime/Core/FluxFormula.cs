@@ -290,10 +290,23 @@ namespace FluxFormula.Core
             return (byte)(Registers.Max - 1);
         }
 
+        /// <summary>
+        /// 将当前公式与后一个公式串联。前者的 R1 输出自动流入后者的首操作数位置。
+        /// 要求 <paramref name="next"/> 必须是 Modifier（已剥离首操作数的公式）——
+        /// 避免 Formula 的首操作数被静默覆盖。
+        /// 传入 Formula 前请先调用 <see cref="ToMultiplier"/>。
+        /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="next"/> 不是 Modifier 类型。</exception>
         public FluxFormula<TData, TOper> Connect(FluxFormula<TData, TOper> next)
         {
             if (this.Count == 0) return next;
             if (next.Count == 0) return this;
+
+            if (next.Type != FluxType.Modifier)
+                throw new ArgumentException(
+                    "Connect requires the right-hand formula to be a Modifier. " +
+                    "Use .ToMultiplier() to strip its first operand before connecting.");
+
             if (this.Count == 1) return next;
 
             return ChainConnect(GetLinks(), next.GetLinks());

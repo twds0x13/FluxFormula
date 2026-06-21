@@ -38,7 +38,7 @@ public class ModifierFormulaTests
     {
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "1 + 2");
-        var fB = Compile(lexer, "3 + 4");
+        var fB = Compile(lexer, "3 + 4").ToMultiplier();
         var chain = fA.Connect(fB);
 
         var m = chain.ToMultiplier();
@@ -211,9 +211,9 @@ public class ModifierFormulaTests
     public void Connect_ThreeWayChain()
     {
         var lexer = CreateMathLexer();
-        var fA = Compile(lexer, "1");
-        var fB = Compile(lexer, "2");
-        var fC = Compile(lexer, "3");
+        var fA = Compile(lexer, "1 + 2");
+        var fB = Compile(lexer, "3 + 4").ToMultiplier();
+        var fC = Compile(lexer, "5 + 6").ToMultiplier();
 
         var chain = fA.Connect(fB).Connect(fC);
         Assert.That(chain.ChainLength, Is.EqualTo(3));
