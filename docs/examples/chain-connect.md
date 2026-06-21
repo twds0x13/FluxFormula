@@ -1,4 +1,4 @@
-# ChainLink 示例
+# 示例：ChainLink
 
 以下示例演示 `Connect()` 的链式行为。ChainLink 是 `internal` 结构体，用户通过 `FluxFormula` 的方法间接使用。
 

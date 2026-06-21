@@ -1,4 +1,4 @@
-# Full Example: FloatMathDef
+# Example: FloatMathDef
 
 A copy-paste-ready floating-point arithmetic definition.
 

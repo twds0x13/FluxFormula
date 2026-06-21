@@ -1,4 +1,4 @@
-# ChainLink Examples
+# Example: ChainLink
 
 ChainLink is an `internal` struct. Users interact with it indirectly through `Connect()`, `ToAtomic()`, and `ToMultiplier()`.
 

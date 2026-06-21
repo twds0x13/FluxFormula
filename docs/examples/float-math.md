@@ -1,4 +1,4 @@
-# 完整示例：FloatMathDef
+# 示例：FloatMathDef
 
 可直接拷贝使用的浮点四则运算定义。
 
