@@ -14,8 +14,8 @@ hero:
       link: /api/overview
 
 features:
-  - title: 零 GC 热路径
-    details: ref struct、stackalloc 与 unsafe 指针操作，执行期零堆分配。编译期仅一次 Instruction[] 分配，后续执行走纯栈。
+  - title: 执行期零 GC
+    details: ref struct、stackalloc 与 unsafe 指针操作，执行期零堆分配。编译期仅一次 Instruction[] 分配加字面量解析，后续执行走纯栈。
   - title: 双后端执行
     details: 解释器全平台兼容，JIT 基于 LINQ Expression Tree 编译为委托。AOT 平台自动降级，无需手动切换。
   - title: 自定义指令集

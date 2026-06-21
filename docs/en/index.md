@@ -14,8 +14,8 @@ hero:
       link: /en/api/overview
 
 features:
-  - title: Zero-GC Hot Path
-    details: ref struct, stackalloc, and unsafe pointer operations. Zero heap allocations at execution time. Only one Instruction[] allocation at compile time; subsequent execution runs purely on the stack.
+  - title: Zero-GC at Runtime
+    details: ref struct, stackalloc, and unsafe pointer operations. Zero heap allocations at execution time. Only one Instruction[] allocation plus literal parsing at compile time; subsequent execution runs purely on the stack.
   - title: Dual-Backend Execution
     details: Interpreter for full platform compatibility. JIT compiles to delegates via LINQ Expression Trees. AOT platforms auto-degrade without manual switching.
   - title: Custom Instruction Sets

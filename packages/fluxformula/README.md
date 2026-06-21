@@ -1,10 +1,10 @@
 # FluxFormula
 
-Unity 高性能零 GC 线性公式编译管线。自定义运算符集，中缀表达式编译为紧凑字节码，解释器或 JIT 双后端执行
+Unity 高性能线性公式编译管线（执行期零 GC，编译期一次性分配）。自定义运算符集，中缀表达式编译为紧凑字节码，解释器或 JIT 双后端执行
 
 ## 特性
 
-- **零 GC 热路径**：ref struct、stackalloc 与 unsafe 指针操作，运行时零堆分配
+- **执行期零 GC**：ref struct、stackalloc 与 unsafe 指针操作，运行时零堆分配
 - **双后端执行**：解释器全平台兼容（含 IL2CPP/AOT），JIT 基于 LINQ Expression Tree 编译为委托，AOT 平台自动降级
 - **自定义指令集**：实现 `IFluxJITDefinition<TData, TOper>` 接口定义领域运算符，同时获得解释器与 JIT 两条执行路径
 - **紧凑字节码**：`Instruction` 为 8 字节定长结构体，`LayoutKind.Explicit` 显式布局。256 虚拟寄存器，最大 arity 6，立即数内联
