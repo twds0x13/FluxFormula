@@ -146,10 +146,10 @@ namespace FluxFormula.Core
         // ── 链式访问器 ──
 
         /// <summary>是否为链式公式（vs 原子字节码公式）</summary>
-        public bool IsChained => _chain != null && _chain.Length > 0;
+        internal bool IsChained => _chain != null && _chain.Length > 0;
 
         /// <summary>链式表示的链接数（原子公式返回 0）</summary>
-        public int ChainLength => _chain?.Length ?? 0;
+        internal int ChainLength => _chain?.Length ?? 0;
 
         /// <summary>获取链式链接的只读视图</summary>
         internal ReadOnlySpan<ChainLink> GetChainLinks() =>
@@ -425,8 +425,15 @@ namespace FluxFormula.Core
                 totalImm, slots, chainMaxReg);
         }
 
+        /// <summary>
+        /// 返回公式的底层指令跨度。链式公式自动合并为原子公式后返回。
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan<Instruction> Raw() => _buffer.AsSpan(0, Count);
+        public ReadOnlySpan<Instruction> Raw()
+        {
+            if (IsChained) return ToAtomic().Raw();
+            return _buffer.AsSpan(0, Count);
+        }
 
         // ================================================================
         // 哈希——公式字节码的内容寻址键
@@ -464,9 +471,12 @@ namespace FluxFormula.Core
         /// <summary>
         /// 将公式序列化为字节数组。可直接写入磁盘，无需 JSON/XML。
         /// 格式定义见 <see cref="FormulaFormat"/>。
+        /// 链式公式自动合并为原子公式后序列化。
         /// </summary>
         public readonly byte[] ToBytes()
         {
+            if (IsChained) return ToAtomic().ToBytes();
+
             int varSlotCount = VariableSlots.Length;
             int instByteLen = Count * FormulaFormat.InstructionSize;
 
