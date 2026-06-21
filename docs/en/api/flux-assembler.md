@@ -11,7 +11,7 @@ public readonly unsafe ref struct FluxAssembler<TData, TOper, TDef>
     where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
 ```
 
-## Constructor
+## Construction
 
 ```csharp
 public FluxAssembler(TDef definition)
@@ -77,3 +77,9 @@ float r = runner.Build(tokens, jit: true).Run();
 | Unary prefix operator (arity=1) | `Formula` |
 | Left bracket (PairRole=Left) | `Formula` |
 | Binary operator (arity≥2, non-bracket) | `Modifier` |
+
+## See Also
+
+- [FluxFormula](./flux-formula) — immutable bytecode container produced by Compile
+- [FluxInstance](./flux-instance) — streaming executor returned by Instantiate
+- [IDefinition](./idefinition) — custom operator definition interface

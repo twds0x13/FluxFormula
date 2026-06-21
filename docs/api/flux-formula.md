@@ -26,6 +26,10 @@ public readonly struct FluxFormula<TData, TOper>
 |------|------|------|
 | `Empty` | `FluxFormula<TData, TOper>` | 空公式（Count=0），用于 Connect 边界场景 |
 
+## 构造
+
+构造函数为 `internal`。用户通过 `FluxAssembler.Compile()` 生成，或使用 `FluxFormula<TData, TOper>.Empty` 获取空实例。
+
 ## 方法
 
 ### Connect
@@ -119,6 +123,9 @@ public override string ToString()
 // "FluxFormula<Single> [Type: Formula, Instructions: 4]"
 ```
 
-## 构造
+## 参见
 
-构造函数为 `internal`。用户通过 `FluxAssembler.Compile()` 生成，或使用 `FluxFormula<TData, TOper>.Empty` 获取空实例。
+- [FluxAssembler](./flux-assembler) — 编译入口，产出 FluxFormula
+- [FluxInstance](./flux-instance) — 公式实例化后的流式执行器
+- [Instruction](./instruction) — 8 字节指令结构体
+- [FormulaFormat](./formula-format) — 字节码序列化格式定义

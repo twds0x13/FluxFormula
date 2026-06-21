@@ -11,7 +11,7 @@ public readonly unsafe ref struct FluxAssembler<TData, TOper, TDef>
     where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
 ```
 
-## 构造函数
+## 构造
 
 ```csharp
 public FluxAssembler(TDef definition)
@@ -77,3 +77,9 @@ float r = runner.Build(tokens, jit: true).Run();
 | 一元前缀运算符（arity=1） | `Formula` |
 | 左括号（PairRole=Left） | `Formula` |
 | 二元运算符（arity≥2 且非括号） | `Modifier` |
+
+## 参见
+
+- [FluxFormula](./flux-formula) — 编译产出的字节码容器
+- [FluxInstance](./flux-instance) — 流式执行器
+- [IDefinition](./idefinition) — 自定义运算符定义接口

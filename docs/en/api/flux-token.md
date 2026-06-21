@@ -33,3 +33,8 @@ new FluxToken<float, FloatOp> { Oper = FloatOp.Add };
 - **Immediate Token**: `Oper`'s `GetKind()` returns `OpType.Immediate`; `Data` carries a concrete value
 - **Operator Token**: `Oper`'s `GetKind()` returns `OpType.Instruction`; `Data` is ignored
 - **Bracket Token**: `Oper`'s `GetPair()` returns `PairRole = Left/Right`
+
+## See Also
+
+- [IDefinition](./idefinition) — operator enum and definition linked to Token.Oper
+- [FluxAssembler](./flux-assembler) — compilation entry point for token arrays

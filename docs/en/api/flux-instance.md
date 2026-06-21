@@ -77,3 +77,8 @@ float r = runner.Instantiate(formula)
     .SetIndex(1, 4f)
     .Run();
 ```
+
+## See Also
+
+- [FluxAssembler](./flux-assembler) — produces FluxInstance via Instantiate/Build
+- [FluxFormula](./flux-formula) — bytecode container wrapped by Instance

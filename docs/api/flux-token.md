@@ -17,7 +17,7 @@ public struct FluxToken<TData, TOper>
 | `Oper` | `TOper` | 操作符枚举值 |
 | `Data` | `TData` | 数据值（仅对 Immediate 类 Token 有效） |
 
-## 用法
+## 使用示例
 
 ```csharp
 // 构造立即数 Token
@@ -33,3 +33,8 @@ new FluxToken<float, FloatOp> { Oper = FloatOp.Add };
 - **Immediate Token**：`Oper` 对应的 `GetKind()` 返回 `OpType.Immediate`，`Data` 携带具体值
 - **Operator Token**：`Oper` 对应的 `GetKind()` 返回 `OpType.Instruction`，`Data` 忽略
 - **括号 Token**：`Oper` 对应的 `GetPair()` 返回 `PairRole = Left/Right`
+
+## 参见
+
+- [IDefinition](./idefinition) — Token 的 Oper 枚举与运算符定义
+- [FluxAssembler](./flux-assembler) — Token 数组的编译入口

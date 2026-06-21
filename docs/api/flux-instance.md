@@ -59,7 +59,7 @@ public readonly Instruction[] GetBuffer()
 
 返回底层的 `Instruction[]` 缓冲。调试和 benchmark 专用，非生产路径。
 
-## 用法
+## 使用示例
 
 ```csharp
 // 单次求值
@@ -77,3 +77,8 @@ float r = runner.Instantiate(formula)
     .SetIndex(1, 4f)
     .Run();
 ```
+
+## 参见
+
+- [FluxAssembler](./flux-assembler) — 通过 Instantiate/Build 产出 FluxInstance
+- [FluxFormula](./flux-formula) — Instance 包装的字节码容器

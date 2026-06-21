@@ -26,6 +26,10 @@ public readonly struct FluxFormula<TData, TOper>
 |------|------|------|
 | `Empty` | `FluxFormula<TData, TOper>` | Empty formula (Count=0), for Connect edge cases |
 
+## Construction
+
+The constructor is `internal`. Users generate instances via `FluxAssembler.Compile()` or use `FluxFormula<TData, TOper>.Empty` for an empty instance.
+
 ## Methods
 
 ### Connect
@@ -119,6 +123,9 @@ public override string ToString()
 // "FluxFormula<Single> [Type: Formula, Instructions: 4]"
 ```
 
-## Construction
+## See Also
 
-The constructor is `internal`. Users generate instances via `FluxAssembler.Compile()` or use `FluxFormula<TData, TOper>.Empty` for an empty instance.
+- [FluxAssembler](./flux-assembler) — compilation entry point that produces FluxFormula
+- [FluxInstance](./flux-instance) — streaming executor after instantiation
+- [Instruction](./instruction) — 8-byte instruction struct
+- [FormulaFormat](./formula-format) — bytecode serialization format
