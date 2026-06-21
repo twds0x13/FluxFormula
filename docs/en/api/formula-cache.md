@@ -183,7 +183,8 @@ FormulaCache.Reset();
 
 ## See Also
 
+- [VffFormat](./vff-format) — VFF resolution depends on FormulaCache for referenced formula lookup
+- [FluxFormula](./flux-formula) — Formula compilation and cache keys
 - [FluxConfig](./flux-config) — `FormulaCacheCapacity` configuration
 - [IFluxCacheProvider](./iflux-cache-provider) — Replaceable cache backend interface
 - [DualHash64](./dualhash64) — Cache key
-- [VffFormat](./vff-format) — VFF resolution depends on FormulaCache for referenced formula lookup

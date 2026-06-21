@@ -54,12 +54,12 @@ graph TD
 | `FormulaLibrary<TData, TOper, TDef>` | `<TData, TOper, TDef>` | 资产创建与加载（需 FLUX_ADDRESSABLES） |
 | `FluxFormulaRef<TData, TOper, TDef>` | `<TData, TOper, TDef>` | AssetReference 类型安全包装（需 FLUX_ADDRESSABLES） |
 | `VariableSlot` | — | 变量名到槽位索引的映射 |
-| `DualHash64` | — | 128-bit 双哈希（xxHash64 + FNV-1a 64），内容寻址缓存键 |
+| [DualHash64](./dualhash64) | — | 128-bit 双哈希（xxHash64 + FNV-1a 64），内容寻址缓存键 |
 | `Registers` | — | 寄存器语义常量（Error=0, Bus=1, FirstAlloc=2, Max=255） |
-| `FluxConfig` | — | 项目级全局配置（FormulaCacheCapacity, MergeThreshold, ConnectBufferSize） |
+| [FluxConfig](./flux-config) | — | 项目级全局配置（FormulaCacheCapacity, MergeThreshold, BlobFilePath, DiskCacheDirectory） |
 | [FormulaCache](./formula-cache) | — | 2048 槽开放寻址哈希表缓存 |
-| `IFluxCacheProvider` | — | 可替换缓存后端接口 |
-| `FormulaFormat` | — | `.ff` 公式字节码格式定义（HeaderSize=14） |
+| [IFluxCacheProvider](./iflux-cache-provider) | — | 可替换缓存后端接口 |
+| [FormulaFormat](./formula-format) | — | `.ff` 公式字节码格式定义（HeaderSize=14） |
 | `BinaryFormat` | — | 小端序二进制读写原语 |
 | [VffFormat](./vff-format) | — | `.vff` 虚拟公式格式定义与解析 |
 | `FluxBlob` | — | Blob pinned 内存管理器（Initialize/Shutdown/VerifyIntegrity） |

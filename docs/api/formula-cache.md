@@ -183,7 +183,8 @@ FormulaCache.Reset();
 
 ## 参见
 
+- [VffFormat](./vff-format) — VFF resolve 依赖 FormulaCache 查找被引用公式
+- [FluxFormula](./flux-formula) — 公式编译与缓存键
 - [FluxConfig](./flux-config) — `FormulaCacheCapacity` 配置
 - [IFluxCacheProvider](./iflux-cache-provider) — 可替换缓存后端接口
 - [DualHash64](./dualhash64) — 缓存键
-- [VffFormat](./vff-format) — VFF resolve 依赖 FormulaCache 查找被引用公式

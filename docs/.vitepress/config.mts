@@ -42,7 +42,11 @@ export default withMermaid(
                 { text: "Instruction", link: "/api/instruction" },
                 { text: "FluxToken", link: "/api/flux-token" },
                 { text: "VffFormat", link: "/api/vff-format" },
+                { text: "FormulaFormat", link: "/api/formula-format" },
                 { text: "FormulaCache", link: "/api/formula-cache" },
+                { text: "DualHash64", link: "/api/dualhash64" },
+                { text: "FluxConfig", link: "/api/flux-config" },
+                { text: "IFluxCacheProvider", link: "/api/iflux-cache-provider" },
               ],
             },
             {
@@ -118,7 +122,11 @@ export default withMermaid(
                 { text: "Instruction", link: "/en/api/instruction" },
                 { text: "FluxToken", link: "/en/api/flux-token" },
                 { text: "VffFormat", link: "/en/api/vff-format" },
+                { text: "FormulaFormat", link: "/en/api/formula-format" },
                 { text: "FormulaCache", link: "/en/api/formula-cache" },
+                { text: "DualHash64", link: "/en/api/dualhash64" },
+                { text: "FluxConfig", link: "/en/api/flux-config" },
+                { text: "IFluxCacheProvider", link: "/en/api/iflux-cache-provider" },
               ],
             },
             {

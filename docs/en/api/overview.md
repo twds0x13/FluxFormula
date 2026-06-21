@@ -54,12 +54,12 @@ graph TD
 | `FormulaLibrary<TData, TOper, TDef>` | `<TData, TOper, TDef>` | Asset creation and loading (requires FLUX_ADDRESSABLES) |
 | `FluxFormulaRef<TData, TOper, TDef>` | `<TData, TOper, TDef>` | Type-safe AssetReference wrapper (requires FLUX_ADDRESSABLES) |
 | `VariableSlot` | — | Variable name to slot index mapping |
-| `DualHash64` | — | 128-bit dual hash (xxHash64 + FNV-1a 64), content-addressable cache key |
+| [DualHash64](./dualhash64) | — | 128-bit dual hash (xxHash64 + FNV-1a 64), content-addressable cache key |
 | `Registers` | — | Register semantic constants (Error=0, Bus=1, FirstAlloc=2, Max=255) |
-| `FluxConfig` | — | Project-level global configuration (FormulaCacheCapacity, MergeThreshold, ConnectBufferSize) |
+| [FluxConfig](./flux-config) | — | Project-level global configuration (FormulaCacheCapacity, MergeThreshold, BlobFilePath, DiskCacheDirectory) |
 | [FormulaCache](./formula-cache) | — | 2048-slot open-addressing hashmap cache |
-| `IFluxCacheProvider` | — | Replaceable cache backend interface |
-| `FormulaFormat` | — | `.ff` formula bytecode format definition (HeaderSize=14) |
+| [IFluxCacheProvider](./iflux-cache-provider) | — | Replaceable cache backend interface |
+| [FormulaFormat](./formula-format) | — | `.ff` formula bytecode format definition (HeaderSize=14) |
 | `BinaryFormat` | — | Little-endian binary read/write primitives |
 | [VffFormat](./vff-format) | — | `.vff` virtual formula format definition and resolution |
 | `FluxBlob` | — | Blob pinned memory manager (Initialize/Shutdown/VerifyIntegrity) |
