@@ -443,4 +443,41 @@ public class ArithmeticTests
         float r = runner.Instantiate(formula, jit: true).Run();
         Assert.That(r, Is.EqualTo(21f).Within(1e-6f));
     }
+
+    // ── 编译器异常路径 ────────────────────────────
+
+    [Test]
+    public void Compiler_RegStackOverflow_Throws()
+    {
+        // 65 个连续 Immediate → 寄存器栈溢出 (MaxStackDepth=64)
+        var tokens = new FluxToken<float, FloatOp>[65];
+        for (int i = 0; i < 65; i++)
+            tokens[i] = C(i);
+        Assert.That(() => Eval(tokens),
+            Throws.TypeOf<StackOverflowException>());
+    }
+
+    [Test]
+    public void Compiler_OpStackOverflow_Throws()
+    {
+        // 65 层嵌套 '(' → 操作符栈溢出 (opTop 从 -1 到 63 触发)
+        int depth = 65;
+        var tokens = new FluxToken<float, FloatOp>[depth + 1 + depth];
+        int t = 0;
+        for (int i = 0; i < depth; i++)
+            tokens[t++] = Op(FloatOp.LParen);
+        tokens[t++] = C(1f);
+        for (int i = 0; i < depth; i++)
+            tokens[t++] = Op(FloatOp.RParen);
+        Assert.That(() => Eval(tokens),
+            Throws.TypeOf<StackOverflowException>());
+    }
+
+    [Test]
+    public void Compiler_UnmatchedRightBracket_Throws()
+    {
+        Assert.That(
+            () => Eval(new[] { Op(FloatOp.RParen), C(1f) }),
+            Throws.TypeOf<FormatException>().With.Message.Contains("Unmatched"));
+    }
 }

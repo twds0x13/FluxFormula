@@ -133,20 +133,7 @@ namespace FluxFormula.Compiler
                         }
                         else
                         {
-                            TOper leftOp = opStack[opTop--];
-                            var leftParenBehavior = _provider.GetPair(leftOp);
-                            if (leftParenBehavior.EmitOnMatch)
-                            {
-                                EmitOp(
-                                    pDest,
-                                    ref instIdx,
-                                    instructions.Length,
-                                    leftParenBehavior.EmitOpCode,
-                                    regStack,
-                                    ref regTop,
-                                    ref nextReg
-                                );
-                            }
+                            opTop--; // 弹出 '(' (EmitOnMatch on Left bracket 未被使用)
 
                             // 检查 '(' 下方是否有函数运算符（如 select/lerp）待发射
                             if (opTop >= 0)
@@ -214,17 +201,7 @@ namespace FluxFormula.Compiler
                     var topPair = _provider.GetPair(topOp);
 
                     if (topPair.PairRole == Pair.Left)
-                    {
-                        if (topPair.EmitOnMatch)
-                        {
-                            EmitOp(pDest, ref instIdx, instructions.Length, topPair.EmitOpCode, regStack, ref regTop, ref nextReg);
-                        }
-                        else
-                        {
-                            throw new FormatException("Unmatched left parenthesis.");
-                        }
-                        continue;
-                    }
+                        throw new FormatException("Unmatched left parenthesis.");
 
                     TOper actualOp = topPair.EmitOnMatch ? topPair.EmitOpCode : topOp;
                     EmitOp(
@@ -305,10 +282,9 @@ namespace FluxFormula.Compiler
             
             else
             {
-                inst->Dest = 1;
-                if (regTop >= MaxStackDepth - 1)
-                    throw new StackOverflowException("Reg stack overflow.");
-                regStack[++regTop] = 1;
+                throw new InvalidOperationException(
+                    $"EmitOp invoked with arity 0 (opCode=0x{opByte:X2}). " +
+                    "If this is a bracket/separator token, its PairRole should be Left or Right.");
             }
             
         }
