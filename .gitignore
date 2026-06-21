@@ -9,6 +9,8 @@ benchmarks/obj/
 BenchmarkDotNet.Artifacts/
 standalone-tests/bin/
 standalone-tests/obj/
+tests/FluxFormula.Core.Tests/bin/
+tests/FluxFormula.Core.Tests/obj/
 
 # ===== Node / VitePress =====
 node_modules/
