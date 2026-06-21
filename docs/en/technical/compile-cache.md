@@ -72,6 +72,15 @@ Combine(A, B) ≠ Combine(B, A)  // order-sensitive
 
 Open-addressing hashmap (default 2048 slots, adjustable via `FluxConfig.FormulaCacheCapacity`). Zero linked-list pointers. Zero GC allocation after construction.
 
+### Storage Structure
+
+```
+_xxHashKeys[capacity]   ulong[]    DualHash64.XxHash64 component
+_fnvHashKeys[capacity]  ulong[]    DualHash64.FnvHash64 component
+_valuePtrs[capacity]    IntPtr[]   bytecode pointer or GCHandle handle
+_valueLengths[capacity] int[]      state marker + length
+```
+
 ### Slot States
 
 | Value | Meaning |

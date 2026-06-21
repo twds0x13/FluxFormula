@@ -116,18 +116,6 @@ The cache backend `IFluxCacheProvider` defaults to `FormulaCache` (slot count co
 
 ## Persistence: ToBytes / FromBytes
 
-    public FluxInstance<TData, TOper, TDef> Execute(
-        string key, ReadOnlySpan<FluxToken<TData, TOper>> tokens, bool jit = false)
-    {
-        return _assembler.Instantiate(GetOrCompile(key, tokens), jit);
-    }
-}
-```
-
-The `_cache` Dictionary generates GC on insert. Use array indices instead of string keys for zero-allocation caching.
-
-## Persistence: ToBytes / FromBytes
-
 ```csharp
 // Serialize
 byte[] raw = formula.ToBytes();
