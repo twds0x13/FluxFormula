@@ -57,11 +57,11 @@ graph TD
 | `DualHash64` | — | 128-bit 双哈希（xxHash64 + FNV-1a 64），内容寻址缓存键 |
 | `Registers` | — | 寄存器语义常量（Error=0, Bus=1, FirstAlloc=2, Max=255） |
 | `FluxConfig` | — | 项目级全局配置（FormulaCacheCapacity, MergeThreshold, ConnectBufferSize） |
-| `FormulaCache` | — | 2048 槽开放寻址哈希表缓存 |
+| [FormulaCache](./formula-cache) | — | 2048 槽开放寻址哈希表缓存 |
 | `IFluxCacheProvider` | — | 可替换缓存后端接口 |
 | `FormulaFormat` | — | `.ff` 公式字节码格式定义（HeaderSize=14） |
 | `BinaryFormat` | — | 小端序二进制读写原语 |
-| `VffFormat` | — | `.vff` 虚拟公式格式定义与解析 |
+| [VffFormat](./vff-format) | — | `.vff` 虚拟公式格式定义与解析 |
 | `FluxBlob` | — | Blob pinned 内存管理器（Initialize/Shutdown/VerifyIntegrity） |
 | `FluxBlobBuilder` | — | 离线构建管线（扫描 FluxAsset → 拼接 blob → 生成 C# 偏移表） |
 

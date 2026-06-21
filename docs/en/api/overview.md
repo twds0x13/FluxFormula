@@ -57,11 +57,11 @@ graph TD
 | `DualHash64` | — | 128-bit dual hash (xxHash64 + FNV-1a 64), content-addressable cache key |
 | `Registers` | — | Register semantic constants (Error=0, Bus=1, FirstAlloc=2, Max=255) |
 | `FluxConfig` | — | Project-level global configuration (FormulaCacheCapacity, MergeThreshold, ConnectBufferSize) |
-| `FormulaCache` | — | 2048-slot open-addressing hashmap cache |
+| [FormulaCache](./formula-cache) | — | 2048-slot open-addressing hashmap cache |
 | `IFluxCacheProvider` | — | Replaceable cache backend interface |
 | `FormulaFormat` | — | `.ff` formula bytecode format definition (HeaderSize=14) |
 | `BinaryFormat` | — | Little-endian binary read/write primitives |
-| `VffFormat` | — | `.vff` virtual formula format definition and resolution |
+| [VffFormat](./vff-format) | — | `.vff` virtual formula format definition and resolution |
 | `FluxBlob` | — | Blob pinned memory manager (Initialize/Shutdown/VerifyIntegrity) |
 | `FluxBlobBuilder` | — | Offline build pipeline (scan FluxAsset → concatenate blob → generate C# offset table) |
 

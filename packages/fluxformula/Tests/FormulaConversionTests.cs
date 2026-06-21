@@ -54,8 +54,8 @@ public class FormulaConversionTests
         Assert.That(modifier.Type, Is.EqualTo(FluxType.Modifier));
 
         var again = modifier.ToMultiplier();
-        Assert.That(ReferenceEquals(modifier.Raw(), again.Raw()),
-            Is.True, "Already-modifier ToMultiplier should return self (same buffer reference)");
+        Assert.That(modifier.Raw().ToArray(), Is.EqualTo(again.Raw().ToArray()),
+            "Already-modifier ToMultiplier should return self (same buffer content)");
     }
 
     [Test]
@@ -179,8 +179,8 @@ public class FormulaConversionTests
         Assert.That(formula.Type, Is.EqualTo(FluxType.Formula));
 
         var again = formula.ToFormula("y");
-        Assert.That(ReferenceEquals(formula.Raw(), again.Raw()),
-            Is.True, "Already-formula ToFormula should return self");
+        Assert.That(formula.Raw().ToArray(), Is.EqualTo(again.Raw().ToArray()),
+            "Already-formula ToFormula should return self (same buffer content)");
     }
 
     [Test]

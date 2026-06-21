@@ -117,7 +117,8 @@ public class VffRecursiveTests
         int lo = VffFormat.HeaderSize;
         for (int i = 0; i < links.Length; i++)
         {
-            MemoryMarshal.Write(data.AsSpan(lo), links[i]);
+            var linkEntry = links[i];
+            MemoryMarshal.Write(data.AsSpan(lo), ref linkEntry);
             lo += VffFormat.LinkEntrySize;
         }
 
@@ -135,7 +136,8 @@ public class VffRecursiveTests
                 int dataLen = sizeof(float);
                 data[lo] = (byte)dataLen;
                 lo++;
-                MemoryMarshal.Write(data.AsSpan(lo), ov.ConstantValue);
+                var constVal = ov.ConstantValue;
+                MemoryMarshal.Write(data.AsSpan(lo), ref constVal);
                 lo += dataLen;
             }
         }
@@ -315,9 +317,9 @@ public class VffRecursiveTests
     {
         // 叶子公式带变量
         var hashA = RegisterFakeFormula(immCount: 1, varSlotCount: 1,
-            new[] { "x" });
+            varNames: new[] { "x" });
         var hashB = RegisterFakeFormula(immCount: 1, varSlotCount: 1,
-            new[] { "y" });
+            varNames: new[] { "y" });
 
         // 内层 VFF 引用 A + B
         var innerLinks = new[]
@@ -329,7 +331,7 @@ public class VffRecursiveTests
 
         // 外层 VFF 引用 C + 内层 VFF
         var hashC = RegisterFakeFormula(immCount: 1, varSlotCount: 1,
-            new[] { "z" });
+            varNames: new[] { "z" });
         var outerLinks = new[]
         {
             new VffLinkEntry(hashC, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 1),
