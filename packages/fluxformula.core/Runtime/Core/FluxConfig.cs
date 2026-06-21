@@ -47,4 +47,3 @@ namespace FluxFormula.Core
 
     }
 }
-}

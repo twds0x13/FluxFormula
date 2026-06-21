@@ -196,6 +196,67 @@ public class ModifierFormulaTests
     // 辅助
     // ═══════════════════════════════════════════════════════
 
+    // ═══════════════════════════════════════════════════════
+    // 边界路径
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void DefaultConstructor_CreatesEmpty()
+    {
+        var f = new FluxFormula<float, FloatOp>();
+        Assert.That(f.IsChained, Is.False);
+    }
+
+    [Test]
+    public void Connect_ThreeWayChain()
+    {
+        var lexer = CreateMathLexer();
+        var fA = Compile(lexer, "1");
+        var fB = Compile(lexer, "2");
+        var fC = Compile(lexer, "3");
+
+        var chain = fA.Connect(fB).Connect(fC);
+        Assert.That(chain.ChainLength, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void ToMultiplier_AlreadyModifier_ReturnsSelf()
+    {
+        var lexer = CreateMathLexer();
+        var f = Compile(lexer, "2 * 3");
+        var mod = f.ToMultiplier();
+        var modAgain = mod.ToMultiplier();
+        Assert.That(modAgain.IsChained, Is.EqualTo(mod.IsChained));
+    }
+
+    [Test]
+    public void ToAtomic_AlreadyAtomic_ReturnsSelf()
+    {
+        var lexer = CreateMathLexer();
+        var f = Compile(lexer, "42");
+        var atomic = f.ToAtomic();
+        Assert.That(atomic.IsChained, Is.False);
+    }
+
+    [Test]
+    public void FromBytes_RoundTrip()
+    {
+        var lexer = CreateMathLexer();
+        var orig = Compile(lexer, "3.14 + 2.718 * 1.414");
+        byte[] bytes = orig.ToBytes();
+
+        var restored = FluxFormula<float, FloatOp>.FromBytes(bytes);
+        Assert.That(restored.IsChained, Is.False);
+
+        float origVal = EvalFormula(orig);
+        float restVal = EvalFormula(restored);
+        Assert.That(restVal, Is.EqualTo(origVal).Within(1e-6f));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 辅助
+    // ═══════════════════════════════════════════════════════
+
     private static FluxFormula<float, FloatOp> Compile(
         FluxLexer<float, FloatOp> lexer, string expr)
     {

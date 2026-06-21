@@ -80,4 +80,22 @@ public class FluxInstanceTests
         catch (IndexOutOfRangeException) { threw = true; }
         Assert.That(threw, Is.True, "Out-of-bounds index should throw");
     }
+
+    // ═══════════════════════════════════════════════════════
+    // 链式 buffer
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void BuildLinkBuffer_UsedViaChainRun()
+    {
+        var lexer = CreateMathLexer();
+        var fA = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+            .Compile(lexer.Lex("7 + 3"));          // R1 = 10
+        var fB = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+            .Compile(lexer.Lex("2 * 5")).ToMultiplier(); // modifier: R1 * 5
+        var chain = fA.Connect(fB);                 // 10 * 5 = 50
+        var inst = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+            .Instantiate(chain);
+        Assert.That(inst.Run(), Is.EqualTo(50f).Within(1e-6f));
+    }
 }

@@ -30,19 +30,31 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/VffFormat.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxJITCompiler.cs" />
-    <!-- 测试文件 (同目录) -->
-    <Compile Include="TestDefinition.cs" />
-    <Compile Include="SmokeTest.cs" />
-    <Compile Include="ArithmeticTests.cs" />
-    <Compile Include="JitConsistencyTests.cs" />
-    <Compile Include="ConnectTests.cs" />
-    <Compile Include="FluxInstanceTests.cs" />
-    <Compile Include="LexerTests.cs" />
-    <Compile Include="PersistenceTests.cs" />
-    <Compile Include="DualHashTests.cs" />
-    <Compile Include="FormulaCacheTests.cs" />
-    <Compile Include="ConnectCacheTests.cs" />
-    <Compile Include="ModifierFormulaTests.cs" />
+    <!-- 测试文件 (按模块分类) -->
+    <Compile Include="TestDefinition.cs" />            <!-- 基础定义 -->
+    <Compile Include="SmokeTest.cs" />                <!-- 冒烟测试 -->
+    <Compile Include="ArithmeticTests.cs" />          <!-- 算术正确性 -->
+    <Compile Include="JitConsistencyTests.cs" />      <!-- JIT vs 解释器一致性 -->
+    <Compile Include="ConnectTests.cs" />             <!-- Connect 组合 -->
+    <Compile Include="FluxInstanceTests.cs" />        <!-- FluxInstance -->
+    <Compile Include="FluxInjectorTests.cs" />        <!-- FluxInjector -->
+    <Compile Include="FluxEvaluatorTests.cs" />       <!-- FluxEvaluator 边界 -->
+    <Compile Include="FluxConfigTests.cs" />          <!-- FluxConfig -->
+    <Compile Include="FluxJITCompilerTests.cs" />     <!-- FluxJITCompiler -->
+    <Compile Include="LexerTests.cs" />               <!-- FluxLexer 核心 -->
+    <Compile Include="LexerConfigTests.cs" />         <!-- LexerConfig -->
+    <Compile Include="LexerEdgeTests.cs" />           <!-- FluxLexer 内部方法 -->
+    <Compile Include="PersistenceTests.cs" />         <!-- 序列化 -->
+    <Compile Include="DualHashTests.cs" />            <!-- DualHash64 -->
+    <Compile Include="DataStructsTests.cs" />         <!-- Instruction/OpPair/VariableSlot -->
+    <Compile Include="BinaryFormatTests.cs" />        <!-- BinaryFormat -->
+    <Compile Include="FormulaFormatTests.cs" />       <!-- FormulaFormat -->
+    <Compile Include="FormulaCacheTests.cs" />        <!-- FormulaCache 核心 -->
+    <Compile Include="FormulaCacheAndChainTests.cs" /> <!-- FormulaCache + Chain -->
+    <Compile Include="FormulaCacheEdgeTests.cs" />    <!-- FormulaCache 边界 -->
+    <Compile Include="ModifierFormulaTests.cs" />     <!-- Modifier/Formula 互转 -->
+    <Compile Include="VffStructsTests.cs" />          <!-- VffHeader/LinkEntry/Override -->
+    <Compile Include="VffFormatTests.cs" />           <!-- VffFormat 完整测试 -->
   </ItemGroup>
 
   <ItemGroup>

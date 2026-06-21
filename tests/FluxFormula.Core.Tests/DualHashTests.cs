@@ -281,4 +281,29 @@ public class DualHashTests
             return $"\"{Encoding.ASCII.GetString(data)}\"";
         return $"({data.Length} bytes)";
     }
+
+    // ═══════════════════════════════════════════════════════
+    // Equals(object)
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void Equals_Null_ReturnsFalse()
+    {
+        var h = DualHash64.Compute(new byte[] { 1, 2, 3 });
+        Assert.That(h.Equals(null), Is.False);
+    }
+
+    [Test]
+    public void Equals_WrongType_ReturnsFalse()
+    {
+        var h = DualHash64.Compute(new byte[] { 1, 2, 3 });
+        Assert.That(h.Equals("not a hash"), Is.False);
+    }
+
+    [Test]
+    public void Equals_Self_ReturnsTrue()
+    {
+        var h = DualHash64.Compute(new byte[] { 1, 2, 3 });
+        Assert.That(h.Equals((object)h), Is.True);
+    }
 }
