@@ -2,8 +2,10 @@
  * update-benchmark-docs.js
  *
  * Reads BenchmarkDotNet JSON results and updates the performance tables in:
- *   - docs/index.md        (Chinese)
- *   - docs/en/index.md     (English)
+ *   - docs/index.md        (Chinese — summary table)
+ *   - docs/en/index.md     (English — summary table)
+ *   - README.md            (Chinese — flat table)
+ *   - README.en.md         (English — flat table)
  *
  * Usage: node scripts/update-benchmark-docs.js [results-dir]
  *   results-dir defaults to "BenchmarkDotNet.Artifacts/results"
@@ -16,10 +18,34 @@ const path = require("path");
 
 const RESULTS_DIR = process.argv[2] || "BenchmarkDotNet.Artifacts/results";
 
+// Flat table row definitions for README files
+const FLAT_ROWS_CN = [
+  { type: "LexerBenchmarks", method: "Simple",   stage: "Lexer",   op: "简单表达式" },
+  { type: "LexerBenchmarks", method: "Complex",  stage: "Lexer",   op: "复杂表达式" },
+  { type: "CompileBenchmarks", method: "Simple",  stage: "Compile", op: "简单表达式" },
+  { type: "CompileBenchmarks", method: "Complex", stage: "Compile", op: "复杂表达式" },
+  { type: "InterpreterBenchmarks", method: "Simple",  stage: "解释器", op: "简单公式求值" },
+  { type: "InterpreterBenchmarks", method: "Complex", stage: "解释器", op: "复杂公式求值" },
+  { type: "JitBenchmarks", method: "Simple",  stage: "JIT", op: "简单公式求值" },
+  { type: "JitBenchmarks", method: "Complex", stage: "JIT", op: "复杂公式求值" },
+];
+
+const FLAT_ROWS_EN = [
+  { type: "LexerBenchmarks", method: "Simple",   stage: "Lexer",   op: "Simple expression" },
+  { type: "LexerBenchmarks", method: "Complex",  stage: "Lexer",   op: "Complex expression" },
+  { type: "CompileBenchmarks", method: "Simple",  stage: "Compile", op: "Simple expression" },
+  { type: "CompileBenchmarks", method: "Complex", stage: "Compile", op: "Complex expression" },
+  { type: "InterpreterBenchmarks", method: "Simple",  stage: "Interpreter", op: "Simple eval" },
+  { type: "InterpreterBenchmarks", method: "Complex", stage: "Interpreter", op: "Complex eval" },
+  { type: "JitBenchmarks", method: "Simple",  stage: "JIT", op: "Simple eval" },
+  { type: "JitBenchmarks", method: "Complex", stage: "JIT", op: "Complex eval" },
+];
+
 const TARGETS = [
   {
     file: "docs/index.md",
     heading: "## 性能一览",
+    format: "summary",
     stageNames: ["Lexer", "Compile", "解释器求值", "JIT 求值"],
     hostInfoLine: (info) =>
       `BenchmarkDotNet on ${info.ProcessorName}，.NET ${extractDotNetMajor(info.RuntimeVersion)}，ShortRun：`,
@@ -29,11 +55,32 @@ const TARGETS = [
   {
     file: "docs/en/index.md",
     heading: "## Performance at a Glance",
+    format: "summary",
     stageNames: ["Lexer", "Compile", "Interpreter Eval", "JIT Eval"],
     hostInfoLine: (info) =>
       `BenchmarkDotNet on ${info.ProcessorName}, .NET ${extractDotNetMajor(info.RuntimeVersion)}, ShortRun:`,
     footer: (jitRatio) =>
       `One-time compilation cost. Execution: zero heap allocation. JIT is ${jitRatio}× faster than the interpreter.`,
+  },
+  {
+    file: "README.md",
+    heading: "## 性能",
+    format: "flat",
+    flatRows: FLAT_ROWS_CN,
+    hostInfoLine: (info) =>
+      `以下数据来自 BenchmarkDotNet（${info.ProcessorName}，.NET ${extractDotNetMajor(info.RuntimeVersion)}，ShortRun）：`,
+    footer: (jitRatio) =>
+      `编译一次性开销 ~30–110 ns + 数百字节分配。执行期零分配，JIT 比解释器快约 ${jitRatio} 倍。`,
+  },
+  {
+    file: "README.en.md",
+    heading: "## Performance",
+    format: "flat",
+    flatRows: FLAT_ROWS_EN,
+    hostInfoLine: (info) =>
+      `BenchmarkDotNet on ${info.ProcessorName}, .NET ${extractDotNetMajor(info.RuntimeVersion)}, ShortRun:`,
+    footer: (jitRatio) =>
+      `One-time compilation cost: ~30–110 ns + a few hundred bytes. Execution: zero allocation. JIT is ~${jitRatio}× faster than the interpreter.`,
   },
 ];
 
@@ -146,22 +193,7 @@ function updateFile(target, data, hostInfo) {
     }
   }
 
-  // Build new table rows
-  const rows = [];
-  for (const [type, idx] of Object.entries(TYPE_MAP)) {
-    const stageData = data[type];
-    if (!stageData) {
-      console.warn(`  No data for ${type}, skipping`);
-      continue;
-    }
-    const simple = stageData["Simple"];
-    const complex = stageData["Complex"];
-    if (!simple || !complex) {
-      console.warn(`  Missing Simple/Complex for ${type}, skipping`);
-      continue;
-    }
-    rows[idx] = buildTableRow(target.stageNames[idx], simple, complex);
-  }
+  const hostLine = target.hostInfoLine(hostInfo || { ProcessorName: "Unknown", RuntimeVersion: ".NET 9.0" });
 
   // Calculate JIT / Interpreter ratio
   const jitSimple = data["JitBenchmarks"]?.["Simple"]?.mean;
@@ -171,14 +203,47 @@ function updateFile(target, data, hostInfo) {
     jitRatio = Math.round(interpSimple / jitSimple).toString();
   }
 
-  // Assemble replacement lines
-  const hostLine = target.hostInfoLine(hostInfo || { ProcessorName: "Unknown", RuntimeVersion: ".NET 9.0" });
-  const tableHeader = target.file.includes("/en/")
-    ? "| Stage | Simple | Complex | Allocation |"
-    : "| 阶段 | 简单表达式 | 复杂表达式 | 分配 |";
-  const tableSep = target.file.includes("/en/")
-    ? "|------|--------|---------|------------|"
-    : "|------|-----------|-----------|------|";
+  let tableHeader, tableSep, rows;
+
+  if (target.format === "flat") {
+    tableHeader = target.file.includes("README.en")
+      ? "| Stage | Operation | Time | Allocation |"
+      : "| 阶段 | 操作 | 耗时 | 分配 |";
+    tableSep = target.file.includes("README.en")
+      ? "|------|------|------|------|"
+      : "|------|------|------|------|";
+
+    rows = target.flatRows.map((r) => {
+      const entry = data[r.type]?.[r.method];
+      if (!entry) return null;
+      return `| ${r.stage} | ${r.op} | ${formatTime(entry.mean)} | ${formatAlloc(entry.alloc)} |`;
+    }).filter(Boolean);
+  } else {
+    // summary format — one row per stage with Simple | Complex | Allocation
+    tableHeader = target.file.includes("/en/")
+      ? "| Stage | Simple | Complex | Allocation |"
+      : "| 阶段 | 简单表达式 | 复杂表达式 | 分配 |";
+    tableSep = target.file.includes("/en/")
+      ? "|------|--------|---------|------------|"
+      : "|------|-----------|-----------|------|";
+
+    rows = [];
+    for (const [type, idx] of Object.entries(TYPE_MAP)) {
+      const stageData = data[type];
+      if (!stageData) {
+        console.warn(`  No data for ${type}, skipping`);
+        continue;
+      }
+      const simple = stageData["Simple"];
+      const complex = stageData["Complex"];
+      if (!simple || !complex) {
+        console.warn(`  Missing Simple/Complex for ${type}, skipping`);
+        continue;
+      }
+      rows[idx] = buildTableRow(target.stageNames[idx], simple, complex);
+    }
+    rows = rows.filter(Boolean);
+  }
 
   const replacement = [
     target.heading,
@@ -187,7 +252,7 @@ function updateFile(target, data, hostInfo) {
     "",
     tableHeader,
     tableSep,
-    ...rows.filter(Boolean),
+    ...rows,
     "",
     target.footer(jitRatio),
   ];

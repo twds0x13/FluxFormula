@@ -23,17 +23,16 @@ BenchmarkDotNet on Intel Core Ultra 9 275HX, .NET 9, ShortRun:
 
 | Stage | Operation | Time | Allocation |
 |------|------|------|------|
-| Lexer | Simple expression | ~140 ns | 392 B |
-| Lexer | Complex expression | ~410 ns | 1080 B |
-| Compile | Simple expression | ~32 ns | 112 B |
-| Compile | Complex expression | ~110 ns | 496 B |
-| Interpreter | Simple eval | ~20 ns | 0 B |
-| Interpreter | Complex eval | ~30 ns | 0 B |
-| JIT | Simple eval | ~1.7 ns | 0 B |
-| JIT | Complex eval | ~4 ns | 0 B |
+| Lexer | Simple expression | ~103 ns | 392 B |
+| Lexer | Complex expression | ~422 ns | 1080 B |
+| Compile | Simple expression | ~34 ns | 112 B |
+| Compile | Complex expression | ~119 ns | 496 B |
+| Interpreter | Simple eval | ~27 ns | **0 B** |
+| Interpreter | Complex eval | ~42 ns | **0 B** |
+| JIT | Simple eval | ~2 ns | **0 B** |
+| JIT | Complex eval | ~4 ns | **0 B** |
 
-One-time compilation cost: ~30–110 ns + a few hundred bytes. Execution: zero allocation. JIT is ~5–11× faster than the interpreter.
-
+One-time compilation cost: ~30–110 ns + a few hundred bytes. Execution: zero allocation. JIT is ~15× faster than the interpreter.
 ## Package Structure
 
 This is a monorepo containing three independent packages:

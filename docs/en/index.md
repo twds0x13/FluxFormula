@@ -30,9 +30,9 @@ BenchmarkDotNet on Intel Core Ultra 9 275HX, .NET 9, ShortRun:
 
 | Stage | Simple | Complex | Allocation |
 |------|--------|---------|------------|
-| Lexer | ~92 ns | ~273 ns | 392–1080 B |
-| Compile | ~28 ns | ~82 ns | 112–496 B |
-| Interpreter Eval | ~28 ns | ~37 ns | **0 B** |
+| Lexer | ~103 ns | ~422 ns | 392–1080 B |
+| Compile | ~34 ns | ~119 ns | 112–496 B |
+| Interpreter Eval | ~27 ns | ~42 ns | **0 B** |
 | JIT Eval | ~2 ns | ~4 ns | **0 B** |
 
-One-time compilation cost. Execution: zero heap allocation. JIT is 18× faster than the interpreter.
+One-time compilation cost. Execution: zero heap allocation. JIT is 15× faster than the interpreter.
