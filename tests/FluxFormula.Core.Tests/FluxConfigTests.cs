@@ -13,6 +13,8 @@ public class FluxConfigTests
         var cfg = FluxConfig.Default;
         Assert.That(cfg.FormulaCacheCapacity, Is.GreaterThan(0));
         Assert.That(cfg.MergeThreshold, Is.GreaterThan(1));
+        Assert.That(cfg.BlobFilePath, Is.Null, "Default BlobFilePath should be null (use built-in default path)");
+        Assert.That(cfg.DiskCacheDirectory, Is.Null, "Default DiskCacheDirectory should be null (use persistentDataPath)");
     }
 
     [Test]
@@ -54,5 +56,23 @@ public class FluxConfigTests
             Assert.That(FluxConfig.Current.FormulaCacheCapacity, Is.EqualTo(512));
         }
         finally { FluxConfig.Current = old; }
+    }
+
+    [Test]
+    public void Custom_FilePaths_Propagate()
+    {
+        var custom = new FluxConfig
+        {
+            BlobFilePath       = "CustomBlob/flux.blob",
+            DiskCacheDirectory = "/tmp/flux_cache",
+        };
+        var old = FluxConfig.Current;
+        try
+        {
+            FluxConfig.Set(custom);
+            Assert.That(FluxConfig.Current.BlobFilePath, Is.EqualTo("CustomBlob/flux.blob"));
+            Assert.That(FluxConfig.Current.DiskCacheDirectory, Is.EqualTo("/tmp/flux_cache"));
+        }
+        finally { FluxConfig.Set(old); }
     }
 }

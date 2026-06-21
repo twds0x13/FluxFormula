@@ -19,5 +19,12 @@
   "dependencies": {
     "com.twds0x13.fluxformula.core": "2.0.0",
     "com.twds0x13.fluxformula": "2.0.0"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "Addressables Load",
+      "description": "Load a FluxAsset via Addressables asynchronously, inject variables, and evaluate.",
+      "path": "Samples~/AddressablesLoad"
+    }
+  ]
 }

@@ -18,6 +18,8 @@ namespace FluxFormula.Core
         {
             FormulaCacheCapacity = 2048,
             MergeThreshold       = 8,
+            BlobFilePath         = null,
+            DiskCacheDirectory   = null,
         };
 
         private static FluxConfig _current;
@@ -44,6 +46,22 @@ namespace FluxFormula.Core
         /// 合并为原子公式。默认 8。
         /// </summary>
         public int MergeThreshold { get; init; }
+
+        // ═══════════════════════════════════════════════════════
+        // 文件与路径
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Blob 二进制文件路径。null 或空字符串使用默认路径
+        /// (<c>StreamingAssets/flux.blob</c>)。
+        /// </summary>
+        public string BlobFilePath { get; init; }
+
+        /// <summary>
+        /// 磁盘缓存目录——编译产物 / 中间文件的持久化路径。
+        /// null 或空字符串使用 <c>Application.persistentDataPath</c>。
+        /// </summary>
+        public string DiskCacheDirectory { get; init; }
 
     }
 }

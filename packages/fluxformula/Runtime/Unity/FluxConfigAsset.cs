@@ -27,6 +27,13 @@ namespace FluxFormula
         [Range(2, 64)]
         public int mergeThreshold = 8;
 
+        [Header("File & Paths")]
+        [Tooltip("Blob 二进制文件路径。留空使用默认路径 (StreamingAssets/flux.blob)。")]
+        public string blobFilePath;
+
+        [Tooltip("磁盘缓存目录——编译产物/中间文件的持久化路径。留空使用 Application.persistentDataPath。")]
+        public string diskCacheDirectory;
+
         /// <summary>将 SO 配置写入 <see cref="FluxConfig.Current"/>。</summary>
         public void Apply()
         {
@@ -34,6 +41,8 @@ namespace FluxFormula
             {
                 FormulaCacheCapacity = formulaCacheCapacity,
                 MergeThreshold       = mergeThreshold,
+                BlobFilePath         = string.IsNullOrEmpty(blobFilePath) ? null : blobFilePath,
+                DiskCacheDirectory   = string.IsNullOrEmpty(diskCacheDirectory) ? null : diskCacheDirectory,
             });
         }
 

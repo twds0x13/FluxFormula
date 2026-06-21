@@ -18,5 +18,12 @@
   "documentationUrl": "https://twds0x13.github.io/FluxFormula/",
   "dependencies": {
     "com.twds0x13.fluxformula.addressables": "1.4.0"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "UniTask Load",
+      "description": "Load a FluxAsset via Addressables with UniTask async extensions.",
+      "path": "Samples~/UniTaskLoad"
+    }
+  ]
 }
