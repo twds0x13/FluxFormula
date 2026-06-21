@@ -70,7 +70,7 @@ Combine(A, B) ≠ Combine(B, A)  // order-sensitive
 
 ## FormulaCache
 
-2048-slot open-addressing hashmap. Zero linked-list pointers. Zero GC allocation after construction.
+Open-addressing hashmap (default 2048 slots, adjustable via `FluxConfig.FormulaCacheCapacity`). Zero linked-list pointers. Zero GC allocation after construction.
 
 ### Slot States
 
@@ -94,13 +94,13 @@ Delegates are stored via `GCHandle.Alloc(func)` → `GCHandle.ToIntPtr()`. Evict
 
 ## ConnectCache: Managed-to-Native Bridge
 
-Connect results are managed `byte[]` arrays. FormulaCache requires stable `IntPtr` pointers. A 1 MB pinned `byte[]` serves as the bridge:
+Connect results are managed `byte[]` arrays. FormulaCache requires stable `IntPtr` pointers. A pinned `byte[]` serves as the bridge (size controlled by `FluxConfig.ConnectBufferSize`, default 1 MB):
 
 ```
 Connect byte[] → CopyTo(pinned buffer) → IntPtr → FormulaCache.Put()
 ```
 
-When the buffer is full, it resets entirely (all old pointers invalidated, cache cleared). This bridge is replaced once blob integration lands — bytecode will come directly from blob fixed pointers.
+When the buffer is full, it resets entirely (all old pointers invalidated, cache cleared). Pre-compiled formulas register via `FluxBlob` directly from blob fixed pointers — zero-copy into FormulaCache, bypassing the ConnectCache buffer.
 
 ## Chain Connect
 

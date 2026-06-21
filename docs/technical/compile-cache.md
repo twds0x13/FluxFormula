@@ -97,15 +97,15 @@ Combine(A, B) ≠ Combine(B, A)  // 顺序敏感
 
 ## FormulaCache
 
-2048 槽开放寻址 hashmap，无链表指针，无 GC 分配。
+开放寻址 hashmap（默认 2048 槽，可通过 `FluxConfig.FormulaCacheCapacity` 调整），无链表指针，无 GC 分配。
 
 ### 存储结构
 
 ```
-_xxHashKeys[2048]   ulong[]    DualHash64.XxHash64 分量
-_fnvHashKeys[2048]  ulong[]    DualHash64.FnvHash64 分量
-_valuePtrs[2048]    IntPtr[]   字节码指针 或 GCHandle 句柄
-_valueLengths[2048] int[]      状态标记 + 长度
+_xxHashKeys[capacity]   ulong[]    DualHash64.XxHash64 分量
+_fnvHashKeys[capacity]  ulong[]    DualHash64.FnvHash64 分量
+_valuePtrs[capacity]    IntPtr[]   字节码指针 或 GCHandle 句柄
+_valueLengths[capacity] int[]      状态标记 + 长度
 ```
 
 ### 状态标记
@@ -130,13 +130,13 @@ Delegate 通过 `GCHandle.Alloc(func)` → `GCHandle.ToIntPtr()` 存储。驱逐
 
 ## ConnectCache：托管到 Native 的桥接
 
-当前 Connect 产物是托管 `byte[]`，无法获得持久稳定的 `byte*` 供 FormulaCache 存储。ConnectCache 用 1 MB pinned `byte[]` 做中转：
+运行时 Connect 产物是托管 `byte[]`，无法获得持久稳定的 `byte*` 供 FormulaCache 存储。ConnectCache 用 pinned `byte[]` 做中转（大小由 `FluxConfig.ConnectBufferSize` 控制，默认 1 MB）：
 
 ```
 Connect 产物 byte[] → CopyTo(pinnedBuffer) → IntPtr 指针 → FormulaCache.Put()
 ```
 
-Buffer 满时全量重置（旧指针全部失效，缓存清空）。未来 blob 集成后 ConnectCache 被替代——字节码直接来自 blob 的 fixed 指针。
+Buffer 满时全量重置（旧指针全部失效，缓存清空）。预编译公式通过 `FluxBlob` 直接在 blob 的 fixed 指针上注册——字节码零拷贝存入 FormulaCache，不经过 ConnectCache buffer。
 
 ## 链式 Connect
 

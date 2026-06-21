@@ -19,6 +19,7 @@ namespace FluxFormula.Compiler
             Span<Instruction> instructions,
             out int immediateCount,
             out int varSlotCount,
+            out byte maxRegister,
             string[] varNames = null,
             VariableSlot[] varSlots = null
         )
@@ -31,7 +32,7 @@ namespace FluxFormula.Compiler
             int regTop = -1;
             int instIdx = 0;
             int immCount = 0;
-            byte nextReg = 2; // R0: Error, R1: Bus/Return
+            byte nextReg = Registers.FirstAlloc;
 
             // 上下文追踪：用于同符号多语义消歧
             TokenContext ctx = TokenContext.OperandExpected;
@@ -200,9 +201,10 @@ namespace FluxFormula.Compiler
                 Instruction* ret = pDest + (instIdx++);
                 TOper retOp = _provider.GetReturnOp();
                 ret->OpCode = *(byte*)&retOp;
-                ret->Dest = regTop >= 0 ? regStack[0] : (byte)1; // 默认返回 R1
+                ret->Dest = regTop >= 0 ? regStack[0] : Registers.Bus;
             }
             immediateCount = immCount;
+            maxRegister    = (byte)(nextReg > Registers.FirstAlloc ? nextReg - 1 : Registers.Bus);
             return instIdx;
         }
 
@@ -233,12 +235,12 @@ namespace FluxFormula.Compiler
                         throw new StackOverflowException("Reg stack overflow on R1 injection.");
                     for (int i = regTop; i >= 0; i--)
                         regStack[i + 1] = regStack[i];
-                    regStack[0] = 1;
+                    regStack[0] = Registers.Bus;
                     regTop++;
                 }
 
                 int firstRegIdx = regTop - (arity - 1);
-                byte destReg = (firstRegIdx == 0) ? (byte)1 : regStack[firstRegIdx];
+                byte destReg = (firstRegIdx == 0) ? Registers.Bus : regStack[firstRegIdx];
                 inst->Dest = destReg;
 
                 if (arity > 0)

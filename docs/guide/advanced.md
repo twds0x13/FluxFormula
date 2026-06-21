@@ -112,7 +112,7 @@ var r1 = runner.Instantiate(f, jit: true).Run(); // 5
 var r2 = runner.Instantiate(f, jit: true).Run(); // 5
 ```
 
-缓存后端 `IFluxCacheProvider` 默认使用 `FormulaCache`（2048 槽开放寻址 hashmap）。可替换为自定义实现——实现 `TryGet`/`Put`/`TryGetDelegate`/`PutDelegate` 四个方法即可接入自定义缓存策略。详见 [编译缓存管线](../technical/compile-cache)。
+缓存后端 `IFluxCacheProvider` 默认使用 `FormulaCache`（槽位数由 `FluxConfig.FormulaCacheCapacity` 控制，默认 2048）。可替换为自定义实现——实现 `TryGet`/`Put`/`TryGetDelegate`/`PutDelegate` 四个方法即可接入自定义缓存策略。详见 [编译缓存管线](../technical/compile-cache)。其他可配置参数（`MergeThreshold`、`ConnectBufferSize`）统一通过 `FluxConfig` 管理。
 
 ## 公式序列化：ToBytes / FromBytes
 

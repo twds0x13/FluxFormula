@@ -31,14 +31,14 @@ namespace FluxFormula.Core
             _varSlotIndexes = null;
             _varCount  = 0;
             _values    = null;
-            unsafe { _slotsPerData = (sizeof(TData) + sizeof(Instruction) - 1) / sizeof(Instruction); }
+            _slotsPerData = FormulaFormat.DataSlots<TData>();
         }
 
         internal FluxInjector(Instruction[] buffer, int[] offsets, VariableSlot[] varSlots = null)
         {
             _buffer  = buffer;
             _offsets = offsets;
-            unsafe { _slotsPerData = (sizeof(TData) + sizeof(Instruction) - 1) / sizeof(Instruction); }
+            _slotsPerData = FormulaFormat.DataSlots<TData>();
 
             if (varSlots != null && varSlots.Length > 0)
             {

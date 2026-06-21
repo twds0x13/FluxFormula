@@ -12,7 +12,7 @@ namespace FluxFormula.Core
     /// <list type="bullet">
     ///   <item>开放寻址 + 线性探测，无链表指针，无 GC 压力</item>
     ///   <item>墓碑标记避免驱逐破坏探测链——删除时留墓碑，插入时复用</item>
-    ///   <item>固定容量 2048 槽，满时环形覆盖最老条目</item>
+    ///   <item>默认 2048 槽（可通过 <see cref="FluxConfig"/> 调整），满时环形覆盖最老条目</item>
     ///   <item>键存储为两个独立 ulong[]（xxHash64 + FNV-1a 64），避免 16 字节对齐损失</item>
     ///   <item>值用 IntPtr 存储指针——当 length ≥ 0 时为字节码 (byte*, length)；未来用负数值区分 delegate 缓存</item>
     /// </list>
@@ -23,9 +23,6 @@ namespace FluxFormula.Core
         // ═══════════════════════════════════════════════════════
         // 常量
         // ═══════════════════════════════════════════════════════
-
-        /// <summary>固定总槽位数</summary>
-        internal const int Capacity = 2048;
 
         /// <summary>空槽位——从未写入过</summary>
         private const int Empty = -1;
@@ -39,6 +36,9 @@ namespace FluxFormula.Core
         // ═══════════════════════════════════════════════════════
         // 存储
         // ═══════════════════════════════════════════════════════
+
+        /// <summary>当前槽位数（构造时从 <see cref="FluxConfig"/> 读取）</summary>
+        internal readonly int Capacity;
 
         /// <summary>DualHash64.XxHash64 分量</summary>
         private readonly ulong[] _xxHashKeys;
@@ -71,14 +71,14 @@ namespace FluxFormula.Core
         // 构造
         // ═══════════════════════════════════════════════════════
 
-        public FormulaCache()
+        public FormulaCache(int capacity = 0)
         {
+            Capacity       = capacity > 0 ? capacity : FluxConfig.Current.FormulaCacheCapacity;
             _xxHashKeys   = new ulong[Capacity];
             _fnvHashKeys  = new ulong[Capacity];
             _valuePtrs    = new IntPtr[Capacity];
             _valueLengths = new int[Capacity];
 
-            // 全部标记为空
             for (int i = 0; i < Capacity; i++)
                 _valueLengths[i] = Empty;
         }
@@ -390,7 +390,7 @@ namespace FluxFormula.Core
         public int TombstoneCount => _tombstoneCount;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int HashToSlot(ulong xxHash)
+        private int HashToSlot(ulong xxHash)
         {
             return (int)(xxHash % (ulong)Capacity);
         }

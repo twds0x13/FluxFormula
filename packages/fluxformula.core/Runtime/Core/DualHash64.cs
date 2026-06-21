@@ -102,10 +102,10 @@ namespace FluxFormula.Core
 
                 do
                 {
-                    v1 = xxhRound(v1, ReadU64Le(data, p));      p += 8;
-                    v2 = xxhRound(v2, ReadU64Le(data, p));      p += 8;
-                    v3 = xxhRound(v3, ReadU64Le(data, p));      p += 8;
-                    v4 = xxhRound(v4, ReadU64Le(data, p));      p += 8;
+                    v1 = xxhRound(v1, BinaryFormat.ReadUInt64LE(data, p));      p += 8;
+                    v2 = xxhRound(v2, BinaryFormat.ReadUInt64LE(data, p));      p += 8;
+                    v3 = xxhRound(v3, BinaryFormat.ReadUInt64LE(data, p));      p += 8;
+                    v4 = xxhRound(v4, BinaryFormat.ReadUInt64LE(data, p));      p += 8;
                 }
                 while (p <= limit);
 
@@ -159,7 +159,7 @@ namespace FluxFormula.Core
             // 8 字节块
             while (p + 8 <= end)
             {
-                ulong k1  = xxhRound(0, ReadU64Le(data, p));
+                ulong k1  = xxhRound(0, BinaryFormat.ReadUInt64LE(data, p));
                 h        ^= k1;
                 h         = RotL64(h, 27) * XXH_PRIME_1 + XXH_PRIME_4;
                 p        += 8;
@@ -168,7 +168,7 @@ namespace FluxFormula.Core
             // 4 字节块
             if (p + 4 <= end)
             {
-                h ^= ReadU32Le(data, p) * XXH_PRIME_1;
+                h ^= BinaryFormat.ReadUInt32LE(data, p) * XXH_PRIME_1;
                 h  = RotL64(h, 23) * XXH_PRIME_2 + XXH_PRIME_3;
                 p += 4;
             }
@@ -221,29 +221,6 @@ namespace FluxFormula.Core
             return (value << bits) | (value >> (64 - bits));
         }
 
-        /// <summary>从 span 偏移处读取 8 字节 little-endian</summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ulong ReadU64Le(ReadOnlySpan<byte> data, int offset)
-        {
-            return (ulong)data[offset]
-                | ((ulong)data[offset + 1] << 8)
-                | ((ulong)data[offset + 2] << 16)
-                | ((ulong)data[offset + 3] << 24)
-                | ((ulong)data[offset + 4] << 32)
-                | ((ulong)data[offset + 5] << 40)
-                | ((ulong)data[offset + 6] << 48)
-                | ((ulong)data[offset + 7] << 56);
-        }
-
-        /// <summary>从 span 偏移处读取 4 字节 little-endian</summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint ReadU32Le(ReadOnlySpan<byte> data, int offset)
-        {
-            return (uint)data[offset]
-                | ((uint)data[offset + 1] << 8)
-                | ((uint)data[offset + 2] << 16)
-                | ((uint)data[offset + 3] << 24);
-        }
 
         // ═══════════════════════════════════════════════════════
         // 相等性

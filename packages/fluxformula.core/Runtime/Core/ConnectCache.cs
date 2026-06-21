@@ -2,6 +2,8 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula")]
+
 namespace FluxFormula.Core
 {
     /// <summary>
@@ -23,14 +25,11 @@ namespace FluxFormula.Core
     internal static unsafe class ConnectCache
     {
         // ═══════════════════════════════════════════════════════
-        // 常量
-        // ═══════════════════════════════════════════════════════
-
-        private const int BufferSize = 1 * 1024 * 1024; // 1 MB
-
-        // ═══════════════════════════════════════════════════════
         // 状态
         // ═══════════════════════════════════════════════════════
+
+        /// <summary>buffer 容量（字节）——首次访问时从 <see cref="FluxConfig"/> 读取</summary>
+        private static readonly int BufferSize;
 
         /// <summary>native buffer 的托管持有者（pin 住以获得稳定指针）</summary>
         private static readonly byte[] _bufferArray;
@@ -53,6 +52,7 @@ namespace FluxFormula.Core
 
         static ConnectCache()
         {
+            BufferSize   = FluxConfig.Current.ConnectBufferSize;
             _bufferArray = new byte[BufferSize];
             _bufferHandle = GCHandle.Alloc(_bufferArray, GCHandleType.Pinned);
             _bufferPtr = (byte*)_bufferHandle.AddrOfPinnedObject();

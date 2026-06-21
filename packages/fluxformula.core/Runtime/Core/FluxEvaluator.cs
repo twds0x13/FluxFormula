@@ -8,7 +8,7 @@ namespace FluxFormula.Core
     /// </summary>
     internal static class FluxPlatform
     {
-        /// <summary>最大寄存器数量（byte 索引，R0 错误/R1 总线保留，剩余 253 个可用）</summary>
+        /// <summary>最大寄存器数量。与 <see cref="Registers.Max"/> 保持一致。</summary>
         internal const int MaxRegisters = 255;
 
         private static volatile bool _jitDisabled;
@@ -37,30 +37,31 @@ namespace FluxFormula.Core
         }
 
         /// <summary>标准求值，R1 从 default(TData) 开始</summary>
-        public TData Compute(ReadOnlySpan<Instruction> raw)
+        public TData Compute(ReadOnlySpan<Instruction> raw, byte maxRegister = 0)
         {
-            return ComputeCore(raw, default);
+            return ComputeCore(raw, default, maxRegister);
         }
 
         /// <summary>
         /// 链式求值入口：R1 从 initialR1 开始而非 default(TData)。
         /// 用于链式公式的 per-link 解释器求值——前一个 link 的输出通过 R1 总线传入下一个 link。
         /// </summary>
-        public TData Compute(ReadOnlySpan<Instruction> raw, TData initialR1)
+        public TData Compute(ReadOnlySpan<Instruction> raw, TData initialR1, byte maxRegister = 0)
         {
-            return ComputeCore(raw, initialR1);
+            return ComputeCore(raw, initialR1, maxRegister);
         }
 
-        private TData ComputeCore(ReadOnlySpan<Instruction> raw, TData initialR1)
+        private TData ComputeCore(ReadOnlySpan<Instruction> raw, TData initialR1, byte maxRegister)
         {
-            byte* rawPtr = stackalloc byte[sizeof(TData) * FluxPlatform.MaxRegisters + 63];
+            int regCount = maxRegister > Registers.Bus ? maxRegister + 1 : FluxPlatform.MaxRegisters;
+            byte* rawPtr = stackalloc byte[sizeof(TData) * regCount + 63];
             long addr = (long)rawPtr;
             TData* regsPtr = (TData*)((addr + 63) & ~63);
-            Span<TData> registers = new(regsPtr, FluxPlatform.MaxRegisters);
+            Span<TData> registers = new(regsPtr, regCount);
 
-            regsPtr[0] = default;
-            regsPtr[1] = initialR1;
-            byte returnReg = 1; // 默认总线寄存器
+            regsPtr[Registers.Error] = default;
+            regsPtr[Registers.Bus]  = initialR1;
+            byte returnReg = Registers.Bus;
 
             fixed (Instruction* pBase = raw)
             {
@@ -74,14 +75,14 @@ namespace FluxFormula.Core
                     {
                         TData* pData = (TData*)(pBase + ip + 1);
                         regsPtr[inst->Dest] = *pData;
-                        ip += (sizeof(TData) + 7) / 8;
+                        ip += FormulaFormat.DataSlots<TData>();
                     }
                     else if (kind == OpType.Instruction)
                     {
                         regsPtr[inst->Dest] = _definition.Compute(operByte, *inst, registers);
 
-                        if (!IsDefault(&regsPtr[0]))
-                            return regsPtr[0];
+                        if (!IsDefault(&regsPtr[Registers.Error]))
+                            return regsPtr[Registers.Error];
                     }
                     else if (kind == OpType.Return)
                     {
@@ -90,17 +91,23 @@ namespace FluxFormula.Core
                         // 此时不退出——将输出复制到 R1 总线供下一个 link 消费。
                         if (ip + 1 < raw.Length)
                         {
-                            regsPtr[1] = regsPtr[inst->Dest];
+                            regsPtr[Registers.Bus] = regsPtr[inst->Dest];
                         }
                         else
                         {
                             break;
                         }
                     }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            $"Unknown OpType in evaluator: {kind} (opCode=0x{operByte:X2}). " +
+                            "If you added a new OpType, update the evaluator dispatch.");
+                    }
                 }
             }
 
-            return IsDefault(&regsPtr[0]) ? regsPtr[returnReg] : regsPtr[0];
+            return IsDefault(&regsPtr[Registers.Error]) ? regsPtr[returnReg] : regsPtr[Registers.Error];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

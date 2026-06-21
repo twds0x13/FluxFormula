@@ -94,7 +94,7 @@ public ReadOnlySpan<Instruction> Raw()
 public byte[] ToBytes()
 ```
 
-将公式序列化为字节数组。格式：13 字节头（Count + Type + ImmediateCount + VariableSlot 数量）+ 指令区（Count × 8 字节，每条写 Raw 的 long 值）+ 变量槽区（每个槽：nameLen + UTF8 name + slotIndex）。序列化为零开销的 memcpy，无反射。
+将公式序列化为字节数组。格式：14 字节头（Count(4) + Type(1) + ImmediateCount(4) + VarSlotCount(4) + MaxRegister(1)）+ 指令区（Count × InstructionSize 字节，每条写 Raw 字段）+ 变量槽区（每个槽：nameLen + UTF8 name + slotIndex）。格式定义集中由 `FormulaFormat` 管理，字节级读写由 `BinaryFormat` 统一处理。
 
 ### FromBytes
 

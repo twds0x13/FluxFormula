@@ -16,8 +16,8 @@ namespace FluxFormula.Core
         /// <summary>内部变量前缀</summary>
         public const string InternalPrefix = "CHAIN_LINK_INTERNAL_";
 
-        /// <summary>链式求值中多少 link 后触发合并为原子公式的阈值</summary>
-        public const int MergeThreshold = 8;
+        /// <summary>链式求值中多少 link 后触发合并为原子公式的阈值（从 <see cref="FluxConfig"/> 读取）</summary>
+        public static int MergeThreshold => FluxConfig.Current.MergeThreshold;
     }
 
     /// <summary>变量（未知数）槽位：名称 → Immediate 序号</summary>
@@ -59,6 +59,9 @@ namespace FluxFormula.Core
 
         /// <summary>该片段的变量槽</summary>
         internal VariableSlot[] VarSlots;
+
+        /// <summary>该片段的最大寄存器索引（0=未分析）</summary>
+        internal byte MaxRegister;
     }
 
     public readonly struct FluxFormula<TData, TOper>
@@ -71,6 +74,11 @@ namespace FluxFormula.Core
         public readonly FluxType Type;
         public readonly int ImmediateCount;
         public readonly VariableSlot[] VariableSlots;
+
+        /// <summary>
+        /// 该公式使用的最大寄存器索引（0=未分析/链式，回退到全量分配）。
+        /// </summary>
+        public readonly byte MaxRegister;
 
         // ── 链式表示（ChainLink[]）──
         private readonly ChainLink[] _chain;
@@ -92,7 +100,8 @@ namespace FluxFormula.Core
             }
         }
 
-        internal FluxFormula(Instruction[] buffer, int count, FluxType type, int immediateCount = 0, VariableSlot[] varSlots = null)
+        internal FluxFormula(Instruction[] buffer, int count, FluxType type,
+            int immediateCount = 0, VariableSlot[] varSlots = null, byte maxRegister = 0)
         {
             _buffer        = buffer;
             _chain         = null;
@@ -100,16 +109,34 @@ namespace FluxFormula.Core
             Type           = type;
             ImmediateCount = immediateCount;
             VariableSlots  = varSlots ?? Array.Empty<VariableSlot>();
+            MaxRegister    = maxRegister;
         }
 
-        internal FluxFormula(ChainLink[] chain, FluxType type, int immediateCount, VariableSlot[] varSlots)
+        internal FluxFormula(ChainLink[] chain, FluxType type, int immediateCount,
+            VariableSlot[] varSlots, byte maxRegister = 0)
         {
             _chain         = chain;
-            _buffer        = Array.Empty<Instruction>(); // chain 公式无合并 buffer
-            Count          = chain.Length > 0 ? chain[chain.Length - 1].InstructionCount : 0; // approximative
+            _buffer        = Array.Empty<Instruction>();
+            Count          = chain.Length > 0 ? chain[chain.Length - 1].InstructionCount : 0;
             Type           = type;
             ImmediateCount = immediateCount;
             VariableSlots  = varSlots ?? Array.Empty<VariableSlot>();
+            // 链式公式取所有 link 的最大寄存器号
+            if (maxRegister == 0 && chain != null && chain.Length > 0)
+            {
+                byte mr = Registers.Bus;
+                for (int i = 0; i < chain.Length; i++)
+                {
+                    // ChainLink 不携带 MaxRegister——通过解析 key 从缓存获取
+                    // 调用方应在构造前计算并传入
+                    if (chain[i].MaxRegister > mr) mr = chain[i].MaxRegister;
+                }
+                MaxRegister = mr;
+            }
+            else
+            {
+                MaxRegister = maxRegister;
+            }
         }
 
         /// <summary>空公式（Count=0），主要用于 Connect 边界场景</summary>
@@ -147,7 +174,7 @@ namespace FluxFormula.Core
             // 通过 TDef 我们无法访问 GetKind，这里用 Formula 自身的上下文。
             // 第一个指令的 Dest 寄存器就是第一操作数所在寄存器。
             byte destReg = _buffer[0].Dest;
-            int dataSlots; unsafe { dataSlots = (sizeof(TData) + sizeof(Instruction) - 1) / sizeof(Instruction); }
+            int dataSlots = FormulaFormat.DataSlots<TData>();
 
             // 新指令数 = 原指令数 - 1(Immediate) - dataSlots(Immediate 数据)
             int newCount = Count - 1 - dataSlots;
@@ -156,19 +183,19 @@ namespace FluxFormula.Core
             // 复制剩余指令（跳过第一个 Immediate 及其数据槽位）
             Array.Copy(_buffer, 1 + dataSlots, newBuffer, 0, newCount);
 
-            // 寄存器重命名：destReg → 1 (R1)
-            if (destReg != 1)
+            // 寄存器重命名：destReg → Bus (R1)
+            if (destReg != Registers.Bus)
             {
                 for (int i = 0; i < newCount; i++)
                 {
                     ref var inst = ref newBuffer[i];
-                    if (inst.Dest == destReg) inst.Dest = 1;
-                    if (inst.Arg0 == destReg) inst.Arg0 = 1;
-                    if (inst.Arg1 == destReg) inst.Arg1 = 1;
-                    if (inst.Arg2 == destReg) inst.Arg2 = 1;
-                    if (inst.Arg3 == destReg) inst.Arg3 = 1;
-                    if (inst.Arg4 == destReg) inst.Arg4 = 1;
-                    if (inst.Arg5 == destReg) inst.Arg5 = 1;
+                    if (inst.Dest == destReg) inst.Dest = Registers.Bus;
+                    if (inst.Arg0 == destReg) inst.Arg0 = Registers.Bus;
+                    if (inst.Arg1 == destReg) inst.Arg1 = Registers.Bus;
+                    if (inst.Arg2 == destReg) inst.Arg2 = Registers.Bus;
+                    if (inst.Arg3 == destReg) inst.Arg3 = Registers.Bus;
+                    if (inst.Arg4 == destReg) inst.Arg4 = Registers.Bus;
+                    if (inst.Arg5 == destReg) inst.Arg5 = Registers.Bus;
                 }
             }
 
@@ -190,7 +217,7 @@ namespace FluxFormula.Core
             }
 
             return new FluxFormula<TData, TOper>(newBuffer, newCount, FluxType.Modifier,
-                newImmCount, newSlots);
+                newImmCount, newSlots, MaxRegister);
         }
 
         /// <summary>
@@ -202,7 +229,7 @@ namespace FluxFormula.Core
             if (Type == FluxType.Formula) return this;
             if (IsChained) return ToAtomic().ToFormula(varName);
 
-            int dataSlots; unsafe { dataSlots = (sizeof(TData) + sizeof(Instruction) - 1) / sizeof(Instruction); }
+            int dataSlots = FormulaFormat.DataSlots<TData>();
 
             // 新指令数 = 原指令数 + 1(Immediate) + dataSlots(Immediate 数据)
             int newCount = Count + 1 + dataSlots;
@@ -218,17 +245,17 @@ namespace FluxFormula.Core
             // 复制原指令（偏移 1+dataSlots）
             Array.Copy(_buffer, 0, newBuffer, 1 + dataSlots, Count);
 
-            // 重命名 R1(1) → newDest 在后续指令中
+            // 重命名 Bus(R1) → newDest 在后续指令中
             for (int i = 1 + dataSlots; i < newCount; i++)
             {
                 ref var inst = ref newBuffer[i];
-                if (inst.Dest == 1) inst.Dest = newDest;
-                if (inst.Arg0 == 1) inst.Arg0 = newDest;
-                if (inst.Arg1 == 1) inst.Arg1 = newDest;
-                if (inst.Arg2 == 1) inst.Arg2 = newDest;
-                if (inst.Arg3 == 1) inst.Arg3 = newDest;
-                if (inst.Arg4 == 1) inst.Arg4 = newDest;
-                if (inst.Arg5 == 1) inst.Arg5 = newDest;
+                if (inst.Dest == Registers.Bus) inst.Dest = newDest;
+                if (inst.Arg0 == Registers.Bus) inst.Arg0 = newDest;
+                if (inst.Arg1 == Registers.Bus) inst.Arg1 = newDest;
+                if (inst.Arg2 == Registers.Bus) inst.Arg2 = newDest;
+                if (inst.Arg3 == Registers.Bus) inst.Arg3 = newDest;
+                if (inst.Arg4 == Registers.Bus) inst.Arg4 = newDest;
+                if (inst.Arg5 == Registers.Bus) inst.Arg5 = newDest;
             }
 
             // 变量槽：新变量 SlotIndex=0，旧变量 SlotIndex+1
@@ -240,13 +267,13 @@ namespace FluxFormula.Core
                     VariableSlots[i].SlotIndex + 1);
 
             return new FluxFormula<TData, TOper>(newBuffer, newCount, FluxType.Formula,
-                ImmediateCount + 1, newSlots);
+                ImmediateCount + 1, newSlots, MaxRegister);
         }
 
-        /// <summary>查找一条 bytecode 中未被占用的最低寄存器号（R0/R1 保留）</summary>
+        /// <summary>查找一条 bytecode 中未被占用的最低寄存器号（Error/Bus 保留）</summary>
         private static byte FindFreeRegister(ReadOnlySpan<Instruction> program, int dataSlots)
         {
-            Span<bool> used = stackalloc bool[256];
+            Span<bool> used = stackalloc bool[Registers.Max + 1];
             for (int i = 0; i < program.Length; i++)
             {
                 var inst = program[i];
@@ -258,9 +285,9 @@ namespace FluxFormula.Core
                 used[inst.Arg4] = true;
                 used[inst.Arg5] = true;
             }
-            for (byte r = 2; r < 255; r++)
+            for (byte r = Registers.FirstAlloc; r < Registers.Max; r++)
                 if (!used[r]) return r;
-            return 254;
+            return (byte)(Registers.Max - 1);
         }
 
         public FluxFormula<TData, TOper> Connect(FluxFormula<TData, TOper> next)
@@ -341,6 +368,7 @@ namespace FluxFormula.Core
                 Type             = Type,
                 ImmediateCount   = ImmediateCount,
                 VarSlots         = VariableSlots,
+                MaxRegister      = MaxRegister,
             };
         }
 
@@ -360,7 +388,8 @@ namespace FluxFormula.Core
             {
                 return new FluxFormula<TData, TOper>(
                     links[0].Bytecode, links[0].InstructionCount,
-                    links[0].Type, links[0].ImmediateCount, links[0].VarSlots);
+                    links[0].Type, links[0].ImmediateCount, links[0].VarSlots,
+                    links[0].MaxRegister);
             }
 
             // 完整拼接：不丢弃任何指令。中间 Return 由解释器语义处理（Dest→R1，继续执行）
@@ -385,10 +414,15 @@ namespace FluxFormula.Core
                     slots[sIdx++] = vs;
 
             int totalImm = 0;
-            foreach (var ls in links) totalImm += ls.ImmediateCount;
+            byte chainMaxReg = Registers.Bus;
+            foreach (var ls in links)
+            {
+                totalImm += ls.ImmediateCount;
+                if (ls.MaxRegister > chainMaxReg) chainMaxReg = ls.MaxRegister;
+            }
 
             return new FluxFormula<TData, TOper>(buffer, totalCount, links[0].Type,
-                totalImm, slots);
+                totalImm, slots, chainMaxReg);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -429,13 +463,12 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 将公式序列化为字节数组。可直接写入磁盘，无需 JSON/XML。
-        /// Instruction 是固定 8 字节结构体——这一事实本身就是序列化格式。
+        /// 格式定义见 <see cref="FormulaFormat"/>。
         /// </summary>
         public readonly byte[] ToBytes()
         {
-            // 头部：Count(4) + Type(1) + ImmediateCount(4) + VarSlotCount(4) = 13 字节
             int varSlotCount = VariableSlots.Length;
-            int instSize = Count * 8;
+            int instByteLen = Count * FormulaFormat.InstructionSize;
 
             // 预编码变量名
             var enc = System.Text.Encoding.UTF8;
@@ -447,32 +480,30 @@ namespace FluxFormula.Core
                 nameBytesTotal += nameBytesList[i].Length;
             }
 
-            // 每个变量槽：NameLen(4) + NameBytes + SlotIndex(4)
+            // 每个变量槽：NameLen(4) + NameBytes + SlotIndex(4) = 8 + nameLen
             int slotSectionSize = varSlotCount * 8 + nameBytesTotal;
-            int totalSize = 13 + instSize + slotSectionSize;
+            int totalSize = FormulaFormat.HeaderSize + instByteLen + slotSectionSize;
 
             byte[] data = new byte[totalSize];
             int offset = 0;
 
             // ── 头部 ──
-            WriteInt(data, ref offset, Count);
-            data[offset++] = (byte)Type;
-            WriteInt(data, ref offset, ImmediateCount);
-            WriteInt(data, ref offset, varSlotCount);
+            FormulaFormat.WriteHeader(data, ref offset,
+                new FormulaHeader(Count, Type, ImmediateCount, varSlotCount, MaxRegister));
 
-            // ── 指令（每个 8 字节，写 Raw 字段）──
+            // ── 指令 ──
             for (int i = 0; i < Count; i++)
             {
-                WriteLong(data, ref offset, _buffer[i].Raw);
+                BinaryFormat.WriteInt64LE(data, ref offset, _buffer[i].Raw);
             }
 
             // ── 变量槽 ──
             for (int i = 0; i < varSlotCount; i++)
             {
                 byte[] nb = nameBytesList[i];
-                WriteInt(data, ref offset, nb.Length);
+                BinaryFormat.WriteInt32LE(data, ref offset, nb.Length);
                 Buffer.BlockCopy(nb, 0, data, offset, nb.Length); offset += nb.Length;
-                WriteInt(data, ref offset, VariableSlots[i].SlotIndex);
+                BinaryFormat.WriteInt32LE(data, ref offset, VariableSlots[i].SlotIndex);
             }
 
             return data;
@@ -497,103 +528,33 @@ namespace FluxFormula.Core
             int offset = 0;
 
             // ── 头部 ──
-            int count          = ReadInt(data, ref offset);
-            var type           = (FluxType)data[offset++];
-            int immediateCount = ReadInt(data, ref offset);
-            int varSlotCount   = ReadInt(data, ref offset);
+            var header = FormulaFormat.ReadHeader(data);
+            offset += FormulaFormat.HeaderSize;
 
-            if (count < 0 || immediateCount < 0 || varSlotCount < 0)
+            if (header.Count < 0 || header.ImmediateCount < 0 || header.VarSlotCount < 0)
                 throw new ArgumentException("Corrupted formula data: negative count fields.");
 
             // ── 指令 ──
-            var instructions = new Instruction[count];
-            for (int i = 0; i < count; i++)
+            var instructions = new Instruction[header.Count];
+            for (int i = 0; i < header.Count; i++)
             {
-                instructions[i] = new Instruction { Raw = ReadLong(data, ref offset) };
+                instructions[i] = new Instruction { Raw = BinaryFormat.ReadInt64LE(data, ref offset) };
             }
 
             // ── 变量槽 ──
-            var varSlots = varSlotCount > 0 ? new VariableSlot[varSlotCount] : Array.Empty<VariableSlot>();
+            var varSlots = header.VarSlotCount > 0 ? new VariableSlot[header.VarSlotCount] : Array.Empty<VariableSlot>();
             var enc = System.Text.Encoding.UTF8;
-            for (int i = 0; i < varSlotCount; i++)
+            for (int i = 0; i < header.VarSlotCount; i++)
             {
-                int nameLen = ReadInt(data, ref offset);
+                int nameLen = BinaryFormat.ReadInt32LE(data, ref offset);
                 string name;
                 unsafe { fixed (byte* p = data) { name = enc.GetString(p + offset, nameLen); } }
                 offset += nameLen;
-                int slotIdx = ReadInt(data, ref offset);
+                int slotIdx = BinaryFormat.ReadInt32LE(data, ref offset);
                 varSlots[i] = new VariableSlot(name, slotIdx);
             }
 
-            return new FluxFormula<TData, TOper>(instructions, count, type, immediateCount, varSlots);
-        }
-
-        // ── 小端序读写辅助（byte[] 版本）──
-
-        private static void WriteInt(byte[] buf, ref int offset, int value)
-        {
-            buf[offset]     = (byte)value;
-            buf[offset + 1] = (byte)(value >> 8);
-            buf[offset + 2] = (byte)(value >> 16);
-            buf[offset + 3] = (byte)(value >> 24);
-            offset += 4;
-        }
-
-        private static void WriteLong(byte[] buf, ref int offset, long value)
-        {
-            buf[offset]     = (byte)value;
-            buf[offset + 1] = (byte)(value >> 8);
-            buf[offset + 2] = (byte)(value >> 16);
-            buf[offset + 3] = (byte)(value >> 24);
-            buf[offset + 4] = (byte)(value >> 32);
-            buf[offset + 5] = (byte)(value >> 40);
-            buf[offset + 6] = (byte)(value >> 48);
-            buf[offset + 7] = (byte)(value >> 56);
-            offset += 8;
-        }
-
-        private static int ReadInt(byte[] buf, ref int offset)
-        {
-            int v = buf[offset] | (buf[offset + 1] << 8) | (buf[offset + 2] << 16) | (buf[offset + 3] << 24);
-            offset += 4;
-            return v;
-        }
-
-        private static long ReadLong(byte[] buf, ref int offset)
-        {
-            long v = (long)buf[offset]
-                   | ((long)buf[offset + 1] << 8)
-                   | ((long)buf[offset + 2] << 16)
-                   | ((long)buf[offset + 3] << 24)
-                   | ((long)buf[offset + 4] << 32)
-                   | ((long)buf[offset + 5] << 40)
-                   | ((long)buf[offset + 6] << 48)
-                   | ((long)buf[offset + 7] << 56);
-            offset += 8;
-            return v;
-        }
-
-        // ── 小端序读写辅助（ReadOnlySpan<byte> 版本）──
-
-        private static int ReadInt(ReadOnlySpan<byte> data, ref int offset)
-        {
-            int v = data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
-            offset += 4;
-            return v;
-        }
-
-        private static long ReadLong(ReadOnlySpan<byte> data, ref int offset)
-        {
-            long v = (long)data[offset]
-                   | ((long)data[offset + 1] << 8)
-                   | ((long)data[offset + 2] << 16)
-                   | ((long)data[offset + 3] << 24)
-                   | ((long)data[offset + 4] << 32)
-                   | ((long)data[offset + 5] << 40)
-                   | ((long)data[offset + 6] << 48)
-                   | ((long)data[offset + 7] << 56);
-            offset += 8;
-            return v;
+            return new FluxFormula<TData, TOper>(instructions, header.Count, header.Type, header.ImmediateCount, varSlots, header.MaxRegister);
         }
 
         public override readonly string ToString() =>

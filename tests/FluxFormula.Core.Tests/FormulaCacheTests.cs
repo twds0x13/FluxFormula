@@ -135,7 +135,7 @@ public unsafe class FormulaCacheTests
     public void ManyEntries_AllRetrievable()
     {
         // 填到接近容量——触发线性探测链但不应断裂
-        const int N = FormulaCache.Capacity - 1;
+        int N = _cache.Capacity - 1;
         var keys = new DualHash64[N];
         byte* p  = stackalloc byte[1];
 
@@ -167,13 +167,13 @@ public unsafe class FormulaCacheTests
         var firstKey = DualHash64.Compute(BitConverter.GetBytes(-1));
         _cache.Put(firstKey, (IntPtr)p, 1);
 
-        for (int i = 0; i < FormulaCache.Capacity - 1; i++)
+        for (int i = 0; i < _cache.Capacity - 1; i++)
         {
             var k = DualHash64.Compute(BitConverter.GetBytes(i));
             _cache.Put(k, (IntPtr)p, 1);
         }
 
-        Assert.That(_cache.Count, Is.EqualTo(FormulaCache.Capacity));
+        Assert.That(_cache.Count, Is.EqualTo(_cache.Capacity));
 
         // 再写一个——触发驱逐
         var extraKey = DualHash64.Compute(BitConverter.GetBytes(99999));
@@ -184,7 +184,7 @@ public unsafe class FormulaCacheTests
             "新写入的条目应可检索");
 
         // Count 应基本稳定（被驱逐了一个又加了一个）
-        Assert.That(_cache.Count, Is.GreaterThanOrEqualTo(FormulaCache.Capacity - 1));
+        Assert.That(_cache.Count, Is.GreaterThanOrEqualTo(_cache.Capacity - 1));
     }
 
     [Test]
@@ -193,7 +193,7 @@ public unsafe class FormulaCacheTests
         byte* p = stackalloc byte[1];
 
         // 反复超容量写入 3 轮
-        int total = FormulaCache.Capacity * 3;
+        int total = _cache.Capacity * 3;
         for (int i = 0; i < total; i++)
         {
             var k = DualHash64.Compute(BitConverter.GetBytes(i));
@@ -202,7 +202,7 @@ public unsafe class FormulaCacheTests
 
         // 最后写入的一批应可检索（Capacity 个以内的最新条目）
         int found = 0;
-        for (int i = total - 1; i >= 0 && found < FormulaCache.Capacity; i--)
+        for (int i = total - 1; i >= 0 && found < _cache.Capacity; i--)
         {
             var k = DualHash64.Compute(BitConverter.GetBytes(i));
             if (_cache.TryGet(k, out _, out _))
@@ -223,21 +223,21 @@ public unsafe class FormulaCacheTests
         byte* p = stackalloc byte[1];
 
         // 写满
-        for (int i = 0; i < FormulaCache.Capacity; i++)
+        for (int i = 0; i < _cache.Capacity; i++)
         {
             var k = DualHash64.Compute(BitConverter.GetBytes(i));
             _cache.Put(k, (IntPtr)p, 1);
         }
 
         // 再写一轮（触发大量墓碑）
-        for (int i = 0; i < FormulaCache.Capacity / 2; i++)
+        for (int i = 0; i < _cache.Capacity / 2; i++)
         {
-            var k = DualHash64.Compute(BitConverter.GetBytes(i + FormulaCache.Capacity));
+            var k = DualHash64.Compute(BitConverter.GetBytes(i + _cache.Capacity));
             _cache.Put(k, (IntPtr)p, 1);
         }
 
         // 墓碑计数不应失控（Compact 会在 tombstoneCount > Capacity/4 时触发）
-        Assert.That(_cache.TombstoneCount, Is.LessThan(FormulaCache.Capacity / 4 + 1),
+        Assert.That(_cache.TombstoneCount, Is.LessThan(_cache.Capacity / 4 + 1),
             "墓碑数不应超过触发阈值");
     }
 

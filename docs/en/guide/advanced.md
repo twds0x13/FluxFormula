@@ -110,7 +110,7 @@ var r1 = runner.Instantiate(f, jit: true).Run(); // 5
 var r2 = runner.Instantiate(f, jit: true).Run(); // 5
 ```
 
-The cache backend `IFluxCacheProvider` defaults to `FormulaCache` (2048-slot open-addressing hashmap). Replace it by implementing `TryGet`/`Put`/`TryGetDelegate`/`PutDelegate`. See [Compile Cache Pipeline](../technical/compile-cache).
+The cache backend `IFluxCacheProvider` defaults to `FormulaCache` (slot count controlled by `FluxConfig.FormulaCacheCapacity`, default 2048). Replace it by implementing `TryGet`/`Put`/`TryGetDelegate`/`PutDelegate`. See [Compile Cache Pipeline](../technical/compile-cache). Other configurable parameters (`MergeThreshold`, `ConnectBufferSize`) are managed through `FluxConfig`.
 
 ## Persistence: ToBytes / FromBytes
 

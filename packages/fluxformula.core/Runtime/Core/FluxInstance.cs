@@ -94,7 +94,8 @@ namespace FluxFormula.Core
             else
             {
                 var kernel = new FluxEvaluator<TData, TOper, TDef>(_definition);
-                return kernel.Compute(_injector.GetBuffer().AsSpan(0, _formula.Count));
+                return kernel.Compute(_injector.GetBuffer().AsSpan(0, _formula.Count),
+                    maxRegister: _formula.MaxRegister);
             }
         }
 
@@ -133,8 +134,8 @@ namespace FluxFormula.Core
             {
                 var buffer = BuildLinkBuffer(links[i]);
                 prevResult = (i == 0)
-                    ? kernel.Compute(buffer)
-                    : kernel.Compute(buffer, prevResult);
+                    ? kernel.Compute(buffer, maxRegister: links[i].MaxRegister)
+                    : kernel.Compute(buffer, prevResult, maxRegister: links[i].MaxRegister);
             }
 
             return prevResult;
@@ -150,7 +151,7 @@ namespace FluxFormula.Core
 
             if (link.VarSlots.Length > 0)
             {
-                int dataSlotsPerParam; unsafe { dataSlotsPerParam = (sizeof(TData) + sizeof(Instruction) - 1) / sizeof(Instruction); }
+                int dataSlotsPerParam = FormulaFormat.DataSlots<TData>();
                 int varIdx = 0;
                 for (int ip = 0; ip < link.InstructionCount && varIdx < link.VarSlots.Length; )
                 {

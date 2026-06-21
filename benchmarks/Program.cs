@@ -18,6 +18,7 @@ namespace FluxFormula.Benchmarks
                 typeof(InterpreterBenchmarks),
                 typeof(JitBenchmarks),
                 typeof(InjectionBenchmarks),
+                typeof(CacheBenchmarks),
             }).Run(args);
         }
     }
@@ -249,6 +250,127 @@ namespace FluxFormula.Benchmarks
             var injector = new FluxInjector<float>(payload, null, _formula.VariableSlots);
             injector.Set("a", 10f).Set("b", 30f).Set("c", 2f);
             return _jitFunc(injector.GetBuffer());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 编译缓存管线：冷启动 vs 缓存命中（JIT + 解释器）
+    // ═══════════════════════════════════════════════════════════════
+
+    [ShortRunJob]
+    [MemoryDiagnoser]
+    public class CacheBenchmarks
+    {
+        private FloatMathDef _def;
+        private FluxFormula<float, FloatOp> _fSimple;
+        private FluxFormula<float, FloatOp> _fComplex;
+        private FluxFormula<float, FloatOp> _fChain;
+
+        [GlobalSetup]
+        public void Setup()
+        {
+            _def = Def;
+            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            _fSimple  = a.Compile(CreateMathLexer().Lex("1 + 2 * 3").Tokens);
+            _fComplex = a.Compile(CreateMathLexer().Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").Tokens);
+
+            var varLexer = CreateVarLexer("[", "]");
+            var fA = a.Compile(varLexer.Lex("[atk] * 1.5").Tokens, new[] { "atk" });
+            var fB = a.Compile(varLexer.Lex("[def] * 0.3").Tokens, new[] { "def" });
+            _fChain  = fA.Connect(fB);
+        }
+
+        private FluxAssembler<float, FloatOp, FloatMathDef> A() => new(_def);
+
+        // ── JIT 冷启动：首次编译 + 缓存写入 + 求值 ──
+
+        [IterationSetup(Targets = new[] {
+            nameof(JitColdSimple), nameof(JitColdComplex), nameof(JitColdChain)
+        })]
+        public void ResetCache() => ConnectCache.Reset();
+
+        [Benchmark(Baseline = true)]
+        public float JitColdSimple()
+        {
+            var inst = A().Instantiate(_fSimple, jit: true);
+            return inst.Run();
+        }
+
+        [Benchmark]
+        public float JitColdComplex()
+        {
+            var inst = A().Instantiate(_fComplex, jit: true);
+            return inst.Run();
+        }
+
+        [Benchmark]
+        public float JitColdChain()
+        {
+            var chainInst = A().Instantiate(_fChain, jit: true);
+            return chainInst.SetIndex(0, 100f).SetIndex(1, 50f).Run();
+        }
+
+        // ── JIT 缓存命中：delegate 已在缓存中 → 直接复用 ──
+
+        [IterationSetup(Targets = new[] {
+            nameof(JitWarmSimple), nameof(JitWarmComplex), nameof(JitWarmChain)
+        })]
+        public void PrimeJitCache()
+        {
+            ConnectCache.Reset();
+            var a = A();
+            a.Instantiate(_fSimple,  jit: true);
+            a.Instantiate(_fComplex, jit: true);
+            a.Instantiate(_fChain,   jit: true);
+        }
+
+        [Benchmark]
+        public float JitWarmSimple()
+        {
+            var inst = A().Instantiate(_fSimple, jit: true);
+            return inst.Run();
+        }
+
+        [Benchmark]
+        public float JitWarmComplex()
+        {
+            var inst = A().Instantiate(_fComplex, jit: true);
+            return inst.Run();
+        }
+
+        [Benchmark]
+        public float JitWarmChain()
+        {
+            var chainInst = A().Instantiate(_fChain, jit: true);
+            return chainInst.SetIndex(0, 100f).SetIndex(1, 50f).Run();
+        }
+
+        // ── 解释器冷/热（解释器不走 delegate 缓存，仅测 baseline）──
+
+        [IterationSetup(Targets = new[] {
+            nameof(InterpColdSimple), nameof(InterpColdComplex), nameof(InterpColdChain)
+        })]
+        public void ResetCacheForInterp() => ConnectCache.Reset();
+
+        [Benchmark]
+        public float InterpColdSimple()
+        {
+            var inst = A().Instantiate(_fSimple, jit: false);
+            return inst.Run();
+        }
+
+        [Benchmark]
+        public float InterpColdComplex()
+        {
+            var inst = A().Instantiate(_fComplex, jit: false);
+            return inst.Run();
+        }
+
+        [Benchmark]
+        public float InterpColdChain()
+        {
+            var chainInst = A().Instantiate(_fChain, jit: false);
+            return chainInst.SetIndex(0, 100f).SetIndex(1, 50f).Run();
         }
     }
 }

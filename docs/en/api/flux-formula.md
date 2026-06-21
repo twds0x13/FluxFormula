@@ -94,7 +94,7 @@ Returns a read-only view of the `Instruction[]` buffer, exposing only the valid 
 public byte[] ToBytes()
 ```
 
-Serializes the formula to a byte array. Format: 13-byte header (Count + Type + ImmediateCount + VariableSlot count) + instruction region (Count × 8 bytes, each writing the Raw long value) + variable slot region (each: nameLen + UTF8 name + slotIndex). Serialization is zero-overhead memcpy with no reflection.
+Serializes the formula to a byte array. Format: 14-byte header (Count(4) + Type(1) + ImmediateCount(4) + VarSlotCount(4) + MaxRegister(1)) + instruction region (Count × InstructionSize bytes, each writing the Raw field) + variable slot region (each: nameLen + UTF8 name + slotIndex). Format definition is centralized in `FormulaFormat`; byte-level I/O is unified via `BinaryFormat`.
 
 ### FromBytes
 

@@ -39,6 +39,15 @@ public class FluxAssetInspector : Editor
         EditorGUI.indentLevel++;
         EditorGUILayout.LabelField("Data Size", $"{asset.RawDataLength:N0} bytes");
         EditorGUILayout.LabelField("Instruction Count", asset.InstructionCount.ToString());
+        {
+            byte maxReg = (asset.RawData != null && asset.RawData.Length > FormulaFormat.HeaderSize)
+                ? asset.RawData[FormulaFormat.InstructionOffset - 1]
+                : (byte)0;
+            if (maxReg > 0)
+                EditorGUILayout.LabelField("Register Usage", $"R0–R{maxReg}  ({maxReg + 1} of 255 slots)");
+            else
+                EditorGUILayout.LabelField("Register Usage", "(not analyzed — fallback to 255)");
+        }
         EditorGUI.indentLevel--;
 
         EditorGUILayout.Space(4);

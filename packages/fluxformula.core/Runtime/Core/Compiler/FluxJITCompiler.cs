@@ -21,12 +21,11 @@ namespace FluxFormula.Compiler
             ReadOnlySpan<Instruction> raw,
             TDef definition,
             out Instruction[] payload,
-            bool pruneRegisters = false
+            bool pruneRegisters = false,
+            byte maxRegister = 0
         )
         {
-            int instSize = Marshal.SizeOf<Instruction>();
-            int dataSize = Marshal.SizeOf<TData>();
-            int dataSlotsPerParam = (dataSize + instSize - 1) / instSize;
+            int dataSlotsPerParam = FormulaFormat.DataSlots<TData>();
 
             int totalDataSlots = 0;
             for (int i = 0; i < raw.Length; i++)
@@ -41,12 +40,12 @@ namespace FluxFormula.Compiler
             payload = new Instruction[totalDataSlots];
             var bufferParam = Expression.Parameter(typeof(Instruction[]), "dataBuffer");
 
-            int regCount = FluxPlatform.MaxRegisters + 1;
+            int regCount = maxRegister > Registers.Bus ? maxRegister + 1 : FluxPlatform.MaxRegisters + 1;
             if (pruneRegisters)
             {
                 // Scan instructions to find the highest register index actually used.
-                // r0 (error) and r1 (return bus) are always kept.
-                int maxReg = 2;
+                // Error(R0) and Bus(R1) are always kept.
+                int maxReg = Registers.FirstAlloc;
                 for (int i = 0; i < raw.Length; i++)
                 {
                     var inst = raw[i];
@@ -62,6 +61,12 @@ namespace FluxFormula.Compiler
                         if (a > 3 && inst.Arg3 > maxReg) maxReg = inst.Arg3;
                         if (a > 4 && inst.Arg4 > maxReg) maxReg = inst.Arg4;
                         if (a > 5 && inst.Arg5 > maxReg) maxReg = inst.Arg5;
+                    }
+                    else if (kind != OpType.Immediate)
+                    {
+                        throw new InvalidOperationException(
+                            $"Unknown OpType in JIT compiler (reg scan): {kind}. " +
+                            "If you added a new OpType, update the JIT compiler dispatch.");
                     }
                 }
                 regCount = maxReg + 1;
@@ -113,24 +118,30 @@ namespace FluxFormula.Compiler
 
                     body.Add(
                         Expression.IfThen(
-                            Expression.NotEqual(regs[0], defaultTDataExpr),
-                            Expression.Return(returnTarget, regs[0])
+                            Expression.NotEqual(regs[Registers.Error], defaultTDataExpr),
+                            Expression.Return(returnTarget, regs[Registers.Error])
                         )
                     );
                 }
                 else if (kind == OpType.Return)
                 {
                     var resultExpr = Expression.Condition(
-                        Expression.NotEqual(regs[0], defaultTDataExpr),
-                        regs[0],
+                        Expression.NotEqual(regs[Registers.Error], defaultTDataExpr),
+                        regs[Registers.Error],
                         regs[inst.Dest]
                     );
                     body.Add(Expression.Return(returnTarget, resultExpr));
                     break;
                 }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Unknown OpType in JIT compiler: {kind} (opCode=0x{inst.OpCode:X2}). " +
+                        "If you added a new OpType, update the JIT compiler dispatch.");
+                }
             }
 
-            body.Add(Expression.Label(returnTarget, regs[1]));
+            body.Add(Expression.Label(returnTarget, regs[Registers.Bus]));
 
             var block = Expression.Block(regs, body);
 

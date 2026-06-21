@@ -96,13 +96,15 @@ var combined = f42.Connect(mod);  // 42 + 5
 
 ## Register Model
 
-256 virtual registers (addressable by byte), with the first two having fixed semantics:
+256 virtual registers (addressable by byte), with semantic constants centralized in the `Registers` class:
 
-| Register | Semantics |
-|----------|-----------|
-| R0 | Error register. Any operation may write a non-default value to trigger early exit. R0 is checked after each instruction; if non-default, execution terminates immediately |
-| R1 | Bus register / default result. Binary operation results are typically written to R1. When no error occurs, the final result is obtained from the Return instruction's destination register |
-| R2-R254 | General-purpose registers. Allocated incrementally by the compiler, never reused. Maximum 253 (limited by `MaxRegisters = 255`) |
+| Constant | Register | Semantics |
+|----------|----------|-----------|
+| `Registers.Error = 0` | R0 | Error register. Any operation may write a non-default value to trigger early exit. R0 is checked after each instruction; if non-default, execution terminates immediately |
+| `Registers.Bus = 1` | R1 | Bus register / default result. Binary operation results are typically written to R1. When no error occurs, the final result is obtained from the Return instruction's destination register |
+| `Registers.FirstAlloc = 2` | R2-R254 | General-purpose registers. Allocated incrementally by the compiler, never reused. Upper limit constrained by `Registers.Max = 255` |
+
+Runtime allocation can be reduced per-formula via the `MaxRegister` header field (auto-analyzed at compile time) — a formula using only R0–R5 allocates 6 slots instead of the full 256.
 
 ### Three OpTypes
 
