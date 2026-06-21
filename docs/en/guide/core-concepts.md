@@ -76,8 +76,9 @@ public FloatOp ResolveToken(FloatOp op, TokenContext ctx)
 var f42 = runner.Compile(new[] { C(42f) });                   // Formula
 var mod = runner.Compile(new[] { Op(FloatOp.Add), C(5f) });   // Modifier, cannot Run
 
-// Correct usage: connect
+// Correct usage: Connect only accepts Modifier
 var combined = f42.Connect(mod);  // 42 + 5
+// f42.Connect(someFormula) → ArgumentException; must call .ToMultiplier() first
 ```
 
 ## Instruction Layout
@@ -170,7 +171,7 @@ restored.Set("input", 5f).Set("y", 3f).Run(); // 8
 
 Round-trip evaluation equivalence is maintained. The `CHAIN_LINK_INTERNAL_` prefix is reserved for internal variables; users must not declare variables with this prefix.
 
-> `Connect` does not automatically call `ToMultiplier` on Formula arguments. To let B consume A's output, explicitly use `fA.Connect(fB.ToMultiplier())`.
+> `Connect` requires the second argument to be a Modifier. Passing a Formula throws `ArgumentException` — the user must explicitly call `.ToMultiplier()` to confirm the semantic intent that the next formula consumes the previous formula's output.
 
 ## Interpreter vs JIT
 

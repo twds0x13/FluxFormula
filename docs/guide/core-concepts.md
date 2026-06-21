@@ -76,8 +76,9 @@ public FloatOp ResolveToken(FloatOp op, TokenContext ctx)
 var f42 = runner.Compile(new[] { C(42f) });                   // Formula
 var mod = runner.Compile(new[] { Op(FloatOp.Add), C(5f) });   // Modifier，不可 Run
 
-// 正确用法：拼接
+// 正确用法：Connect 只接受 Modifier
 var combined = f42.Connect(mod);  // 42 + 5
+// f42.Connect(someFormula) → ArgumentException，须先 .ToMultiplier()
 ```
 
 ## Instruction 布局
@@ -170,7 +171,7 @@ restored.Set("input", 5f).Set("y", 3f).Run(); // 8
 
 Round-trip 保持求值等价。`CHAIN_LINK_INTERNAL_` 前缀保留为内部变量名，用户不得使用。
 
-> `Connect` 当前不自动对 Formula 调用 `ToMultiplier`。如需让 B 消费 A 的输出，显式使用 `fA.Connect(fB.ToMultiplier())`。
+> `Connect` 要求第二个参数必须是 Modifier。传入 Formula 会抛出 `ArgumentException`——用户必须显式调用 `.ToMultiplier()` 确认"下一个公式会消费前一个公式的输出"这一语义。
 
 ## 解释器 vs JIT
 

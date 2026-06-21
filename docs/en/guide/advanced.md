@@ -19,11 +19,11 @@ At evaluation time, short chains (≤8) evaluate per-link through the R1 bus; lo
 var fA = Compile("x + y");                 // Formula
 var fB = Compile("z * 2");                 // Formula
 
-// B consumes A's output: explicit conversion
+// ✅ B consumes A's output: convert to Modifier first
 var chain = fA.Connect(fB.ToMultiplier());  // B's first operand from R1
 
-// B runs independently: no conversion
-var chain2 = fA.Connect(fB);               // B from own first operand
+// ❌ Connect rejects Formula — compile-time guard against implicit overwrite
+// var chain2 = fA.Connect(fB);             // throws ArgumentException
 
 // Round-trip preserves evaluation equivalence
 var restored = fB.ToMultiplier().ToFormula("input");

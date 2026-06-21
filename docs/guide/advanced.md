@@ -19,11 +19,11 @@ Connect(fA, fB):
 var fA = Compile("x + y");                 // Formula
 var fB = Compile("z * 2");                 // Formula
 
-// B 消费 A 的输出：显式转换
+// ✅ B 消费 A 的输出：先转 Modifier
 var chain = fA.Connect(fB.ToMultiplier());  // B 的第一操作数来自 R1
 
-// B 独立运行：不转换
-var chain2 = fA.Connect(fB);               // B 从自身第一操作数开始
+// ❌ Connect 不接受 Formula——编译期拒绝隐式覆盖
+// var chain2 = fA.Connect(fB);             // 抛出 ArgumentException
 
 // Round-trip 保持求值等价
 var restored = fB.ToMultiplier().ToFormula("input");

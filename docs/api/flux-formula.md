@@ -19,8 +19,6 @@ public readonly struct FluxFormula<TData, TOper>
 | `ImmediateCount` | `int` | Immediate 指令数量，即 `SetIndex()` 的有效索引上限 |
 | `VariableSlots` | `VariableSlot[]` | 变量名到槽位索引的映射表，由 Lexer 路径填充 |
 | `MaxRegister` | `byte` | 编译期分析的最高寄存器索引（0=未分析，回退到全量 255） |
-| `IsChained` | `bool` | 该实例是否为链式公式（含多个 ChainLink） |
-| `ChainLength` | `int` | 链长（非链式公式为 1） |
 
 ## 静态成员
 
@@ -36,10 +34,10 @@ public readonly struct FluxFormula<TData, TOper>
 public FluxFormula<TData, TOper> Connect(FluxFormula<TData, TOper> next)
 ```
 
-链式组合两条公式。不合并字节码——追加 `ChainLink` 引用切片。物理拼接推迟到求值时刻。
+链式组合当前公式与一个 Modifier。不合并字节码——追加 `ChainLink` 引用切片。物理拼接推迟到求值时刻。
 
 - 卫语句：任一方为空则直接返回另一方
-- `next` 若非 Modifier，保持原样（第一操作数不从 R1 读取）。若需 `next` 消费当前公式的输出，显式使用 `next.ToMultiplier()`
+- **`next` 必须是 Modifier**（`next.Type == FluxType.Modifier`），否则抛出 `ArgumentException`。传入 Formula 前请先调用 `.ToMultiplier()` 剥离首操作数
 - 参见 [ChainLink 深度解析](../technical/chainlink-deep-dive)
 
 ### ToMultiplier
@@ -74,22 +72,13 @@ public DualHash64 GetByteHash()
 
 返回公式字节码的 `DualHash64`。原子公式哈希等价于 `ToBytes()` 的哈希；链式公式为所有 link Key 的顺序 `Combine`。用于缓存键计算。
 
-### IsChained / ChainLength
-
-```csharp
-public bool IsChained { get; }
-public int ChainLength { get; }
-```
-
-`IsChained`：公式是否为链式（内部持有 `ChainLink[]`）。`ChainLength`：链式公式的 link 数量，原子公式返回 0。
-
 ### Raw
 
 ```csharp
 public ReadOnlySpan<Instruction> Raw()
 ```
 
-返回 `Instruction[]` 的只读视图，仅暴露 `Count` 长度的有效区域。
+返回公式底层指令的只读视图。链式公式自动调用 `ToAtomic()` 合并后返回，对外表现为统一的原子表示。
 
 ### ToBytes
 
@@ -97,7 +86,7 @@ public ReadOnlySpan<Instruction> Raw()
 public byte[] ToBytes()
 ```
 
-将公式序列化为字节数组。格式：14 字节头（Count(4) + Type(1) + ImmediateCount(4) + VarSlotCount(4) + MaxRegister(1)）+ 指令区（Count × InstructionSize 字节，每条写 Raw 字段）+ 变量槽区（每个槽：nameLen + UTF8 name + slotIndex）。格式定义集中由 `FormulaFormat` 管理，字节级读写由 `BinaryFormat` 统一处理。
+将公式序列化为字节数组。链式公式自动合并为原子公式后序列化。格式：14 字节头（Count(4) + Type(1) + ImmediateCount(4) + VarSlotCount(4) + MaxRegister(1)）+ 指令区（Count × InstructionSize 字节，每条写 Raw 字段）+ 变量槽区（每个槽：nameLen + UTF8 name + slotIndex）。格式定义集中由 `FormulaFormat` 管理，字节级读写由 `BinaryFormat` 统一处理。
 
 ### FromBytes
 

@@ -19,8 +19,6 @@ public readonly struct FluxFormula<TData, TOper>
 | `ImmediateCount` | `int` | Number of Immediate instructions; upper bound for `SetIndex()` |
 | `VariableSlots` | `VariableSlot[]` | Variable name to slot index mapping table, populated by the Lexer path |
 | `MaxRegister` | `byte` | Compile-time max register index (0 = unanalyzed, fallback to full 255) |
-| `IsChained` | `bool` | Whether this instance is a chain formula (contains multiple ChainLinks) |
-| `ChainLength` | `int` | Number of chain links (1 for non-chained formulas) |
 
 ## Static Members
 
@@ -36,10 +34,10 @@ public readonly struct FluxFormula<TData, TOper>
 public FluxFormula<TData, TOper> Connect(FluxFormula<TData, TOper> next)
 ```
 
-Chains two formulas. Does not merge bytecode — appends `ChainLink` reference slices. Physical concatenation is deferred to evaluation time.
+Chains the current formula with a Modifier. Does not merge bytecode — appends `ChainLink` reference slices. Physical concatenation is deferred to evaluation time.
 
 - Guard clause: if either side is empty, returns the other directly
-- If `next` is not a Modifier, it is kept as-is (first operand does not read from R1). To let `next` consume the current formula's output, explicitly call `next.ToMultiplier()`
+- **`next` must be a Modifier** (`next.Type == FluxType.Modifier`); throws `ArgumentException` otherwise. Call `.ToMultiplier()` on the formula to strip its first operand before connecting
 - See [ChainLink Deep Dive](../technical/chainlink-deep-dive)
 
 ### ToMultiplier
@@ -74,22 +72,13 @@ public DualHash64 GetByteHash()
 
 Returns the `DualHash64` of the formula's bytecode. For atomic formulas, equivalent to hashing `ToBytes()`. For chain formulas, the sequential `Combine` of all link keys. Used as cache lookup key.
 
-### IsChained / ChainLength
-
-```csharp
-public bool IsChained { get; }
-public int ChainLength { get; }
-```
-
-`IsChained`: whether the formula is chained (holds a `ChainLink[]` internally). `ChainLength`: number of links in the chain; 0 for atomic formulas.
-
 ### Raw
 
 ```csharp
 public ReadOnlySpan<Instruction> Raw()
 ```
 
-Returns a read-only view of the `Instruction[]` buffer, exposing only the valid region of `Count` instructions.
+Returns a read-only view of the formula's underlying instructions. Chain formulas are automatically merged via `ToAtomic()` before returning, presenting a unified atomic representation externally.
 
 ### ToBytes
 
@@ -97,7 +86,7 @@ Returns a read-only view of the `Instruction[]` buffer, exposing only the valid 
 public byte[] ToBytes()
 ```
 
-Serializes the formula to a byte array. Format: 14-byte header (Count(4) + Type(1) + ImmediateCount(4) + VarSlotCount(4) + MaxRegister(1)) + instruction region (Count × InstructionSize bytes, each writing the Raw field) + variable slot region (each: nameLen + UTF8 name + slotIndex). Format definition is centralized in `FormulaFormat`; byte-level I/O is unified via `BinaryFormat`.
+Serializes the formula to a byte array. Chain formulas are automatically merged to atomic before serialization. Format: 14-byte header (Count(4) + Type(1) + ImmediateCount(4) + VarSlotCount(4) + MaxRegister(1)) + instruction region (Count × InstructionSize bytes, each writing the Raw field) + variable slot region (each: nameLen + UTF8 name + slotIndex). Format definition is centralized in `FormulaFormat`; byte-level I/O is unified via `BinaryFormat`.
 
 ### FromBytes
 

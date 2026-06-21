@@ -143,8 +143,8 @@ public static VffResolveResult<TData, TOper> Resolve<TData, TOper>(
 
 var result = VffFormat.Resolve<float, FloatOp>(hash_v);
 
-// result.Formula 为链式公式，含 2 个 ChainLink
-// result.Formula.ChainLength == 2
+// result.Formula 为链式公式，含 2 个 link
+// ChainLink 为 internal 实现细节——用户无需直接访问
 // result.Formula.ImmediateCount == 2  (两个 link 各 1 imm)
 
 // result.Overrides 包含 VFF 中定义的参数覆写

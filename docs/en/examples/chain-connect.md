@@ -1,8 +1,10 @@
 # ChainLink Examples
 
-ChainLink is an `internal` struct. Users interact with it indirectly through `Connect()`, `IsChained`, `ToAtomic()`, and `ToMultiplier()`.
+ChainLink is an `internal` struct. Users interact with it indirectly through `Connect()`, `ToAtomic()`, and `ToMultiplier()`.
 
 ## Basic Chain Connect
+
+`Connect()` requires the second argument to be a Modifier. Passing a Formula directly throws `ArgumentException`. Call `.ToMultiplier()` first to strip the first operand:
 
 ```csharp
 using FluxFormula.Core;
@@ -10,21 +12,17 @@ using FluxFormula.Core;
 var lexer = CreateMathLexer();
 var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
 
-var fA = runner.Compile(lexer.Lex("10 + 5"));  // = 15
-var fB = runner.Compile(lexer.Lex("2 * 3"));   // = 6
+var fA = runner.Compile(lexer.Lex("10 + 5"));                // = 15
+var fB = runner.Compile(lexer.Lex("2 * 3"));                 // Formula (has first operand 2)
 
-// Connect produces a chain — no bytecode merge
-var chain = fA.Connect(fB);
+// ❌ Error: fB is a Formula — its first operand would be silently overwritten
+// var chain = fA.Connect(fB);  // throws ArgumentException
 
-Console.WriteLine(chain.IsChained);   // True
-Console.WriteLine(chain.ChainLength); // 2
-```
+// ✅ Correct: convert fB to Modifier first (strip operand 2, read from R1 instead)
+var chain = fA.Connect(fB.ToMultiplier());  // (10+5) * 3 = 45
 
-Both formulas evaluate independently. The second link ignores the first link's output (both are Formulas, each with its own first operand):
-
-```csharp
 var inst = runner.Instantiate(chain);
-Console.WriteLine(inst.Run()); // 6 (fB's result; fA's output discarded)
+Console.WriteLine(inst.Run()); // 45
 ```
 
 ## Modifier Chain: Passing Output Forward
@@ -107,21 +105,9 @@ var inst = runner.Instantiate(restored).Set("input", 7f);
 Console.WriteLine(inst.Run()); // 10 (equivalent to f)
 ```
 
-## Checking Chain State
-
-```csharp
-var atomic = runner.Compile(lexer.Lex("42"));
-var chain  = atomic.Connect(runner.Compile(lexer.Lex("1")));
-
-Console.WriteLine(atomic.IsChained);  // False
-Console.WriteLine(atomic.ChainLength); // 0
-
-Console.WriteLine(chain.IsChained);   // True
-Console.WriteLine(chain.ChainLength); // 2
-```
-
 ## Notes
 
 - `ChainReserved.InternalPrefix` (`"CHAIN_LINK_INTERNAL_"`) is reserved for chain evaluation internal variables. User-declared variables must not use this prefix
 - Modifier formulas (`FluxType.Modifier`) cannot `Run()` standalone — they must appear as non-first links in a chain
-- `Connect` does not auto-convert Formula → Modifier. To consume the previous link's output, explicitly call `.ToMultiplier()`
+- `Connect` requires the second argument to be a Modifier. Passing a Formula throws `ArgumentException`, instructing the user to call `.ToMultiplier()` first
+- `IsChained`, `ChainLength`, and `ChainLink` are all `internal` — users never need to know whether a formula is internally chain-represented

@@ -143,8 +143,8 @@ Reads a VFF entry from `FormulaCache` and recursively resolves it into a chain f
 
 var result = VffFormat.Resolve<float, FloatOp>(hash_v);
 
-// result.Formula is a chain formula with 2 ChainLinks
-// result.Formula.ChainLength == 2
+// result.Formula is a chain formula with 2 links
+// ChainLink is an internal implementation detail — users don't access it directly
 // result.Formula.ImmediateCount == 2  (1 imm per link)
 
 // result.Overrides contains parameter overrides defined in the VFF

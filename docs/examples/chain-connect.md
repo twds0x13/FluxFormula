@@ -4,27 +4,25 @@
 
 ## 基础链式 Connect
 
+`Connect()` 要求第二个参数必须是 Modifier。传入 Formula 会直接抛出 `ArgumentException`。必须先用 `.ToMultiplier()` 剥离首操作数：
+
 ```csharp
 using FluxFormula.Core;
 
 var lexer = CreateMathLexer();
 var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
 
-var fA = runner.Compile(lexer.Lex("10 + 5"));  // = 15
-var fB = runner.Compile(lexer.Lex("2 * 3"));   // = 6
+var fA = runner.Compile(lexer.Lex("10 + 5"));                // = 15
+var fB = runner.Compile(lexer.Lex("2 * 3"));                 // Formula（有首操作数 2）
 
-// Connect 不合并字节码——产生链式公式
-var chain = fA.Connect(fB);
+// ❌ 错误：fB 是 Formula，首操作数会被 fA 的输出静默覆盖
+// var chain = fA.Connect(fB);  // throws ArgumentException
 
-Console.WriteLine(chain.IsChained);   // True
-Console.WriteLine(chain.ChainLength); // 2
-```
+// ✅ 正确：先将 fB 转为 Modifier（剥离首操作数 2，改为从 R1 读取输入）
+var chain = fA.Connect(fB.ToMultiplier());  // (10+5) * 3 = 45
 
-两条公式独立求值。第二个 link 忽略前一个 link 的输出（两者都是 Formula，各有自己的第一操作数）：
-
-```csharp
 var inst = runner.Instantiate(chain);
-Console.WriteLine(inst.Run()); // 6（fB 的结果，fA 的输出被丢弃）
+Console.WriteLine(inst.Run()); // 45
 ```
 
 ## Modifier 链：前一个 link 的输出传递给下一个
@@ -107,21 +105,9 @@ var inst = runner.Instantiate(restored).Set("input", 7f);
 Console.WriteLine(inst.Run()); // 10（与 f 求值一致）
 ```
 
-## 检查当前公式是链还是原子
-
-```csharp
-var atomic = runner.Compile(lexer.Lex("42"));
-var chain  = atomic.Connect(runner.Compile(lexer.Lex("1")));
-
-Console.WriteLine(atomic.IsChained);  // False
-Console.WriteLine(atomic.ChainLength); // 0
-
-Console.WriteLine(chain.IsChained);   // True
-Console.WriteLine(chain.ChainLength); // 2
-```
-
 ## 注意事项
 
 - `ChainReserved.InternalPrefix`（`"CHAIN_LINK_INTERNAL_"`）是链式求值内部使用的变量名前缀。用户不得在 `LexerConfig.VariablePatterns` 中声明此前缀开头的变量
 - Modifier（`FluxType.Modifier`）不能独立 `Run()`，必须作为链的后续 link 使用
-- `Connect` 不自动转换 Formula → Modifier。如需消费前一个 link 的输出，显式调用 `.ToMultiplier()`
+- `Connect` 要求第二个参数必须是 Modifier。传入 Formula 会抛出 `ArgumentException`，提示先调用 `.ToMultiplier()`
+- `IsChained`、`ChainLength` 和 `ChainLink` 均为 `internal`——用户无需关心公式内部是否为链式表示
