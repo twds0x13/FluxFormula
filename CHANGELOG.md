@@ -1,3 +1,35 @@
+# [2.0.0](https://github.com/twds0x13/FluxFormula/compare/v1.5.0...v2.0.0) (2026-06-23)
+
+
+### Bug Fixes
+
+* resolve 7 compilation errors, add VFF/FormulaCache API docs, translate FEATURE-streaming-injection ([bae97a8](https://github.com/twds0x13/FluxFormula/commit/bae97a88fa16b6e528279d1bc6f169262e854772))
+* rework remaining Unity test failures ([1b4aaca](https://github.com/twds0x13/FluxFormula/commit/1b4aacad2fbbf7ece4cab79f1517a7c91be7b8cc))
+* update Unity-side tests for Connect Modifier-only guard ([5bcd75f](https://github.com/twds0x13/FluxFormula/commit/5bcd75f023580f4c48543cfb13d9c0f2379f1ada))
+
+
+### Features
+
+* add Addressables/UniTask samples, extend FluxConfig with file path settings ([791fb2b](https://github.com/twds0x13/FluxFormula/commit/791fb2bcbee488b255b167cf7bdf2132f0d8ac33))
+* blob pipeline, format centralization, register semantics, global config ([9cecc9d](https://github.com/twds0x13/FluxFormula/commit/9cecc9d693349e5bda064d01ee06244a17d62334))
+* enforce Connect() only accepts Modifier as second argument ([5b8ed3c](https://github.com/twds0x13/FluxFormula/commit/5b8ed3c3e2861eec97d5c18fa2907c710eb5dd70))
+* extend benchmark auto-sync to README files, use flat table format [skip test] ([2f27ad0](https://github.com/twds0x13/FluxFormula/commit/2f27ad066629506f78e380b5ddbcc268a3f34a36))
+* FluxFormula.Addressables.UniTask package ([9b78b97](https://github.com/twds0x13/FluxFormula/commit/9b78b97661eb2d6d57a01aae92e8863fb7f2ddac))
+* multi-arity operators (Select/Lerp/Sum6), ternary ?:, coverage 96.8->97.3% ([8ec1912](https://github.com/twds0x13/FluxFormula/commit/8ec1912d816d7d8cf43143170a664e59194f95c1))
+* support recursive VFF resolution with cycle detection ([5bd4c49](https://github.com/twds0x13/FluxFormula/commit/5bd4c49098afc8131ffbec06e0f7f909f4f3296e))
+
+
+### release
+
+* 2.0.0 — bump versions, write migration guide ([c9d0b63](https://github.com/twds0x13/FluxFormula/commit/c9d0b63f5f2ceb5a8f48df560b089b330cb15114))
+
+
+### BREAKING CHANGES
+
+* table, behavioral notes, and version compatibility.
+All four package.json bumped to 2.0.0 with internal dependency
+versions aligned.
+
 # [1.5.0](https://github.com/twds0x13/FluxFormula/compare/v1.4.0...v1.5.0) (2026-06-20)
 
 
