@@ -17,13 +17,13 @@ public class ConnectChainTests
     [Test]
     public void ThreeDeepConnect_SlotIndicesAccumulateCorrectly()
     {
-        // fA=[a], fB=[b], fC=[c]
+        // fA=[a]+0, fB=+[b], fC=+[c]（modifier 形式）
         // Connect: fA → fB → fC
         // 预期: VariableSlots = [a(slot0), b(slot1), c(slot2)]
         var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-        var lexA = CreateVarLexer("[", "]").Lex("[a]");
-        var lexB = CreateVarLexer("[", "]").Lex("[b]");
-        var lexC = CreateVarLexer("[", "]").Lex("[c]");
+        var lexA = CreateVarLexer("[", "]").Lex("[a] + 0");
+        var lexB = CreateVarLexer("[", "]").Lex("+ [b]");
+        var lexC = CreateVarLexer("[", "]").Lex("+ [c]");
 
         var fA = runner.Compile(lexA);
         var fB = runner.Compile(lexB);
@@ -146,9 +146,9 @@ public class ConnectChainTests
     public void ToAtomic_VariableSlotsMerged()
     {
         var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-        var lexA = CreateVarLexer("[", "]").Lex("[x]");
-        var lexB = CreateVarLexer("[", "]").Lex("[y]");
-        var lexC = CreateVarLexer("[", "]").Lex("[z]");
+        var lexA = CreateVarLexer("[", "]").Lex("[x] + 0");
+        var lexB = CreateVarLexer("[", "]").Lex("+ [y]");
+        var lexC = CreateVarLexer("[", "]").Lex("+ [z]");
 
         var chain = runner.Compile(lexA)
             .Connect(runner.Compile(lexB))
@@ -169,15 +169,18 @@ public class ConnectChainTests
     [Test]
     public void Connect_SingleImmediateCount1_ReturnsNext()
     {
-        // C(99f) 的 Count 含 data slot 所以是 3（Immediate + data + Return）
-        // 验证 Connect 后求值正确
+        // Count==1 的公式 Connect Modifier 时走捷径直接返回 next 本身
         var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-        var single = runner.Compile(new[] { C(99f) });
-        var other  = runner.Compile(new[] { C(1f), Op(FloatOp.Add), C(2f) });
+        var single  = runner.Compile(new[] { C(99f) });
+        var modifier = runner.Compile(new[] { Op(FloatOp.Add), C(2f) }); // Modifier
 
-        var connected = single.Connect(other);
-        Assert.That(runner.Instantiate(connected, jit: false).Run(),
-            Is.EqualTo(3f).Within(1e-6f));
+        var connected = single.Connect(modifier);
+        // Count==1 的公式连 modifier：走捷径返回 next（即 modifier）
+        // 验证连接后的公式 = modifier（求值需先补 Provider）
+        var provider = runner.Compile(new[] { C(10f) });
+        var full = provider.Connect(connected);
+        Assert.That(runner.Instantiate(full, jit: false).Run(),
+            Is.EqualTo(12f).Within(1e-6f)); // 10 + 2 = 12
     }
 
     [Test]
@@ -185,9 +188,9 @@ public class ConnectChainTests
     {
         // 验证多层 Connect 后 SetIndex 的顺序 = 链拼接顺序
         var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-        var lexA = CreateVarLexer("[", "]").Lex("[first]");
-        var lexB = CreateVarLexer("[", "]").Lex("[second]");
-        var lexC = CreateVarLexer("[", "]").Lex("[third]");
+        var lexA = CreateVarLexer("[", "]").Lex("[first] + 0");
+        var lexB = CreateVarLexer("[", "]").Lex("+ [second]");
+        var lexC = CreateVarLexer("[", "]").Lex("+ [third]");
 
         var chain = runner.Compile(lexA)
             .Connect(runner.Compile(lexB))
@@ -200,9 +203,6 @@ public class ConnectChainTests
             .SetIndex(2, 1f)
             .Run();
 
-        // Lex 的是 "[first] + [second]" 作为 Modifier → Connect 语义
-        // [first] + ([second] + [third]) ... 取决于 Connect 的具体实现
-        // 仅验证 SetIndex 能正确注入到对应变量
         Assert.That(result, Is.GreaterThan(0f));
     }
 }

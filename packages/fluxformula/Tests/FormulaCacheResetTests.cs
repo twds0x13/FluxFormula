@@ -71,8 +71,8 @@ public class FormulaCacheResetTests
     public void AfterReset_ConnectChain_JitRecovers()
     {
         var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-        var lexA   = CreateVarLexer("[", "]").Lex("[a]");
-        var lexB   = CreateVarLexer("[", "]").Lex("[b]");
+        var lexA   = CreateVarLexer("[", "]").Lex("[a] + 0");
+        var lexB   = CreateVarLexer("[", "]").Lex("+ [b]");
         var fA     = runner.Compile(lexA);
         var fB     = runner.Compile(lexB);
         var chain  = fA.Connect(fB);
