@@ -2,7 +2,7 @@
 
 本文档记录 FluxFormula 各主版本之间的 breaking changes 及迁移步骤。
 
-当前最新版本为 1.7.0，尚无已知的 breaking changes。下文模板供后续版本迭代时使用。
+当前最新版本为 2.0.0。
 
 ---
 
@@ -24,25 +24,37 @@
 
 ## 从 1.x 迁移到 2.0
 
-> 本节为模板。当 2.0 发布时填写实际内容。
-
 ### 概述
 
-简述本次升级的影响范围和核心变更。
+2.0 将公式链的内部表示从公开 API 表面移到实现深处，统一了对外接口形态，并收紧了 `Connect` 的调用约束。
+
+影响范围：直接使用 `ChainLink`、`IsChained`、`ChainLength` 的代码需调整。使用 `Connect` 串联公式的代码需在右侧传入 Modifier。
 
 ### Breaking Changes
 
 | 变更 | 1.x 行为 | 2.0 行为 | 迁移方式 |
 |------|----------|----------|----------|
-| 示例 | | | |
+| `IsChained` | `public bool` | `internal` | 移除外部引用。消费者不再感知链式/原子双形态 |
+| `ChainLength` | `public int` | `internal` | 同上 |
+| `GetChainLinks()` | `public` | `internal` | 同上 |
+| `ChainLink` 结构体 | 可公开引用 | `internal struct` | 同上 |
+| `Connect(next)` | 接受任意 `FluxFormula` | 要求 `next` 为 Modifier | 右侧公式先调用 `.ToMultiplier()` 再传入 |
 
-### 弃用
+### 行为变更（非 API 签名）
 
-列出已弃用但仍可用的 API，注明计划移除版本。
+- `Raw()` / `ToBytes()`：链式公式自动合并为原子公式后返回，不再返回空/损坏数据。
+- `Connect` 语义澄清：左侧公式的 R1 输出流入右侧 Modifier 的 Bus(R1) 寄存器。传入非 Modifier 不再静默覆盖首操作数，改为显式抛出异常。
+
+### 版本兼容
+
+| FluxFormula | Unity |
+|-------------|-------|
+| 2.0 | 2021.3+ |
 
 ### 新增
 
-列出取代旧行为或填补缺口的新 API。
+- `Connect` 的 Modifier 语法更安全：`formula.Connect(modifier)` 明确表达"前者输出注入后者"的意图
+- 所有链路追踪 API 内部化后，公开 API 表面缩小 6 个方法，降低认知负担
 
 ---
 

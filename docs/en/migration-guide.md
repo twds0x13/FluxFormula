@@ -2,7 +2,7 @@
 
 This document tracks breaking changes between major FluxFormula versions and the steps required to migrate.
 
-The current latest version is 1.7.0. There are no known breaking changes at this time. The template below is prepared for future version iterations.
+The current latest version is 2.0.0.
 
 ---
 
@@ -24,25 +24,37 @@ No breaking changes.
 
 ## Migrating from 1.x to 2.0
 
-> Template section. Fill in when 2.0 is released.
-
 ### Overview
 
-Brief summary of the impact scope and core changes.
+2.0 moves the internal chain representation off the public API surface, unifies the external interface to a single form, and tightens `Connect` call constraints.
+
+Scope: code directly referencing `ChainLink`, `IsChained`, or `ChainLength` requires adjustment. Code using `Connect` to chain formulas must pass a Modifier as the right-hand argument.
 
 ### Breaking Changes
 
 | Change | 1.x Behavior | 2.0 Behavior | Migration |
 |--------|-------------|-------------|-----------|
-| Example | | | |
+| `IsChained` | `public bool` | `internal` | Remove external references. Consumers no longer see dual atomic/chain modes |
+| `ChainLength` | `public int` | `internal` | Same as above |
+| `GetChainLinks()` | `public` | `internal` | Same as above |
+| `ChainLink` struct | Publicly referenceable | `internal struct` | Same as above |
+| `Connect(next)` | Accepts any `FluxFormula` | Requires `next` to be a Modifier | Call `.ToMultiplier()` on the right-hand formula before passing it |
 
-### Deprecations
+### Behavioral Changes (Non-Signature)
 
-List deprecated but still functional APIs, with the planned removal version.
+- `Raw()` / `ToBytes()`: chained formulas are automatically merged into atomic form before returning, no longer returning empty or corrupt data.
+- `Connect` semantics clarified: the left formula's R1 output flows into the right Modifier's Bus(R1) register. Passing a non-Modifier no longer silently overwrites the first operand; an explicit exception is thrown instead.
+
+### Version Compatibility
+
+| FluxFormula | Unity |
+|-------------|-------|
+| 2.0 | 2021.3+ |
 
 ### Additions
 
-List new APIs that replace old behavior or fill gaps.
+- `Connect` Modifier syntax is safer: `formula.Connect(modifier)` clearly expresses "left output injects into right" intent
+- All chain-tracking APIs internalized; public API surface reduced by 6 methods, lowering cognitive overhead
 
 ---
 
