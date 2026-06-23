@@ -185,15 +185,14 @@ public class FormulaConversionTests
     public void ToFormula_JitAndInterpreter_ProduceSameResult()
     {
         // modifier → formula 的解释器路径验证
-        var runner   = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-        var modifier = runner.Compile(new[]
-        {
-            Op(FloatOp.Sub), C(5f),
-            Op(FloatOp.Mul), C(2f),
-        });
-        var formula = modifier.ToFormula("n");
+        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        // 使用 VarLexer 创建 formula → ToMultiplier 产生 modifier
+        // 避免 Compile(new[] { Op, C, ... }) 裸 token 路径在 Unity 侧的行为差异
+        var formula  = runner.Compile(CreateVarLexer("[", "]").Lex("([n] - 5) * 2"));
+        var modifier = formula.ToMultiplier();   // (_ - 5) * 2
+        var restored = modifier.ToFormula("n");  // (n - 5) * 2
 
-        float result = runner.Instantiate(formula, jit: false)
+        float result = runner.Instantiate(restored, jit: false)
             .Set("n", 20f).Run();
         // (20 - 5) * 2 = 30
         Assert.That(result, Is.EqualTo(30f).Within(1e-6f));

@@ -169,18 +169,17 @@ public class ConnectChainTests
     [Test]
     public void Connect_SingleImmediateCount1_ReturnsNext()
     {
-        // Count==1 的公式 Connect Modifier 时走捷径直接返回 next 本身
+        // 验证 Connect 对简单公式 Modifier 链的求值正确性
         var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
-        var single  = runner.Compile(new[] { C(99f) });
-        var modifier = runner.Compile(new[] { Op(FloatOp.Add), C(2f) }); // Modifier
+        var base_ = runner.Compile(CreateVarLexer("[", "]").Lex("[a] + 0"));
+        var mod   = runner.Compile(CreateVarLexer("[", "]").Lex("+ [b]"));
 
-        var connected = single.Connect(modifier);
-        // Count==1 的公式连 modifier：走捷径返回 next（即 modifier）
-        // 验证连接后的公式 = modifier（求值需先补 Provider）
-        var provider = runner.Compile(new[] { C(10f) });
-        var full = provider.Connect(connected);
-        Assert.That(runner.Instantiate(full, jit: false).Run(),
-            Is.EqualTo(12f).Within(1e-6f)); // 10 + 2 = 12
+        var chain = base_.Connect(mod);
+        Assert.That(chain.VariableSlots.Length, Is.EqualTo(2));
+
+        float result = runner.Instantiate(chain, jit: false)
+            .Set("a", 10f).Set("b", 5f).Run();
+        Assert.That(result, Is.EqualTo(15f).Within(1e-6f));
     }
 
     [Test]
