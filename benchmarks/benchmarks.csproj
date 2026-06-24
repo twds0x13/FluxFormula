@@ -15,6 +15,7 @@
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxDefinition.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxEvaluator.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxFormula.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxModifier.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxToken.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxAssembler.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxInjector.cs" />
