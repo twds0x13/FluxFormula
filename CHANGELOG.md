@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/twds0x13/FluxFormula/compare/v2.0.0...v2.1.0) (2026-06-24)
+
+
+### Features
+
+* add VFF encoder, BinaryBuilder interface, and make ChainLink public ([fe210c9](https://github.com/twds0x13/FluxFormula/commit/fe210c9be5b736e3b949d9985a88dfe9da966c40))
+
 # [2.0.0](https://github.com/twds0x13/FluxFormula/compare/v1.5.0...v2.0.0) (2026-06-23)
 
 
