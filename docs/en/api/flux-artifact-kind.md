@@ -21,7 +21,7 @@ public enum FluxArtifactKind : byte
 
 ## Usage
 
-Passed as the `kind` argument to `IFluxBinaryBuilder.Save()` so external savers can differentiate file types:
+Passed as the `kind` argument to `IFluxFileFormatter.Save()` so external savers can differentiate file types:
 
 ```csharp
 byte[] data = formula.ToBytes();
@@ -33,6 +33,6 @@ builder.Save(vffData, FluxArtifactKind.Virtual, "DamageChain.vff");
 
 ## See Also
 
-- [IFluxBinaryBuilder](./iflux-binary-builder) — persistence interface
+- [IFluxFileFormatter](./iflux-file-formatter) — persistence interface
 - [FluxFormula](./flux-formula) — formula bytecode serialization
 - [VffFormat](./vff-format) — VFF format serialization and parsing

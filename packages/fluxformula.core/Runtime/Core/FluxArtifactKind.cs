@@ -5,7 +5,7 @@ namespace FluxFormula.Core
     /// 映射到文件扩展名：<c>.ff</c>（<see cref="Formula"/>）和 <c>.vff</c>（<see cref="Virtual"/>）。
     /// </summary>
     /// <remarks>
-    /// 用于 <see cref="IFluxBinaryBuilder"/> 的保存接口，使外部 saver 能够区分文件类型。
+    /// 用于 <see cref="IFluxFileFormatter"/> 的读写接口，使外部 saver 能够区分文件类型。
     /// </remarks>
     public enum FluxArtifactKind : byte
     {

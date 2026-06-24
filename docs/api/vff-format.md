@@ -207,7 +207,7 @@ var links = new[]
 // 序列化为 VFF 字节数组
 byte[] vffData = VffFormat.ToBytes<float>(links, Array.Empty<VffOverride<float>>());
 
-// 保存为 .vff 文件（通过 IFluxBinaryBuilder）
+// 保存为 .vff 文件（通过 IFluxFileFormatter）
 builder.Save(vffData, FluxArtifactKind.Virtual, "AttackDefenseChain.vff");
 ```
 

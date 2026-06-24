@@ -1,34 +1,57 @@
 # API 总览
 
-## 类型关系图
+## 编译与执行管线
 
 ```mermaid
-graph TD
-    Source["string 表达式"] -->|"Lex()"| Lexer["FluxLexer<br/>词法分析"]
-    Lexer -->|"LexResult"| Assembler["FluxAssembler<br/>编译入口"]
-    Token["FluxToken<br/>词法单元"] -->|"Compile()"| Assembler
-    Assembler -->|"产出"| Formula["FluxFormula<br/>不可变字节码"]
-    Assembler -->|"Instantiate()"| Instance["FluxInstance<br/>流式执行器"]
-    Instance -->|"Set()/Run()"| Result["TData"]
-    Formula -->|"Connect()"| Formula2["FluxFormula"]
-    Formula -->|"ToBytes/FromBytes"| Bytes["byte[]"]
-    Formula -->|"CreateAsset"| Asset["FluxAsset<br/>ScriptableObject"]
+graph LR
+    Source["string 表达式"] --> Lexer["FluxLexer<br/>词法分析"]
+    Token["FluxToken"] -.-> Lexer
+    Lexer --> LR["LexResult"]
+    LR --> Assembler["FluxAssembler<br/>编译入口"]
+    Token -.-> Assembler
+    Assembler --> Formula["FluxFormula<br/>不可变字节码"]
+    Assembler --> Instance["FluxInstance<br/>ref struct 执行器"]
+    Formula --> Instance
+    Instance --> Result["TData"]
 
-    subgraph 执行路径
-        Instance -->|"JIT"| JITDelegate["CompiledFunc<br/>委托"]
-        Instance -->|"解释器"| Evaluator["FluxEvaluator<br/>stackalloc 指针循环"]
-    end
+    Assembler --> Compiler["FluxCompiler<br/>调车场算法"]
+    Compiler --> Instr["Instruction[]<br/>8字节字节码"]
+    Instr -.-> Formula
 
-    subgraph 编译器内部
-        Assembler --> Compiler["FluxCompiler<br/>调车场算法"]
-        Compiler --> Instruction["Instruction[]<br/>8字节字节码"]
-    end
+    Instance --> JIT["JIT 委托"]
+    Instance --> Interp["FluxEvaluator<br/>解释器"]
+    JIT --> Result
+    Interp --> Result
 
-    subgraph 用户定义
-        Def["IFluxJITDefinition<br/>运算符语义"] -.-> Assembler
-        Def -.-> Evaluator
-        Def -.-> JITDelegate
-    end
+    Def["IFluxJITDefinition<br/>运算符语义"] -.-> Assembler
+    Def -.-> Interp
+    Def -.-> JIT
+
+    Formula -->|"Connect()"| Chain["ChainLink[]"]
+```
+
+## 持久化与缓存
+
+```mermaid
+graph LR
+    F["FluxFormula"] -->|"ToBytes()"| FF[".ff 字节码"]
+    F -->|"GetChainLinks()"| Chain["ChainLink[]"]
+    Chain -->|"VffFormat.ToBytes()"| VFF[".vff 引用"]
+
+    FF --> Fmt["IFluxFileFormatter<br/>Save / Load"]
+    VFF --> Fmt
+    Fmt --> FileFmt["FileFluxFileFormatter<br/>System.IO 默认实现"]
+
+    F --> Hash["DualHash64"]
+    Hash --> Cache[("FormulaCache<br/>2048 槽")]
+
+    FF --> BB["FluxBlobBuilder<br/>批量构建"]
+    VFF --> BB
+    BB --> Blob[("FluxBlob<br/>pinned 内存")]
+    Blob --> Cache
+
+    F --> Asset["FluxAsset<br/>ScriptableObject"]
+    Asset --> Lib["FormulaLibrary<br/>资产加载"]
 ```
 
 ## Public 类型
@@ -63,7 +86,7 @@ graph TD
 | `BinaryFormat` | — | 小端序二进制读写原语 |
 | [VffFormat](./vff-format) | — | `.vff` 虚拟公式格式定义、编码与解析 |
 | [FluxArtifactKind](./flux-artifact-kind) | — | 二进制产物类型枚举（`.ff` / `.vff`） |
-| [IFluxBinaryBuilder](./iflux-binary-builder) | — | 最小持久化契约接口（外部保存器注入） |
+| [IFluxFileFormatter](./iflux-file-formatter) | — | 最小持久化契约接口（外部保存器注入） |
 | `FluxBlob` | — | Blob pinned 内存管理器（Initialize/Shutdown/VerifyIntegrity） |
 | `FluxBlobBuilder` | — | 离线构建管线（扫描 FluxAsset → 拼接 blob → 生成 C# 偏移表） |
 

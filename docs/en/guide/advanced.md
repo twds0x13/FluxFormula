@@ -144,8 +144,9 @@ if (chain.IsChained)
         links.ToArray(),
         Array.Empty<VffOverride<float>>());
 
-    // Save via IFluxBinaryBuilder (Unity: AssetDatabase; standalone: File.WriteAllBytes)
-    builder.Save(vffData, FluxArtifactKind.Virtual, "DamagePipeline.vff");
+    // Save via IFluxFileFormatter (default: FileFluxFileFormatter)
+    var formatter = new FileFluxFileFormatter();
+    formatter.Save(vffData, FluxArtifactKind.Virtual, "DamagePipeline");
 }
 
 // At runtime: load from .vff file or blob, resolve, execute

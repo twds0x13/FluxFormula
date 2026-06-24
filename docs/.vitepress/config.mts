@@ -48,7 +48,7 @@ export default withMermaid(
                 { text: "FluxConfig", link: "/api/flux-config" },
                 { text: "IFluxCacheProvider", link: "/api/iflux-cache-provider" },
                 { text: "FluxArtifactKind", link: "/api/flux-artifact-kind" },
-                { text: "IFluxBinaryBuilder", link: "/api/iflux-binary-builder" },
+                { text: "IFluxFileFormatter", link: "/api/iflux-file-formatter" },
               ],
             },
             {

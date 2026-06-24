@@ -1,34 +1,57 @@
 # API Overview
 
-## Type Relationship Diagram
+## Compilation & Execution Pipeline
 
 ```mermaid
-graph TD
-    Source["string expression"] -->|"Lex()"| Lexer["FluxLexer<br/>lexical analysis"]
-    Lexer -->|"LexResult"| Assembler["FluxAssembler<br/>compilation entry"]
-    Token["FluxToken<br/>lexical units"] -->|"Compile()"| Assembler
-    Assembler -->|"produces"| Formula["FluxFormula<br/>immutable bytecode"]
-    Assembler -->|"Instantiate()"| Instance["FluxInstance<br/>streaming executor"]
-    Instance -->|"Set()/Run()"| Result["TData"]
-    Formula -->|"Connect()"| Formula2["FluxFormula"]
-    Formula -->|"ToBytes/FromBytes"| Bytes["byte[]"]
-    Formula -->|"CreateAsset"| Asset["FluxAsset<br/>ScriptableObject"]
+graph LR
+    Source["string expression"] --> Lexer["FluxLexer<br/>lexical analysis"]
+    Token["FluxToken"] -.-> Lexer
+    Lexer --> LR["LexResult"]
+    LR --> Assembler["FluxAssembler<br/>compilation entry"]
+    Token -.-> Assembler
+    Assembler --> Formula["FluxFormula<br/>immutable bytecode"]
+    Assembler --> Instance["FluxInstance<br/>ref struct executor"]
+    Formula --> Instance
+    Instance --> Result["TData"]
 
-    subgraph Execution Paths
-        Instance -->|"JIT"| JITDelegate["CompiledFunc<br/>delegate"]
-        Instance -->|"Interpreter"| Evaluator["FluxEvaluator<br/>stackalloc pointer loop"]
-    end
+    Assembler --> Compiler["FluxCompiler<br/>shunting-yard"]
+    Compiler --> Instr["Instruction[]<br/>8-byte bytecode"]
+    Instr -.-> Formula
 
-    subgraph Compiler Internals
-        Assembler --> Compiler["FluxCompiler<br/>shunting-yard algorithm"]
-        Compiler --> Instruction["Instruction[]<br/>8-byte bytecode"]
-    end
+    Instance --> JIT["JIT delegate"]
+    Instance --> Interp["FluxEvaluator<br/>interpreter"]
+    JIT --> Result
+    Interp --> Result
 
-    subgraph User Definitions
-        Def["IFluxJITDefinition<br/>operator semantics"] -.-> Assembler
-        Def -.-> Evaluator
-        Def -.-> JITDelegate
-    end
+    Def["IFluxJITDefinition<br/>operator semantics"] -.-> Assembler
+    Def -.-> Interp
+    Def -.-> JIT
+
+    Formula -->|"Connect()"| Chain["ChainLink[]"]
+```
+
+## Persistence & Cache
+
+```mermaid
+graph LR
+    F["FluxFormula"] -->|"ToBytes()"| FF[".ff bytecode"]
+    F -->|"GetChainLinks()"| Chain["ChainLink[]"]
+    Chain -->|"VffFormat.ToBytes()"| VFF[".vff reference"]
+
+    FF --> Fmt["IFluxFileFormatter<br/>Save / Load"]
+    VFF --> Fmt
+    Fmt --> FileFmt["FileFluxFileFormatter<br/>System.IO default"]
+
+    F --> Hash["DualHash64"]
+    Hash --> Cache[("FormulaCache<br/>2048 slots")]
+
+    FF --> BB["FluxBlobBuilder<br/>batch build"]
+    VFF --> BB
+    BB --> Blob[("FluxBlob<br/>pinned memory")]
+    Blob --> Cache
+
+    F --> Asset["FluxAsset<br/>ScriptableObject"]
+    Asset --> Lib["FormulaLibrary<br/>asset loading"]
 ```
 
 ## Public Types
@@ -63,7 +86,7 @@ graph TD
 | `BinaryFormat` | — | Little-endian binary read/write primitives |
 | [VffFormat](./vff-format) | — | `.vff` virtual formula format definition, encoding, and resolution |
 | [FluxArtifactKind](./flux-artifact-kind) | — | Binary artifact type enum (`.ff` / `.vff`) |
-| [IFluxBinaryBuilder](./iflux-binary-builder) | — | Minimal persistence contract interface (external saver injection) |
+| [IFluxFileFormatter](./iflux-file-formatter) | — | Minimal persistence contract interface (external saver injection) |
 | `FluxBlob` | — | Blob pinned memory manager (Initialize/Shutdown/VerifyIntegrity) |
 | `FluxBlobBuilder` | — | Offline build pipeline (scan FluxAsset → concatenate blob → generate C# offset table) |
 

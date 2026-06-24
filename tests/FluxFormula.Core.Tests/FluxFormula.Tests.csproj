@@ -25,7 +25,7 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxCacheProvider.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/BinaryFormat.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxArtifactKind.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxBinaryBuilder.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxFileFormatter.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FormulaFormat.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Registers.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxConfig.cs" />

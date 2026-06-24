@@ -207,7 +207,7 @@ var links = new[]
 // Serialize to VFF byte array
 byte[] vffData = VffFormat.ToBytes<float>(links, Array.Empty<VffOverride<float>>());
 
-// Save as .vff file (via IFluxBinaryBuilder)
+// Save as .vff file (via IFluxFileFormatter)
 builder.Save(vffData, FluxArtifactKind.Virtual, "AttackDefenseChain.vff");
 ```
 

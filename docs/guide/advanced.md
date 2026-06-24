@@ -144,8 +144,9 @@ if (chain.IsChained)
         links.ToArray(),
         Array.Empty<VffOverride<float>>());
 
-    // 通过 IFluxBinaryBuilder 保存（Unity: AssetDatabase；独立应用: File.WriteAllBytes）
-    builder.Save(vffData, FluxArtifactKind.Virtual, "DamagePipeline.vff");
+    // 通过 IFluxFileFormatter 保存（默认实现: FileFluxFileFormatter）
+    var formatter = new FileFluxFileFormatter();
+    formatter.Save(vffData, FluxArtifactKind.Virtual, "DamagePipeline");
 }
 
 // 运行时：从 .vff 文件或 blob 加载 → 解析 → 执行

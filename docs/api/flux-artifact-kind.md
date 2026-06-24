@@ -21,7 +21,7 @@ public enum FluxArtifactKind : byte
 
 ## 使用
 
-用于 `IFluxBinaryBuilder.Save()` 的 `kind` 参数，使外部保存器能区分文件类型：
+用于 `IFluxFileFormatter.Save()` 的 `kind` 参数，使外部保存器能区分文件类型：
 
 ```csharp
 byte[] data = formula.ToBytes();
@@ -33,6 +33,6 @@ builder.Save(vffData, FluxArtifactKind.Virtual, "DamageChain.vff");
 
 ## 参见
 
-- [IFluxBinaryBuilder](./iflux-binary-builder) — 持久化接口
+- [IFluxFileFormatter](./iflux-file-formatter) — 持久化接口
 - [FluxFormula](./flux-formula) — 公式字节码序列化
 - [VffFormat](./vff-format) — VFF 格式序列化与解析
