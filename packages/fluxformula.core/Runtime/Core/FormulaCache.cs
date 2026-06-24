@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula.Tests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula.Editor")]
 
 namespace FluxFormula.Core
 {
