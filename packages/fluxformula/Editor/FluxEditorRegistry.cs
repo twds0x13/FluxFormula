@@ -85,7 +85,7 @@ internal static class FluxEditorRegistry
             return knownType;
 
         // 扫描所有程序集中的 FluxAssetEditor 子类
-        var baseType = typeof(FluxAssetEditor<,,>);
+        var baseType = typeof(FluxAssetEditor<,>);
         foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
         {
             Type[] types;
@@ -101,7 +101,7 @@ internal static class FluxEditorRegistry
                 var baseGeneric = GetGenericBaseType(baseType, t);
                 if (baseGeneric == null) continue;
 
-                var tDef = baseGeneric.GetGenericArguments()[2]; // TData, TOper, TDef
+                var tDef = baseGeneric.GetGenericArguments()[1]; // TData, TDef
                 if (tDef.AssemblyQualifiedName == typeId)
                 {
                     _windowTypes[typeId] = t;

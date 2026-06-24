@@ -13,14 +13,13 @@ namespace FluxFormula.Core
         /// UniTask 版本的 LoadAsync。
         /// 内部委托到 ValueTask 版本后转为 UniTask。
         /// </summary>
-        public static async UniTask<FluxFormula<TData, TOper>> LoadAsyncUniTask<TData, TOper, TDef>(
-            this FormulaLibrary<TData, TOper, TDef> library,
+        public static async UniTask<FluxFormula<TData, TDef>> LoadAsyncUniTask<TData, TDef>(
+            this FormulaLibrary<TData, TDef> library,
             string key)
             where TData : unmanaged
-            where TOper : unmanaged, Enum
-            where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
-            return await library.LoadAsync<TData, TOper, TDef>(key);
+            return await library.LoadAsync<TData, TDef>(key);
         }
     }
 }

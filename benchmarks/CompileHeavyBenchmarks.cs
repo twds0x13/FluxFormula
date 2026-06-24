@@ -27,26 +27,26 @@ namespace FluxFormula.Benchmarks
         // ── Shunting-yard 编译（无 JIT）──
 
         [Benchmark(Baseline = true)]
-        public FluxFormula<float, FloatOp> Simple_CompileOnly()
+        public FluxFormula<float, FloatMathDef> Simple_CompileOnly()
         {
             var tokens = CreateMathLexer().Lex("1 + 2 * 3").Tokens;
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
             return a.Compile(tokens);
         }
 
         [Benchmark]
-        public FluxFormula<float, FloatOp> Complex_CompileOnly()
+        public FluxFormula<float, FloatMathDef> Complex_CompileOnly()
         {
             var tokens = CreateMathLexer().Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3 - 7 + 2 * (4+1)").Tokens;
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
             return a.Compile(tokens);
         }
 
         [Benchmark]
-        public FluxFormula<float, FloatOp> WithVars_CompileOnly()
+        public FluxFormula<float, FloatMathDef> WithVars_CompileOnly()
         {
             var lexResult = CreateVarLexer("[", "]").Lex("[a] * [b] + [c] / ([d] - [e])");
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
             return a.Compile(lexResult);
         }
 
@@ -56,9 +56,9 @@ namespace FluxFormula.Benchmarks
         public float Simple_CompileAndJit()
         {
             var tokens = CreateMathLexer().Lex("1 + 2 * 3").Tokens;
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
             var f = a.Compile(tokens);
-            FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(f.Raw(), _def, out var p);
+            FluxJITCompiler<float, FloatMathDef>.Compile(f.Raw(), _def, out var p);
             var inst = a.Instantiate(f, jit: true);
             return inst.Run();
         }
@@ -67,7 +67,7 @@ namespace FluxFormula.Benchmarks
         public float Complex_CompileAndJit()
         {
             var tokens = CreateMathLexer().Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3 - 7 + 2 * (4+1)").Tokens;
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
             var f = a.Compile(tokens);
             var inst = a.Instantiate(f, jit: true);
             return inst.Run();
@@ -77,7 +77,7 @@ namespace FluxFormula.Benchmarks
         public float WithVars_CompileAndJit()
         {
             var lexResult = CreateVarLexer("[", "]").Lex("[a] * [b] + [c] / ([d] - [e])");
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
             var f = a.Compile(lexResult);
             var inst = a.Instantiate(f, jit: true);
             return inst.Run();
@@ -107,7 +107,7 @@ namespace FluxFormula.Benchmarks
         };
 
         private FloatMathDef _def;
-        private FluxLexer<float, FloatOp> _lexer;
+        private FluxLexer<float> _lexer;
 
         [GlobalSetup]
         public void Setup()
@@ -117,13 +117,13 @@ namespace FluxFormula.Benchmarks
         }
 
         [Benchmark]
-        public FluxFormula<float, FloatOp>[] Compile10_ShuntingYard()
+        public FluxFormula<float, FloatMathDef>[] Compile10_ShuntingYard()
         {
-            var results = new FluxFormula<float, FloatOp>[10];
+            var results = new FluxFormula<float, FloatMathDef>[10];
             for (int i = 0; i < 10; i++)
             {
                 var lexResult = _lexer.Lex(Formulas[i]);
-                var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+                var a = new FluxAssembler<float, FloatMathDef>(_def);
                 results[i] = a.Compile(lexResult);
             }
             return results;
@@ -136,7 +136,7 @@ namespace FluxFormula.Benchmarks
             for (int i = 0; i < 10; i++)
             {
                 var lexResult = _lexer.Lex(Formulas[i]);
-                var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+                var a = new FluxAssembler<float, FloatMathDef>(_def);
                 var f = a.Compile(lexResult);
                 results[i] = a.Instantiate(f, jit: true).Run();
             }

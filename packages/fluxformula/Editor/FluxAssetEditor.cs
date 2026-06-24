@@ -10,17 +10,16 @@ using UnityEngine;
 /// 用户在项目中创建一行字的子类即可使用。
 ///
 /// <code>
-/// public class MyFormulaEditor : FluxAssetEditor&lt;float, FloatOp, FloatMathDef&gt;
+/// public class MyFormulaEditor : FluxAssetEditor&lt;float, FloatMathDef&gt;
 /// {
 ///     [MenuItem("Window/My Game/Formula Editor")]
 ///     public static void Show() => GetWindow&lt;MyFormulaEditor&gt;("Formula Editor").Show();
 /// }
 /// </code>
 /// </summary>
-public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
+public class FluxAssetEditor<TData, TDef> : EditorWindow
     where TData : unmanaged
-    where TOper : unmanaged, Enum
-    where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+    where TDef : unmanaged, IFluxJITDefinition<TData>
 {
     // ═══════════════════════════════════════════════
     // 窗口注册（通过 FluxEditorRegistry 非泛型类）
@@ -37,7 +36,7 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
     private string                    _currentAssetPath;                // 已加载资产的路径，null = 新公式
     private Vector2                   _scroll;
     private GUIStyle                  _textStyle;
-    private TOper[]                   _allTOpers;                      // 缓存 Enum.GetValues
+    private byte[]                    _allOpers;                        // 扫描 GetOperatorName 得到的有效操作码
     private VariablePatternRule[]     _cachedPatterns    = Array.Empty<VariablePatternRule>();
     private int                       _patternsHash      = -1;
 
@@ -47,16 +46,16 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
 
     // 运算符
     private List<string>              _opSymbols         = new();
-    private List<TOper>               _opOpers           = new();
+    private List<byte>                _opOpers           = new();
 
     // 括号
     private List<string>              _brOpens           = new();
     private List<string>              _brCloses          = new();
-    private List<TOper>               _brLefts           = new();
-    private List<TOper>               _brRights          = new();
+    private List<byte>                _brLefts           = new();
+    private List<byte>                _brRights          = new();
 
     // 隐式运算符
-    private List<TOper>               _implicitOpers     = new();
+    private List<byte>                _implicitOpers     = new();
 
     // 字面量
     private string                    _literalPattern    = @"\d+(\.\d+)?f?";
@@ -86,7 +85,7 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
     // ═══════════════════════════════════════════════
 
     /// <summary>在基类构建完默认 LexerConfig 后调用，子类可追加/修改。</summary>
-    protected virtual void ConfigureLexerDefaults(LexerConfig<TData, TOper> config) { }
+    protected virtual void ConfigureLexerDefaults(LexerConfig<TData> config) { }
 
     // ═══════════════════════════════════════════════
 
@@ -94,7 +93,7 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
     {
         RegisterWindow();
         minSize = new Vector2(720, 480);
-        _allTOpers = (TOper[])Enum.GetValues(typeof(TOper));
+        ScanOperators();
         LoadState();
         _patternsHash = -1;
         CreateEditState();
@@ -142,6 +141,37 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         _editStateSO.Update();
         _editTextProp.stringValue = text ?? "";
         _editStateSO.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    /// <summary>扫描 TDef 中实现了 GetOperatorName 的有效操作码</summary>
+    private void ScanOperators()
+    {
+        var def = default(TDef);
+        var list = new List<byte>();
+        for (int b = 0; b < 256; b++)
+        {
+            if (def.GetOperatorName((byte)b) != null)
+                list.Add((byte)b);
+        }
+        _allOpers = list.ToArray();
+    }
+
+    /// <summary>操作码下拉选择器（若 TDef 未实现 GetOperatorName 则退化为 IntField）</summary>
+    private byte DrawOpPopup(byte current, params GUILayoutOption[] options)
+    {
+        if (_allOpers.Length == 0)
+            return (byte)EditorGUILayout.IntField((int)current, options);
+
+        var def = default(TDef);
+        int index = Array.IndexOf(_allOpers, current);
+        if (index < 0) index = 0;
+
+        var names = new string[_allOpers.Length];
+        for (int i = 0; i < _allOpers.Length; i++)
+            names[i] = def.GetOperatorName(_allOpers[i]) ?? _allOpers[i].ToString();
+
+        int newIndex = EditorGUILayout.Popup(index, names, options);
+        return _allOpers[newIndex];
     }
 
     private void OnGUI()
@@ -339,7 +369,7 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
             EditorGUILayout.LabelField("Symbol:", GUILayout.Width(100));
             _opSymbols[i] = EditorGUILayout.TextField(_opSymbols[i], GUILayout.Width(100));
             EditorGUILayout.LabelField("Operator:", GUILayout.Width(100));
-            _opOpers[i] = (TOper)EditorGUILayout.EnumPopup(_opOpers[i], GUILayout.Width(100));
+            _opOpers[i] = DrawOpPopup(_opOpers[i], GUILayout.Width(100));
 
             if (GUILayout.Button("✕", GUILayout.Width(25)))
                 removeAt = i;
@@ -356,7 +386,7 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         if (GUILayout.Button("+ Add Operator", GUILayout.Height(20)))
         {
             _opSymbols.Add("");
-            _opOpers.Add(default);
+            _opOpers.Add(0);
         }
 
         EditorGUI.indentLevel--;
@@ -384,12 +414,12 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
             EditorGUILayout.LabelField("Open:", GUILayout.Width(100));
             _brOpens[i] = EditorGUILayout.TextField(_brOpens[i], GUILayout.Width(100));
             EditorGUILayout.LabelField("→ LeftOp:", GUILayout.Width(100));
-            _brLefts[i] = (TOper)EditorGUILayout.EnumPopup(_brLefts[i], GUILayout.Width(100));
+            _brLefts[i] = DrawOpPopup(_brLefts[i], GUILayout.Width(100));
 
             EditorGUILayout.LabelField("Close:", GUILayout.Width(100));
             _brCloses[i] = EditorGUILayout.TextField(_brCloses[i], GUILayout.Width(100));
             EditorGUILayout.LabelField("→ RightOp:", GUILayout.Width(100));
-            _brRights[i] = (TOper)EditorGUILayout.EnumPopup(_brRights[i], GUILayout.Width(100));
+            _brRights[i] = DrawOpPopup(_brRights[i], GUILayout.Width(100));
 
             if (GUILayout.Button("✕", GUILayout.Width(25)))
                 removeAt = i;
@@ -409,8 +439,8 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         {
             _brOpens.Add("");
             _brCloses.Add("");
-            _brLefts.Add(default);
-            _brRights.Add(default);
+            _brLefts.Add(0);
+            _brRights.Add(0);
         }
 
         EditorGUI.indentLevel--;
@@ -423,9 +453,11 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
 
     private void DrawImplicitOperators()
     {
+        var def = default(TDef);
+
         _showImplicit = EditorGUILayout.BeginFoldoutHeaderGroup(_showImplicit,
             _implicitOpers.Count > 0
-                ? $"Implicit Operators ({string.Join(", ", _implicitOpers)})"
+                ? $"Implicit Operators ({string.Join(", ", _implicitOpers.Select(b => def.GetOperatorName(b) ?? b.ToString()))})"
                 : "Implicit Operators (none)");
 
         if (!_showImplicit) { EditorGUILayout.EndFoldoutHeaderGroup(); return; }
@@ -440,10 +472,11 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         EditorGUILayout.LabelField("Check to auto-insert at juxtaposition sites:", EditorStyles.miniLabel);
 
         EditorGUI.indentLevel++;
-        foreach (var op in _allTOpers)
+        foreach (var op in _allOpers)
         {
             bool current = _implicitOpers.Contains(op);
-            bool toggle = EditorGUILayout.Toggle(op.ToString(), current);
+            string name = def.GetOperatorName(op) ?? op.ToString();
+            bool toggle = EditorGUILayout.Toggle(name, current);
             if (toggle && !current) _implicitOpers.Add(op);
             if (!toggle && current) _implicitOpers.Remove(op);
         }
@@ -471,7 +504,7 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.HelpBox(
-            $"Current type: TData = {typeof(TData).Name}, TOper = {typeof(TOper).Name}\n" +
+            $"Current type: TData = {typeof(TData).Name}, TDef = {typeof(TDef).Name}\n" +
             $"Default literal pattern matches integers and decimals (e.g., 1, 2.5, 3f).",
             MessageType.None);
 
@@ -541,7 +574,7 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
     }
 
     /// <summary>在运算符两侧添加空格，提升公式可读性。</summary>
-    private void FormatFormulaText(LexerConfig<TData, TOper> config)
+    private void FormatFormulaText(LexerConfig<TData> config)
     {
         // 收集所有已知符号：运算符 + 括号开/闭（全部需要空格隔离）
         var symbols = new HashSet<string>();
@@ -636,7 +669,7 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         {
             var config = BuildLexerConfig();
             FormatFormulaText(config);
-            var lexer  = new FluxLexer<TData, TOper>(config);
+            var lexer  = new FluxLexer<TData>(config);
             var lr     = lexer.Lex(_formulaText.Trim());
 
             if (lr.Tokens.Length == 0)
@@ -647,11 +680,11 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
             }
 
             var def      = default(TDef);
-            var runner   = new FluxAssembler<TData, TOper, TDef>(def);
+            var runner   = new FluxAssembler<TData, TDef>(def);
             var formula  = runner.Compile(lr);
 
             var varPatterns = GetCachedPatterns();
-            var lib   = FormulaLibrary.Create<TData, TOper, TDef>();
+            var lib   = FormulaLibrary.Create<TData, TDef>();
             var asset = lib.CreateAsset(formula, _formulaText.Trim(), varPatterns);
 
             // Save As 需要文件对话框
@@ -722,9 +755,9 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
     // LexerConfig 构建
     // ═══════════════════════════════════════════════
 
-    private LexerConfig<TData, TOper> BuildLexerConfig()
+    private LexerConfig<TData> BuildLexerConfig()
     {
-        var config = new LexerConfig<TData, TOper>
+        var config = new LexerConfig<TData>
         {
             LiteralPattern = _literalPattern,
             LiteralOper    = GetLiteralOper(),
@@ -732,10 +765,10 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         };
 
         for (int i = 0; i < _opSymbols.Count; i++)
-            config.Operators.Add(new OperatorRule<TOper>(_opSymbols[i], _opOpers[i]));
+            config.Operators.Add(new OperatorRule(_opSymbols[i], _opOpers[i]));
 
         for (int i = 0; i < _brOpens.Count; i++)
-            config.Brackets.Add(new BracketRule<TOper>(_brOpens[i], _brCloses[i], _brLefts[i], _brRights[i]));
+            config.Brackets.Add(new BracketRule(_brOpens[i], _brCloses[i], _brLefts[i], _brRights[i]));
 
         for (int i = 0; i < _implicitOpers.Count; i++)
             config.ImplicitOperators.Add(_implicitOpers[i]);
@@ -748,17 +781,16 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         return config;
     }
 
-    private TOper GetLiteralOper()
+    private byte GetLiteralOper()
     {
-        // 启发式：查找 TDef 中 Kind 为 Immediate 的 TOper 值
+        // 扫描所有有效操作码，查找 Kind 为 Immediate 的
         var def = default(TDef);
-        foreach (TOper op in Enum.GetValues(typeof(TOper)))
+        foreach (byte b in _allOpers)
         {
-            byte b = (byte)(object)op;
             if (def.GetKind(b) == OpType.Immediate)
-                return op;
+                return b;
         }
-        return default;
+        return 0;
     }
 
     private Func<string, TData> GetLiteralParser()
@@ -825,12 +857,12 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         SaveStringList("varPrefixes",   _varPrefixes);
         SaveStringList("varSuffixes",   _varSuffixes);
         SaveStringList("opSymbols",     _opSymbols);
-        SaveTOperList("opOpers",        _opOpers);
+        SaveOpList("opOpers",           _opOpers);
         SaveStringList("brOpens",       _brOpens);
         SaveStringList("brCloses",      _brCloses);
-        SaveTOperList("brLefts",        _brLefts);
-        SaveTOperList("brRights",       _brRights);
-        SaveTOperList("implicitOpers",  _implicitOpers);
+        SaveOpList("brLefts",           _brLefts);
+        SaveOpList("brRights",          _brRights);
+        SaveOpList("implicitOpers",     _implicitOpers);
         EditorPrefs.SetString(PrefKey("literalPattern"), _literalPattern);
     }
 
@@ -840,12 +872,12 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         _varPrefixes     = LoadStringList("varPrefixes");
         _varSuffixes     = LoadStringList("varSuffixes");
         _opSymbols       = LoadStringList("opSymbols");
-        _opOpers         = LoadTOperList("opOpers");
+        _opOpers         = LoadOpList("opOpers");
         _brOpens         = LoadStringList("brOpens");
         _brCloses        = LoadStringList("brCloses");
-        _brLefts         = LoadTOperList("brLefts");
-        _brRights        = LoadTOperList("brRights");
-        _implicitOpers   = LoadTOperList("implicitOpers");
+        _brLefts         = LoadOpList("brLefts");
+        _brRights        = LoadOpList("brRights");
+        _implicitOpers   = LoadOpList("implicitOpers");
         _literalPattern  = EditorPrefs.GetString(PrefKey("literalPattern"), @"\d+(\.\d+)?f?");
     }
 
@@ -862,23 +894,23 @@ public class FluxAssetEditor<TData, TOper, TDef> : EditorWindow
         EditorPrefs.SetString(PrefKey(key), string.Join("\n", list));
     }
 
-    private List<TOper> LoadTOperList(string key)
+    private List<byte> LoadOpList(string key)
     {
         var raw = EditorPrefs.GetString(PrefKey(key), "");
-        if (string.IsNullOrEmpty(raw)) return new List<TOper>();
-        var result = new List<TOper>();
+        if (string.IsNullOrEmpty(raw)) return new List<byte>();
+        var result = new List<byte>();
         foreach (var s in raw.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
         {
-            if (Enum.TryParse<TOper>(s, out var v))
+            if (byte.TryParse(s, out var v))
                 result.Add(v);
         }
         return result;
     }
 
-    private void SaveTOperList(string key, List<TOper> list)
+    private void SaveOpList(string key, List<byte> list)
     {
         EditorPrefs.SetString(PrefKey(key),
-            string.Join("\n", list.Select(o => o.ToString())));
+            string.Join("\n", list.Select(b => b.ToString())));
     }
 }
 

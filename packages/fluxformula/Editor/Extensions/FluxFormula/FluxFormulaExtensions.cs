@@ -4,9 +4,9 @@ using System.Text;
 
 public static class FluxFormulaExtensions
 {
-    public static void Dump<TData, TOper>(this FluxFormula<TData, TOper> formula)
+    public static void Dump<TData, TDef>(this FluxFormula<TData, TDef> formula)
         where TData : unmanaged
-        where TOper : unmanaged, Enum
+        where TDef : unmanaged, IFluxJITDefinition<TData>
     {
         var insts = formula.Raw();
         UnityEngine.Debug.Log($"--- Formula Dump ({formula.Type}) ---");

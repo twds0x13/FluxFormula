@@ -134,6 +134,8 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float>
             return (byte)FloatOp.Neg;
         return 0;
     }
+
+    public string GetOperatorName(byte op) => ((FloatOp)op).ToString();
 }
 
 // ============================================================

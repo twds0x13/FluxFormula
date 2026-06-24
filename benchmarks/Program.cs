@@ -31,9 +31,9 @@ namespace FluxFormula.Benchmarks
     [MemoryDiagnoser]
     public class LexerBenchmarks
     {
-        private FluxLexer<float, FloatOp> _mathLexer;
-        private FluxLexer<float, FloatOp> _varLexer;
-        private FluxLexer<float, FloatOp> _implicitMulLexer;
+        private FluxLexer<float> _mathLexer;
+        private FluxLexer<float> _varLexer;
+        private FluxLexer<float> _implicitMulLexer;
 
         [GlobalSetup]
         public void Setup()
@@ -58,9 +58,9 @@ namespace FluxFormula.Benchmarks
     [MemoryDiagnoser]
     public class CompileBenchmarks
     {
-        private FluxToken<float, FloatOp>[] _simple;
-        private FluxToken<float, FloatOp>[] _complex;
-        private LexResult<float, FloatOp> _withVars;
+        private FluxToken<float>[] _simple;
+        private FluxToken<float>[] _complex;
+        private LexResult<float> _withVars;
         private FloatMathDef _def;
 
         [GlobalSetup]
@@ -73,23 +73,23 @@ namespace FluxFormula.Benchmarks
         }
 
         [Benchmark]
-        public FluxFormula<float, FloatOp> Simple()
+        public FluxFormula<float, FloatMathDef> Simple()
         {
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
             return a.Compile(_simple);
         }
 
         [Benchmark]
-        public FluxFormula<float, FloatOp> Complex()
+        public FluxFormula<float, FloatMathDef> Complex()
         {
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
             return a.Compile(_complex);
         }
 
         [Benchmark]
-        public FluxFormula<float, FloatOp> WithVariables()
+        public FluxFormula<float, FloatMathDef> WithVariables()
         {
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
             return a.Compile(_withVars);
         }
     }
@@ -112,7 +112,7 @@ namespace FluxFormula.Benchmarks
         public void Setup()
         {
             _def = Def;
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
 
             // 编译 + 实例化 + 注入 → 全部在 Setup 中完成
             var fSimple  = a.Compile(CreateMathLexer().Lex("1 + 2 * 3").Tokens);
@@ -131,14 +131,14 @@ namespace FluxFormula.Benchmarks
         [Benchmark(Baseline = true)]
         public float Simple()
         {
-            var eval = new FluxEvaluator<float, FloatOp, FloatMathDef>(_def);
+            var eval = new FluxEvaluator<float, FloatMathDef>(_def);
             return eval.Compute(_simpleBuf.AsSpan(0, _simpleCount));
         }
 
         [Benchmark]
         public float Complex()
         {
-            var eval = new FluxEvaluator<float, FloatOp, FloatMathDef>(_def);
+            var eval = new FluxEvaluator<float, FloatMathDef>(_def);
             return eval.Compute(_complexBuf.AsSpan(0, _complexCount));
         }
     }
@@ -151,22 +151,22 @@ namespace FluxFormula.Benchmarks
     [MemoryDiagnoser]
     public class JitBenchmarks
     {
-        private FluxJITCompiler<float, FloatOp, FloatMathDef>.CompiledFunc _jitSimple;
-        private FluxJITCompiler<float, FloatOp, FloatMathDef>.CompiledFunc _jitComplex;
+        private FluxJITCompiler<float, FloatMathDef>.CompiledFunc _jitSimple;
+        private FluxJITCompiler<float, FloatMathDef>.CompiledFunc _jitComplex;
         private Instruction[] _simplePayload;
         private Instruction[] _complexPayload;
 
         [GlobalSetup]
         public void Setup()
         {
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+            var a = new FluxAssembler<float, FloatMathDef>(Def);
 
             var fSimple  = a.Compile(CreateMathLexer().Lex("1 + 2 * 3").Tokens);
             var fComplex = a.Compile(CreateMathLexer().Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").Tokens);
 
-            _jitSimple  = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+            _jitSimple  = FluxJITCompiler<float, FloatMathDef>.Compile(
                 fSimple.Raw(), Def, out _simplePayload, pruneRegisters: true);
-            _jitComplex = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+            _jitComplex = FluxJITCompiler<float, FloatMathDef>.Compile(
                 fComplex.Raw(), Def, out _complexPayload, pruneRegisters: true);
         }
 
@@ -187,10 +187,10 @@ namespace FluxFormula.Benchmarks
     public class InjectionBenchmarks
     {
         private FloatMathDef _def;
-        private FluxFormula<float, FloatOp> _formula;
+        private FluxFormula<float, FloatMathDef> _formula;
 
         // JIT 预编译缓存
-        private FluxJITCompiler<float, FloatOp, FloatMathDef>.CompiledFunc _jitFunc;
+        private FluxJITCompiler<float, FloatMathDef>.CompiledFunc _jitFunc;
         private Instruction[] _jitPayloadTemplate;
         private int _dataSlots;
 
@@ -198,11 +198,11 @@ namespace FluxFormula.Benchmarks
         public void Setup()
         {
             _def     = Def;
-            var a    = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a    = new FluxAssembler<float, FloatMathDef>(_def);
             _formula = a.Compile(CreateVarLexer("[", "]").Lex("[a] + [b] * [c]"));
 
             // JIT 编译只发生一次
-            _jitFunc = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+            _jitFunc = FluxJITCompiler<float, FloatMathDef>.Compile(
                 _formula.Raw(), _def, out _jitPayloadTemplate, pruneRegisters: true);
 
             unsafe { _dataSlots = (sizeof(float) + sizeof(Instruction) - 1) / sizeof(Instruction); }
@@ -213,7 +213,7 @@ namespace FluxFormula.Benchmarks
         [Benchmark(Baseline = true)]
         public float Interp_SetByIndex()
         {
-            var a    = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a    = new FluxAssembler<float, FloatMathDef>(_def);
             var inst = a.Instantiate(_formula, jit: false);
             return inst.SetIndex(0, 10f).SetIndex(1, 30f).SetIndex(2, 2f).Run();
         }
@@ -221,7 +221,7 @@ namespace FluxFormula.Benchmarks
         [Benchmark]
         public float Interp_SetByName()
         {
-            var a    = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a    = new FluxAssembler<float, FloatMathDef>(_def);
             var inst = a.Instantiate(_formula, jit: false);
             return inst.Set("a", 10f).Set("b", 30f).Set("c", 2f).Run();
         }
@@ -262,15 +262,15 @@ namespace FluxFormula.Benchmarks
     public class CacheBenchmarks
     {
         private FloatMathDef _def;
-        private FluxFormula<float, FloatOp> _fSimple;
-        private FluxFormula<float, FloatOp> _fComplex;
-        private FluxFormula<float, FloatOp> _fChain;
+        private FluxFormula<float, FloatMathDef> _fSimple;
+        private FluxFormula<float, FloatMathDef> _fComplex;
+        private FluxFormula<float, FloatMathDef> _fChain;
 
         [GlobalSetup]
         public void Setup()
         {
             _def = Def;
-            var a = new FluxAssembler<float, FloatOp, FloatMathDef>(_def);
+            var a = new FluxAssembler<float, FloatMathDef>(_def);
             _fSimple  = a.Compile(CreateMathLexer().Lex("1 + 2 * 3").Tokens);
             _fComplex = a.Compile(CreateMathLexer().Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").Tokens);
 
@@ -280,7 +280,7 @@ namespace FluxFormula.Benchmarks
             _fChain  = fA.Connect(fB);
         }
 
-        private FluxAssembler<float, FloatOp, FloatMathDef> A() => new(_def);
+        private FluxAssembler<float, FloatMathDef> A() => new(_def);
 
         // ── JIT 冷启动：首次编译 + 缓存写入 + 求值 ──
 

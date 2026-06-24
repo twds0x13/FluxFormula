@@ -12,7 +12,7 @@ public class LexerTests
     {
         var tokens = CreateMathLexer().Lex("42f").Tokens;
         Assert.That(tokens.Length, Is.EqualTo(1));
-        Assert.That(tokens[0].Oper, Is.EqualTo(FloatOp.Const));
+        Assert.That((FloatOp)tokens[0].Oper, Is.EqualTo(FloatOp.Const));
         Assert.That(tokens[0].Data, Is.EqualTo(42f).Within(1e-6f));
     }
 
@@ -21,9 +21,9 @@ public class LexerTests
     {
         var tokens = CreateMathLexer().Lex("1f + 2f").Tokens;
         Assert.That(tokens.Length, Is.EqualTo(3));
-        Assert.That(tokens[0].Oper, Is.EqualTo(FloatOp.Const));
-        Assert.That(tokens[1].Oper, Is.EqualTo(FloatOp.Add));
-        Assert.That(tokens[2].Oper, Is.EqualTo(FloatOp.Const));
+        Assert.That((FloatOp)tokens[0].Oper, Is.EqualTo(FloatOp.Const));
+        Assert.That((FloatOp)tokens[1].Oper, Is.EqualTo(FloatOp.Add));
+        Assert.That((FloatOp)tokens[2].Oper, Is.EqualTo(FloatOp.Const));
     }
 
     [Test]
@@ -31,9 +31,9 @@ public class LexerTests
     {
         var tokens = CreateMathLexer().Lex("(1 + 2) * 3").Tokens;
         Assert.That(tokens.Length, Is.EqualTo(7));
-        Assert.That(tokens[0].Oper, Is.EqualTo(FloatOp.LParen));
-        Assert.That(tokens[4].Oper, Is.EqualTo(FloatOp.RParen));
-        Assert.That(tokens[5].Oper, Is.EqualTo(FloatOp.Mul));
+        Assert.That((FloatOp)tokens[0].Oper, Is.EqualTo(FloatOp.LParen));
+        Assert.That((FloatOp)tokens[4].Oper, Is.EqualTo(FloatOp.RParen));
+        Assert.That((FloatOp)tokens[5].Oper, Is.EqualTo(FloatOp.Mul));
     }
 
     [Test]
@@ -304,7 +304,7 @@ public class LexerTests
         {
             LiteralPattern = @"\d+(\.\d+)?f?",
             LiteralParser  = s => float.Parse(s.TrimEnd('f')),
-            LiteralOper = (byte)(byte)FloatOp.Const,
+            LiteralOper = (byte)FloatOp.Const,
             Operators =
             {
                 new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
@@ -314,7 +314,7 @@ public class LexerTests
             {
                 new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen),
             },
-            ImplicitOperators = { (byte)(byte)FloatOp.Mul, (byte)FloatOp.Add },
+            ImplicitOperators = { (byte)FloatOp.Mul, (byte)FloatOp.Add },
         });
 
         Assert.That(
@@ -333,7 +333,7 @@ public class LexerTests
         {
             LiteralPattern = @"\d+(\.\d+)?f?",
             LiteralParser  = s => float.Parse(s.TrimEnd('f')),
-            LiteralOper = (byte)(byte)FloatOp.Const,
+            LiteralOper = (byte)FloatOp.Const,
             Operators =
             {
                 new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
@@ -369,17 +369,17 @@ public class LexerTests
         var result = lexer.Lex("select(1, 2, 3)");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(8));
-        Assert.That(result.Tokens[0].Oper, Is.EqualTo(FloatOp.Select));
-        Assert.That(result.Tokens[1].Oper, Is.EqualTo(FloatOp.LParen));
-        Assert.That(result.Tokens[2].Oper, Is.EqualTo(FloatOp.Const));
+        Assert.That((FloatOp)result.Tokens[0].Oper, Is.EqualTo(FloatOp.Select));
+        Assert.That((FloatOp)result.Tokens[1].Oper, Is.EqualTo(FloatOp.LParen));
+        Assert.That((FloatOp)result.Tokens[2].Oper, Is.EqualTo(FloatOp.Const));
         Assert.That(result.Tokens[2].Data, Is.EqualTo(1f).Within(1e-6f));
-        Assert.That(result.Tokens[3].Oper, Is.EqualTo(FloatOp.Comma));
-        Assert.That(result.Tokens[4].Oper, Is.EqualTo(FloatOp.Const));
+        Assert.That((FloatOp)result.Tokens[3].Oper, Is.EqualTo(FloatOp.Comma));
+        Assert.That((FloatOp)result.Tokens[4].Oper, Is.EqualTo(FloatOp.Const));
         Assert.That(result.Tokens[4].Data, Is.EqualTo(2f).Within(1e-6f));
-        Assert.That(result.Tokens[5].Oper, Is.EqualTo(FloatOp.Comma));
-        Assert.That(result.Tokens[6].Oper, Is.EqualTo(FloatOp.Const));
+        Assert.That((FloatOp)result.Tokens[5].Oper, Is.EqualTo(FloatOp.Comma));
+        Assert.That((FloatOp)result.Tokens[6].Oper, Is.EqualTo(FloatOp.Const));
         Assert.That(result.Tokens[6].Data, Is.EqualTo(3f).Within(1e-6f));
-        Assert.That(result.Tokens[7].Oper, Is.EqualTo(FloatOp.RParen));
+        Assert.That((FloatOp)result.Tokens[7].Oper, Is.EqualTo(FloatOp.RParen));
     }
 
     [Test]
@@ -389,8 +389,8 @@ public class LexerTests
         var result = lexer.Lex("lerp(0, 10, 0.5)");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(8));
-        Assert.That(result.Tokens[0].Oper, Is.EqualTo(FloatOp.Lerp));
-        Assert.That(result.Tokens[1].Oper, Is.EqualTo(FloatOp.LParen));
+        Assert.That((FloatOp)result.Tokens[0].Oper, Is.EqualTo(FloatOp.Lerp));
+        Assert.That((FloatOp)result.Tokens[1].Oper, Is.EqualTo(FloatOp.LParen));
         Assert.That(result.Tokens[2].Data, Is.EqualTo(0f).Within(1e-6f));
         Assert.That(result.Tokens[4].Data, Is.EqualTo(10f).Within(1e-6f));
         Assert.That(result.Tokens[6].Data, Is.EqualTo(0.5f).Within(1e-6f));

@@ -12,22 +12,21 @@ namespace FluxFormula.Core
     /// <code>
     /// public class DamageCalc : MonoBehaviour
     /// {
-    ///     public FluxFormulaRef&lt;float, FloatOp, FloatMathDef&gt; formula;
+    ///     public FluxFormulaRef&lt;float, FloatMathDef&gt; formula;
     ///
     ///     async ValueTask Start()
     ///     {
     ///         var f = await formula.LoadFormulaAsync();
-    ///         float result = new FluxAssembler&lt;float, FloatOp, FloatMathDef&gt;(default)
+    ///         float result = new FluxAssembler&lt;float, FloatMathDef&gt;(default)
     ///             .Instantiate(f).Set("atk", 10).Run();
     ///     }
     /// }
     /// </code>
     /// </summary>
     [Serializable]
-    public class FluxFormulaRef<TData, TOper, TDef> : AssetReferenceT<FluxAsset>
+    public class FluxFormulaRef<TData, TDef> : AssetReferenceT<FluxAsset>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
-        where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+        where TDef : unmanaged, IFluxJITDefinition<TData>
     {
         public FluxFormulaRef(string guid) : base(guid) { }
 
@@ -35,17 +34,17 @@ namespace FluxFormula.Core
         /// 一步完成：Addressables 加载 → 类型校验 → FromBytes 反序列化。
         /// 类型不匹配时抛 InvalidOperationException。
         /// </summary>
-        public async ValueTask<FluxFormula<TData, TOper>> LoadFormulaAsync()
+        public async ValueTask<FluxFormula<TData, TDef>> LoadFormulaAsync()
         {
             var asset = await LoadAssetTypedAsync();
             if (asset == null)
-                return FluxFormula<TData, TOper>.Empty;
+                return FluxFormula<TData, TDef>.Empty;
 
             if (asset.TypeId != typeof(TDef).AssemblyQualifiedName)
                 throw new InvalidOperationException(
                     $"Formula type mismatch: asset '{asset.name}' is {asset.TypeId ?? "null"}, expected {typeof(TDef).Name}.");
 
-            return asset.Load<TData, TOper>();
+            return asset.Load<TData, TDef>();
         }
 
         /// <summary>

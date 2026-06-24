@@ -110,6 +110,13 @@ namespace FluxFormula.Core
         /// 返回 0 表示不消歧、保持原 Oper。
         /// </summary>
         byte ResolveToken(byte oper, TokenContext context);
+
+        /// <summary>
+        /// 操作码的显示名称，用于编辑器/调试/工具链。
+        /// 默认返回 null——定义实现者应覆写以提供有意义的名称。
+        /// 返回 null 的操作码被视为无效/未定义，编辑器会跳过。
+        /// </summary>
+        string GetOperatorName(byte op) => null;
     }
 
     public interface IFluxJITDefinition<TData> : IFluxDefinition<TData>

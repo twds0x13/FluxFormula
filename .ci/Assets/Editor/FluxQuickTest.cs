@@ -13,21 +13,21 @@ public static class FluxQuickTest
     [MenuItem(MenuRoot + "Compile & Run (float)", false, 0)]
     public static void TestCompileAndRun()
     {
-        var config = new LexerConfig<float, FloatOp>
+        var config = new LexerConfig<float>
         {
             LiteralPattern = @"\d+(\.\d+)?f?",
             LiteralParser  = s => float.Parse(s.TrimEnd('f', 'F')),
         };
-        config.Operators.Add(new OperatorRule<FloatOp>("+", FloatOp.Add));
-        config.Operators.Add(new OperatorRule<FloatOp>("-", FloatOp.Sub));
-        config.Operators.Add(new OperatorRule<FloatOp>("*", FloatOp.Mul));
-        config.Operators.Add(new OperatorRule<FloatOp>("/", FloatOp.Div));
-        config.Brackets.Add(new BracketRule<FloatOp>("(", ")", FloatOp.LParen, FloatOp.RParen));
+        config.Operators.Add(new OperatorRule("+", (byte)FloatOp.Add));
+        config.Operators.Add(new OperatorRule("-", (byte)FloatOp.Sub));
+        config.Operators.Add(new OperatorRule("*", (byte)FloatOp.Mul));
+        config.Operators.Add(new OperatorRule("/", (byte)FloatOp.Div));
+        config.Brackets.Add(new BracketRule("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen));
         config.VariablePatterns.Add(new VariablePatternRule("[", "]"));
 
-        var lexer    = new FluxLexer<float, FloatOp>(config);
+        var lexer    = new FluxLexer<float>(config);
         var lr       = lexer.Lex("([atk] + [def]) * 0.5f");
-        var runner   = new FluxAssembler<float, FloatOp, FloatMathDef>(default);
+        var runner   = new FluxAssembler<float, FloatMathDef>(default);
         var formula  = runner.Compile(lr);
         var instance = runner.Instantiate(formula).Set("atk", 10f).Set("def", 5f);
         float result = instance.Run();

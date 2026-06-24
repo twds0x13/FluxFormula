@@ -13,11 +13,10 @@ namespace FluxFormula.Core
         /// UniTask 版本的 LoadFormulaAsync。
         /// 内部委托到 ValueTask 版本后转为 UniTask，零额外分配。
         /// </summary>
-        public static async UniTask<FluxFormula<TData, TOper>> LoadFormulaUniTaskAsync<TData, TOper, TDef>(
-            this FluxFormulaRef<TData, TOper, TDef> reference)
+        public static async UniTask<FluxFormula<TData, TDef>> LoadFormulaUniTaskAsync<TData, TDef>(
+            this FluxFormulaRef<TData, TDef> reference)
             where TData : unmanaged
-            where TOper : unmanaged, Enum
-            where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             // await ValueTask → 解包为 T，async UniTask 自动包装为 UniTask<T>
             return await reference.LoadFormulaAsync();
@@ -26,11 +25,10 @@ namespace FluxFormula.Core
         /// <summary>
         /// UniTask 版本的 LoadAssetTypedAsync。
         /// </summary>
-        public static async UniTask<FluxAsset> LoadAssetTypedUniTaskAsync<TData, TOper, TDef>(
-            this FluxFormulaRef<TData, TOper, TDef> reference)
+        public static async UniTask<FluxAsset> LoadAssetTypedUniTaskAsync<TData, TDef>(
+            this FluxFormulaRef<TData, TDef> reference)
             where TData : unmanaged
-            where TOper : unmanaged, Enum
-            where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             return await reference.LoadAssetTypedAsync();
         }

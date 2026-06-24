@@ -16,12 +16,11 @@ namespace FluxFormula.Core
         /// 通过 Addressables key 异步加载公式（ValueTask，零 Task 分配）。
         /// 自动校验类型 ID——不匹配时释放资产并抛 InvalidOperationException。
         /// </summary>
-        public static async ValueTask<FluxFormula<TData, TOper>> LoadAsync<TData, TOper, TDef>(
-            this FormulaLibrary<TData, TOper, TDef> library,
+        public static async ValueTask<FluxFormula<TData, TDef>> LoadAsync<TData, TDef>(
+            this FormulaLibrary<TData, TDef> library,
             string key)
             where TData : unmanaged
-            where TOper : unmanaged, Enum
-            where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             string typeId = typeof(TDef).AssemblyQualifiedName;
 
@@ -34,19 +33,18 @@ namespace FluxFormula.Core
                     $"Formula '{key}': type mismatch. Asset: {asset.TypeId}, Expected: {typeId}.");
             }
 
-            return asset.Load<TData, TOper>();
+            return asset.Load<TData, TDef>();
         }
 
         /// <summary>
         /// 通过 Addressables key 同步加载公式。
         /// 仅建议在 Editor 或确实需要同步等待的场景使用。
         /// </summary>
-        public static FluxFormula<TData, TOper> Load<TData, TOper, TDef>(
-            this FormulaLibrary<TData, TOper, TDef> library,
+        public static FluxFormula<TData, TDef> Load<TData, TDef>(
+            this FormulaLibrary<TData, TDef> library,
             string key)
             where TData : unmanaged
-            where TOper : unmanaged, Enum
-            where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             string typeId = typeof(TDef).AssemblyQualifiedName;
 
@@ -58,7 +56,7 @@ namespace FluxFormula.Core
                     $"Formula '{key}': type mismatch. Asset: {asset.TypeId}, Expected: {typeId}.");
             }
 
-            return asset.Load<TData, TOper>();
+            return asset.Load<TData, TDef>();
         }
     }
 }
