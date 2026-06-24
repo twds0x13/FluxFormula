@@ -277,7 +277,7 @@ namespace FluxFormula.Benchmarks
             var varLexer = CreateVarLexer("[", "]");
             var fA = a.Compile(varLexer.Lex("[atk] * 1.5").Tokens, new[] { "atk" });
             var fB = a.Compile(varLexer.Lex("[def] * 0.3").Tokens, new[] { "def" });
-            _fChain  = fA.Connect(fB);
+            _fChain  = fA.Connect(fB.ToModifier());
         }
 
         private FluxAssembler<float, FloatMathDef> A() => new(_def);

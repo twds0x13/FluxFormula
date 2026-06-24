@@ -560,7 +560,7 @@ namespace FluxFormula.Core
                 varSlots[i] = new VariableSlot(name, slotIdx);
             }
 
-            return new FluxFormula<TData, TDef>(instructions, header.Count, header.Type, header.ImmediateCount, varSlots, header.MaxRegister);
+            return new FluxFormula<TData, TDef>(instructions, header.Count, (FluxType)header.Type, header.ImmediateCount, varSlots, header.MaxRegister);
         }
 
         public override readonly string ToString() =>
