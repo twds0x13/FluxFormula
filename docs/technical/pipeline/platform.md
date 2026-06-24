@@ -28,7 +28,7 @@ internal static class FluxPlatform
 设计要点：
 
 - **`volatile`**：确保多线程可见性。虽然在 Unity 主线程场景下不关键，但为潜在的异步编译场景预留。
-- **不可逆**：一旦检测到 JIT 不可用，整个进程生命周期内不再尝试。没有 `EnableJit()`——JIT 能力不会在运行时恢复。
+- **不可逆**：一旦检测到 JIT 不可用，整个进程生命周期内不再尝试。没有 `EnableJit()`，JIT 能力不会在运行时恢复。
 - **手动触发**：`DisableJit()` 由 `FluxAssembler.Instantiate` 在捕获到 JIT 编译异常时调用。也可以由用户主动调用（如在 IL2CPP 平台上跳过不必要的一次尝试）。
 
 ## 降级触发链
@@ -41,7 +41,7 @@ FluxAssembler.Instantiate(jit: true)
                  └→ 后续 Instantiate 调用跳过 JIT 路径
 ```
 
-降级是**透明且自动的**——调用方不需要在 `Instantiate(jit: true)` 和 `Instantiate(jit: false)` 之间做选择。JIT 失败时，`Instantiate` 内部自动回退到解释器路径，同时返回的 `FluxInstance` 走解释器执行。
+降级是**透明且自动的**。调用方不需要在 `Instantiate(jit: true)` 和 `Instantiate(jit: false)` 之间做选择。JIT 失败时，`Instantiate` 内部自动回退到解释器路径，同时返回的 `FluxInstance` 走解释器执行。
 
 ```csharp
 public FluxInstance<TData, TDef> Instantiate(FluxFormula<TData, TDef> formula, bool jit = false)
@@ -69,7 +69,7 @@ public FluxInstance<TData, TDef> Instantiate(FluxFormula<TData, TDef> formula, b
 
 `Instantiate` 的 `jit` 参数默认是 `false`。这是因为：
 
-1. **安全默认**：解释器在任何平台都可用。JIT 不是——默认开启 JIT 会导致 IL2CPP 平台上的首次调用必然失败。
+1. **安全默认**：解释器在任何平台都可用。JIT 不是。默认开启 JIT 会导致 IL2CPP 平台上的首次调用必然失败。
 2. **显式选择**：用户需要明确表达"我确认我的目标平台支持 JIT"。这在 Unity 的 Inspector（`FluxAsset` 的 JIT 开关）中有 UI 提示。
 3. **降级成本**：首次 JIT 失败的异常抛出和捕获有一定的性能开销。如果已知目标平台不支持 JIT，直接传 `false` 避免浪费。
 
@@ -79,7 +79,7 @@ public FluxInstance<TData, TDef> Instantiate(FluxFormula<TData, TDef> formula, b
 
 ## 测试覆盖限制
 
-`DisableJit()` 方法在单元测试中**不应被调用**——它是全局不可逆开关，一旦调用会污染整个测试套件的 JIT 覆盖率测量。JIT 降级路径的正确性由以下间接保证：
+`DisableJit()` 方法在单元测试中**不应被调用**。它是全局不可逆开关，一旦调用会污染整个测试套件的 JIT 覆盖率测量。JIT 降级路径的正确性由以下间接保证：
 
 - IL2CPP/WebGL 平台的集成测试（不在 CI 中运行）
 - `JitConsistencyTests` 验证 JIT 与解释器的语义等价性（同进程两路径结果一致）

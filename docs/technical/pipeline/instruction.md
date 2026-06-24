@@ -20,7 +20,7 @@ public struct Instruction
 }
 ```
 
-8 字节定长，`[StructLayout(LayoutKind.Explicit)]` 确保字段布局在 IL2CPP/AOT 下与托管运行时一致。最大 arity 为 6——任何操作符的操作数不超过 6 个（含目标）。
+8 字节定长，`[StructLayout(LayoutKind.Explicit)]` 确保字段布局在 IL2CPP/AOT 下与托管运行时一致。最大 arity 为 6，任何操作符的操作数不超过 6 个（含目标）。
 
 ## 为什么选择 8 字节？
 
@@ -44,13 +44,13 @@ public struct Instruction
 
 `Raw`（`long`）与字节字段共享 `FieldOffset(0)`。这允许：
 
-- **序列化**：`BinaryFormat.WriteInt64LE(data, offset, inst.Raw)` —— 一条写操作完成整个指令的序列化。
-- **比较**：`inst.Raw == other.Raw` —— 指令等价性比较退化为 64 位整数比较。
-- **复制**：`buffer[i] = new Instruction { Raw = src.Raw }` —— 一条赋值完成克隆。
+- **序列化**：`BinaryFormat.WriteInt64LE(data, offset, inst.Raw)`，一条写操作完成整个指令的序列化。
+- **比较**：`inst.Raw == other.Raw`，指令等价性比较退化为 64 位整数比较。
+- **复制**：`buffer[i] = new Instruction { Raw = src.Raw }`，一条赋值完成克隆。
 
 ## 数据槽位：`TData` 内联在指令流中
 
-立即数（字面量/注入变量）不存储在 `Instruction` 结构体内——它们紧邻指令头部存放在后续的"数据槽位"中：
+立即数（字面量/注入变量）不存储在 `Instruction` 结构体内。它们紧邻指令头部，存放在后续的"数据槽位"中：
 
 ```
 Instruction[N] 数组:

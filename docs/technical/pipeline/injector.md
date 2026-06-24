@@ -27,9 +27,9 @@ internal unsafe struct FluxInjector<TData> where TData : unmanaged
 }
 ```
 
-`_buffer` 是共享引用——FluxInjector 不拥有缓冲，只持有引用并写入。这避免了拷贝，但也意味着多个 FluxInstance 不能并发操作同一缓冲（Unity 主线程场景下这不是问题）。
+`_buffer` 是共享引用，FluxInjector 不拥有缓冲，只持有引用并写入。这避免了拷贝，但也意味着多个 FluxInstance 不能并发操作同一缓冲（Unity 主线程场景下这不是问题）。
 
-## SetByIndex — 按索引注入
+## SetByIndex：按索引注入
 
 ```csharp
 public FluxInjector<TData> SetIndex(int paramIndex, TData value)
@@ -57,7 +57,7 @@ public FluxInjector<TData> SetIndex(int paramIndex, TData value)
 - `*(TData*)(pBase + offset)` 将 Instruction 槽位的地址重解释为 TData 指针，直接写入。无需 memcpy，无 boxing。
 - 返回 `this` 支持链式调用。
 
-## SetByName — 按变量名注入
+## SetByName：按变量名注入
 
 `Set(name, value)` 需要将变量名映射到 paramIndex，这是注入器最有技术含量的部分。
 
@@ -114,7 +114,7 @@ FluxCompiler 维护两���并行数组：
 
 JIT 模式下 `_offsets` 为 null，偏移量通过 `paramIndex * _slotsPerData` 计算。这意味着 JIT payload 必须严格按 paramIndex 顺序排列 TData，不能有空洞。
 
-JIT 编译器在 `Compile()` 时已经确定了 paramIndex 到 payload 位置的映射关系。它生成一个与变量数无关的 Expression Tree——变量值通过 `GetData<TData>(buffer, index)` 在运行时从 payload 中读取。
+JIT 编译器在 `Compile()` 时已经确定了 paramIndex 到 payload 位置的映射关系。它生成一个与变量数无关的 Expression Tree。变量值通过 `GetData<TData>(buffer, index)` 在运行时从 payload 中读取。
 
 ## 指针写入的安全性
 
@@ -132,4 +132,4 @@ fixed (Instruction* pBase = _buffer)
 
 ## 下一步
 
-- [管线全景](./overview.md) — 回到管线总览
+- [管线全景](./overview.md)：回到管线总览

@@ -18,7 +18,7 @@ internal unsafe ref struct FluxEvaluator<TData, TDef>
 }
 ```
 
-`ref struct` 保证 `FluxEvaluator` 自身不会逃逸到堆。`stackalloc TData[regCount]` 在栈上分配寄存器文件——对于 `float` + max 8 个寄存器，仅 32 字节栈空间。寄存器数量由公式头部的 `MaxRegister` 字段按需确定（而非始终分配 255 个）。
+`ref struct` 保证 `FluxEvaluator` 自身不会逃逸到堆。`stackalloc TData[regCount]` 在栈上分配寄存器文件。对于 `float` + max 8 个寄存器，仅 32 字节栈空间。寄存器数量由公式头部的 `MaxRegister` 字段按需确定，不分配全量 255。
 
 ## R0/R1 总线约定
 
@@ -68,13 +68,13 @@ for (int ip = 0; ip < program.Length; )
 - **解释器**：`Return` 将 Dest 写入 R1，然后继续执行下一条指令。链式求值时，下一个 link 的代码紧跟在 Return 之后，从 R1 读取输入。这是"fall-through"语义。
 - **JIT**：每条指令被编译为独立的 Expression Tree。`Return` 对应的 Expression 返回其 Dest 的值，由 JIT 委托的调用方（`RunJitChain`）负责注入到下一个 link 的 R1 位置。
 
-这种差异意味着**字节码在解释器和 JIT 路径上是语义等价的——只是执行方式不同**。这是 JIT 一致性测试的核心。
+这种差异意味着**字节码在解释器和 JIT 路径上是语义等价的，只是执行方式不同**。这是 JIT 一致性测试的核心。
 
 ## 为什么不用 switch 分派？
 
 传统字节码解释器使用 `switch(opCode)` 分派。FluxFormula 使用三种分支（Immediate/Instruction/Return），因为：
 
-1. **操作码数量未知**：操作码由 `Definition` 定义——框架不知道会有多少操作符。`switch` 无法在框架层穷举。
+1. **操作码数量未知**：操作码由 `Definition` 定义。框架不知道会有多少操作符。`switch` 无法在框架层穷举。
 2. **语义委托**：`Compute()` 委托将操作语义完全交给 Definition，框架不解释操作码含义。
 3. **分支预测友好**：三分类（Immediate/Instruction/Return）的分支模式高度可预测，Immediate 和 Instruction 在字节码中交替出现。
 
@@ -88,4 +88,4 @@ public TData Compute(ReadOnlySpan<Instruction> raw, byte maxRegister = 0)
 public TData Compute(ReadOnlySpan<Instruction> raw, TData prevResult, byte maxRegister = 0)
 ```
 
-第二个重载是链式解释器求值的关键——每个 link 的执行不感知其他 link 的存在，它只看到"R1 已经有了一个值"。
+第二个重载是链式解释器求值的关键。每个 link 的执行不感知其他 link 的存在，它只看到"R1 已经有了一个值"。

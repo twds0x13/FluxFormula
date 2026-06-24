@@ -25,7 +25,7 @@
 ```
 
 - **操作符栈**：暂存尚未确定操作数范围的操作符。遇到更高优先级的操作符时，栈顶操作符需要等待；遇到更低优先级时，栈顶操作符可以安全弹出。
-- **输出队列**：直接写入 `Instruction[]` 缓冲区。FluxFormula 不使用 `List<T>` 或 `Queue<T>`——操作符栈用 `Instruction*` 指针 + `stackalloc` 在栈上管理，输出队列是预分配的 `Instruction[]`。
+- **输出队列**：直接写入 `Instruction[]` 缓冲区。FluxFormula 不使用 `List<T>` 或 `Queue<T>`。操作符栈用 `Instruction*` 指针 + `stackalloc` 在栈上管理，输出队列是预分配的 `Instruction[]`。
 
 ## 核心循环
 
@@ -75,7 +75,7 @@ while (opStack.Count > 0)
 2. 弹出 `?` 和 `:` 之间的所有操作符
 3. 将 `?` 替换为 `Select` 操作码并发出
 
-这允许**三元表达式 `a ? b : c`** 在调车场中自然地编译为 `Select(a, b, c)`。逗号分隔符同理——`select(a, b, c)` 中的逗号触发 `Select` 的 emit。
+这允许**三元表达式 `a ? b : c`** 在调车场中自然地编译为 `Select(a, b, c)`。逗号分隔符同理：`select(a, b, c)` 中的逗号触发 `Select` 的 emit。
 
 ## 寄存器分配
 
@@ -86,7 +86,7 @@ byte destReg = AllocRegister();
 inst.Dest = destReg;
 ```
 
-寄存器分配器跟踪已使用和已释放的寄存器。当指令的所有操作数被消费后，它们的寄存器被回收。寄存器范围是 0-255（`byte`），实际使用量存储在公式头部的 `MaxRegister` 字段中——运行时按需 `stackalloc`，不分配全量 255。
+寄存器分配器跟踪已使用和已释放的寄存器。当指令的所有操作数被消费后，它们的寄存器被回收。寄存器范围是 0-255（`byte`），实际使用量存储在公式头部的 `MaxRegister` 字段中，运行时按需 `stackalloc`，不分配全量 255。
 
 ## 输出格式
 
@@ -96,4 +96,4 @@ inst.Dest = destReg;
 [Immediate(R2, value)] [Immediate(R3, value)] [Add(R1, R2, R3)] [Return(R1)]
 ```
 
-不是 AST，不是三地址码——直接就是可执行的字节码。Instruction 的 8 字节布局确保了 `Span<Instruction>` 可以 `fixed` 指针后以 `TData*` 重解释写入立即数。
+不是 AST，不是三地址码，直接就是可执行的字节码。Instruction 的 8 字节布局确保了 `Span<Instruction>` 可以 `fixed` 指针后以 `TData*` 重解释写入立即数。

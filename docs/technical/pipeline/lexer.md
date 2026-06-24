@@ -4,7 +4,7 @@
 
 ## 为什么不用正则？
 
-正则表达式在 .NET 中的 `Match` 操作会产生 `Match` 对象和 `Group` 集合的堆分配。对于 FluxFormula 的目标场景——编译期一次性分配，执行期零 GC——正则的分配开销可以接受（编译本身就有 Token 数组分配）。但手写扫描器提供了三个正则无法提供的优势：
+正则表达式在 .NET 中的 `Match` 操作会产生 `Match` 对象和 `Group` 集合的堆分配。对于 FluxFormula 的目标场景（编译期一次性分配，执行期零 GC），正则的分配开销可以接受（编译本身就有 Token 数组分配）。但手写扫描器提供了三个正则无法提供的优势：
 
 1. **精确的错误定位**：手写循环知道当前字符位置，可以产出带行列号的错误信息。
 2. **零中间字符串**：`ReadOnlySpan<char>` 切片直接传给 `LiteralParser`，仅在最终解析字面量时才 `ToString()`。
@@ -45,11 +45,11 @@ while (pos < input.Length):
     if (variable starts)    → TryScanVariable → FluxToken(oper=LiteralOper, data=default)
 ```
 
-核心循环不分配任何堆内存。唯一的分配在退出循环后——`FluxToken[]` 数组和 `string[] VarNames`。
+核心循环不分配任何堆内存。唯一的分配在退出循环后：`FluxToken[]` 数组和 `string[] VarNames`。
 
 ## 操作符扫描：最长匹配
 
-`TryScanOperator` 不是简单的前缀匹配——它使用**最长匹配策略**。当输入 `select(a, b, c)` 时，扫描器先尝试匹配 `select` 而非 `s` 或 `se`：
+`TryScanOperator` 不是简单的前缀匹配。它使用**最长匹配策略**。当输入 `select(a, b, c)` 时，扫描器先尝试匹配 `select` 而非 `s` 或 `se`：
 
 1. 遍历所有已注册操作符的 `TokenText`，找出所有前缀匹配
 2. 选择最长匹配（`select` > `s`）
@@ -71,7 +71,7 @@ public readonly struct BracketRule
 }
 ```
 
-扫描器不关心括号的嵌套层级——它只负责将 `(` 和 `)` 分别转为 `LParen` 和 `RParen` 操作码 Token。嵌套正确性由编译器（调车场算法）在处理括号栈时验证。
+扫描器不关心括号的嵌套层级。它只负责将 `(` 和 `)` 分别转为 `LParen` 和 `RParen` 操作码 Token。嵌套正确性由编译器（调车场算法）在处理括号栈时验证。
 
 ## 变量模式
 
