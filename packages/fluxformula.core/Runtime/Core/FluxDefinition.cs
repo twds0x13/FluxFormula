@@ -8,7 +8,7 @@ namespace FluxFormula.Core
     // Enums & Structs (originally from FluxInstruction.cs)
     // ═══════════════════════════════════════════════════════
 
-    public enum FluxType : byte
+    internal enum FluxType : byte
     {
         Modifier,
         Formula,

@@ -55,7 +55,7 @@ public unsafe class FluxJITCompilerTests
         var lexer = CreateMathLexer();
         var f = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("2 * 3"));
-        var mod = f.ToMultiplier(); // * 6 modifier
+        var mod = f.ToModifier(); // * 6 modifier
         byte[] bytes = mod.ToBytes();
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 

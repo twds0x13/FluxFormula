@@ -108,7 +108,7 @@ public unsafe class FormulaFormatTests
     {
         var header = new FormulaHeader(
             count: 5,
-            type: FluxType.Modifier,
+            type: (byte)FluxType.Modifier,
             immediateCount: 2,
             varSlotCount: 3,
             maxRegister: 10
@@ -122,7 +122,7 @@ public unsafe class FormulaFormatTests
 
         var readBack = FormulaFormat.ReadHeader(buf);
         Assert.That(readBack.Count, Is.EqualTo(5));
-        Assert.That(readBack.Type, Is.EqualTo(FluxType.Modifier));
+        Assert.That(readBack.Type, Is.EqualTo((byte)FluxType.Modifier));
         Assert.That(readBack.ImmediateCount, Is.EqualTo(2));
         Assert.That(readBack.VarSlotCount, Is.EqualTo(3));
         Assert.That(readBack.MaxRegister, Is.EqualTo(10));
@@ -131,13 +131,13 @@ public unsafe class FormulaFormatTests
     [Test]
     public void WriteHeader_ReadHeader_FormulaType()
     {
-        var header = new FormulaHeader(3, FluxType.Formula, 1, 0, 5);
+        var header = new FormulaHeader(3, (byte)FluxType.Formula, 1, 0, 5);
         byte[] buf = new byte[FormulaFormat.HeaderSize];
         int off = 0;
         FormulaFormat.WriteHeader(buf, ref off, header);
 
         var readBack = FormulaFormat.ReadHeader(buf);
-        Assert.That(readBack.Type, Is.EqualTo(FluxType.Formula));
+        Assert.That(readBack.Type, Is.EqualTo((byte)FluxType.Formula));
         Assert.That(readBack.MaxRegister, Is.EqualTo(5));
     }
 
@@ -145,7 +145,7 @@ public unsafe class FormulaFormatTests
     public void WriteHeader_ReadHeader_MaxRegisterZero()
     {
         // maxRegister = 0 表示"未分析"——向下兼容旧格式
-        var header = new FormulaHeader(1, FluxType.Formula, 0, 0, 0);
+        var header = new FormulaHeader(1, (byte)FluxType.Formula, 0, 0, 0);
         byte[] buf = new byte[FormulaFormat.HeaderSize];
         int off = 0;
         FormulaFormat.WriteHeader(buf, ref off, header);
@@ -170,7 +170,7 @@ public unsafe class FormulaFormatTests
         var header = FormulaFormat.ReadHeader(bytes);
 
         Assert.That(header.Count, Is.GreaterThan(0));
-        Assert.That(header.Type, Is.EqualTo(FluxType.Formula));
+        Assert.That(header.Type, Is.EqualTo((byte)FluxType.Formula));
         Assert.That(header.MaxRegister, Is.GreaterThanOrEqualTo(0));
     }
 

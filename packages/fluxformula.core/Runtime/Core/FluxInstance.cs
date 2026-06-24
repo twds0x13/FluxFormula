@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using FluxFormula.Compiler;
 using System.Runtime.CompilerServices;
 
@@ -75,8 +76,8 @@ namespace FluxFormula.Core
 
         public readonly TData Run()
         {
-            if (_formula.Type != FluxType.Formula)
-                throw new InvalidOperationException("Modifier cannot run standalone.");
+            Debug.Assert(_formula.Type != FluxType.Modifier,
+                "Modifier cannot run standalone. Use ToFormula() to provide a first operand.");
 
             if (_chainFuncs != null)
             {

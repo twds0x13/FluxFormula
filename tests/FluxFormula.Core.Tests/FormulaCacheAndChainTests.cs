@@ -20,7 +20,7 @@ public unsafe class FormulaCacheAndChainTests
     {
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "10 + 5");
-        var fB = Compile(lexer, "2 * 3").ToMultiplier();
+        var fB = Compile(lexer, "2 * 3").ToModifier();
 
         var result = fA.Connect(fB);
 
@@ -41,7 +41,7 @@ public unsafe class FormulaCacheAndChainTests
         // Connect 始终产链，不再自动合并——合并决策在 Instantiate
         var current = formulas[0];
         for (int i = 1; i < formulas.Length; i++)
-            current = current.Connect(formulas[i].ToMultiplier());
+            current = current.Connect(formulas[i].ToModifier());
 
         // 10 个链接的链
         Assert.That(current.IsChained, Is.True);
@@ -58,8 +58,8 @@ public unsafe class FormulaCacheAndChainTests
     {
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "1 + 2");
-        var fB = Compile(lexer, "3 + 4").ToMultiplier();
-        var fC = Compile(lexer, "5 + 6").ToMultiplier();
+        var fB = Compile(lexer, "3 + 4").ToModifier();
+        var fC = Compile(lexer, "5 + 6").ToModifier();
 
         var chain = fA.Connect(fB); // 链长 2
         var longer = chain.Connect(fC); // 链长 3
@@ -75,8 +75,8 @@ public unsafe class FormulaCacheAndChainTests
         var fA = Compile(lexer, "10 + 5");
         var fB = Compile(lexer, "2 * 3");
 
-        var chainAB = fA.Connect(fB.ToMultiplier());
-        var chainBA = fB.Connect(fA.ToMultiplier());
+        var chainAB = fA.Connect(fB.ToModifier());
+        var chainBA = fB.Connect(fA.ToModifier());
 
         // 不同顺序应产生不同哈希
         Assert.That(chainAB.GetByteHash(), Is.Not.EqualTo(chainBA.GetByteHash()),
@@ -94,7 +94,7 @@ public unsafe class FormulaCacheAndChainTests
 
         var lexer = CreateMathLexer();
         var fBase = Compile(lexer, "3 + 4");            // = 7
-        var fMod  = Compile(lexer, "2 * 3").ToMultiplier(); // R1 * 3
+        var fMod  = Compile(lexer, "2 * 3").ToModifier(); // R1 * 3
 
         var chain = fBase.Connect(fMod);
         Assert.That(chain.IsChained, Is.True);
@@ -120,8 +120,8 @@ public unsafe class FormulaCacheAndChainTests
         var current = Compile(lexer, "1 + 2"); // = 3
 
         // 串联 2 个 modifier：乘 3、乘 4
-        current = current.Connect(Compile(lexer, "2 * 3").ToMultiplier());
-        current = current.Connect(Compile(lexer, "5 * 4").ToMultiplier());
+        current = current.Connect(Compile(lexer, "2 * 3").ToModifier());
+        current = current.Connect(Compile(lexer, "5 * 4").ToModifier());
         // 语义: ((3 * 3) * 4) = 36
 
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
@@ -136,7 +136,7 @@ public unsafe class FormulaCacheAndChainTests
 
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "10 + 2");
-        var fB = Compile(lexer, "2 * 2").ToMultiplier();
+        var fB = Compile(lexer, "2 * 2").ToModifier();
 
         var chain = fA.Connect(fB);
         // (10+2) * 2 = 24
@@ -160,7 +160,7 @@ public unsafe class FormulaCacheAndChainTests
     {
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "10 + 5");
-        var fB = Compile(lexer, "2 * 3").ToMultiplier();
+        var fB = Compile(lexer, "2 * 3").ToModifier();
 
         var chain = fA.Connect(fB);
         Assert.That(chain.IsChained, Is.True);
@@ -180,8 +180,8 @@ public unsafe class FormulaCacheAndChainTests
         var fA = Compile(lexer, "7 + 3");
         var fB = Compile(lexer, "2 * 2");
 
-        // 显式 ToMultiplier: B 消费 A 的输出
-        var chain = fA.Connect(fB.ToMultiplier());
+        // 显式 ToModifier: B 消费 A 的输出
+        var chain = fA.Connect(fB.ToModifier());
         Assert.That(chain.IsChained, Is.True);
 
         // 两条路径应产出一致结果：B(A 的输出) = (7+3) * 2 = 20
@@ -200,10 +200,10 @@ public unsafe class FormulaCacheAndChainTests
         var lexer = CreateMathLexer();
         var fBase = Compile(lexer, "1 + 2"); // = 3
 
-        // 构建 5-link 链：每个 link 是乘 3 的 modifier（f="2 * 3"→ToMultiplier = R1*3）
+        // 构建 5-link 链：每个 link 是乘 3 的 modifier（f="2 * 3"→ToModifier = R1*3）
         var current = fBase;
         for (int i = 0; i < 4; i++)
-            current = current.Connect(Compile(lexer, "2 * 3").ToMultiplier());
+            current = current.Connect(Compile(lexer, "2 * 3").ToModifier());
         // 语义：(((3) * 3) * 3) * 3) * 3 = 3 * 81 = 243
 
         float perLinkResult = EvalFormula(current);
@@ -224,7 +224,7 @@ public unsafe class FormulaCacheAndChainTests
     {
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "7 + 3");
-        var fB = Compile(lexer, "5 * 2").ToMultiplier();
+        var fB = Compile(lexer, "5 * 2").ToModifier();
 
         var chain = fA.Connect(fB);
         Assert.That(chain.IsChained, Is.True);
@@ -243,7 +243,7 @@ public unsafe class FormulaCacheAndChainTests
 
         // Chain: Formula + Modifier (单 link modifier)
         var fA = Compile(lexer, "10 + 2");
-        var chain = fA.Connect(Compile(lexer, "3 * 5").ToMultiplier());
+        var chain = fA.Connect(Compile(lexer, "3 * 5").ToModifier());
         var atomic = chain.ToAtomic();
 
         Assert.That(EvalFormula(atomic), Is.EqualTo(EvalFormula(chain)).Within(1e-6f));
@@ -288,7 +288,7 @@ public unsafe class FormulaCacheAndChainTests
     {
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "1 + 2");
-        var fB = Compile(lexer, "3 + 4").ToMultiplier();
+        var fB = Compile(lexer, "3 + 4").ToModifier();
 
         var chain = fA.Connect(fB);
         var atomic = chain.ToAtomic();
@@ -331,7 +331,7 @@ public unsafe class FormulaCacheAndChainTests
 
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "6 + 4");
-        var fB = Compile(lexer, "3 * 2").ToMultiplier();
+        var fB = Compile(lexer, "3 * 2").ToModifier();
 
         var chain = fA.Connect(fB);
         Assert.That(chain.IsChained, Is.True);
@@ -359,7 +359,7 @@ public unsafe class FormulaCacheAndChainTests
         var lex   = CreateVarLexer("[", "]");
         var fA    = runner.Compile(lex.Lex("[x] + [y]"));
         // Modifier: [z] + [w], 剥离首操作数 [z]后剩余 [w]
-        var fB    = runner.Compile(lex.Lex("[z] + [w]")).ToMultiplier();
+        var fB    = runner.Compile(lex.Lex("[z] + [w]")).ToModifier();
 
         // Connect: fA = x+y, fB 消费 fA 输出，变量 [w] 保留
         var chain = fA.Connect(fB);

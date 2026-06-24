@@ -29,7 +29,7 @@ public class ConnectChainTests
         var fB = runner.Compile(lexB);
         var fC = runner.Compile(lexC);
 
-        var chain = fA.Connect(fB).Connect(fC);
+        var chain = fA.Connect(fB.ToModifier()).Connect(fC.ToModifier());
         Assert.That(chain.VariableSlots.Length, Is.EqualTo(3));
 
         Assert.That(chain.VariableSlots[0].Name, Is.EqualTo("a"));
@@ -58,7 +58,7 @@ public class ConnectChainTests
         {
             var lexNext = CreateVarLexer("[", "]").Lex($"+ [{vars[i]}]");
             var modifier = runner.Compile(lexNext);
-            chain = chain.Connect(modifier);
+            chain = chain.Connect(modifier.ToModifier());
         }
 
         Assert.That(chain.VariableSlots.Length, Is.EqualTo(5));
@@ -83,7 +83,7 @@ public class ConnectChainTests
         var formula  = runner.Compile(lexF);
         var modifier = runner.Compile(new[] { Op(FloatOp.Mul), C(2f) });
 
-        var chain = formula.Connect(modifier);
+        var chain = formula.Connect(modifier.ToModifier());
         Assert.That(chain.Type, Is.EqualTo(FluxType.Formula));
         Assert.That(chain.VariableSlots.Length, Is.EqualTo(2)); // a, b（modifier 无变量）
 
@@ -101,12 +101,12 @@ public class ConnectChainTests
         var mod1 = runner.Compile(new[] { Op(FloatOp.Mul), C(2f) });
         var mod2 = runner.Compile(new[] { Op(FloatOp.Add), C(1f) });
 
-        var chain = mod1.Connect(mod2);
+        var chain = mod1.Connect(mod2.ToModifier());
         Assert.That(chain.Type, Is.EqualTo(FluxType.Modifier));
 
         // 提供输入 10: (10 * 2) + 1 = 21
         var provider = runner.Compile(new[] { C(10f) });
-        var fullChain = provider.Connect(chain);
+        var fullChain = provider.Connect(chain.ToModifier());
         Assert.That(runner.Instantiate(fullChain, jit: false).Run(),
             Is.EqualTo(21f).Within(1e-6f));
     }
@@ -125,8 +125,8 @@ public class ConnectChainTests
         var lexC = CreateVarLexer("[", "]").Lex("* [c]");
 
         var chain = runner.Compile(lexA)
-            .Connect(runner.Compile(lexB))
-            .Connect(runner.Compile(lexC));
+            .Connect(runner.Compile(lexB).ToModifier())
+            .Connect(runner.Compile(lexC).ToModifier());
 
         Assert.That(chain.IsChained, Is.True);
 
@@ -151,8 +151,8 @@ public class ConnectChainTests
         var lexC = CreateVarLexer("[", "]").Lex("+ [z]");
 
         var chain = runner.Compile(lexA)
-            .Connect(runner.Compile(lexB))
-            .Connect(runner.Compile(lexC));
+            .Connect(runner.Compile(lexB).ToModifier())
+            .Connect(runner.Compile(lexC).ToModifier());
 
         var atomic = chain.ToAtomic();
 
@@ -174,7 +174,7 @@ public class ConnectChainTests
         var base_ = runner.Compile(CreateVarLexer("[", "]").Lex("[a] + 0"));
         var mod   = runner.Compile(CreateVarLexer("[", "]").Lex("+ [b]"));
 
-        var chain = base_.Connect(mod);
+        var chain = base_.Connect(mod.ToModifier());
         Assert.That(chain.VariableSlots.Length, Is.EqualTo(2));
 
         float result = runner.Instantiate(chain, jit: false)
@@ -192,8 +192,8 @@ public class ConnectChainTests
         var lexC = CreateVarLexer("[", "]").Lex("+ [third]");
 
         var chain = runner.Compile(lexA)
-            .Connect(runner.Compile(lexB))
-            .Connect(runner.Compile(lexC));
+            .Connect(runner.Compile(lexB).ToModifier())
+            .Connect(runner.Compile(lexC).ToModifier());
 
         // 按 SlotIndex 顺序：first=0, second=1, third=2
         float result = runner.Instantiate(chain, jit: false)

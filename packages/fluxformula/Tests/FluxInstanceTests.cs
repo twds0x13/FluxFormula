@@ -6,14 +6,14 @@ using static TestHelper;
 public class FluxInstanceTests
 {
     [Test]
-    public void ModifierCannotRunStandalone()
+    public void Modifier_MustUseToFormula_BeforeRun()
     {
+        // FluxModifier 类型没有 Instantiate/Run——编译期强制通过 ToFormula 转换后才能求值
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
-        var inst = runner.Build(new[] { Op(FloatOp.Add), C(5f) }, jit: false);
-        bool threw = false;
-        try { inst.Run(); }
-        catch (InvalidOperationException) { threw = true; }
-        Assert.That(threw, Is.True, "Modifier should throw when run standalone");
+        var modifier = runner.Compile(new[] { Op(FloatOp.Add), C(5f) }).ToModifier();
+        var formula = modifier.ToFormula("input");
+        float result = runner.Instantiate(formula).Set("input", 10f).Run();
+        Assert.That(result, Is.EqualTo(15f).Within(1e-6f));
     }
 
     [Test]

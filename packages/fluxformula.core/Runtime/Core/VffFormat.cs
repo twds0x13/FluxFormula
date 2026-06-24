@@ -89,14 +89,14 @@ namespace FluxFormula.Core
         public readonly ushort InstCount;
 
         // +19 (1)
-        /// <summary>Formula(0) 还是 Modifier(1)</summary>
-        public readonly FluxType Type;
+        /// <summary>公式类型：0=Modifier, 1=Formula</summary>
+        public readonly byte Type;
 
         // +20 (2)
         /// <summary>该 link 的变量槽数</summary>
         public readonly ushort VarSlotCount;
 
-        public VffLinkEntry(DualHash64 hash, byte immCount, ushort instCount, FluxType type, ushort varSlotCount)
+        public VffLinkEntry(DualHash64 hash, byte immCount, ushort instCount, byte type, ushort varSlotCount)
         {
             Hash         = hash;
             ImmCount     = immCount;
@@ -459,7 +459,7 @@ namespace FluxFormula.Core
                         Key              = entry.Hash,
                         Bytecode         = bytecode,
                         InstructionCount = bytecode.Length,
-                        Type             = entry.Type,
+                        Type             = (FluxType)entry.Type,
                         ImmediateCount   = entry.ImmCount,
                         VarSlots         = varSlots,
                         MaxRegister      = fHeader.MaxRegister,

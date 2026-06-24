@@ -11,7 +11,7 @@ namespace FluxFormula.Core
     /// <item><description><c>Registers.Max</c> — 更新为 <c>ushort.MaxValue</c>（上限约 65,535）</description></item>
     /// <item><description><c>Instruction.cs</c> — <c>Dest</c>、<c>Arg0..Arg5</c> 从 <c>byte</c> 改为 <c>ushort</c>；重排 <c>FieldOffset</c></description></item>
     /// <item><description><c>FluxCompiler.cs</c> — Register allocation casts: <c>(byte)</c> → <c>(ushort)</c></description></item>
-    /// <item><description><c>FluxFormula.ToMultiplier/ToFormula/FindFreeRegister</c> — 寄存器比较类型同步更新</description></item>
+    /// <item><description><c>FluxFormula.ToModifier/ToFormula/FindFreeRegister</c> — 寄存器比较类型同步更新</description></item>
     /// <item><description><c>FluxPlatform.MaxRegisters</c> — 更新为新区间的最大值</description></item>
     /// <item><description><c>FluxEvaluator.cs</c> — <c>stackalloc</c> 尺寸基于 <c>sizeof(TData) * MaxRegisters</c>，自动跟踪</description></item>
     /// <item><description><c>FluxJITCompiler.cs</c> — <c>ParameterExpression[]</c> 数量基于 <c>MaxRegisters</c>，自动跟踪</description></item>

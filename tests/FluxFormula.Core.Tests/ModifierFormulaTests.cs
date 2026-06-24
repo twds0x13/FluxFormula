@@ -6,42 +6,42 @@ using static TestHelper;
 public class ModifierFormulaTests
 {
     // ═══════════════════════════════════════════════════════
-    // ToMultiplier
+    // ToModifier
     // ═══════════════════════════════════════════════════════
 
     [Test]
-    public void ToMultiplier_Formula_BecomesModifier()
+    public void ToModifier_Formula_BecomesModifier()
     {
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "2 + 3");
 
-        var m = f.ToMultiplier();
+        var m = f.ToModifier();
         Assert.That(m.Type, Is.EqualTo(FluxType.Modifier));
         Assert.That(m.ImmediateCount, Is.EqualTo(f.ImmediateCount - 1));
     }
 
     [Test]
-    public void ToMultiplier_Modifier_ReturnsSelf()
+    public void ToModifier_Modifier_ReturnsSelf()
     {
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "5 * 2");
-        var m = f.ToMultiplier();
+        var m = f.ToModifier();
 
-        var m2 = m.ToMultiplier();
+        var m2 = m.ToModifier();
         // Same bytecode, same type
         Assert.That(m2.Type, Is.EqualTo(FluxType.Modifier));
         Assert.That(m2.Count, Is.EqualTo(m.Count));
     }
 
     [Test]
-    public void ToMultiplier_ChainFormula_ConvertsToAtomicFirst()
+    public void ToModifier_ChainFormula_ConvertsToAtomicFirst()
     {
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "1 + 2");
-        var fB = Compile(lexer, "3 + 4").ToMultiplier();
+        var fB = Compile(lexer, "3 + 4").ToModifier();
         var chain = fA.Connect(fB);
 
-        var m = chain.ToMultiplier();
+        var m = chain.ToModifier();
         Assert.That(m.Type, Is.EqualTo(FluxType.Modifier));
         Assert.That(m.IsChained, Is.False);
     }
@@ -55,7 +55,7 @@ public class ModifierFormulaTests
     {
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "4 + 5");
-        var m = f.ToMultiplier();
+        var m = f.ToModifier();
 
         var result = m.ToFormula("CHAIN_LINK_INTERNAL_0");
         Assert.That(result.Type, Is.EqualTo(FluxType.Formula));
@@ -77,12 +77,12 @@ public class ModifierFormulaTests
     // ═══════════════════════════════════════════════════════
 
     [Test]
-    public void ToMultiplier_ToFormula_RoundTrip_DifferentVarName()
+    public void ToModifier_ToFormula_RoundTrip_DifferentVarName()
     {
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "7 + 3");
 
-        var modifier = f.ToMultiplier();
+        var modifier = f.ToModifier();
         Assert.That(modifier.Type, Is.EqualTo(FluxType.Modifier));
 
         var restored = modifier.ToFormula("test_var");
@@ -96,13 +96,13 @@ public class ModifierFormulaTests
     }
 
     [Test]
-    public void ToMultiplier_ToFormula_RoundTrip_WithTwoVariables()
+    public void ToModifier_ToFormula_RoundTrip_WithTwoVariables()
     {
         var lex = CreateVarLexer("[", "]");
         var f = Compile(lex, "[x] + [y]");
         // f = x + y, ImmediateCount = 2 (x, y)
 
-        var modifier = f.ToMultiplier();
+        var modifier = f.ToModifier();
         // modifier = R1 + y, ImmediateCount = 1 (just y)
         Assert.That(modifier.ImmediateCount, Is.EqualTo(1));
         Assert.That(modifier.Type, Is.EqualTo(FluxType.Modifier));
@@ -125,20 +125,17 @@ public class ModifierFormulaTests
     // ═══════════════════════════════════════════════════════
 
     [Test]
-    public void ToMultiplier_ModifierCannotRunStandalone()
+    public void ToModifier_ModifierNeedsToFormulaToRun()
     {
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "1 + 2");
-        var m = f.ToMultiplier();
+        var m = f.ToModifier();
 
-        Assert.That(m.Type, Is.EqualTo(FluxType.Modifier));
-
-        // Modifier 在 Run() 时抛异常
+        // Modifier 必须通过 ToFormula 才能求值
+        var formula = m.ToFormula("x");
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
-        var inst = runner.Instantiate(m);
-        bool threw = false;
-        try { inst.Run(); } catch (InvalidOperationException) { threw = true; }
-        Assert.That(threw, Is.True, "Modifier should throw when Run() is called");
+        var inst = runner.Instantiate(formula).Set("x", 1f);
+        Assert.That(inst.Run(), Is.EqualTo(3f).Within(1e-6f));
     }
 
     [Test]
@@ -146,7 +143,7 @@ public class ModifierFormulaTests
     {
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "10 + 5");
-        var m = f.ToMultiplier();
+        var m = f.ToModifier();
         var restored = m.ToFormula("my_input");
 
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
@@ -156,11 +153,11 @@ public class ModifierFormulaTests
     }
 
     [Test]
-    public void ToMultiplier_ReducesInstructionCount()
+    public void ToModifier_ReducesInstructionCount()
     {
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "1 + 2");
-        var m = f.ToMultiplier();
+        var m = f.ToModifier();
 
         // Modifier 少了一个 Immediate + dataSlots
         int dataSlots = 1; // float occupies 1 Instruction slot (4 bytes < 8 bytes)
@@ -172,11 +169,11 @@ public class ModifierFormulaTests
     // ═══════════════════════════════════════════════════════
 
     [Test]
-    public void ToMultiplier_TooSmallFormula_Throws()
+    public void ToModifier_TooSmallFormula_Throws()
     {
         // Count < 2 的公式无法转为 Modifier
         var empty = FluxFormula<float, FloatMathDef>.Empty;
-        Assert.Throws<InvalidOperationException>(() => empty.ToMultiplier());
+        Assert.Throws<InvalidOperationException>(() => empty.ToModifier());
     }
 
     [Test]
@@ -184,7 +181,7 @@ public class ModifierFormulaTests
     {
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "3 * 4");
-        var m = f.ToMultiplier();
+        var m = f.ToModifier();
         var restored = m.ToFormula(ChainReserved.InternalPrefix + "0");
 
         // 变量名应保持用户指定的前缀
@@ -212,20 +209,20 @@ public class ModifierFormulaTests
     {
         var lexer = CreateMathLexer();
         var fA = Compile(lexer, "1 + 2");
-        var fB = Compile(lexer, "3 + 4").ToMultiplier();
-        var fC = Compile(lexer, "5 + 6").ToMultiplier();
+        var fB = Compile(lexer, "3 + 4").ToModifier();
+        var fC = Compile(lexer, "5 + 6").ToModifier();
 
         var chain = fA.Connect(fB).Connect(fC);
         Assert.That(chain.ChainLength, Is.EqualTo(3));
     }
 
     [Test]
-    public void ToMultiplier_AlreadyModifier_ReturnsSelf()
+    public void ToModifier_AlreadyModifier_ReturnsSelf()
     {
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "2 * 3");
-        var mod = f.ToMultiplier();
-        var modAgain = mod.ToMultiplier();
+        var mod = f.ToModifier();
+        var modAgain = mod.ToModifier();
         Assert.That(modAgain.IsChained, Is.EqualTo(mod.IsChained));
     }
 

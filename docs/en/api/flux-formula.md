@@ -1,30 +1,52 @@
-# FluxFormula
+# FluxFormula / FluxModifier
 
-Immutable bytecode container.
+Immutable bytecode containers. `FluxFormula<TData, TDef>` is a complete formula (evaluable standalone); `FluxModifier<TData, TDef>` is a fragment missing its first operand (can only be chained or converted to Formula).
 
-## Signature
+## Signatures
 
 ```csharp
-public readonly struct FluxFormula<TData, TOper>
+// Complete formula — evaluable
+public readonly struct FluxFormula<TData, TDef>
     where TData : unmanaged
-    where TOper : unmanaged, Enum
+    where TDef : unmanaged, IFluxJITDefinition<TData>
+
+// Modifier — missing first operand, not evaluable standalone
+public readonly struct FluxModifier<TData, TDef>
+    where TData : unmanaged
+    where TDef : unmanaged, IFluxJITDefinition<TData>
 ```
 
-## Fields
+## FluxFormula Fields
 
 | Field | Type | Description |
 |------|------|------|
 | `Count` | `int` | Number of instructions (including trailing Return) |
-| `Type` | `FluxType` | `Formula` (executable standalone) or `Modifier` (requires Connect) |
 | `ImmediateCount` | `int` | Number of Immediate instructions; upper bound for `SetIndex()` |
 | `VariableSlots` | `VariableSlot[]` | Variable name to slot index mapping table, populated by the Lexer path |
 | `MaxRegister` | `byte` | Compile-time max register index (0 = unanalyzed, fallback to full 255) |
+
+> `Type` field is `internal`. The type identity is guaranteed by the struct type itself — `FluxFormula` is always a Formula, `FluxModifier` always a Modifier.
 
 ## Static Members
 
 | Member | Type | Description |
 |------|------|------|
-| `Empty` | `FluxFormula<TData, TOper>` | Empty formula (Count=0), for Connect edge cases |
+| `Empty` | `FluxFormula<TData, TDef>` | Empty formula (Count=0), for Connect edge cases |
+
+## FluxModifier Properties
+
+| Property | Type | Description |
+|------|------|------|
+| `Count` | `int` | Number of instructions |
+| `ImmediateCount` | `int` | Number of Immediate instructions |
+| `VariableSlots` | `VariableSlot[]` | Variable slot mapping |
+| `MaxRegister` | `byte` | Max register index |
+| `IsChained` | `bool` | Whether chained |
+| `ChainLength` | `int` | Number of chain links |
+
+| Static Member | Type | Description |
+|------|------|------|
+| `Empty` | `FluxModifier<TData, TDef>` | Empty Modifier, identity element for Connect |
 
 ## Structs
 
@@ -37,143 +59,73 @@ A single link in a chain formula. Stores bytecode reference and metadata for the
 | `Key` | `DualHash64` | Bytecode hash — cache key for delegate lookup |
 | `Bytecode` | `Instruction[]` | Bytecode reference (points to original formula's Instruction[], non-copying) |
 | `InstructionCount` | `int` | Number of Instructions |
-| `Type` | `FluxType` | `Formula` or `Modifier` |
 | `ImmediateCount` | `int` | Immediate count for this fragment (used for SetIndex offset calculation) |
 | `VarSlots` | `VariableSlot[]` | Variable slots for this fragment |
 | `MaxRegister` | `byte` | Max register index for this fragment (0 = unanalyzed) |
 
-Advanced users can access the chain structure via `GetChainLinks()` and persist it as a VFF file using `VffFormat.ToBytes()`.
+> `Type` field is `internal`.
 
 ## Construction
 
-The constructor is `internal`. Users generate instances via `FluxAssembler.Compile()` or use `FluxFormula<TData, TOper>.Empty` for an empty instance.
+Constructors are `internal`. Users generate instances via `FluxAssembler.Compile()` or use `Empty` for an empty instance.
 
-## Methods
+## FluxFormula Methods
 
 ### Connect
 
 ```csharp
-public FluxFormula<TData, TOper> Connect(FluxFormula<TData, TOper> next)
+public FluxFormula<TData, TDef> Connect(FluxModifier<TData, TDef> next)
 ```
 
-Chains the current formula with a Modifier. Does not merge bytecode — appends `ChainLink` reference slices. Physical concatenation is deferred to evaluation time.
+Chains the current formula with a Modifier. Does not merge bytecode — appends `ChainLink` reference slices.
 
 - Guard clause: if either side is empty, returns the other directly
-- **`next` must be a Modifier** (`next.Type == FluxType.Modifier`); throws `ArgumentException` otherwise. Call `.ToMultiplier()` on the formula to strip its first operand before connecting
+- **`next` is guaranteed to be a Modifier by the type system.** Call `.ToModifier()` on a Formula to strip its first operand before connecting
 - See [ChainLink Deep Dive](../technical/chainlink-deep-dive)
 
-### ToMultiplier
+### ToModifier
 
 ```csharp
-public FluxFormula<TData, TOper> ToMultiplier()
+public FluxModifier<TData, TDef> ToModifier()
 ```
 
-Converts Formula to Modifier. Removes the first Immediate instruction and its data slots, renames its destination register to 1 (R1). Returns self if already a Modifier. Chain formulas are converted to atomic first.
+Converts Formula to Modifier. Removes the first Immediate instruction and its data slots, renames its destination register to R1 (Bus). Returns self wrapped if already a Modifier internally. Chain formulas are converted to atomic first.
+
+> **v3.0 breaking change:** Renamed from `ToMultiplier()` to `ToModifier()`. Old name retained as `[Obsolete]`.
 
 ### ToFormula
 
 ```csharp
-public FluxFormula<TData, TOper> ToFormula(string varName)
+public FluxFormula<TData, TDef> ToFormula(string varName)
 ```
 
-Converts Modifier to Formula. Inserts an Immediate instruction named `varName` in place of R1 input, renames R1 references to the new register. Returns self if already a Formula.
+Converts Modifier to Formula. Inserts an Immediate instruction named `varName` in place of R1 input.
 
-### ToAtomic
+### Other Methods
+
+`ToAtomic`, `GetByteHash`, `Raw`, `ToBytes`, `FromBytes`, `IsChained`, `ChainLength`, `GetChainLinks` — same as v2.x. See XML doc comments for details.
+
+## FluxModifier Methods
+
+### Connect
 
 ```csharp
-internal FluxFormula<TData, TOper> ToAtomic()
+public FluxModifier<TData, TDef> Connect(FluxModifier<TData, TDef> next)
 ```
 
-Merges a chain formula into an atomic formula. All links' `Instruction[]` arrays are concatenated in full (including intermediate Returns). Called automatically for JIT paths and long chains (>8).
+Chains two Modifiers together. Result is still a Modifier (still missing first operand).
 
-### GetByteHash
+### ToFormula
 
 ```csharp
-public DualHash64 GetByteHash()
+public FluxFormula<TData, TDef> ToFormula(string varName)
 ```
 
-Returns the `DualHash64` of the formula's bytecode. For atomic formulas, equivalent to hashing `ToBytes()`. For chain formulas, the sequential `Combine` of all link keys. Used as cache lookup key.
+Modifier→Formula: inserts a named variable to replace the R1 input. This is the only way to convert a `FluxModifier` into an evaluable `FluxFormula`.
 
-### Raw
+### Other Methods
 
-```csharp
-public ReadOnlySpan<Instruction> Raw()
-```
-
-Returns a read-only view of the formula's underlying instructions. Chain formulas are automatically merged via `ToAtomic()` before returning, presenting a unified atomic representation externally.
-
-### ToBytes
-
-```csharp
-public byte[] ToBytes()
-```
-
-Serializes the formula to a byte array. Chain formulas are automatically merged to atomic before serialization. Format: 14-byte header (Count(4) + Type(1) + ImmediateCount(4) + VarSlotCount(4) + MaxRegister(1)) + instruction region (Count × InstructionSize bytes, each writing the Raw field) + variable slot region (each: nameLen + UTF8 name + slotIndex). Format definition is centralized in `FormulaFormat`; byte-level I/O is unified via `BinaryFormat`.
-
-### FromBytes
-
-```csharp
-public static FluxFormula<TData, TOper> FromBytes(byte[] data)
-public static FluxFormula<TData, TOper> FromBytes(ReadOnlySpan<byte> data)
-```
-
-Deserializes from the byte array produced by `ToBytes()`. No recompilation needed; the bytecode is ready to use. The `ReadOnlySpan<byte>` overload enables zero-copy deserialization from pinned memory pointers.
-
-```csharp
-// Persist
-byte[] raw = formula.ToBytes();
-File.WriteAllBytes("damage.ff", raw);
-
-// Load (zero compilation)
-var loaded = FluxFormula<float, FloatOp>.FromBytes(raw);
-float r = runner.Instantiate(loaded).Set("atk", 100f).Run();
-
-// Zero-copy load from blob pointer
-var fromBlob = FluxFormula<float, FloatOp>.FromBytes(blobSpan.Slice(offset, length));
-```
-
-`FromBytes` validates `sizeof(TOper) == 1` during type initialization, throwing `TypeInitializationException` on failure.
-
-### IsChained
-
-```csharp
-public bool IsChained { get; }
-```
-
-Whether the formula is a chain formula (produced by `Connect()`). Chain formulas internally store multiple `ChainLink` entries; atomic formulas return `false`.
-
-### ChainLength
-
-```csharp
-public int ChainLength { get; }
-```
-
-Number of links in a chain formula. Returns `0` for atomic formulas.
-
-### GetChainLinks
-
-```csharp
-public ReadOnlySpan<ChainLink> GetChainLinks()
-```
-
-Returns a read-only view of chain links. Returns an empty span for atomic formulas. Advanced users can read the chain structure and persist it as a `.vff` file via `VffFormat.ToBytes()`.
-
-```csharp
-var chain = formulaA.Connect(formulaB);
-if (chain.IsChained)
-{
-    var links = chain.GetChainLinks();
-    byte[] vffData = VffFormat.ToBytes<float>(links.ToArray(), Array.Empty<VffOverride<float>>());
-    builder.Save(vffData, FluxArtifactKind.Virtual, "ComboChain.vff");
-}
-```
-
-### ToString
-
-```csharp
-public override string ToString()
-// "FluxFormula<Single> [Type: Formula, Instructions: 4]"
-```
+`Raw`, `ToBytes`, `GetByteHash`, `GetChainLinks`, `FromBytes` — same as `FluxFormula` equivalents.
 
 ## See Also
 

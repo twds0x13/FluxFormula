@@ -52,7 +52,7 @@ namespace FluxFormula.Core
         public int InstructionCount;
 
         /// <summary>Formula 或 Modifier</summary>
-        public FluxType Type;
+        internal FluxType Type;
 
         /// <summary>该片段的 Immediate 数（用于 SetIndex 偏移计算）</summary>
         public int ImmediateCount;
@@ -71,7 +71,7 @@ namespace FluxFormula.Core
         // ── 原子公式表示（Instruction[]）──
         private readonly Instruction[] _buffer;
         public readonly int Count;
-        public readonly FluxType Type;
+        internal readonly FluxType Type;
         public readonly int ImmediateCount;
         public readonly VariableSlot[] VariableSlots;
 
@@ -124,6 +124,10 @@ namespace FluxFormula.Core
         public static FluxFormula<TData, TDef> Empty =>
             new(Array.Empty<Instruction>(), 0, FluxType.Formula);
 
+        /// <summary>空 Modifier（Count=0），供 <see cref="FluxModifier{TData, TDef}.Empty"/> 使用</summary>
+        internal static FluxFormula<TData, TDef> EmptyModifier =>
+            new(Array.Empty<Instruction>(), 0, FluxType.Modifier);
+
         // ── 链式访问器 ──
 
         /// <summary>是否为链式公式（vs 原子字节码公式）</summary>
@@ -140,12 +144,12 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 转换为 Modifier：移除第一个数据操作数，后续指令中对 dest 寄存器的引用全部重命名为 R1。
-        /// 已为 Modifier 则原样返回。链式公式先转为原子再操作。
+        /// 已为 Modifier（内部 Type==Modifier）则直接包装。链式公式先转为原子再操作。
         /// </summary>
-        public FluxFormula<TData, TDef> ToMultiplier()
+        public FluxModifier<TData, TDef> ToModifier()
         {
-            if (Type == FluxType.Modifier) return this;
-            if (IsChained) return ToAtomic().ToMultiplier();
+            if (Type == FluxType.Modifier) return new FluxModifier<TData, TDef>(this);
+            if (IsChained) return ToAtomic().ToModifier();
 
             if (Count < 2)
                 throw new InvalidOperationException("Cannot convert formula with fewer than 2 instructions to Modifier.");
@@ -194,9 +198,16 @@ namespace FluxFormula.Core
                 newSlots = VariableSlots;
             }
 
-            return new FluxFormula<TData, TDef>(newBuffer, newCount, FluxType.Modifier,
-                newImmCount, newSlots, MaxRegister);
+            return new FluxModifier<TData, TDef>(
+                new FluxFormula<TData, TDef>(newBuffer, newCount, FluxType.Modifier,
+                    newImmCount, newSlots, MaxRegister));
         }
+
+        /// <summary>
+        /// [Obsolete] 旧名称，请使用 <see cref="ToModifier"/>。
+        /// </summary>
+        [Obsolete("Use ToModifier() instead.")]
+        public FluxModifier<TData, TDef> ToMultiplier() => ToModifier();
 
         /// <summary>
         /// Modifier→Formula：插入命名变量替代 R1 输入。
@@ -269,35 +280,29 @@ namespace FluxFormula.Core
         }
 
         /// <summary>
-        /// 将当前公式与后一个公式串联。前者的 R1 输出自动流入后者的首操作数位置。
-        /// 要求 <paramref name="next"/> 必须是 Modifier（已剥离首操作数的公式）——
+        /// 将当前公式与一个 Modifier 串联。前者的 R1 输出自动流入后者的首操作数位置。
+        /// 类型系统保证 <paramref name="next"/> 是 Modifier（缺首操作数）——
         /// 避免 Formula 的首操作数被静默覆盖。
-        /// 传入 Formula 前请先调用 <see cref="ToMultiplier"/>。
+        /// 传入 Formula 前请先调用 <see cref="ToModifier"/>。
         /// </summary>
-        /// <exception cref="ArgumentException"><paramref name="next"/> 不是 Modifier 类型。</exception>
-        public FluxFormula<TData, TDef> Connect(FluxFormula<TData, TDef> next)
+        public FluxFormula<TData, TDef> Connect(FluxModifier<TData, TDef> next)
         {
-            if (this.Count == 0) return next;
+            if (this.Count == 0) return next.Count == 0 ? this : next.ToFormula(ChainReserved.InternalPrefix + "empty");
             if (next.Count == 0) return this;
 
-            if (next.Type != FluxType.Modifier)
-                throw new ArgumentException(
-                    "Connect requires the right-hand formula to be a Modifier. " +
-                    "Use .ToMultiplier() to strip its first operand before connecting.");
+            if (this.Count == 1) return next.ToFormula(ChainReserved.InternalPrefix + "single");
 
-            if (this.Count == 1) return next;
-
-            return ChainConnect(GetLinks(), next.GetLinks());
+            return ChainConnect(GetLinks(), next.Inner.GetLinks());
         }
 
         // ── Connect 辅助 ──
 
         /// <summary>为 Connect 提取链式链接（原子公式自动包装为单链接）</summary>
-        private ChainLink[] GetLinks()
+        internal ChainLink[] GetLinks()
             => IsChained ? _chain : new[] { ToChainLink() };
 
         /// <summary>构建链式 FluxFormula，合并两段链接的变量槽并右移后半段 SlotIndex</summary>
-        private static FluxFormula<TData, TDef> ChainConnect(
+        internal static FluxFormula<TData, TDef> ChainConnect(
             ChainLink[] thisLinks, ChainLink[] nextLinks)
         {
             int totalLinks = thisLinks.Length + nextLinks.Length;
@@ -490,7 +495,7 @@ namespace FluxFormula.Core
 
             // ── 头部 ──
             FormulaFormat.WriteHeader(data, ref offset,
-                new FormulaHeader(Count, Type, ImmediateCount, varSlotCount, MaxRegister));
+                new FormulaHeader(Count, (byte)Type, ImmediateCount, varSlotCount, MaxRegister));
 
             // ── 指令 ──
             for (int i = 0; i < Count; i++)

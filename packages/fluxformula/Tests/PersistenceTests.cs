@@ -159,7 +159,7 @@ public class PersistenceTests
         // 从磁盘加载并拼接
         var loadedA = FluxFormula<float, FloatMathDef>.FromBytes(savedA);
         var loadedB = FluxFormula<float, FloatMathDef>.FromBytes(savedB);
-        var combined = loadedA.Connect(loadedB);
+        var combined = loadedA.Connect(loadedB.ToModifier());
 
         float result = runner.Instantiate(combined, jit: false)
             .Set("a", 2f).Set("b", 3f).Set("c", 1f).Run();

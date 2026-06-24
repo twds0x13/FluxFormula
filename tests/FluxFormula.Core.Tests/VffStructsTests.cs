@@ -38,20 +38,20 @@ public class VffStructsTests
     public void VffLinkEntry_Constructed_FieldsMatch()
     {
         var hash = DualHash64.Compute(new byte[] { 0xAB, 0xCD });
-        var entry = new VffLinkEntry(hash, immCount: 2, instCount: 10, type: FluxType.Modifier, varSlotCount: 1);
+        var entry = new VffLinkEntry(hash, immCount: 2, instCount: 10, type: (byte)FluxType.Modifier, varSlotCount: 1);
 
         Assert.That(entry.Hash, Is.EqualTo(hash));
         Assert.That(entry.ImmCount, Is.EqualTo(2));
         Assert.That(entry.InstCount, Is.EqualTo(10));
-        Assert.That(entry.Type, Is.EqualTo(FluxType.Modifier));
+        Assert.That(entry.Type, Is.EqualTo((byte)FluxType.Modifier));
         Assert.That(entry.VarSlotCount, Is.EqualTo(1));
     }
 
     [Test]
     public void VffLinkEntry_FormulaType()
     {
-        var entry = new VffLinkEntry(DualHash64.Compute(new byte[] { 1 }), 0, 5, FluxType.Formula, 0);
-        Assert.That(entry.Type, Is.EqualTo(FluxType.Formula));
+        var entry = new VffLinkEntry(DualHash64.Compute(new byte[] { 1 }), 0, 5, (byte)FluxType.Formula, 0);
+        Assert.That(entry.Type, Is.EqualTo((byte)FluxType.Formula));
     }
 
     // ═══════════════════════════════════════════════════════
@@ -108,7 +108,7 @@ public class VffStructsTests
     {
         var lexer = TestHelper.CreateMathLexer();
         var fA = new FluxAssembler<float, FloatMathDef>(TestHelper.Def).Compile(lexer.Lex("1 + 2"));
-        var fB = new FluxAssembler<float, FloatMathDef>(TestHelper.Def).Compile(lexer.Lex("3 + 4")).ToMultiplier();
+        var fB = new FluxAssembler<float, FloatMathDef>(TestHelper.Def).Compile(lexer.Lex("3 + 4")).ToModifier();
         var chain = fA.Connect(fB);
 
         var result = new VffResolveResult<float, FloatMathDef>(chain, Array.Empty<VffOverride<float>>());

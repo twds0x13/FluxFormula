@@ -75,8 +75,8 @@ namespace FluxFormula.Core
         /// <summary>Instruction 条数</summary>
         public readonly int Count;
 
-        /// <summary>公式 / 修饰符</summary>
-        public readonly FluxType Type;
+        /// <summary>公式类型：0=Modifier, 1=Formula</summary>
+        public readonly byte Type;
 
         /// <summary>Immediate 数据槽数</summary>
         public readonly int ImmediateCount;
@@ -90,7 +90,7 @@ namespace FluxFormula.Core
         /// </summary>
         public readonly byte MaxRegister;
 
-        public FormulaHeader(int count, FluxType type, int immediateCount, int varSlotCount, byte maxRegister = 0)
+        public FormulaHeader(int count, byte type, int immediateCount, int varSlotCount, byte maxRegister = 0)
         {
             Count          = count;
             Type           = type;
@@ -134,7 +134,7 @@ namespace FluxFormula.Core
                 throw new ArgumentException($"Formula bytecode too short for header: {bytes.Length} bytes.");
 
             int count          = (int)BinaryFormat.ReadUInt32LE(bytes, OffCount);
-            var type           = (FluxType)bytes[OffType];
+            byte type          = bytes[OffType];
             int immediateCount = (int)BinaryFormat.ReadUInt32LE(bytes, OffImmediateCount);
             int varSlotCount   = (int)BinaryFormat.ReadUInt32LE(bytes, OffVarSlotCount);
             byte maxRegister   = bytes[OffMaxRegister];
@@ -204,7 +204,7 @@ namespace FluxFormula.Core
         public static void WriteHeader(byte[] buf, ref int offset, FormulaHeader header)
         {
             BinaryFormat.WriteInt32LE(buf, ref offset, header.Count);
-            buf[offset++] = (byte)header.Type;
+            buf[offset++] = header.Type;
             BinaryFormat.WriteInt32LE(buf, ref offset, header.ImmediateCount);
             BinaryFormat.WriteInt32LE(buf, ref offset, header.VarSlotCount);
             buf[offset++] = header.MaxRegister;

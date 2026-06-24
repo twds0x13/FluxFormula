@@ -157,7 +157,7 @@ public unsafe class VffFormatTests
             var link = new VffLinkEntry(fHash,
                 immCount: (byte)header.ImmediateCount,
                 instCount: (ushort)header.Count,
-                type: FluxType.Formula,
+                type: (byte)FluxType.Formula,
                 varSlotCount: (ushort)header.VarSlotCount);
 
             byte[] vffBytes = BuildVffBytes(new[] { link });
@@ -192,8 +192,8 @@ public unsafe class VffFormatTests
             var hdrB = FormulaFormat.ReadHeader(bB);
             var links = new[]
             {
-                new VffLinkEntry(hA, (byte)hdrA.ImmediateCount, (ushort)hdrA.Count, FluxType.Formula, (ushort)hdrA.VarSlotCount),
-                new VffLinkEntry(hB, (byte)hdrB.ImmediateCount, (ushort)hdrB.Count, FluxType.Formula, (ushort)hdrB.VarSlotCount),
+                new VffLinkEntry(hA, (byte)hdrA.ImmediateCount, (ushort)hdrA.Count, (byte)FluxType.Formula, (ushort)hdrA.VarSlotCount),
+                new VffLinkEntry(hB, (byte)hdrB.ImmediateCount, (ushort)hdrB.Count, (byte)FluxType.Formula, (ushort)hdrB.VarSlotCount),
             };
 
             byte[] vffBytes = BuildVffBytes(links);
@@ -214,7 +214,7 @@ public unsafe class VffFormatTests
     {
         var lexer = CreateMathLexer();
         var f = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("2 * 3"));
-        var modifier = f.ToMultiplier();
+        var modifier = f.ToModifier();
         byte[] fBytes = modifier.ToBytes();
         var (fHash, gc) = PutInCache(fBytes);
 
@@ -222,7 +222,7 @@ public unsafe class VffFormatTests
         {
             var header = FormulaFormat.ReadHeader(fBytes);
             var link = new VffLinkEntry(fHash, (byte)header.ImmediateCount,
-                (ushort)header.Count, FluxType.Modifier, (ushort)header.VarSlotCount);
+                (ushort)header.Count, (byte)FluxType.Modifier, (ushort)header.VarSlotCount);
             byte[] vffBytes = BuildVffBytes(new[] { link });
             var (vffHash, gcVff) = PutInCache(vffBytes);
 
@@ -252,14 +252,14 @@ public unsafe class VffFormatTests
         {
             var hdr = FormulaFormat.ReadHeader(innerBytes);
             var innerLink = new VffLinkEntry(innerHash, (byte)hdr.ImmediateCount,
-                (ushort)hdr.Count, FluxType.Formula, (ushort)hdr.VarSlotCount);
+                (ushort)hdr.Count, (byte)FluxType.Formula, (ushort)hdr.VarSlotCount);
             byte[] innerVffBytes = BuildVffBytes(new[] { innerLink });
             var (innerVffHash, gcInnerVff) = PutInCache(innerVffBytes);
 
             try
             {
                 var outerLink = new VffLinkEntry(innerVffHash, immCount: 0, instCount: 0,
-                    type: FluxType.Formula, varSlotCount: 0);
+                    type: (byte)FluxType.Formula, varSlotCount: 0);
                 byte[] outerVffBytes = BuildVffBytes(new[] { outerLink });
                 var (outerVffHash, gcOuterVff) = PutInCache(outerVffBytes);
 
@@ -296,7 +296,7 @@ public unsafe class VffFormatTests
         {
             var header = FormulaFormat.ReadHeader(fBytes);
             var link = new VffLinkEntry(fHash, (byte)header.ImmediateCount,
-                (ushort)header.Count, FluxType.Formula, (ushort)header.VarSlotCount);
+                (ushort)header.Count, (byte)FluxType.Formula, (ushort)header.VarSlotCount);
             byte[] vffBytes = BuildVffBytes(new[] { link });
             var (vffHash, gcVff) = PutInCache(vffBytes);
 
@@ -352,7 +352,7 @@ public unsafe class VffFormatTests
             var header = FormulaFormat.ReadHeader(fBytes);
             var bogusHash = DualHash64.Compute(new byte[] { 0xFF, 0xEE, 0xDD });
             var link = new VffLinkEntry(bogusHash, (byte)header.ImmediateCount,
-                (ushort)header.Count, FluxType.Formula, (ushort)header.VarSlotCount);
+                (ushort)header.Count, (byte)FluxType.Formula, (ushort)header.VarSlotCount);
             byte[] vffBytes = BuildVffBytes(new[] { link });
             var (vffHash, gcVff) = PutInCache(vffBytes);
 
@@ -399,7 +399,7 @@ public unsafe class VffFormatTests
         {
             var header = FormulaFormat.ReadHeader(fBytes);
             var link = new VffLinkEntry(fHash, (byte)header.ImmediateCount,
-                (ushort)header.Count, FluxType.Formula, (ushort)header.VarSlotCount);
+                (ushort)header.Count, (byte)FluxType.Formula, (ushort)header.VarSlotCount);
             var overrides = new[] {
                 (globalSlot: 0, kind: VffOverrideKind.Inject, value: 0f),
                 (globalSlot: 1, kind: VffOverrideKind.Inject, value: 0f),
@@ -434,7 +434,7 @@ public unsafe class VffFormatTests
         {
             var header = FormulaFormat.ReadHeader(fBytes);
             var link = new VffLinkEntry(fHash, (byte)header.ImmediateCount,
-                (ushort)header.Count, FluxType.Formula, (ushort)header.VarSlotCount);
+                (ushort)header.Count, (byte)FluxType.Formula, (ushort)header.VarSlotCount);
             var overrides = new[] {
                 (globalSlot: 3, kind: VffOverrideKind.Constant, value: 3.14f),
             };
@@ -467,7 +467,7 @@ public unsafe class VffFormatTests
         {
             var header = FormulaFormat.ReadHeader(fBytes);
             var link = new VffLinkEntry(fHash, (byte)header.ImmediateCount,
-                (ushort)header.Count, FluxType.Formula, (ushort)header.VarSlotCount);
+                (ushort)header.Count, (byte)FluxType.Formula, (ushort)header.VarSlotCount);
 
             int totalLen = VffFormat.HeaderSize + VffFormat.LinkEntrySize + 3 + 1 + 4;
             var buf = new byte[totalLen];
@@ -520,7 +520,7 @@ public unsafe class VffFormatTests
             var varHdr = FormulaFormat.ReadHeader(varBytes);
             // Inner VFF: wraps the variable formula
             var innerLink = new VffLinkEntry(varHash, (byte)varHdr.ImmediateCount,
-                (ushort)varHdr.Count, FluxType.Formula, (ushort)varHdr.VarSlotCount);
+                (ushort)varHdr.Count, (byte)FluxType.Formula, (ushort)varHdr.VarSlotCount);
             byte[] innerVffBytes = BuildVffBytes(new[] { innerLink });
             var (innerVffHash, gcInnerVff) = PutInCache(innerVffBytes);
 
@@ -532,9 +532,9 @@ public unsafe class VffFormatTests
                 var outerLinks = new[]
                 {
                     new VffLinkEntry(constHash, (byte)constHdr.ImmediateCount,
-                        (ushort)constHdr.Count, FluxType.Formula, (ushort)constHdr.VarSlotCount),
+                        (ushort)constHdr.Count, (byte)FluxType.Formula, (ushort)constHdr.VarSlotCount),
                     new VffLinkEntry(innerVffHash, immCount: 0, instCount: 0,
-                        type: FluxType.Formula, varSlotCount: 2),
+                        type: (byte)FluxType.Formula, varSlotCount: 2),
                 };
                 byte[] outerVffBytes = BuildVffBytes(outerLinks);
                 var (outerVffHash, gcOuterVff) = PutInCache(outerVffBytes);
@@ -583,7 +583,7 @@ public unsafe class VffFormatTests
         {
             var innerHdr = FormulaFormat.ReadHeader(innerBytes);
             var innerLink = new VffLinkEntry(innerHash, (byte)innerHdr.ImmediateCount,
-                (ushort)innerHdr.Count, FluxType.Formula, (ushort)innerHdr.VarSlotCount);
+                (ushort)innerHdr.Count, (byte)FluxType.Formula, (ushort)innerHdr.VarSlotCount);
             // Inner VFF: formula + inject override at slot 0
             byte[] innerVffBytes = BuildVffBytes(new[] { innerLink },
                 new[] { (globalSlot: 0, kind: VffOverrideKind.Inject, value: 0f) });
@@ -595,9 +595,9 @@ public unsafe class VffFormatTests
                 var outerLinks = new[]
                 {
                     new VffLinkEntry(constHash, (byte)constHdr.ImmediateCount,
-                        (ushort)constHdr.Count, FluxType.Formula, (ushort)constHdr.VarSlotCount),
+                        (ushort)constHdr.Count, (byte)FluxType.Formula, (ushort)constHdr.VarSlotCount),
                     new VffLinkEntry(innerVffHash, immCount: 0, instCount: 0,
-                        type: FluxType.Formula, varSlotCount: 0),
+                        type: (byte)FluxType.Formula, varSlotCount: 0),
                 };
                 byte[] outerVffBytes = BuildVffBytes(outerLinks);
                 var (outerVffHash, gcOuterVff) = PutInCache(outerVffBytes);
@@ -641,7 +641,7 @@ public unsafe class VffFormatTests
         {
             var hdr = FormulaFormat.ReadHeader(fBytes);
             var link = new VffLinkEntry(fHash, (byte)hdr.ImmediateCount,
-                (ushort)hdr.Count, FluxType.Formula, (ushort)hdr.VarSlotCount);
+                (ushort)hdr.Count, (byte)FluxType.Formula, (ushort)hdr.VarSlotCount);
             byte[] innerVffBytes = BuildVffBytes(new[] { link });
             var (innerVffHash, gcInnerVff) = PutInCache(innerVffBytes);
 
@@ -652,9 +652,9 @@ public unsafe class VffFormatTests
                 var outerLinks = new[]
                 {
                     new VffLinkEntry(innerVffHash, immCount: 0, instCount: 0,
-                        type: FluxType.Formula, varSlotCount: 0),
+                        type: (byte)FluxType.Formula, varSlotCount: 0),
                     new VffLinkEntry(bogusHash, immCount: 1, instCount: 1,
-                        type: FluxType.Formula, varSlotCount: 0),
+                        type: (byte)FluxType.Formula, varSlotCount: 0),
                 };
                 byte[] outerVffBytes = BuildVffBytes(outerLinks);
                 var (outerVffHash, gcOuterVff) = PutInCache(outerVffBytes);

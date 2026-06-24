@@ -55,7 +55,7 @@ public class VffRecursiveTests
         byte[] data = new byte[totalSize];
         int offset = 0;
 
-        var header = new FormulaHeader(instructions.Length, type, immCount, (byte)varSlotCount, maxRegister);
+        var header = new FormulaHeader(instructions.Length, (byte)type, immCount, (byte)varSlotCount, maxRegister);
         FormulaFormat.WriteHeader(data, ref offset, header);
 
         for (int i = 0; i < instructions.Length; i++)
@@ -186,8 +186,8 @@ public class VffRecursiveTests
         // 内层 VFF：引用公式 A + B
         var innerLinks = new[]
         {
-            new VffLinkEntry(hashA, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
-            new VffLinkEntry(hashB, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashA, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashB, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var innerVffHash = RegisterVff(innerLinks);
 
@@ -195,8 +195,8 @@ public class VffRecursiveTests
         var hashC = RegisterFakeFormula(immCount: 1);
         var outerLinks = new[]
         {
-            new VffLinkEntry(hashC, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
-            new VffLinkEntry(innerVffHash, immCount: 2, instCount: 2, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashC, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(innerVffHash, immCount: 2, instCount: 2, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var outerVffHash = RegisterVff(outerLinks);
 
@@ -215,16 +215,16 @@ public class VffRecursiveTests
 
         var innerLinks = new[]
         {
-            new VffLinkEntry(hashA, immCount: 2, instCount: 1, FluxType.Formula, varSlotCount: 0),
-            new VffLinkEntry(hashB, immCount: 3, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashA, immCount: 2, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashB, immCount: 3, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var innerVffHash = RegisterVff(innerLinks); // total imm = 5
 
         var hashC = RegisterFakeFormula(immCount: 1);
         var outerLinks = new[]
         {
-            new VffLinkEntry(hashC, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
-            new VffLinkEntry(innerVffHash, immCount: 5, instCount: 2, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashC, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(innerVffHash, immCount: 5, instCount: 2, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var outerVffHash = RegisterVff(outerLinks);
 
@@ -242,20 +242,20 @@ public class VffRecursiveTests
 
         var innerLinksB = new[]
         {
-            new VffLinkEntry(shared, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(shared, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var vffB = RegisterVff(innerLinksB);
 
         var innerLinksC = new[]
         {
-            new VffLinkEntry(shared, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(shared, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var vffC = RegisterVff(innerLinksC);
 
         var topLinks = new[]
         {
-            new VffLinkEntry(vffB, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
-            new VffLinkEntry(vffC, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(vffB, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(vffC, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var topVff = RegisterVff(topLinks);
 
@@ -290,14 +290,14 @@ public class VffRecursiveTests
         var dummyHash = DualHash64.Compute(new byte[] { 0xFF });
         var aLinksV1 = new[]
         {
-            new VffLinkEntry(dummyHash, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(dummyHash, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var hashA = RegisterVff(aLinksV1);
 
         // Step 2: B 引用真正的 A
         var bLinks = new[]
         {
-            new VffLinkEntry(hashA, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashA, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var hashB = RegisterVff(bLinks);
 
@@ -307,7 +307,7 @@ public class VffRecursiveTests
         var hashB2 = RegisterVff(bLinks); // B 引用 A
         var aLinksV2 = new[]
         {
-            new VffLinkEntry(hashB2, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashB2, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var hashA2 = RegisterVff(aLinksV2); // A 引用 B
 
@@ -332,8 +332,8 @@ public class VffRecursiveTests
         // 内层 VFF 引用 A + B
         var innerLinks = new[]
         {
-            new VffLinkEntry(hashA, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 1),
-            new VffLinkEntry(hashB, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 1),
+            new VffLinkEntry(hashA, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 1),
+            new VffLinkEntry(hashB, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 1),
         };
         var innerVffHash = RegisterVff(innerLinks);
 
@@ -342,8 +342,8 @@ public class VffRecursiveTests
             varNames: new[] { "z" });
         var outerLinks = new[]
         {
-            new VffLinkEntry(hashC, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 1),
-            new VffLinkEntry(innerVffHash, immCount: 2, instCount: 2, FluxType.Formula, varSlotCount: 2),
+            new VffLinkEntry(hashC, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 1),
+            new VffLinkEntry(innerVffHash, immCount: 2, instCount: 2, (byte)FluxType.Formula, varSlotCount: 2),
         };
         var outerVffHash = RegisterVff(outerLinks);
 
@@ -372,8 +372,8 @@ public class VffRecursiveTests
         };
         var innerLinks = new[]
         {
-            new VffLinkEntry(hashA, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
-            new VffLinkEntry(hashB, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashA, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashB, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var innerVffHash = RegisterVff(innerLinks, innerOverrides);
 
@@ -385,8 +385,8 @@ public class VffRecursiveTests
         };
         var outerLinks = new[]
         {
-            new VffLinkEntry(hashC, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
-            new VffLinkEntry(innerVffHash, immCount: 2, instCount: 2, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(hashC, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(innerVffHash, immCount: 2, instCount: 2, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var outerVffHash = RegisterVff(outerLinks, outerOverrides);
 
@@ -411,23 +411,23 @@ public class VffRecursiveTests
         var leafN = RegisterFakeFormula(immCount: 1);
         var nLinks = new[]
         {
-            new VffLinkEntry(leafN, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(leafN, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var vffN = RegisterVff(nLinks); // 1 link, 1 imm
 
         var leafM = RegisterFakeFormula(immCount: 1);
         var mLinks = new[]
         {
-            new VffLinkEntry(leafM, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
-            new VffLinkEntry(vffN, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(leafM, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(vffN, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var vffM = RegisterVff(mLinks); // 2 link, 2 imm
 
         var leafL = RegisterFakeFormula(immCount: 1);
         var lLinks = new[]
         {
-            new VffLinkEntry(leafL, immCount: 1, instCount: 1, FluxType.Formula, varSlotCount: 0),
-            new VffLinkEntry(vffM, immCount: 2, instCount: 2, FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(leafL, immCount: 1, instCount: 1, (byte)FluxType.Formula, varSlotCount: 0),
+            new VffLinkEntry(vffM, immCount: 2, instCount: 2, (byte)FluxType.Formula, varSlotCount: 0),
         };
         var vffL = RegisterVff(lLinks); // 2 links
 

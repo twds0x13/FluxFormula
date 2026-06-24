@@ -6,14 +6,14 @@ using static TestHelper;
 public class FluxInstanceTests
 {
     [Test]
-    public void ModifierCannotRunStandalone()
+    public void Modifier_ToFormula_Then_Run()
     {
+        // FluxModifier 必须通过 ToFormula 转为 Formula 后才能求值
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
-        var inst = runner.Build(new[] { Op(FloatOp.Add), C(5f) }, jit: false);
-        bool threw = false;
-        try { inst.Run(); }
-        catch (InvalidOperationException) { threw = true; }
-        Assert.That(threw, Is.True, "Modifier should throw when run standalone");
+        var modifier = runner.Compile(new[] { Op(FloatOp.Add), C(5f) }).ToModifier();
+        var formula = modifier.ToFormula("input");
+        float result = runner.Instantiate(formula).Set("input", 10f).Run();
+        Assert.That(result, Is.EqualTo(15f).Within(1e-6f));
     }
 
     [Test]
@@ -92,7 +92,7 @@ public class FluxInstanceTests
         var fA = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("7 + 3"));          // R1 = 10
         var fB = new FluxAssembler<float, FloatMathDef>(Def)
-            .Compile(lexer.Lex("2 * 5")).ToMultiplier(); // modifier: R1 * 5
+            .Compile(lexer.Lex("2 * 5")).ToModifier(); // modifier: R1 * 5
         var chain = fA.Connect(fB);                 // 10 * 5 = 50
         var inst = new FluxAssembler<float, FloatMathDef>(Def)
             .Instantiate(chain);

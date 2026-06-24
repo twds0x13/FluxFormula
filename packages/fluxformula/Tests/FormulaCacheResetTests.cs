@@ -75,7 +75,7 @@ public class FormulaCacheResetTests
         var lexB   = CreateVarLexer("[", "]").Lex("+ [b]");
         var fA     = runner.Compile(lexA);
         var fB     = runner.Compile(lexB);
-        var chain  = fA.Connect(fB);
+        var chain  = fA.Connect(fB.ToModifier());
 
         // 预热 JIT
         float expected = runner.Instantiate(chain, jit: true)

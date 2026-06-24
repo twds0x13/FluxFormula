@@ -2,7 +2,7 @@
 
 本文档记录 FluxFormula 各主版本之间的 breaking changes 及迁移步骤。
 
-当前最新版本为 2.0.0。
+当前最新版本为 3.0.0。
 
 ---
 
@@ -55,7 +55,53 @@
 
 ---
 
-## 从 1.2 迁移到 1.3
+## 从 2.x 迁移到 3.0
+
+### 概述
+
+3.0 完成两个方向的重构：(1) `TOper` 泛型参数移除——`TDef` 进入 `FluxFormula` 签名；(2) Formula/Modifier 类型分裂——`FluxModifier<TData, TDef>` 作为独立公开类型。
+
+影响范围：所有 Definition 实现、`Connect` 调用点、Modifier 变量声明。
+
+### Breaking Changes
+
+| 变更 | 2.x 行为 | 3.0 行为 | 迁移方式 |
+|------|----------|----------|----------|
+| `FluxFormula<TData, TOper>` | 两个泛型参数 | `FluxFormula<TData, TDef>` — `TDef` 替代 `TOper` | 替换所有泛型参数 |
+| `ToMultiplier()` | 返回 `FluxFormula` | `ToModifier()` 返回 `FluxModifier<TData, TDef>` | 重命名调用 |
+| `Connect(FluxFormula)` | 接受 `FluxFormula`，运行时检查 Modifier | `Connect(FluxModifier)` — 类型系统保证 | 传入前调用 `.ToModifier()` |
+| `FluxType` 枚举 | `public` | `internal` — 不再暴露 | 移除所有 `FluxType` 断言 |
+| `FluxFormula.Type` | `public` | `internal` — 类型身份由 struct 保证 | 移除 `.Type` 访问 |
+| `FluxModifier` | 不存在 | 新增独立 struct，无 `Instantiate()`/`Run()` | Modifier 变量类型改为 `FluxModifier<TData, TDef>` |
+| `Modifier.Run()` | 抛 `InvalidOperationException` | 编译错误——`FluxModifier` 无此方法 | 通过 `ToFormula()` 转换后求值 |
+| `sizeof(TOper) != 1` 检查 | 运行时异常 | 消除——`byte` 始终 1 字节 | 无需迁移 |
+
+### 新增
+
+- `FluxModifier<TData, TDef>` — 类型安全的 Modifier，编译期防止非法调用
+- `FluxFormula.Connect(FluxModifier)` — 类型系统保证 RHS 为 Modifier
+- `FluxModifier.Connect(FluxModifier)` — Modifier 间串联
+- `FluxModifier.ToFormula(string)` — 转为可求值 Formula
+- `FluxModifier.FromBytes()` — 从字节码反序列化 Modifier
+
+### 消除的运行时异常
+
+| 原异常 | 消除方式 |
+|--------|---------|
+| `Connect 要求 Modifier` | 签名只接受 `FluxModifier` |
+| `Modifier cannot run standalone` | `FluxModifier` 无 `Instantiate()` |
+| 跨 Definition Connect 无检查 | `FluxFormula<TData, TDef>` 类型级区分 |
+| `sizeof(TOper) != 1` | TOper 消失，byte 永远是 1 字节 |
+
+### 版本兼容
+
+| FluxFormula | Unity |
+|-------------|-------|
+| 3.0 | 2021.3+ |
+
+---
+
+## 从 1.3 迁移到 2.0
 
 无 breaking changes。
 
