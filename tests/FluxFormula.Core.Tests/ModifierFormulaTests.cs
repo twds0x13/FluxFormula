@@ -89,7 +89,7 @@ public class ModifierFormulaTests
         Assert.That(restored.Type, Is.EqualTo(FluxType.Formula));
 
         // 通过新变量名注入原值求值应等价
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst = runner.Instantiate(restored).Set("test_var", 7f);
 
         Assert.That(inst.Run(), Is.EqualTo(10f).Within(1e-6f));
@@ -112,7 +112,7 @@ public class ModifierFormulaTests
         Assert.That(restored.ImmediateCount, Is.EqualTo(2));
         Assert.That(restored.Type, Is.EqualTo(FluxType.Formula));
 
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst = runner.Instantiate(restored)
             .Set("INTERNAL_X", 7f)
             .Set("y", 3f);
@@ -134,7 +134,7 @@ public class ModifierFormulaTests
         Assert.That(m.Type, Is.EqualTo(FluxType.Modifier));
 
         // Modifier 在 Run() 时抛异常
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst = runner.Instantiate(m);
         bool threw = false;
         try { inst.Run(); } catch (InvalidOperationException) { threw = true; }
@@ -149,7 +149,7 @@ public class ModifierFormulaTests
         var m = f.ToMultiplier();
         var restored = m.ToFormula("my_input");
 
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst = runner.Instantiate(restored).Set("my_input", 10f);
 
         Assert.That(inst.Run(), Is.EqualTo(15f).Within(1e-6f));
@@ -175,7 +175,7 @@ public class ModifierFormulaTests
     public void ToMultiplier_TooSmallFormula_Throws()
     {
         // Count < 2 的公式无法转为 Modifier
-        var empty = FluxFormula<float, FloatOp>.Empty;
+        var empty = FluxFormula<float, FloatMathDef>.Empty;
         Assert.Throws<InvalidOperationException>(() => empty.ToMultiplier());
     }
 
@@ -203,7 +203,7 @@ public class ModifierFormulaTests
     [Test]
     public void DefaultConstructor_CreatesEmpty()
     {
-        var f = new FluxFormula<float, FloatOp>();
+        var f = new FluxFormula<float, FloatMathDef>();
         Assert.That(f.IsChained, Is.False);
     }
 
@@ -245,7 +245,7 @@ public class ModifierFormulaTests
         var orig = Compile(lexer, "3.14 + 2.718 * 1.414");
         byte[] bytes = orig.ToBytes();
 
-        var restored = FluxFormula<float, FloatOp>.FromBytes(bytes);
+        var restored = FluxFormula<float, FloatMathDef>.FromBytes(bytes);
         Assert.That(restored.IsChained, Is.False);
 
         float origVal = EvalFormula(orig);
@@ -257,10 +257,10 @@ public class ModifierFormulaTests
     // 辅助
     // ═══════════════════════════════════════════════════════
 
-    private static FluxFormula<float, FloatOp> Compile(
-        FluxLexer<float, FloatOp> lexer, string expr)
+    private static FluxFormula<float, FloatMathDef> Compile(
+        FluxLexer<float> lexer, string expr)
     {
-        return new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        return new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex(expr));
     }
 }

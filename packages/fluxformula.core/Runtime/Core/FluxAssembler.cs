@@ -4,10 +4,9 @@ using FluxFormula.Compiler;
 
 namespace FluxFormula.Core
 {
-    public readonly unsafe ref struct FluxAssembler<TData, TOper, TDef>
+    public readonly unsafe ref struct FluxAssembler<TData, TDef>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
-        where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+        where TDef : unmanaged, IFluxJITDefinition<TData>
     {
         private readonly TDef _definition;
 
@@ -23,7 +22,7 @@ namespace FluxFormula.Core
         /// <summary>
         /// 将 LexResult 直接编译为公式（自动提取变量名）
         /// </summary>
-        public FluxFormula<TData, TOper> Compile(LexResult<TData, TOper> lexResult)
+        public FluxFormula<TData, TDef> Compile(LexResult<TData> lexResult)
         {
             return Compile(lexResult.Tokens, lexResult.VarNames);
         }
@@ -31,8 +30,8 @@ namespace FluxFormula.Core
         /// <summary>
         /// 将 Token 编译为可缓存的公式数据图纸
         /// </summary>
-        public FluxFormula<TData, TOper> Compile(
-            ReadOnlySpan<FluxToken<TData, TOper>> tokens,
+        public FluxFormula<TData, TDef> Compile(
+            ReadOnlySpan<FluxToken<TData>> tokens,
             string[] varNames = null)
         {
             int dataSlots = FormulaFormat.DataSlots<TData>();
@@ -42,25 +41,23 @@ namespace FluxFormula.Core
             if (varNames != null)
                 varSlots = new VariableSlot[varNames.Length]; // 上界：每 Token 最多一变量
 
-            var compiler = new FluxCompiler<TData, TOper, TDef>(_definition);
+            var compiler = new FluxCompiler<TData, TDef>(_definition);
             int count = compiler.Compile(tokens, buffer, out int immCount, out int varSlotCount, out byte maxRegister, varNames, varSlots);
 
             FluxType type = FluxType.Formula;
             if (tokens.Length > 0)
             {
-                TOper firstOper = tokens[0].Oper;
-                byte opByte = *(byte*)&firstOper;
-                OpType kind = _definition.GetKind(opByte);
+                byte firstOper = tokens[0].Oper;
+                OpType kind = _definition.GetKind(firstOper);
 
                 // 上下文消歧：前缀位置的二元运算符可能有一元语义
                 if (kind == OpType.Instruction)
                 {
-                    TOper resolved = _definition.ResolveToken(firstOper, TokenContext.OperandExpected);
-                    if (*(byte*)&resolved != 0)
+                    byte resolved = _definition.ResolveToken(firstOper, TokenContext.OperandExpected);
+                    if (resolved != 0)
                     {
                         firstOper = resolved;
-                        opByte    = *(byte*)&firstOper;
-                        kind      = _definition.GetKind(opByte);
+                        kind      = _definition.GetKind(firstOper);
                     }
                 }
 
@@ -72,7 +69,7 @@ namespace FluxFormula.Core
 
                     if (pairInfo.PairRole != Pair.Left)
                     {
-                        int arity = _definition.GetArity(opByte);
+                        int arity = _definition.GetArity(firstOper);
                         // arity == 1 → 一元前缀运算符可启动公式
                         // arity >= 3 → 函数调用运算符（select/lerp），参数由括号内提供
                         if (arity != 1 && arity < 3)
@@ -89,7 +86,7 @@ namespace FluxFormula.Core
                 Array.Copy(varSlots, finalSlots, varSlotCount);
             }
 
-            return new FluxFormula<TData, TOper>(buffer, count, type, immCount, finalSlots, maxRegister);
+            return new FluxFormula<TData, TDef>(buffer, count, type, immCount, finalSlots, maxRegister);
         }
 
         /// <summary>
@@ -98,8 +95,8 @@ namespace FluxFormula.Core
         /// 避免 ToBytes()/FromBytes() 的分配开销。未命中则回退到 formula.Raw()。
         /// 对链式公式自动转换为原子公式后再执行。
         /// </summary>
-        public FluxInstance<TData, TOper, TDef> Instantiate(
-            FluxFormula<TData, TOper> formula,
+        public FluxInstance<TData, TDef> Instantiate(
+            FluxFormula<TData, TDef> formula,
             bool jit = false
         )
         {
@@ -116,11 +113,11 @@ namespace FluxFormula.Core
                 if (cache.TryGetDelegate(hash, out IntPtr cachedHandle))
                 {
                     var handle = System.Runtime.InteropServices.GCHandle.FromIntPtr(cachedHandle);
-                    var func = (FluxJITCompiler<TData, TOper, TDef>.CompiledFunc)handle.Target;
+                    var func = (FluxJITCompiler<TData, TDef>.CompiledFunc)handle.Target;
                     // 重建与 Compile 产出一致的紧凑数据 payload
                     var cachedPayload = CreateJitPayload(formula);
                     var cachedInjector = new FluxInjector<TData>(cachedPayload, null, formula.VariableSlots);
-                    return new FluxInstance<TData, TOper, TDef>(
+                    return new FluxInstance<TData, TDef>(
                         _definition,
                         formula,
                         cachedInjector,
@@ -133,7 +130,7 @@ namespace FluxFormula.Core
                 {
                     // 尝试从 blob 缓存获取字节码——零拷贝重建指令跨度
                     var instSpan = ResolveBytecodeSpan(hash, formula);
-                    var func = FluxJITCompiler<TData, TOper, TDef>.Compile(
+                    var func = FluxJITCompiler<TData, TDef>.Compile(
                         instSpan,
                         _definition,
                         out var payload,
@@ -144,7 +141,7 @@ namespace FluxFormula.Core
                     cache.PutDelegate(hash, System.Runtime.InteropServices.GCHandle.ToIntPtr(delegateHandle));
 
                     var injector = new FluxInjector<TData>(payload, null, formula.VariableSlots);
-                    return new FluxInstance<TData, TOper, TDef>(
+                    return new FluxInstance<TData, TDef>(
                         _definition,
                         formula,
                         injector,
@@ -172,7 +169,7 @@ namespace FluxFormula.Core
 
                 var mergedForInjector = formula.IsChained ? formula.ToAtomic() : formula;
                 var injector = CreateInjector(mergedForInjector);
-                return new FluxInstance<TData, TOper, TDef>(
+                return new FluxInstance<TData, TDef>(
                     _definition,
                     formula,       // 可能仍是链式（短链）或原子（长链）
                     injector,
@@ -183,7 +180,7 @@ namespace FluxFormula.Core
             else
             {
                 var injector2 = CreateInjector(formula);
-                return new FluxInstance<TData, TOper, TDef>(
+                return new FluxInstance<TData, TDef>(
                     _definition,
                     formula,
                     injector2,
@@ -197,8 +194,8 @@ namespace FluxFormula.Core
         /// 将词法 Token 直接编译为可执行的流式流水线
         /// 例如：runner.Build(tokens, jit: true).InjectNext(10).Run();
         /// </summary>
-        public FluxInstance<TData, TOper, TDef> Build(
-            ReadOnlySpan<FluxToken<TData, TOper>> tokens,
+        public FluxInstance<TData, TDef> Build(
+            ReadOnlySpan<FluxToken<TData>> tokens,
             bool jit = false
         )
         {
@@ -213,7 +210,7 @@ namespace FluxFormula.Core
         /// 命中时零拷贝指向 blob fixed 内存；未命中则回退到 formula.Raw()。
         /// </summary>
         private static ReadOnlySpan<Instruction> ResolveBytecodeSpan(
-            DualHash64 hash, FluxFormula<TData, TOper> formula)
+            DualHash64 hash, FluxFormula<TData, TDef> formula)
         {
             if (FormulaCache.Instance.TryGet(hash, out IntPtr ptr, out int length))
             {
@@ -229,7 +226,7 @@ namespace FluxFormula.Core
         /// <summary>
         /// 扫描 IL 指令缓冲，提取数据槽位并建立普通模式的 Injector
         /// </summary>
-        private FluxInjector<TData> CreateInjector(FluxFormula<TData, TOper> formula)
+        private FluxInjector<TData> CreateInjector(FluxFormula<TData, TDef> formula)
         {
             var buffer = formula.Raw();
             int dataSlots = FormulaFormat.DataSlots<TData>();
@@ -255,7 +252,7 @@ namespace FluxFormula.Core
         /// 从公式重建紧凑数据 payload（与 FluxJITCompiler.Compile 产生的格式一致）。
         /// 用于 delegate 缓存命中时重建委托所需的 Instruction[] 数据缓冲区。
         /// </summary>
-        private Instruction[] CreateJitPayload(FluxFormula<TData, TOper> formula)
+        private Instruction[] CreateJitPayload(FluxFormula<TData, TDef> formula)
         {
             var raw = formula.Raw();
             int dataSlotsPerParam = FormulaFormat.DataSlots<TData>();
@@ -289,11 +286,11 @@ namespace FluxFormula.Core
         /// 非首个 link 若为 Modifier 则通过 ToFormula(CHAIN_LINK_INTERNAL_0) 适配为 Formula，
         /// 其第一 Immediate 数据槽位在求值时注入前一个 link 的输出。
         /// </summary>
-        private FluxInstance<TData, TOper, TDef> InstantiateJitChain(
-            FluxFormula<TData, TOper> formula)
+        private FluxInstance<TData, TDef> InstantiateJitChain(
+            FluxFormula<TData, TDef> formula)
         {
             var links = formula.GetChainLinks();
-            var funcs = new FluxJITCompiler<TData, TOper, TDef>.CompiledFunc[links.Length];
+            var funcs = new FluxJITCompiler<TData, TDef>.CompiledFunc[links.Length];
             var injectors = new FluxInjector<TData>[links.Length];
             var cache = FormulaCache.Instance;
 
@@ -306,7 +303,7 @@ namespace FluxFormula.Core
                 if (cache.TryGetDelegate(hash, out IntPtr cachedHandle))
                 {
                     var handle = System.Runtime.InteropServices.GCHandle.FromIntPtr(cachedHandle);
-                    funcs[i] = (FluxJITCompiler<TData, TOper, TDef>.CompiledFunc)handle.Target;
+                    funcs[i] = (FluxJITCompiler<TData, TDef>.CompiledFunc)handle.Target;
                     var payload = CreateJitPayload(linkFormula);
                     injectors[i] = new FluxInjector<TData>(payload, null, linkFormula.VariableSlots);
                 }
@@ -315,7 +312,7 @@ namespace FluxFormula.Core
                     try
                     {
                         var instSpan = ResolveBytecodeSpan(hash, linkFormula);
-                        var func = FluxJITCompiler<TData, TOper, TDef>.Compile(
+                        var func = FluxJITCompiler<TData, TDef>.Compile(
                             instSpan, _definition, out var payload,
                             maxRegister: linkFormula.MaxRegister);
                         var handle = System.Runtime.InteropServices.GCHandle.Alloc(func);
@@ -339,7 +336,7 @@ namespace FluxFormula.Core
             var mergedForInjector = formula.ToAtomic();
             var mergedInjector = CreateInjector(mergedForInjector);
 
-            return new FluxInstance<TData, TOper, TDef>(
+            return new FluxInstance<TData, TDef>(
                 _definition, formula, mergedInjector, funcs, injectors);
         }
 
@@ -347,9 +344,9 @@ namespace FluxFormula.Core
         /// 从 ChainLink 重建 FluxFormula。
         /// 非首个 link 若为 Modifier 则调用 ToFormula(CHAIN_LINK_INTERNAL_0) 适配。
         /// </summary>
-        private static FluxFormula<TData, TOper> LinkToFormula(ChainLink link, bool adaptModifier)
+        private static FluxFormula<TData, TDef> LinkToFormula(ChainLink link, bool adaptModifier)
         {
-            var f = new FluxFormula<TData, TOper>(
+            var f = new FluxFormula<TData, TDef>(
                 link.Bytecode, link.InstructionCount,
                 link.Type, link.ImmediateCount, link.VarSlots,
                 link.MaxRegister);

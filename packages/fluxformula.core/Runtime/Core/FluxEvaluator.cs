@@ -24,10 +24,9 @@ namespace FluxFormula.Core
         public static void DisableJit() => _jitDisabled = true;
     }
 
-    internal readonly unsafe ref struct FluxEvaluator<TData, TOper, TDef>
+    internal readonly unsafe ref struct FluxEvaluator<TData, TDef>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
-        where TDef : unmanaged, IFluxDefinition<TData, TOper>
+        where TDef : unmanaged, IFluxDefinition<TData>
     {
         private readonly TDef _definition;
 

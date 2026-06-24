@@ -83,11 +83,11 @@ public class VffStructsTests
     [Test]
     public void VffResolveResult_WithOverrides()
     {
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(TestHelper.CreateMathLexer().Lex("42"));
         var overrides = new[] { new VffOverride<float>(0, VffOverrideKind.Inject) };
 
-        var result = new VffResolveResult<float, FloatOp>(formula, overrides);
+        var result = new VffResolveResult<float, FloatMathDef>(formula, overrides);
         Assert.That(result.Formula.IsChained, Is.False);
         Assert.That(result.Overrides.Length, Is.EqualTo(1));
     }
@@ -95,10 +95,10 @@ public class VffStructsTests
     [Test]
     public void VffResolveResult_NullOverrides_BecomesEmpty()
     {
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(TestHelper.CreateMathLexer().Lex("1 + 2"));
 
-        var result = new VffResolveResult<float, FloatOp>(formula, null);
+        var result = new VffResolveResult<float, FloatMathDef>(formula, null);
         Assert.That(result.Overrides, Is.Not.Null);
         Assert.That(result.Overrides.Length, Is.EqualTo(0));
     }
@@ -107,11 +107,11 @@ public class VffStructsTests
     public void VffResolveResult_ChainFormula()
     {
         var lexer = TestHelper.CreateMathLexer();
-        var fA = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def).Compile(lexer.Lex("1 + 2"));
-        var fB = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def).Compile(lexer.Lex("3 + 4")).ToMultiplier();
+        var fA = new FluxAssembler<float, FloatMathDef>(TestHelper.Def).Compile(lexer.Lex("1 + 2"));
+        var fB = new FluxAssembler<float, FloatMathDef>(TestHelper.Def).Compile(lexer.Lex("3 + 4")).ToMultiplier();
         var chain = fA.Connect(fB);
 
-        var result = new VffResolveResult<float, FloatOp>(chain, Array.Empty<VffOverride<float>>());
+        var result = new VffResolveResult<float, FloatMathDef>(chain, Array.Empty<VffOverride<float>>());
         Assert.That(result.Formula.IsChained, Is.True);
     }
 }

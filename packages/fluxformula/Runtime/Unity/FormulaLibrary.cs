@@ -8,12 +8,11 @@ namespace FluxFormula.Core
     /// </summary>
     public static class FormulaLibrary
     {
-        public static FormulaLibrary<TData, TOper, TDef> Create<TData, TOper, TDef>()
+        public static FormulaLibrary<TData, TDef> Create<TData, TDef>()
             where TData : unmanaged
-            where TOper : unmanaged, Enum
-            where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
-            return new FormulaLibrary<TData, TOper, TDef>();
+            return new FormulaLibrary<TData, TDef>();
         }
     }
 
@@ -21,10 +20,9 @@ namespace FluxFormula.Core
     /// 泛型公式库。类型 ID 自动从 TDef 派生——TDef 即公式系统身份。
     /// 负责创建 FluxAsset。Addressables 加载功能由 FluxFormula.Addressables 程序集提供。
     /// </summary>
-    public class FormulaLibrary<TData, TOper, TDef>
+    public class FormulaLibrary<TData, TDef>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
-        where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+        where TDef : unmanaged, IFluxJITDefinition<TData>
     {
         private readonly string _typeId;
 
@@ -38,7 +36,7 @@ namespace FluxFormula.Core
         // ═══════════════════════════════════════════════
 
         public FluxAsset CreateAsset(
-            FluxFormula<TData, TOper> formula,
+            FluxFormula<TData, TDef> formula,
             string source = null,
             VariablePatternRule[] variablePatterns = null)
         {

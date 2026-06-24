@@ -10,10 +10,9 @@ using FluxFormula.Core;
 
 namespace FluxFormula.Compiler
 {
-    internal readonly ref struct FluxJITCompiler<TData, TOper, TDef>
+    internal readonly ref struct FluxJITCompiler<TData, TDef>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
-        where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+        where TDef : unmanaged, IFluxJITDefinition<TData>
     {
         public delegate TData CompiledFunc(Instruction[] dataBuffer);
 
@@ -75,7 +74,7 @@ namespace FluxFormula.Compiler
             var body = new List<Expression>();
             int currentDataIdx = 0;
 
-            var castMethod = typeof(FluxJITCompiler<TData, TOper, TDef>).GetMethod(
+            var castMethod = typeof(FluxJITCompiler<TData, TDef>).GetMethod(
                 nameof(SafeCast),
                 BindingFlags.NonPublic | BindingFlags.Static
             );

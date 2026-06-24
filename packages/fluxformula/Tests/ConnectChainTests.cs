@@ -20,7 +20,7 @@ public class ConnectChainTests
         // fA=[a]+0, fB=+[b], fC=+[c]（modifier 形式）
         // Connect: fA → fB → fC
         // 预期: VariableSlots = [a(slot0), b(slot1), c(slot2)]
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lexA = CreateVarLexer("[", "]").Lex("[a] + 0");
         var lexB = CreateVarLexer("[", "]").Lex("+ [b]");
         var lexC = CreateVarLexer("[", "]").Lex("+ [c]");
@@ -49,7 +49,7 @@ public class ConnectChainTests
     {
         // 5 层 Connect：验证长链解释器路径正确
         // 注：链式 JIT 路径存在 per-link delegate 注入不同步问题（已知 issue）
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lex = CreateVarLexer("[", "]").Lex("[a]");
 
         var chain = runner.Compile(lex); // f1 = [a]
@@ -78,7 +78,7 @@ public class ConnectChainTests
     public void Connect_FormulaThenModifier_TypesAreCorrect()
     {
         // [a] + [b] (Formula) → * 2 (Modifier)
-        var runner   = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner   = new FluxAssembler<float, FloatMathDef>(Def);
         var lexF     = CreateVarLexer("[", "]").Lex("[a] + [b]");
         var formula  = runner.Compile(lexF);
         var modifier = runner.Compile(new[] { Op(FloatOp.Mul), C(2f) });
@@ -97,7 +97,7 @@ public class ConnectChainTests
     public void Connect_ModifierThenModifier_ChainOfTwo()
     {
         // 两个 modifier 串联：_ * 2 → _ + 1
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var mod1 = runner.Compile(new[] { Op(FloatOp.Mul), C(2f) });
         var mod2 = runner.Compile(new[] { Op(FloatOp.Add), C(1f) });
 
@@ -119,7 +119,7 @@ public class ConnectChainTests
     public void ToAtomic_PreservesCorrectness()
     {
         // 3 层 Connect → ToAtomic → 验证与链式求值一致
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lexA = CreateVarLexer("[", "]").Lex("[a]");
         var lexB = CreateVarLexer("[", "]").Lex("+ [b]");
         var lexC = CreateVarLexer("[", "]").Lex("* [c]");
@@ -145,7 +145,7 @@ public class ConnectChainTests
     [Test]
     public void ToAtomic_VariableSlotsMerged()
     {
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lexA = CreateVarLexer("[", "]").Lex("[x] + 0");
         var lexB = CreateVarLexer("[", "]").Lex("+ [y]");
         var lexC = CreateVarLexer("[", "]").Lex("+ [z]");
@@ -170,7 +170,7 @@ public class ConnectChainTests
     public void Connect_SingleImmediateCount1_ReturnsNext()
     {
         // 验证 Connect 对简单公式 Modifier 链的求值正确性
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var base_ = runner.Compile(CreateVarLexer("[", "]").Lex("[a] + 0"));
         var mod   = runner.Compile(CreateVarLexer("[", "]").Lex("+ [b]"));
 
@@ -186,7 +186,7 @@ public class ConnectChainTests
     public void Connect_ChainedWithVariables_PreservesSetIndexOrder()
     {
         // 验证多层 Connect 后 SetIndex 的顺序 = 链拼接顺序
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lexA = CreateVarLexer("[", "]").Lex("[first] + 0");
         var lexB = CreateVarLexer("[", "]").Lex("+ [second]");
         var lexC = CreateVarLexer("[", "]").Lex("+ [third]");

@@ -16,7 +16,7 @@ public class LexerEdgeTests
     [Test]
     public void IsWordChar_Letter_ReturnsTrue()
     {
-        var method = typeof(FluxLexer<float, FloatOp>).GetMethod("IsWordChar",
+        var method = typeof(FluxLexer<float>).GetMethod("IsWordChar",
             BindingFlags.NonPublic | BindingFlags.Static);
         Assert.That((bool)method.Invoke(null, new object[] { 'a' }), Is.True);
         Assert.That((bool)method.Invoke(null, new object[] { 'Z' }), Is.True);
@@ -25,7 +25,7 @@ public class LexerEdgeTests
     [Test]
     public void IsWordChar_Digit_ReturnsTrue()
     {
-        var method = typeof(FluxLexer<float, FloatOp>).GetMethod("IsWordChar",
+        var method = typeof(FluxLexer<float>).GetMethod("IsWordChar",
             BindingFlags.NonPublic | BindingFlags.Static);
         Assert.That((bool)method.Invoke(null, new object[] { '0' }), Is.True);
     }
@@ -33,7 +33,7 @@ public class LexerEdgeTests
     [Test]
     public void IsWordChar_Underscore_ReturnsTrue()
     {
-        var method = typeof(FluxLexer<float, FloatOp>).GetMethod("IsWordChar",
+        var method = typeof(FluxLexer<float>).GetMethod("IsWordChar",
             BindingFlags.NonPublic | BindingFlags.Static);
         Assert.That((bool)method.Invoke(null, new object[] { '_' }), Is.True);
     }
@@ -41,7 +41,7 @@ public class LexerEdgeTests
     [Test]
     public void IsWordChar_Operator_ReturnsFalse()
     {
-        var method = typeof(FluxLexer<float, FloatOp>).GetMethod("IsWordChar",
+        var method = typeof(FluxLexer<float>).GetMethod("IsWordChar",
             BindingFlags.NonPublic | BindingFlags.Static);
         Assert.That((bool)method.Invoke(null, new object[] { '+' }), Is.False);
         Assert.That((bool)method.Invoke(null, new object[] { ' ' }), Is.False);
@@ -54,7 +54,7 @@ public class LexerEdgeTests
     [Test]
     public void ExtractVarName_StripsPrefixAndSuffix()
     {
-        var method = typeof(FluxLexer<float, FloatOp>).GetMethod("ExtractVarName",
+        var method = typeof(FluxLexer<float>).GetMethod("ExtractVarName",
             BindingFlags.NonPublic | BindingFlags.Static);
         var rule = new VariablePatternRule { Prefix = "${", Suffix = "}" };
         string result = (string)method.Invoke(null, new object[] { "${damage}", rule });
@@ -69,9 +69,9 @@ public class LexerEdgeTests
     public void ImplicitMultiplication_Compiles()
     {
         var lexer = CreateImplicitMulLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("2(3+4)"));
-        float result = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Instantiate(f).Run();
+        float result = new FluxAssembler<float, FloatMathDef>(Def).Instantiate(f).Run();
         Assert.That(result, Is.EqualTo(14f).Within(1e-6f));
     }
 

@@ -40,20 +40,19 @@ namespace FluxFormula.Core
         OperatorExpected,
     }
 
-    public struct OpPair<TOper>
-        where TOper : unmanaged, Enum
+    public struct OpPair
     {
         public Pair PairRole;
-        public TOper TargetLeft;
+        public byte TargetLeft;
         public bool EmitOnMatch;
-        public TOper EmitOpCode;
+        public byte EmitOpCode;
         /// <summary>参数分隔符（如逗号）：触发 emit 但不弹出 Left 括号。</summary>
         public bool IsSeparator;
 
         public override readonly string ToString() =>
             PairRole == Pair.None
                 ? "Pair: None"
-                : $"Pair: {PairRole} (Target: {TargetLeft}, Emit: {EmitOnMatch} [{EmitOpCode}])";
+                : $"Pair: {PairRole} (Target: 0x{TargetLeft:X2}, Emit: {EmitOnMatch} [0x{EmitOpCode:X2}])";
     }
 
     [StructLayout(LayoutKind.Explicit, Size = 8)]
@@ -94,29 +93,27 @@ namespace FluxFormula.Core
     // Interfaces (originally from IFluxDefinition.cs)
     // ═══════════════════════════════════════════════════════
 
-    public interface IFluxDefinition<TData, TOper>
+    public interface IFluxDefinition<TData>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
     {
-        TOper GetReturnOp();
+        byte GetReturnOp();
         int GetArity(byte op);
         OpType GetKind(byte op);
-        int GetPrecedence(TOper op);
-        OpPair<TOper> GetPair(TOper op);
-        Associativity GetAssociativity(TOper op);
+        int GetPrecedence(byte op);
+        OpPair GetPair(byte op);
+        Associativity GetAssociativity(byte op);
         TData Compute(byte op, Instruction inst, ReadOnlySpan<TData> registers);
 
         /// <summary>
         /// 根据位置上下文消歧 Token。
         /// Lexer 产出的符号（如 '-' → Sub）在 OperandExpected 位置应被重新解释。
-        /// 返回 default(TOper) 表示不消歧、保持原 Oper。
+        /// 返回 0 表示不消歧、保持原 Oper。
         /// </summary>
-        TOper ResolveToken(TOper oper, TokenContext context);
+        byte ResolveToken(byte oper, TokenContext context);
     }
 
-    public interface IFluxJITDefinition<TData, TOper> : IFluxDefinition<TData, TOper>
+    public interface IFluxJITDefinition<TData> : IFluxDefinition<TData>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
     {
         Expression GetExpression(byte op, Instruction inst, ParameterExpression[] registers);
     }

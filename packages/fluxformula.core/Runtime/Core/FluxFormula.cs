@@ -64,9 +64,9 @@ namespace FluxFormula.Core
         public byte MaxRegister;
     }
 
-    public readonly struct FluxFormula<TData, TOper>
+    public readonly struct FluxFormula<TData, TDef>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
+        where TDef : unmanaged, IFluxJITDefinition<TData>
     {
         // ── 原子公式表示（Instruction[]）──
         private readonly Instruction[] _buffer;
@@ -82,23 +82,6 @@ namespace FluxFormula.Core
 
         // ── 链式表示（ChainLink[]）──
         private readonly ChainLink[] _chain;
-
-        /// <summary>
-        /// 类型初始化时校验 TOper 底层必须为 byte，防止 *(byte*)&oper 截断。
-        /// </summary>
-        static FluxFormula()
-        {
-            unsafe
-            {
-                if (sizeof(TOper) != 1)
-                    throw new TypeInitializationException(
-                        typeof(FluxFormula<TData, TOper>).FullName,
-                        new NotSupportedException(
-                            $"FluxFormula 要求 TOper 底层类型为 byte。当前: {typeof(TOper).Name} (sizeof={sizeof(TOper)})。请使用 `enum {typeof(TOper).Name} : byte`。"
-                        )
-                    );
-            }
-        }
 
         internal FluxFormula(Instruction[] buffer, int count, FluxType type,
             int immediateCount = 0, VariableSlot[] varSlots = null, byte maxRegister = 0)
@@ -127,8 +110,6 @@ namespace FluxFormula.Core
                 byte mr = Registers.Bus;
                 for (int i = 0; i < chain.Length; i++)
                 {
-                    // ChainLink 不携带 MaxRegister——通过解析 key 从缓存获取
-                    // 调用方应在构造前计算并传入
                     if (chain[i].MaxRegister > mr) mr = chain[i].MaxRegister;
                 }
                 MaxRegister = mr;
@@ -140,7 +121,7 @@ namespace FluxFormula.Core
         }
 
         /// <summary>空公式（Count=0），主要用于 Connect 边界场景</summary>
-        public static FluxFormula<TData, TOper> Empty =>
+        public static FluxFormula<TData, TDef> Empty =>
             new(Array.Empty<Instruction>(), 0, FluxType.Formula);
 
         // ── 链式访问器 ──
@@ -161,7 +142,7 @@ namespace FluxFormula.Core
         /// 转换为 Modifier：移除第一个数据操作数，后续指令中对 dest 寄存器的引用全部重命名为 R1。
         /// 已为 Modifier 则原样返回。链式公式先转为原子再操作。
         /// </summary>
-        public FluxFormula<TData, TOper> ToMultiplier()
+        public FluxFormula<TData, TDef> ToMultiplier()
         {
             if (Type == FluxType.Modifier) return this;
             if (IsChained) return ToAtomic().ToMultiplier();
@@ -170,9 +151,6 @@ namespace FluxFormula.Core
                 throw new InvalidOperationException("Cannot convert formula with fewer than 2 instructions to Modifier.");
 
             // 第一个指令必须是 Immediate（加载第一操作数）
-            byte firstOp = _buffer[0].OpCode;
-            // 通过 TDef 我们无法访问 GetKind，这里用 Formula 自身的上下文。
-            // 第一个指令的 Dest 寄存器就是第一操作数所在寄存器。
             byte destReg = _buffer[0].Dest;
             int dataSlots = FormulaFormat.DataSlots<TData>();
 
@@ -216,7 +194,7 @@ namespace FluxFormula.Core
                 newSlots = VariableSlots;
             }
 
-            return new FluxFormula<TData, TOper>(newBuffer, newCount, FluxType.Modifier,
+            return new FluxFormula<TData, TDef>(newBuffer, newCount, FluxType.Modifier,
                 newImmCount, newSlots, MaxRegister);
         }
 
@@ -224,7 +202,7 @@ namespace FluxFormula.Core
         /// Modifier→Formula：插入命名变量替代 R1 输入。
         /// 已为 Formula 则原样返回。
         /// </summary>
-        public FluxFormula<TData, TOper> ToFormula(string varName)
+        public FluxFormula<TData, TDef> ToFormula(string varName)
         {
             if (Type == FluxType.Formula) return this;
             if (IsChained) return ToAtomic().ToFormula(varName);
@@ -266,7 +244,7 @@ namespace FluxFormula.Core
                     VariableSlots[i].Name,
                     VariableSlots[i].SlotIndex + 1);
 
-            return new FluxFormula<TData, TOper>(newBuffer, newCount, FluxType.Formula,
+            return new FluxFormula<TData, TDef>(newBuffer, newCount, FluxType.Formula,
                 ImmediateCount + 1, newSlots, MaxRegister);
         }
 
@@ -297,7 +275,7 @@ namespace FluxFormula.Core
         /// 传入 Formula 前请先调用 <see cref="ToMultiplier"/>。
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="next"/> 不是 Modifier 类型。</exception>
-        public FluxFormula<TData, TOper> Connect(FluxFormula<TData, TOper> next)
+        public FluxFormula<TData, TDef> Connect(FluxFormula<TData, TDef> next)
         {
             if (this.Count == 0) return next;
             if (next.Count == 0) return this;
@@ -319,7 +297,7 @@ namespace FluxFormula.Core
             => IsChained ? _chain : new[] { ToChainLink() };
 
         /// <summary>构建链式 FluxFormula，合并两段链接的变量槽并右移后半段 SlotIndex</summary>
-        private static FluxFormula<TData, TOper> ChainConnect(
+        private static FluxFormula<TData, TDef> ChainConnect(
             ChainLink[] thisLinks, ChainLink[] nextLinks)
         {
             int totalLinks = thisLinks.Length + nextLinks.Length;
@@ -367,10 +345,10 @@ namespace FluxFormula.Core
             FluxType newType = (chain[0].Type == FluxType.Formula)
                 ? FluxType.Formula : FluxType.Modifier;
 
-            return new FluxFormula<TData, TOper>(chain, newType, totalImmediate, mergedSlots);
+            return new FluxFormula<TData, TDef>(chain, newType, totalImmediate, mergedSlots);
         }
 
-        /// <summary>从原子公式创建单个 ChainLink（等效于 .ToChainLink()）</summary>
+        /// <summary>从原子公式创建单个 ChainLink</summary>
         private ChainLink ToChainLink()
         {
             return new ChainLink
@@ -392,14 +370,14 @@ namespace FluxFormula.Core
         /// 所有 link 的 Instruction[] 原样拼接，中间 Return 由解释器处理为 R1 总线传递。
         /// 调用时机：JIT 求值前、长链（>8）解释器求值前。
         /// </summary>
-        internal FluxFormula<TData, TOper> ToAtomic()
+        internal FluxFormula<TData, TDef> ToAtomic()
         {
             if (!IsChained) return this;
 
             var links = _chain;
             if (links.Length == 1)
             {
-                return new FluxFormula<TData, TOper>(
+                return new FluxFormula<TData, TDef>(
                     links[0].Bytecode, links[0].InstructionCount,
                     links[0].Type, links[0].ImmediateCount, links[0].VarSlots,
                     links[0].MaxRegister);
@@ -434,7 +412,7 @@ namespace FluxFormula.Core
                 if (ls.MaxRegister > chainMaxReg) chainMaxReg = ls.MaxRegister;
             }
 
-            return new FluxFormula<TData, TOper>(buffer, totalCount, links[0].Type,
+            return new FluxFormula<TData, TDef>(buffer, totalCount, links[0].Type,
                 totalImm, slots, chainMaxReg);
         }
 
@@ -534,9 +512,9 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 从字节数组反序列化公式。与 <see cref="ToBytes"/> 配对使用。
-        /// TData/TOper 类型参数由调用方提供（字节格式不携带泛型类型信息）。
+        /// TData/TDef 类型参数由调用方提供（字节格式不携带泛型类型信息）。
         /// </summary>
-        public static FluxFormula<TData, TOper> FromBytes(byte[] data)
+        public static FluxFormula<TData, TDef> FromBytes(byte[] data)
         {
             return FromBytes(data.AsSpan());
         }
@@ -546,7 +524,7 @@ namespace FluxFormula.Core
         /// 与 <see cref="FromBytes(byte[])"/> 相同逻辑，但接受 <see cref="ReadOnlySpan{T}"/>
         /// ——避免从 native 指针重建时需要临时 byte[] 分配。
         /// </summary>
-        public static FluxFormula<TData, TOper> FromBytes(ReadOnlySpan<byte> data)
+        public static FluxFormula<TData, TDef> FromBytes(ReadOnlySpan<byte> data)
         {
             int offset = 0;
 
@@ -577,10 +555,10 @@ namespace FluxFormula.Core
                 varSlots[i] = new VariableSlot(name, slotIdx);
             }
 
-            return new FluxFormula<TData, TOper>(instructions, header.Count, header.Type, header.ImmediateCount, varSlots, header.MaxRegister);
+            return new FluxFormula<TData, TDef>(instructions, header.Count, header.Type, header.ImmediateCount, varSlots, header.MaxRegister);
         }
 
         public override readonly string ToString() =>
-            $"FluxFormula<{typeof(TData).Name}> [Type: {Type}, Instructions: {Count}]";
+            $"FluxFormula<{typeof(TData).Name}, {typeof(TDef).Name}> [Type: {Type}, Instructions: {Count}]";
     }
 }

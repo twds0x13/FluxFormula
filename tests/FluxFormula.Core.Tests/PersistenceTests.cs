@@ -12,12 +12,12 @@ public class PersistenceTests
     [Test]
     public void Roundtrip_SimpleFormula_EvaluatesSame()
     {
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var before  = runner.Compile(new[] { C(1f), Op(FloatOp.Add), C(2f) });
         float expected = runner.Instantiate(before, jit: false).Run();
 
         byte[] raw = before.ToBytes();
-        var after = FluxFormula<float, FloatOp>.FromBytes(raw);
+        var after = FluxFormula<float, FloatMathDef>.FromBytes(raw);
 
         float actual = runner.Instantiate(after, jit: false).Run();
         Assert.That(actual, Is.EqualTo(expected).Within(1e-6f));
@@ -34,12 +34,12 @@ public class PersistenceTests
             Op(FloatOp.Div), C(2f), Op(FloatOp.Add),
             C(5f), Op(FloatOp.Mul), C(3f),
         };
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var before  = runner.Compile(tokens);
         float expected = runner.Instantiate(before, jit: false).Run();
 
         byte[] raw = before.ToBytes();
-        var after = FluxFormula<float, FloatOp>.FromBytes(raw);
+        var after = FluxFormula<float, FloatMathDef>.FromBytes(raw);
 
         float actual = runner.Instantiate(after, jit: false).Run();
         Assert.That(actual, Is.EqualTo(expected).Within(1e-6f));
@@ -48,9 +48,9 @@ public class PersistenceTests
     [Test]
     public void Roundtrip_EmptyFormula_ReturnsEmpty()
     {
-        var before = FluxFormula<float, FloatOp>.Empty;
+        var before = FluxFormula<float, FloatMathDef>.Empty;
         byte[] raw = before.ToBytes();
-        var after = FluxFormula<float, FloatOp>.FromBytes(raw);
+        var after = FluxFormula<float, FloatMathDef>.FromBytes(raw);
 
         Assert.That(after.Count, Is.EqualTo(0));
         Assert.That(after.Type, Is.EqualTo(FluxType.Formula));
@@ -63,14 +63,14 @@ public class PersistenceTests
     [Test]
     public void Roundtrip_PreservesFluxType()
     {
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         // Modifier: 二元算术运算符后跟立即数——arity≠1 且 PairRole≠Left
         var before  = runner.Compile(new[] { Op(FloatOp.Add), C(3f) });
         Assert.That(before.Type, Is.EqualTo(FluxType.Modifier),
             "Precondition: should be Modifier");
 
         byte[] raw = before.ToBytes();
-        var after = FluxFormula<float, FloatOp>.FromBytes(raw);
+        var after = FluxFormula<float, FloatMathDef>.FromBytes(raw);
 
         Assert.That(after.Type, Is.EqualTo(before.Type));
     }
@@ -82,11 +82,11 @@ public class PersistenceTests
         {
             C(1f), Op(FloatOp.Add), C(2f), Op(FloatOp.Mul), C(3f),
         };
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var before  = runner.Compile(tokens);
 
         byte[] raw = before.ToBytes();
-        var after = FluxFormula<float, FloatOp>.FromBytes(raw);
+        var after = FluxFormula<float, FloatMathDef>.FromBytes(raw);
 
         Assert.That(after.Count, Is.EqualTo(before.Count));
     }
@@ -100,11 +100,11 @@ public class PersistenceTests
     {
         var lex  = CreateVarLexer("[", "]");
         var lr   = lex.Lex("[atk] * (1 + [crit_rate]) - [def]");
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var before  = runner.Compile(lr);
 
         byte[] raw = before.ToBytes();
-        var after = FluxFormula<float, FloatOp>.FromBytes(raw);
+        var after = FluxFormula<float, FloatMathDef>.FromBytes(raw);
 
         Assert.That(after.VariableSlots.Length, Is.EqualTo(before.VariableSlots.Length));
         for (int i = 0; i < before.VariableSlots.Length; i++)
@@ -121,11 +121,11 @@ public class PersistenceTests
     {
         var lex  = CreateVarLexer("[", "]");
         var lr   = lex.Lex("[a] * [b] + [c]");
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var before  = runner.Compile(lr);
 
         byte[] raw = before.ToBytes();
-        var after = FluxFormula<float, FloatOp>.FromBytes(raw);
+        var after = FluxFormula<float, FloatMathDef>.FromBytes(raw);
 
         float actual = runner.Instantiate(after, jit: false)
             .Set("a", 2f).Set("b", 3f).Set("c", 1f).Run();
@@ -140,7 +140,7 @@ public class PersistenceTests
     [Test]
     public void LegoBricks_LoadAndConnect()
     {
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
 
         // 片段 A: [a] * [b]
         var lexA = CreateVarLexer("[", "]");
@@ -157,8 +157,8 @@ public class PersistenceTests
         byte[] savedB = brickB.ToBytes();
 
         // 从磁盘加载并拼接
-        var loadedA = FluxFormula<float, FloatOp>.FromBytes(savedA);
-        var loadedB = FluxFormula<float, FloatOp>.FromBytes(savedB);
+        var loadedA = FluxFormula<float, FloatMathDef>.FromBytes(savedA);
+        var loadedB = FluxFormula<float, FloatMathDef>.FromBytes(savedB);
         var combined = loadedA.Connect(loadedB);
 
         float result = runner.Instantiate(combined, jit: false)
@@ -174,11 +174,11 @@ public class PersistenceTests
     [Test]
     public void Roundtrip_JitPath_EvaluatesCorrectly()
     {
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var before  = runner.Compile(new[] { C(100f), Op(FloatOp.Add), C(23f) });
 
         byte[] raw = before.ToBytes();
-        var after = FluxFormula<float, FloatOp>.FromBytes(raw);
+        var after = FluxFormula<float, FloatMathDef>.FromBytes(raw);
 
         float actual = runner.Instantiate(after, jit: true).Run();
         Assert.That(actual, Is.EqualTo(123f).Within(1e-6f));
@@ -189,11 +189,11 @@ public class PersistenceTests
     {
         var lex  = CreateVarLexer("[", "]");
         var lr   = lex.Lex("[x] + [y]");
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var before  = runner.Compile(lr);
 
         byte[] raw = before.ToBytes();
-        var after = FluxFormula<float, FloatOp>.FromBytes(raw);
+        var after = FluxFormula<float, FloatMathDef>.FromBytes(raw);
 
         float actual = runner.Instantiate(after, jit: true)
             .Set("x", 10f).Set("y", 32f).Run();
@@ -208,7 +208,7 @@ public class PersistenceTests
     [Test]
     public void ChainFormula_GetChainLinks_ExposesLinks()
     {
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lexer  = CreateMathLexer();
         var fA = runner.Compile(lexer.Lex("1 + 2"));
         var fB = runner.Compile(lexer.Lex("3 + 4")).ToMultiplier();

@@ -55,7 +55,7 @@ public class ArithmeticTests
     [Test]
     public void ParenthesesOverridePrecedence()
     {
-        Assert.That(Eval(new FluxToken<float, FloatOp>[]
+        Assert.That(Eval(new FluxToken<float>[]
         {
             Op(FloatOp.LParen), C(1f), Op(FloatOp.Add), C(2f), Op(FloatOp.RParen),
             Op(FloatOp.Mul), C(3f),
@@ -65,7 +65,7 @@ public class ArithmeticTests
     [Test]
     public void NestedParentheses()
     {
-        Assert.That(Eval(new FluxToken<float, FloatOp>[]
+        Assert.That(Eval(new FluxToken<float>[]
         {
             Op(FloatOp.LParen),
                 Op(FloatOp.LParen), C(1f), Op(FloatOp.Add), C(2f), Op(FloatOp.RParen),
@@ -97,7 +97,7 @@ public class ArithmeticTests
     [Test]
     public void ComplexExpression()
     {
-        Assert.That(Eval(new FluxToken<float, FloatOp>[]
+        Assert.That(Eval(new FluxToken<float>[]
         {
             Op(FloatOp.LParen), C(1f), Op(FloatOp.Add), C(2f), Op(FloatOp.RParen),
             Op(FloatOp.Mul),
@@ -244,7 +244,7 @@ public class ArithmeticTests
     [Test]
     public void Question_GetPair_ReturnsEmitOnMatch()
     {
-        var pair = Def.GetPair(FloatOp.Question);
+        var pair = Def.GetPair((byte)FloatOp.Question);
         Assert.That(pair.EmitOnMatch, Is.True, "Question.EmitOnMatch should be true");
         Assert.That(pair.EmitOpCode, Is.EqualTo(FloatOp.Select), "Question.EmitOpCode should be Select");
         Assert.That(pair.PairRole, Is.EqualTo(Pair.None), "Question.PairRole should be None");
@@ -257,7 +257,7 @@ public class ArithmeticTests
         {
             C(1f), Op(FloatOp.Question), C(10f), Op(FloatOp.Colon), C(20f)
         };
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var formula = runner.Compile(tokens);
         var raw = formula.Raw();
 
@@ -435,7 +435,7 @@ public class ArithmeticTests
         {
             C(1f), C(2f), C(3f), C(4f), C(5f), C(6f), Op(FloatOp.Sum6)
         };
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var formula = runner.Compile(tokens);
 
         // JIT with pruneRegisters=true (triggered via internal path)
@@ -450,7 +450,7 @@ public class ArithmeticTests
     public void Compiler_RegStackOverflow_Throws()
     {
         // 65 个连续 Immediate → 寄存器栈溢出 (MaxStackDepth=64)
-        var tokens = new FluxToken<float, FloatOp>[65];
+        var tokens = new FluxToken<float>[65];
         for (int i = 0; i < 65; i++)
             tokens[i] = C(i);
         Assert.That(() => Eval(tokens),
@@ -462,7 +462,7 @@ public class ArithmeticTests
     {
         // 65 层嵌套 '(' → 操作符栈溢出 (opTop 从 -1 到 63 触发)
         int depth = 65;
-        var tokens = new FluxToken<float, FloatOp>[depth + 1 + depth];
+        var tokens = new FluxToken<float>[depth + 1 + depth];
         int t = 0;
         for (int i = 0; i < depth; i++)
             tokens[t++] = Op(FloatOp.LParen);

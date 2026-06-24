@@ -6,7 +6,7 @@ namespace FluxFormula.Core
     /// 公式资产的 Unity 序列化容器。
     /// 存编译后的字节码 + 类型标记——Unity 完全可存储，
     /// 绕过开放泛型 ScriptableObject 的限制。
-    /// 创建和加载由 <see cref="FormulaLibrary{TData, TOper, TDef}"/> 完成。
+    /// 创建和加载由 <see cref="FormulaLibrary{TData, TDef}"/> 完成。
     /// </summary>
     public class FluxAsset : ScriptableObject
     {
@@ -101,13 +101,13 @@ namespace FluxFormula.Core
         /// 将编译后的公式字节码写入资产。
         /// typeId 应为 TDef.AssemblyQualifiedName，用于加载时类型校验。
         /// </summary>
-        public void SetRawData<TData, TOper>(
-            FluxFormula<TData, TOper> formula,
+        public void SetRawData<TData, TDef>(
+            FluxFormula<TData, TDef> formula,
             string typeId,
             string source = null,
             VariablePatternRule[] variablePatterns = null)
             where TData : unmanaged
-            where TOper : unmanaged, System.Enum
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             _rawData          = formula.ToBytes();
             _typeId           = typeId;
@@ -119,14 +119,14 @@ namespace FluxFormula.Core
         /// 从字节码重建泛型公式。类型参数须与 SetRawData 时的 TDef 一致。
         /// 注意：该方法信任调用方类型——类型不一致会导致运行时误读字节码。
         /// </summary>
-        public FluxFormula<TData, TOper> Load<TData, TOper>()
+        public FluxFormula<TData, TDef> Load<TData, TDef>()
             where TData : unmanaged
-            where TOper : unmanaged, System.Enum
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             if (_rawData == null || _rawData.Length == 0)
-                return FluxFormula<TData, TOper>.Empty;
+                return FluxFormula<TData, TDef>.Empty;
 
-            return FluxFormula<TData, TOper>.FromBytes(_rawData);
+            return FluxFormula<TData, TDef>.FromBytes(_rawData);
         }
     }
 }

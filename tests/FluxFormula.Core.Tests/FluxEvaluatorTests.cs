@@ -11,9 +11,9 @@ public class FluxEvaluatorTests
     public void MaxRegisterZero_UsesDefaultMaxRegisters()
     {
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("1 + 2 + 3 + 4 + 5"));
-        float result = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        float result = new FluxAssembler<float, FloatMathDef>(Def)
             .Instantiate(f).Run();
         Assert.That(result, Is.EqualTo(15f).Within(1e-6f));
     }

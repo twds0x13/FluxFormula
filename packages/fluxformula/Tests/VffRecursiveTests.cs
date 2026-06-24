@@ -201,7 +201,7 @@ public class VffRecursiveTests
         var outerVffHash = RegisterVff(outerLinks);
 
         // 解析外层 VFF → 应展平为 3 个 link（C + A + B）
-        var result = VffFormat.Resolve<float, FloatOp>(outerVffHash);
+        var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
 
         Assert.That(result.Formula.ChainLength, Is.EqualTo(3));
         Assert.That(result.Formula.ImmediateCount, Is.EqualTo(3)); // 1+1+1 = 3
@@ -228,7 +228,7 @@ public class VffRecursiveTests
         };
         var outerVffHash = RegisterVff(outerLinks);
 
-        var result = VffFormat.Resolve<float, FloatOp>(outerVffHash);
+        var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
 
         Assert.That(result.Formula.ChainLength, Is.EqualTo(3)); // C + A + B
         Assert.That(result.Formula.ImmediateCount, Is.EqualTo(6)); // 1 + 2 + 3 = 6
@@ -259,9 +259,9 @@ public class VffRecursiveTests
         };
         var topVff = RegisterVff(topLinks);
 
-        Assert.DoesNotThrow(() => VffFormat.Resolve<float, FloatOp>(topVff));
+        Assert.DoesNotThrow(() => VffFormat.Resolve<float, FloatMathDef>(topVff));
 
-        var result = VffFormat.Resolve<float, FloatOp>(topVff);
+        var result = VffFormat.Resolve<float, FloatMathDef>(topVff);
         // B 贡献 1 个 link(shared), C 贡献 1 个 link(shared), 总共 2
         Assert.That(result.Formula.ChainLength, Is.EqualTo(2));
     }
@@ -315,7 +315,7 @@ public class VffRecursiveTests
         // 解析 A2 → B (找到) → hashA (不在缓存中)
         // 内容寻址存储无法构造静态互相引用环；实际抛出 "not in cache"
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            VffFormat.Resolve<float, FloatOp>(hashA2));
+            VffFormat.Resolve<float, FloatMathDef>(hashA2));
 
         Assert.That(ex.Message, Does.Contain("not in cache"));
     }
@@ -347,7 +347,7 @@ public class VffRecursiveTests
         };
         var outerVffHash = RegisterVff(outerLinks);
 
-        var result = VffFormat.Resolve<float, FloatOp>(outerVffHash);
+        var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
 
         // 展平后应有 3 个变量：z(0), x(1), y(2)
         Assert.That(result.Formula.VariableSlots.Length, Is.EqualTo(3));
@@ -390,7 +390,7 @@ public class VffRecursiveTests
         };
         var outerVffHash = RegisterVff(outerLinks, outerOverrides);
 
-        var result = VffFormat.Resolve<float, FloatOp>(outerVffHash);
+        var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
 
         // Override 总数 = 外层 1 + 内层 1 = 2
         Assert.That(result.Overrides.Length, Is.EqualTo(2));
@@ -431,7 +431,7 @@ public class VffRecursiveTests
         };
         var vffL = RegisterVff(lLinks); // 2 links
 
-        var result = VffFormat.Resolve<float, FloatOp>(vffL);
+        var result = VffFormat.Resolve<float, FloatMathDef>(vffL);
 
         // 展平后：leafL + leafM + leafN = 3 个 link
         Assert.That(result.Formula.ChainLength, Is.EqualTo(3));

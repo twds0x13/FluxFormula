@@ -19,12 +19,12 @@ public unsafe class FluxJITCompilerTests
     {
         // 编译 "2 + 3"，直接调用 delegate
         var lexer = CreateMathLexer();
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("2 + 3"));
         byte[] bytes = formula.ToBytes();
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 
-        var func = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+        var func = FluxJITCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payload);
 
         Assert.That(payload, Is.Not.Null);
@@ -36,12 +36,12 @@ public unsafe class FluxJITCompilerTests
     public void Compile_WithImmediate_Works()
     {
         var lexer = CreateMathLexer();
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("3.14"));
         byte[] bytes = formula.ToBytes();
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 
-        var func = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+        var func = FluxJITCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payload);
 
         float result = func(payload);
@@ -53,13 +53,13 @@ public unsafe class FluxJITCompilerTests
     {
         // modifier 编译为 JIT delegate —— R1 的输出依赖上游
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("2 * 3"));
         var mod = f.ToMultiplier(); // * 6 modifier
         byte[] bytes = mod.ToBytes();
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 
-        var func = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+        var func = FluxJITCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payload);
 
         Assert.That(payload, Is.Not.Null);
@@ -77,15 +77,15 @@ public unsafe class FluxJITCompilerTests
     public void Compile_PruneRegisters_SameResult()
     {
         var lexer = CreateMathLexer();
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("1 + 2 * 3 - 4 / 5"));
         byte[] bytes = formula.ToBytes();
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 
         // 不裁剪 vs 裁剪
-        var funcNormal = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+        var funcNormal = FluxJITCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payloadNormal, pruneRegisters: false);
-        var funcPruned = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+        var funcPruned = FluxJITCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payloadPruned, pruneRegisters: true);
 
         float rNormal = funcNormal(payloadNormal);
@@ -100,12 +100,12 @@ public unsafe class FluxJITCompilerTests
     {
         // pruneRegisters + maxRegister 组合使用
         var lexer = CreateMathLexer();
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("10 + 20 + 30 + 40"));
         byte[] bytes = formula.ToBytes();
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 
-        var func = FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+        var func = FluxJITCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payload,
             pruneRegisters: true,
             maxRegister: formula.MaxRegister);
@@ -119,7 +119,7 @@ public unsafe class FluxJITCompilerTests
     {
         // 确保 pruneRegisters 扫描路径不会因遇到 Return 或其他 opcode 而崩溃
         var lexer = CreateMathLexer();
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("42"));
         byte[] bytes = formula.ToBytes();
         ReadOnlySpan<Instruction> instSpan = FormulaFormat.GetInstructionSpan(bytes);
@@ -127,7 +127,7 @@ public unsafe class FluxJITCompilerTests
         // ref struct 不能用于 lambda——直接用 try-catch 验证
         try
         {
-            FluxJITCompiler<float, FloatOp, FloatMathDef>.Compile(
+            FluxJITCompiler<float, FloatMathDef>.Compile(
                 instSpan, Def, out _, pruneRegisters: true);
         }
         catch (Exception ex)

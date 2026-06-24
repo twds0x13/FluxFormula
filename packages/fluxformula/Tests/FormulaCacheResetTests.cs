@@ -24,7 +24,7 @@ public class FormulaCacheResetTests
     [Test]
     public void AfterReset_Interpreter_StillWorks()
     {
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var formula = runner.Compile(new[] { C(1f), Op(FloatOp.Add), C(2f) });
 
         // 预热
@@ -41,7 +41,7 @@ public class FormulaCacheResetTests
     [Test]
     public void AfterReset_Jit_RecompilesSuccessfully()
     {
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var formula = runner.Compile(new[] { C(10f), Op(FloatOp.Mul), C(3f) });
 
         // 预热 JIT（写入 delegate 缓存）
@@ -70,7 +70,7 @@ public class FormulaCacheResetTests
     [Test]
     public void AfterReset_ConnectChain_JitRecovers()
     {
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lexA   = CreateVarLexer("[", "]").Lex("[a] + 0");
         var lexB   = CreateVarLexer("[", "]").Lex("+ [b]");
         var fA     = runner.Compile(lexA);

@@ -12,10 +12,10 @@ public enum FloatOp : byte
     Const, Add, Sub, Mul, Div, Neg, Select, Lerp, Sum6, Question, Colon, Comma, LParen, RParen, Return,
 }
 
-public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
+public readonly struct FloatMathDef : IFluxJITDefinition<float>
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public FloatOp GetReturnOp() => FloatOp.Return;
+    public byte GetReturnOp() => (byte)FloatOp.Return;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetArity(byte op) => (FloatOp)op switch
@@ -30,57 +30,53 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public OpType GetKind(byte op) => (FloatOp)op switch
     {
-        FloatOp.Const  => OpType.Immediate,
+        FloatOp.Const => OpType.Immediate,
         FloatOp.Return => OpType.Return,
         _              => OpType.Instruction,
     };
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public int GetPrecedence(FloatOp op) => op switch
-    {
+    public int GetPrecedence(byte op) { var o = (FloatOp)op; return o switch {
         FloatOp.Add => 1, FloatOp.Sub => 1, FloatOp.Mul => 2,
         FloatOp.Div => 2, FloatOp.Neg => 3,
         FloatOp.Select => 4, FloatOp.Lerp => 4, FloatOp.Sum6 => 4,
         FloatOp.Question => -100,
         _ => 0,
-    };
+    }; }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public OpPair<FloatOp> GetPair(FloatOp op) => op switch
-    {
-        FloatOp.LParen => new OpPair<FloatOp> { PairRole = Pair.Left },
-        FloatOp.RParen => new OpPair<FloatOp>
+    public OpPair GetPair(byte op) { var o = (FloatOp)op; return o switch {
+        FloatOp.LParen => new OpPair { PairRole = Pair.Left },
+        FloatOp.RParen => new OpPair
         {
             PairRole   = Pair.Right,
-            TargetLeft = FloatOp.LParen,
+            TargetLeft = (byte)FloatOp.LParen,
         },
-        FloatOp.Question => new OpPair<FloatOp>
+        FloatOp.Question => new OpPair
         {
             PairRole    = Pair.None,
             EmitOnMatch = true,
-            EmitOpCode  = FloatOp.Select,
+            EmitOpCode  = (byte)FloatOp.Select,
         },
-        FloatOp.Colon => new OpPair<FloatOp>
+        FloatOp.Colon => new OpPair
         {
             PairRole    = Pair.Right,
-            TargetLeft  = FloatOp.Question,
+            TargetLeft = (byte)FloatOp.Question,
             IsSeparator = true,
         },
-        FloatOp.Comma => new OpPair<FloatOp>
+        FloatOp.Comma => new OpPair
         {
             PairRole    = Pair.Right,
-            TargetLeft  = FloatOp.LParen,
+            TargetLeft = (byte)FloatOp.LParen,
             IsSeparator = true,
         },
-        _ => new OpPair<FloatOp> { PairRole = Pair.None },
-    };
+        _ => new OpPair { PairRole = Pair.None },}; }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Associativity GetAssociativity(FloatOp op) => op switch
-    {
+    public Associativity GetAssociativity(byte op) { var o = (FloatOp)op; return o switch {
         FloatOp.Neg => Associativity.Right,
         _           => Associativity.Left,
-    };
+    }; }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
@@ -132,11 +128,11 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public FloatOp ResolveToken(FloatOp oper, TokenContext context)
+    public byte ResolveToken(byte oper, TokenContext context)
     {
-        if (oper == FloatOp.Sub && context == TokenContext.OperandExpected)
-            return FloatOp.Neg;
-        return default;
+        if ((FloatOp)oper == FloatOp.Sub && context == TokenContext.OperandExpected)
+            return (byte)FloatOp.Neg;
+        return 0;
     }
 }
 
@@ -148,106 +144,106 @@ public static class TestHelper
 {
     public static readonly FloatMathDef Def = default;
 
-    public static FluxToken<float, FloatOp> C(float v) =>
-        new() { Oper = FloatOp.Const, Data = v };
+    public static FluxToken<float> C(float v) =>
+        new() { Oper = (byte)FloatOp.Const, Data = v };
 
-    public static FluxToken<float, FloatOp> Op(FloatOp o) =>
-        new() { Oper = o };
+    public static FluxToken<float> Op(FloatOp o) =>
+        new() { Oper = (byte)o };
 
-    public static float Eval(ReadOnlySpan<FluxToken<float, FloatOp>> tokens, bool jit = false)
+    public static float Eval(ReadOnlySpan<FluxToken<float>> tokens, bool jit = false)
     {
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         return runner.Build(tokens, jit).Run();
     }
 
-    public static float EvalFormula(FluxFormula<float, FloatOp> formula, bool jit = false)
+    public static float EvalFormula(FluxFormula<float, FloatMathDef> formula, bool jit = false)
     {
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         return runner.Instantiate(formula, jit).Run();
     }
 
-    public static FluxLexer<float, FloatOp> CreateMathLexer()
+    public static FluxLexer<float> CreateMathLexer()
     {
-        return new FluxLexer<float, FloatOp>(new LexerConfig<float, FloatOp>
+        return new FluxLexer<float>(new LexerConfig<float>
         {
             LiteralPattern = @"\d+(\.\d+)?f?",
             LiteralParser  = s => float.Parse(s.TrimEnd('f')),
-            LiteralOper    = FloatOp.Const,
+            LiteralOper    = (byte)FloatOp.Const,
             Operators =
             {
-                new("+", FloatOp.Add), new("-", FloatOp.Sub),
-                new("*", FloatOp.Mul), new("/", FloatOp.Div),
+                new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
+                new("*", (byte)FloatOp.Mul), new("/", (byte)FloatOp.Div),
             },
             Brackets =
             {
-                new("(", ")", FloatOp.LParen, FloatOp.RParen),
+                new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen),
             },
         });
     }
 
     /// <summary>创建启用隐式乘法的 Lexer（2(3), (a)(b)）</summary>
-    public static FluxLexer<float, FloatOp> CreateImplicitMulLexer()
+    public static FluxLexer<float> CreateImplicitMulLexer()
     {
-        var lexer = new FluxLexer<float, FloatOp>(new LexerConfig<float, FloatOp>
+        var lexer = new FluxLexer<float>(new LexerConfig<float>
         {
             LiteralPattern = @"\d+(\.\d+)?f?",
             LiteralParser  = s => float.Parse(s.TrimEnd('f')),
-            LiteralOper    = FloatOp.Const,
+            LiteralOper    = (byte)FloatOp.Const,
             Operators =
             {
-                new("+", FloatOp.Add), new("-", FloatOp.Sub),
-                new("*", FloatOp.Mul), new("/", FloatOp.Div),
+                new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
+                new("*", (byte)FloatOp.Mul), new("/", (byte)FloatOp.Div),
             },
             Brackets =
             {
-                new("(", ")", FloatOp.LParen, FloatOp.RParen),
+                new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen),
             },
-            ImplicitOperators = { FloatOp.Mul },
+            ImplicitOperators = { (byte)FloatOp.Mul },
         });
         return lexer;
     }
 
     /// <summary>创建支持函数调用 + 三元 ?: 语法的 Lexer</summary>
-    public static FluxLexer<float, FloatOp> CreateFuncLexer()
+    public static FluxLexer<float> CreateFuncLexer()
     {
-        return new FluxLexer<float, FloatOp>(new LexerConfig<float, FloatOp>
+        return new FluxLexer<float>(new LexerConfig<float>
         {
             LiteralPattern = @"\d+(\.\d+)?f?",
             LiteralParser  = s => float.Parse(s.TrimEnd('f')),
-            LiteralOper    = FloatOp.Const,
+            LiteralOper    = (byte)FloatOp.Const,
             Operators =
             {
-                new("select", FloatOp.Select, "(", ")"),
-                new("lerp", FloatOp.Lerp, "(", ")"),
-                new("?", FloatOp.Question),
-                new(":", FloatOp.Colon),
-                new("+", FloatOp.Add), new("-", FloatOp.Sub),
-                new("*", FloatOp.Mul), new("/", FloatOp.Div),
-                new(",", FloatOp.Comma),
+                new("select", (byte)FloatOp.Select, "(", ")"),
+                new("lerp", (byte)FloatOp.Lerp, "(", ")"),
+                new("?", (byte)FloatOp.Question),
+                new(":", (byte)FloatOp.Colon),
+                new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
+                new("*", (byte)FloatOp.Mul), new("/", (byte)FloatOp.Div),
+                new(",", (byte)FloatOp.Comma),
             },
             Brackets =
             {
-                new("(", ")", FloatOp.LParen, FloatOp.RParen),
+                new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen),
             },
         });
     }
 
     /// <summary>创建支持变量模式的 Lexer，如 ("[", "]") 或 ("{var:", "}")</summary>
-    public static FluxLexer<float, FloatOp> CreateVarLexer(string prefix, string suffix)
+    public static FluxLexer<float> CreateVarLexer(string prefix, string suffix)
     {
-        return new FluxLexer<float, FloatOp>(new LexerConfig<float, FloatOp>
+        return new FluxLexer<float>(new LexerConfig<float>
         {
             LiteralPattern = @"\d+(\.\d+)?f?",
             LiteralParser  = s => float.Parse(s.TrimEnd('f')),
-            LiteralOper    = FloatOp.Const,
+            LiteralOper    = (byte)FloatOp.Const,
             Operators =
             {
-                new("+", FloatOp.Add), new("-", FloatOp.Sub),
-                new("*", FloatOp.Mul), new("/", FloatOp.Div),
+                new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
+                new("*", (byte)FloatOp.Mul), new("/", (byte)FloatOp.Div),
             },
             Brackets =
             {
-                new("(", ")", FloatOp.LParen, FloatOp.RParen),
+                new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen),
             },
             VariablePatterns =
             {

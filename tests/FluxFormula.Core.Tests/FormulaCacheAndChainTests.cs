@@ -34,7 +34,7 @@ public unsafe class FormulaCacheAndChainTests
     public void Connect_AlwaysCreatesChains_RegardlessOfLength()
     {
         var lexer = CreateMathLexer();
-        var formulas = new FluxFormula<float, FloatOp>[ChainReserved.MergeThreshold + 2];
+        var formulas = new FluxFormula<float, FloatMathDef>[ChainReserved.MergeThreshold + 2];
         for (int i = 0; i < formulas.Length; i++)
             formulas[i] = Compile(lexer, $"{i} + {i + 1}");
 
@@ -48,7 +48,7 @@ public unsafe class FormulaCacheAndChainTests
         Assert.That(current.ChainLength, Is.EqualTo(formulas.Length));
 
         // Instantiate 时自动合并长链（interpreter 路径 > 8 触发 ToAtomic）
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst = runner.Instantiate(current);
         Assert.That(inst.Run(), Is.Not.EqualTo(0f));
     }
@@ -100,7 +100,7 @@ public unsafe class FormulaCacheAndChainTests
         Assert.That(chain.IsChained, Is.True);
 
         // JIT per-link: 不合并，逐 link 调用 delegate
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst = runner.Instantiate(chain, jit: true);
         float result = inst.Run();
 
@@ -124,7 +124,7 @@ public unsafe class FormulaCacheAndChainTests
         current = current.Connect(Compile(lexer, "5 * 4").ToMultiplier());
         // 语义: ((3 * 3) * 4) = 36
 
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         float result = runner.Instantiate(current, jit: true).Run();
         Assert.That(result, Is.EqualTo(36f).Within(1e-6f));
     }
@@ -141,7 +141,7 @@ public unsafe class FormulaCacheAndChainTests
         var chain = fA.Connect(fB);
         // (10+2) * 2 = 24
 
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
 
         float jitResult = runner.Instantiate(chain, jit: true).Run();
         float intResult = runner.Instantiate(chain, jit: false).Run();
@@ -277,7 +277,7 @@ public unsafe class FormulaCacheAndChainTests
     [Test]
     public void GetByteHash_EmptyFormula_ReturnsNonZero()
     {
-        var empty = FluxFormula<float, FloatOp>.Empty;
+        var empty = FluxFormula<float, FloatMathDef>.Empty;
         var h = empty.GetByteHash();
         Assert.That(h.XxHash64, Is.Not.EqualTo(0UL));
         Assert.That(h.FnvHash64, Is.Not.EqualTo(0UL));
@@ -311,12 +311,12 @@ public unsafe class FormulaCacheAndChainTests
         var f = Compile(lexer, "2 + 3");
 
         // 首次 JIT Instantiate → 应触发编译并缓存 delegate
-        var runner1 = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner1 = new FluxAssembler<float, FloatMathDef>(Def);
         var inst1 = runner1.Instantiate(f, jit: true);
         var result1 = inst1.Run();
 
         // 第二次 JIT Instantiate → 应从缓存中取 delegate
-        var runner2 = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner2 = new FluxAssembler<float, FloatMathDef>(Def);
         var inst2 = runner2.Instantiate(f, jit: true);
         var result2 = inst2.Run();
 
@@ -337,7 +337,7 @@ public unsafe class FormulaCacheAndChainTests
         Assert.That(chain.IsChained, Is.True);
 
         // 链式公式的 JIT Instantiate → ToAtomic + JIT compile + cache
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst1 = runner.Instantiate(chain, jit: true);
         var r1 = inst1.Run();
 
@@ -355,7 +355,7 @@ public unsafe class FormulaCacheAndChainTests
     [Test]
     public void Connect_WithVariables_PreservesSlotsInChain()
     {
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lex   = CreateVarLexer("[", "]");
         var fA    = runner.Compile(lex.Lex("[x] + [y]"));
         // Modifier: [z] + [w], 剥离首操作数 [z]后剩余 [w]
@@ -396,10 +396,10 @@ public unsafe class FormulaCacheAndChainTests
     // 辅助
     // ═══════════════════════════════════════════════════════
 
-    private static FluxFormula<float, FloatOp> Compile(
-        FluxLexer<float, FloatOp> lexer, string expr)
+    private static FluxFormula<float, FloatMathDef> Compile(
+        FluxLexer<float> lexer, string expr)
     {
-        return new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        return new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex(expr));
     }
 }

@@ -18,7 +18,7 @@ public class FormulaConversionTests
     public void ToMultiplier_RemovesFirstImmediate()
     {
         // [a] + [b] → modifier: _ + [b]（第一个操作数被剥离）
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var lexA    = CreateVarLexer("[", "]").Lex("[a] + [b]");
         var formula = runner.Compile(lexA);
         Assert.That(formula.Type, Is.EqualTo(FluxType.Formula));
@@ -34,7 +34,7 @@ public class FormulaConversionTests
     {
         // formula: [a] + [b] (变量 a→slot0, b→slot1)
         // modifier: _ + [b] (只剩 b, b 的 SlotIndex 应 -1)
-        var runner   = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner   = new FluxAssembler<float, FloatMathDef>(Def);
         var lexA     = CreateVarLexer("[", "]").Lex("[a] + [b]");
         var formula  = runner.Compile(lexA);
         var modifier = formula.ToMultiplier();
@@ -49,7 +49,7 @@ public class FormulaConversionTests
     public void ToMultiplier_AlreadyModifier_ReturnsSelf()
     {
         // "* 2" 解析为 modifier（第一个 token 是二元运算符在 operandExpected 位置）
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var modifier = runner.Compile(new[] { Op(FloatOp.Mul), C(2f) });
         Assert.That(modifier.Type, Is.EqualTo(FluxType.Modifier));
 
@@ -65,7 +65,7 @@ public class FormulaConversionTests
         // modifier: _ * 2 + 1
         // back to formula: y * 2 + 1
         // 两次转换后求值应一致
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var lex     = CreateVarLexer("[", "]").Lex("[x] * 2 + 1");
         var formula = runner.Compile(lex);
 
@@ -87,7 +87,7 @@ public class FormulaConversionTests
         // modifier 求值语义：解释器路径验证
         // 注：链式 JIT 路径（Connect 后的 Instantiate(jit:true)）存在
         // per-link delegate 注入不同步问题（已知 issue），此处仅验证解释器正确性
-        var runner   = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner   = new FluxAssembler<float, FloatMathDef>(Def);
         var lex      = CreateVarLexer("[", "]").Lex("[a] * [b] + [c]");
         var formula  = runner.Compile(lex);
         var modifier = formula.ToMultiplier();
@@ -112,7 +112,7 @@ public class FormulaConversionTests
     [Test]
     public void ToMultiplier_UnaryPrefixOperator_KeepsSemantics()
     {
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var lex     = CreateVarLexer("[", "]").Lex("-[a]"); // 一元取负
         var formula = runner.Compile(lex);
         Assert.That(formula.Type, Is.EqualTo(FluxType.Formula));
@@ -136,7 +136,7 @@ public class FormulaConversionTests
     public void ToFormula_InsertsImmediateForVariable()
     {
         // modifier: _ * 3 → formula: x * 3
-        var runner   = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner   = new FluxAssembler<float, FloatMathDef>(Def);
         var modifier = runner.Compile(new[] { Op(FloatOp.Mul), C(3f) });
         Assert.That(modifier.Type, Is.EqualTo(FluxType.Modifier));
 
@@ -153,7 +153,7 @@ public class FormulaConversionTests
     {
         // modifier: _ * 2 + 1（Bus 寄存器承载输入）
         // formula:  x * 2 + 1（Bus→新寄存器，新变量插入）
-        var runner   = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner   = new FluxAssembler<float, FloatMathDef>(Def);
         var modifier = runner.Compile(new[]
         {
             Op(FloatOp.Mul), C(2f),
@@ -172,7 +172,7 @@ public class FormulaConversionTests
     [Test]
     public void ToFormula_AlreadyFormula_ReturnsSelf()
     {
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var formula = runner.Compile(new[] { C(42f) });
         Assert.That(formula.Type, Is.EqualTo(FluxType.Formula));
 
@@ -185,7 +185,7 @@ public class FormulaConversionTests
     public void ToFormula_JitAndInterpreter_ProduceSameResult()
     {
         // modifier → formula 的解释器路径验证
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         // 使用 VarLexer 创建 formula → ToMultiplier 产生 modifier
         // 避免 Compile(new[] { Op, C, ... }) 裸 token 路径在 Unity 侧的行为差异
         var formula  = runner.Compile(CreateVarLexer("[", "]").Lex("([n] - 5) * 2"));
@@ -203,7 +203,7 @@ public class FormulaConversionTests
     {
         // modifier with variables [b] and [c] (from [a] * [b] + [c] → ToMultiplier)
         // → formula: [newbase] * [b] + [c]
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var formulaOrig = runner.Compile(CreateVarLexer("[", "]").Lex("[a] * [b] + [c]"));
         var modifier    = formulaOrig.ToMultiplier();
 
@@ -236,7 +236,7 @@ public class FormulaConversionTests
     public void ToMultiplier_AllArgFieldsRenamed()
     {
         // 策略：用一个带变量的公式 + 手动检查转换后 raw bytecode 的寄存器号
-        var runner  = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner  = new FluxAssembler<float, FloatMathDef>(Def);
         var lex     = CreateVarLexer("[", "]").Lex("[a] + [b]");
         var formula = runner.Compile(lex);
 
@@ -287,7 +287,7 @@ public class FormulaConversionTests
     public void ToFormula_AllArgFieldsRenamedFromBus()
     {
         // 构造一个 modifier，确保 Bus(R1) 出现在 Dest+Arg 各字段
-        var runner   = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner   = new FluxAssembler<float, FloatMathDef>(Def);
         var modifier = runner.Compile(new[]
         {
             Op(FloatOp.Add), C(1f),
@@ -330,7 +330,7 @@ public class FormulaConversionTests
     public void ToMultiplier_TooFewInstructions_Throws()
     {
         // 空公式不能转 modifier（Count=0 < 2）
-        var formula = FluxFormula<float, FloatOp>.Empty;
+        var formula = FluxFormula<float, FloatMathDef>.Empty;
 
         bool threw = false;
         try { formula.ToMultiplier(); }

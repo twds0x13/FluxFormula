@@ -2,13 +2,12 @@ using System;
 
 namespace FluxFormula.Core
 {
-    public struct FluxToken<TData, TOper>
-        where TOper : unmanaged, Enum
+    public struct FluxToken<TData>
         where TData : unmanaged
     {
-        public TOper Oper;
+        public byte Oper;
         public TData Data;
 
-        public override readonly string ToString() => $"Token({Oper}, Data: {Data})";
+        public override readonly string ToString() => $"Token(0x{Oper:X2}, Data: {Data})";
     }
 }

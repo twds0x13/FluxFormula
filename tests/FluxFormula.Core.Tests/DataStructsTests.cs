@@ -67,19 +67,19 @@ public unsafe class DataStructsTests
     [Test]
     public void OpPair_None_ToString()
     {
-        var p = new OpPair<FloatOp> { PairRole = Pair.None };
+        var p = new OpPair { PairRole = Pair.None };
         Assert.That(p.ToString(), Does.Contain("None"));
     }
 
     [Test]
     public void OpPair_Left_ToString()
     {
-        var p = new OpPair<FloatOp>
+        var p = new OpPair
         {
             PairRole = Pair.Left,
-            TargetLeft = FloatOp.LParen,
+            TargetLeft = (byte)FloatOp.LParen,
             EmitOnMatch = true,
-            EmitOpCode = FloatOp.Mul,
+            EmitOpCode = (byte)FloatOp.Mul,
         };
         Assert.That(p.ToString(), Does.Contain("Left"));
         Assert.That(p.ToString(), Does.Contain("LParen"));
@@ -88,10 +88,10 @@ public unsafe class DataStructsTests
     [Test]
     public void OpPair_Right_ToString()
     {
-        var p = new OpPair<FloatOp>
+        var p = new OpPair
         {
             PairRole = Pair.Right,
-            TargetLeft = FloatOp.LParen,
+            TargetLeft = (byte)FloatOp.LParen,
             EmitOnMatch = false,
         };
         Assert.That(p.ToString(), Does.Contain("Right"));

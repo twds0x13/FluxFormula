@@ -18,7 +18,7 @@ public unsafe class FormulaFormatTests
         // 用 FluxAssembler 编译一个简单公式，取字节码
         var lexer = TestHelper.CreateMathLexer();
         var tokens = lexer.Lex("3.14 + 2.718");
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(tokens);
         byte[] bytes = formula.ToBytes();
 
@@ -91,7 +91,7 @@ public unsafe class FormulaFormatTests
         // 精确匹配：Count + 指令段 = 字节长
         var lexer = TestHelper.CreateMathLexer();
         var tokens = lexer.Lex("42");
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(tokens);
         byte[] bytes = formula.ToBytes();
 
@@ -163,7 +163,7 @@ public unsafe class FormulaFormatTests
     {
         // 端到端：编译 → 序列化 → 反序列化，验证头部字段保留
         var lexer = TestHelper.CreateMathLexer();
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(lexer.Lex("1.5 + 2.5 * 3"));
         byte[] bytes = formula.ToBytes();
 
@@ -182,7 +182,7 @@ public unsafe class FormulaFormatTests
     public void ReadVariableSlots_ZeroCount_ReturnsEmpty()
     {
         var lexer = TestHelper.CreateMathLexer();
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(lexer.Lex("42"));
         byte[] bytes = formula.ToBytes();
 
@@ -196,7 +196,7 @@ public unsafe class FormulaFormatTests
     {
         // 编译带变量的公式，验证 baseSlotOffset 正确偏移 SlotIndex
         var lexer = TestHelper.CreateVarLexer("[", "]");
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(lexer.Lex("[x] + [y]"));
         byte[] bytes = formula.ToBytes();
 
@@ -215,7 +215,7 @@ public unsafe class FormulaFormatTests
     public void ReadVariableSlots_NamesMatch()
     {
         var lexer = TestHelper.CreateVarLexer("{", "}");
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(lexer.Lex("{damage} * {multiplier}"));
         byte[] bytes = formula.ToBytes();
 
@@ -267,7 +267,7 @@ public unsafe class FormulaFormatTests
     public void GetInstructionSpan_Valid_ReturnsNonEmpty()
     {
         var lexer = TestHelper.CreateMathLexer();
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(TestHelper.Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(lexer.Lex("1 + 2 * 3 - 4 / 5"));
         byte[] bytes = formula.ToBytes();
 

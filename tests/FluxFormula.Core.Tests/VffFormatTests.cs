@@ -146,7 +146,7 @@ public unsafe class VffFormatTests
     public void Resolve_SingleFormulaLink_ReturnsChain()
     {
         var lexer = CreateMathLexer();
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var formula = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("10 + 5"));
         byte[] fBytes = formula.ToBytes();
         var (fHash, fHandle) = PutInCache(fBytes);
@@ -165,7 +165,7 @@ public unsafe class VffFormatTests
 
             try
             {
-                var result = VffFormat.Resolve<float, FloatOp>(vffHash);
+                var result = VffFormat.Resolve<float, FloatMathDef>(vffHash);
                 Assert.That(result.Formula.IsChained, Is.True);
                 Assert.That(result.Formula.ChainLength, Is.EqualTo(1));
                 Assert.That(result.Overrides.Length, Is.EqualTo(0));
@@ -179,8 +179,8 @@ public unsafe class VffFormatTests
     public void Resolve_TwoFormulaLinks_ReturnsChainLength2()
     {
         var lexer = CreateMathLexer();
-        var fA = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("3 + 4"));
-        var fB = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("5 + 6"));
+        var fA = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("3 + 4"));
+        var fB = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("5 + 6"));
 
         byte[] bA = fA.ToBytes(), bB = fB.ToBytes();
         var (hA, gcA) = PutInCache(bA);
@@ -201,7 +201,7 @@ public unsafe class VffFormatTests
 
             try
             {
-                var result = VffFormat.Resolve<float, FloatOp>(vffHash);
+                var result = VffFormat.Resolve<float, FloatMathDef>(vffHash);
                 Assert.That(result.Formula.ChainLength, Is.EqualTo(2));
             }
             finally { gcVff.Free(); }
@@ -213,7 +213,7 @@ public unsafe class VffFormatTests
     public void Resolve_ModifierLink_ReturnsModifierChain()
     {
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("2 * 3"));
+        var f = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("2 * 3"));
         var modifier = f.ToMultiplier();
         byte[] fBytes = modifier.ToBytes();
         var (fHash, gc) = PutInCache(fBytes);
@@ -228,7 +228,7 @@ public unsafe class VffFormatTests
 
             try
             {
-                var result = VffFormat.Resolve<float, FloatOp>(vffHash);
+                var result = VffFormat.Resolve<float, FloatMathDef>(vffHash);
                 Assert.That(result.Formula.ChainLength, Is.EqualTo(1));
             }
             finally { gcVff.Free(); }
@@ -244,7 +244,7 @@ public unsafe class VffFormatTests
     public void Resolve_NestedVff_FlattensLinks()
     {
         var lexer = CreateMathLexer();
-        var fInner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("1 + 2"));
+        var fInner = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("1 + 2"));
         byte[] innerBytes = fInner.ToBytes();
         var (innerHash, gcInner) = PutInCache(innerBytes);
 
@@ -265,10 +265,10 @@ public unsafe class VffFormatTests
 
                 try
                 {
-                    var result = VffFormat.Resolve<float, FloatOp>(outerVffHash);
+                    var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
                     Assert.That(result.Formula.ChainLength, Is.EqualTo(1));
 
-                    var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+                    var runner = new FluxAssembler<float, FloatMathDef>(Def);
                     float r = runner.Instantiate(result.Formula).Run();
                     Assert.That(r, Is.EqualTo(3f).Within(1e-6f));
                 }
@@ -287,7 +287,7 @@ public unsafe class VffFormatTests
     public void Resolve_WithVariableSlots_MergesThem()
     {
         var lexer = TestHelper.CreateVarLexer("[", "]");
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("[a] + [b]"));
         byte[] fBytes = f.ToBytes();
         var (fHash, gc) = PutInCache(fBytes);
@@ -302,8 +302,8 @@ public unsafe class VffFormatTests
 
             try
             {
-                var result = VffFormat.Resolve<float, FloatOp>(vffHash);
-                var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+                var result = VffFormat.Resolve<float, FloatMathDef>(vffHash);
+                var runner = new FluxAssembler<float, FloatMathDef>(Def);
                 var inst = runner.Instantiate(result.Formula).Set("a", 7f).Set("b", 3f);
                 Assert.That(inst.Run(), Is.EqualTo(10f).Within(1e-6f));
             }
@@ -320,7 +320,7 @@ public unsafe class VffFormatTests
     public void Resolve_NotInCache_Throws()
     {
         var fakeHash = DualHash64.Compute(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF });
-        Assert.That(() => VffFormat.Resolve<float, FloatOp>(fakeHash),
+        Assert.That(() => VffFormat.Resolve<float, FloatMathDef>(fakeHash),
             Throws.InvalidOperationException.With.Message.Contains("not found"));
     }
 
@@ -328,12 +328,12 @@ public unsafe class VffFormatTests
     public void Resolve_NotVff_Throws()
     {
         var lexer = CreateMathLexer();
-        var formula = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("42"));
+        var formula = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("42"));
         byte[] fBytes = formula.ToBytes();
         var (fHash, gc) = PutInCache(fBytes);
         try
         {
-            Assert.That(() => VffFormat.Resolve<float, FloatOp>(fHash),
+            Assert.That(() => VffFormat.Resolve<float, FloatMathDef>(fHash),
                 Throws.InvalidOperationException.With.Message.Contains("not a VFF"));
         }
         finally { gc.Free(); }
@@ -343,7 +343,7 @@ public unsafe class VffFormatTests
     public void Resolve_LinkNotFound_Throws()
     {
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("10"));
+        var f = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("10"));
         byte[] fBytes = f.ToBytes();
         var (fHash, gc) = PutInCache(fBytes);
 
@@ -358,7 +358,7 @@ public unsafe class VffFormatTests
 
             try
             {
-                Assert.That(() => VffFormat.Resolve<float, FloatOp>(vffHash),
+                Assert.That(() => VffFormat.Resolve<float, FloatMathDef>(vffHash),
                     Throws.InvalidOperationException.With.Message.Contains("not in cache"));
             }
             finally { gcVff.Free(); }
@@ -377,7 +377,7 @@ public unsafe class VffFormatTests
         var (hash, gc) = PutInCache(badVersion);
         try
         {
-            Assert.That(() => VffFormat.Resolve<float, FloatOp>(hash),
+            Assert.That(() => VffFormat.Resolve<float, FloatMathDef>(hash),
                 Throws.InvalidOperationException.With.Message.Contains("Unsupported VFF version"));
         }
         finally { gc.Free(); }
@@ -391,7 +391,7 @@ public unsafe class VffFormatTests
     public void Resolve_WithInjectOverrides_IncludesOverridesInResult()
     {
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("10 + 5"));
+        var f = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("10 + 5"));
         byte[] fBytes = f.ToBytes();
         var (fHash, gcF) = PutInCache(fBytes);
 
@@ -410,7 +410,7 @@ public unsafe class VffFormatTests
 
             try
             {
-                var result = VffFormat.Resolve<float, FloatOp>(vffHash);
+                var result = VffFormat.Resolve<float, FloatMathDef>(vffHash);
                 Assert.That(result.Overrides.Length, Is.EqualTo(2));
                 Assert.That(result.Overrides[0].Kind, Is.EqualTo(VffOverrideKind.Inject));
                 Assert.That(result.Overrides[1].Kind, Is.EqualTo(VffOverrideKind.Inject));
@@ -426,7 +426,7 @@ public unsafe class VffFormatTests
     public void Resolve_WithConstantOverride_HasValue()
     {
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("42"));
+        var f = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("42"));
         byte[] fBytes = f.ToBytes();
         var (fHash, gcF) = PutInCache(fBytes);
 
@@ -444,7 +444,7 @@ public unsafe class VffFormatTests
 
             try
             {
-                var result = VffFormat.Resolve<float, FloatOp>(vffHash);
+                var result = VffFormat.Resolve<float, FloatMathDef>(vffHash);
                 Assert.That(result.Overrides.Length, Is.EqualTo(1));
                 Assert.That(result.Overrides[0].Kind, Is.EqualTo(VffOverrideKind.Constant));
                 Assert.That(result.Overrides[0].ConstantValue, Is.EqualTo(3.14f));
@@ -459,7 +459,7 @@ public unsafe class VffFormatTests
     public void Resolve_OverrideDataLenMismatch_Throws()
     {
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("42"));
+        var f = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("42"));
         byte[] fBytes = f.ToBytes();
         var (fHash, gcF) = PutInCache(fBytes);
 
@@ -485,7 +485,7 @@ public unsafe class VffFormatTests
             var (vffHash, gcVff) = PutInCache(buf);
             try
             {
-                Assert.That(() => VffFormat.Resolve<float, FloatOp>(vffHash),
+                Assert.That(() => VffFormat.Resolve<float, FloatMathDef>(vffHash),
                     Throws.InvalidOperationException.With.Message.Contains("data length mismatch"));
             }
             finally { gcVff.Free(); }
@@ -505,12 +505,12 @@ public unsafe class VffFormatTests
         var varLexer = CreateVarLexer("[", "]");
         var mathLexer = CreateMathLexer();
 
-        var fVar = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var fVar = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(varLexer.Lex("[a] + [b]"));
         byte[] varBytes = fVar.ToBytes();
         var (varHash, gcVar) = PutInCache(varBytes);
 
-        var fConst = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var fConst = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(mathLexer.Lex("10 + 5"));
         byte[] constBytes = fConst.ToBytes();
         var (constHash, gcConst) = PutInCache(constBytes);
@@ -541,7 +541,7 @@ public unsafe class VffFormatTests
 
                 try
                 {
-                    var result = VffFormat.Resolve<float, FloatOp>(outerVffHash);
+                    var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
                     var slots = result.Formula.VariableSlots;
 
                     Assert.That(slots.Length, Is.EqualTo(2));
@@ -569,12 +569,12 @@ public unsafe class VffFormatTests
         // inner VFF 的 override GlobalSlot 应偏移外层累积的 immediates
         var mathLexer = CreateMathLexer();
 
-        var fInner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var fInner = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(mathLexer.Lex("42"));
         byte[] innerBytes = fInner.ToBytes();
         var (innerHash, gcInner) = PutInCache(innerBytes);
 
-        var fConst = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var fConst = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(mathLexer.Lex("99"));
         byte[] constBytes = fConst.ToBytes();
         var (constHash, gcConst) = PutInCache(constBytes);
@@ -604,7 +604,7 @@ public unsafe class VffFormatTests
 
                 try
                 {
-                    var result = VffFormat.Resolve<float, FloatOp>(outerVffHash);
+                    var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
                     Assert.That(result.Overrides.Length, Is.EqualTo(1));
                     Assert.That(result.Overrides[0].Kind, Is.EqualTo(VffOverrideKind.Inject));
                     Assert.That(result.Overrides[0].GlobalSlot,
@@ -633,7 +633,7 @@ public unsafe class VffFormatTests
     {
         // 外层 VFF 引用的内层 VFF 在缓存中缺失 → 抛 "not in cache"
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("42"));
+        var f = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("42"));
         byte[] fBytes = f.ToBytes();
         var (fHash, gcF) = PutInCache(fBytes);
 
@@ -661,7 +661,7 @@ public unsafe class VffFormatTests
                 try
                 {
                     var ex = Assert.Throws<InvalidOperationException>(() =>
-                        VffFormat.Resolve<float, FloatOp>(outerVffHash));
+                        VffFormat.Resolve<float, FloatMathDef>(outerVffHash));
                     Assert.That(ex.Message, Does.Contain("not in cache"));
                 }
                 finally { gcOuterVff.Free(); }
@@ -679,7 +679,7 @@ public unsafe class VffFormatTests
     public void ToBytes_SingleLink_ProducesCorrectLayout()
     {
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("10 + 5"));
+        var f = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("10 + 5"));
         byte[] fBytes = f.ToBytes();
         var fHash = DualHash64.Compute(fBytes);
         var header = FormulaFormat.ReadHeader(fBytes);
@@ -723,7 +723,7 @@ public unsafe class VffFormatTests
     public void ToBytes_WithConstantOverride_SetsFlag()
     {
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("42"));
+        var f = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("42"));
         byte[] fBytes = f.ToBytes();
         var fHash = DualHash64.Compute(fBytes);
         var header = FormulaFormat.ReadHeader(fBytes);
@@ -753,8 +753,8 @@ public unsafe class VffFormatTests
     public void Roundtrip_ToBytes_FromBytes_ChainMatches()
     {
         var lexer = CreateMathLexer();
-        var fA = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("3 + 4"));
-        var fB = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("5 + 6"));
+        var fA = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("3 + 4"));
+        var fB = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("5 + 6"));
         byte[] bA = fA.ToBytes(), bB = fB.ToBytes();
         var (hA, gcA) = PutInCache(bA);
         var (hB, gcB) = PutInCache(bB);
@@ -787,11 +787,11 @@ public unsafe class VffFormatTests
             try
             {
                 // FromBytes 从裸字节解析
-                var fromBytesResult = VffFormat.FromBytes<float, FloatOp>(vffBytes);
+                var fromBytesResult = VffFormat.FromBytes<float, FloatMathDef>(vffBytes);
                 Assert.That(fromBytesResult.Formula.ChainLength, Is.EqualTo(2));
 
                 // Resolve 从缓存解析——结果应一致
-                var resolveResult = VffFormat.Resolve<float, FloatOp>(vffHash);
+                var resolveResult = VffFormat.Resolve<float, FloatMathDef>(vffHash);
                 Assert.That(resolveResult.Formula.ChainLength, Is.EqualTo(2));
             }
             finally { gcVff.Free(); }
@@ -803,7 +803,7 @@ public unsafe class VffFormatTests
     public void FromBytes_Standalone_SameAsResolve()
     {
         var lexer = CreateMathLexer();
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("10 + 5"));
+        var f = new FluxAssembler<float, FloatMathDef>(Def).Compile(lexer.Lex("10 + 5"));
         byte[] fBytes = f.ToBytes();
         var (fHash, gcF) = PutInCache(fBytes);
 
@@ -823,13 +823,13 @@ public unsafe class VffFormatTests
 
             try
             {
-                var fromBytes = VffFormat.FromBytes<float, FloatOp>(vffBytes);
-                var fromResolve = VffFormat.Resolve<float, FloatOp>(vffHash);
+                var fromBytes = VffFormat.FromBytes<float, FloatMathDef>(vffBytes);
+                var fromResolve = VffFormat.Resolve<float, FloatMathDef>(vffHash);
 
                 Assert.That(fromBytes.Formula.ChainLength, Is.EqualTo(fromResolve.Formula.ChainLength));
                 Assert.That(fromBytes.Overrides.Length, Is.EqualTo(fromResolve.Overrides.Length));
 
-                var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+                var runner = new FluxAssembler<float, FloatMathDef>(Def);
                 float rFromBytes = runner.Instantiate(fromBytes.Formula).Run();
                 float rResolve = runner.Instantiate(fromResolve.Formula).Run();
                 Assert.That(rFromBytes, Is.EqualTo(rResolve).Within(1e-6f));
@@ -847,7 +847,7 @@ public unsafe class VffFormatTests
     public void FromBytes_NotVffMagic_Throws()
     {
         byte[] notVff = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
-        Assert.That(() => VffFormat.FromBytes<float, FloatOp>(notVff),
+        Assert.That(() => VffFormat.FromBytes<float, FloatMathDef>(notVff),
             Throws.InvalidOperationException.With.Message.Contains("not a VFF"));
     }
 }

@@ -22,18 +22,17 @@ namespace FluxFormula.Core
         }
     }
 
-    /// <summary>运算符符号 → 枚举映射规则</summary>
-    public readonly struct OperatorRule<TOper>
-        where TOper : unmanaged, Enum
+    /// <summary>运算符符号 → byte 操作码映射规则</summary>
+    public readonly struct OperatorRule
     {
         public readonly string Symbol;
-        public readonly TOper Oper;
+        public readonly byte Oper;
         /// <summary>函数调用左括号符号，如 "("。null 表示不使用括号语法。</summary>
         public readonly string BracketOpen;
         /// <summary>函数调用右括号符号，如 ")"。</summary>
         public readonly string BracketClose;
 
-        public OperatorRule(string symbol, TOper oper, string bracketOpen = null, string bracketClose = null)
+        public OperatorRule(string symbol, byte oper, string bracketOpen = null, string bracketClose = null)
         {
             Symbol       = symbol;
             Oper         = oper;
@@ -43,15 +42,14 @@ namespace FluxFormula.Core
     }
 
     /// <summary>括号对映射规则</summary>
-    public readonly struct BracketRule<TOper>
-        where TOper : unmanaged, Enum
+    public readonly struct BracketRule
     {
         public readonly string Open;
         public readonly string Close;
-        public readonly TOper LeftOper;
-        public readonly TOper RightOper;
+        public readonly byte LeftOper;
+        public readonly byte RightOper;
 
-        public BracketRule(string open, string close, TOper leftOper, TOper rightOper)
+        public BracketRule(string open, string close, byte leftOper, byte rightOper)
         {
             Open      = open;
             Close     = close;
@@ -68,15 +66,14 @@ namespace FluxFormula.Core
     /// 纯配置驱动的词法规则表。
     /// 用户不需要理解内部实现 —— 填表即可。
     /// </summary>
-    public class LexerConfig<TData, TOper>
+    public class LexerConfig<TData>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
     {
         /// <summary>字面量（数字/标识符）匹配正则，如 @"\d+(\.\d+)?f?"</summary>
         public string LiteralPattern = @"\d+(\.\d+)?f?";
 
-        /// <summary>字面量对应的枚举值（如 FloatOp.Const）</summary>
-        public TOper LiteralOper;
+        /// <summary>字面量对应的操作码（如 FloatOp.Const）</summary>
+        public byte LiteralOper;
 
         /// <summary>字面量字符串 → TData 转换函数</summary>
         public Func<string, TData> LiteralParser = _ => default;
@@ -85,15 +82,15 @@ namespace FluxFormula.Core
         public string WhitespacePattern = @"\s+";
 
         /// <summary>运算符映射列表（按长度自动降序匹配，无需手动排序）</summary>
-        public List<OperatorRule<TOper>> Operators = new();
+        public List<OperatorRule> Operators = new();
 
         /// <summary>括号映射列表</summary>
-        public List<BracketRule<TOper>> Brackets = new();
+        public List<BracketRule> Brackets = new();
 
         /// <summary>可隐式插入的运算符列表（如 Mul）。
         /// 若仅配置一个，遇到 2(3) 或 (a)(b) 时自动插入。
         /// 若配置多个且产生歧义（如 2 3），抛异常提醒用户显式书写。</summary>
-        public List<TOper> ImplicitOperators = new();
+        public List<byte> ImplicitOperators = new();
 
         /// <summary>变量（未知数）模式列表，用前后缀定义包裹语法。
         /// 如 new("{var:", "}") 匹配 {var:a}，new("[", "]") 匹配 [enemy.def]</summary>
@@ -108,14 +105,13 @@ namespace FluxFormula.Core
     /// 词法分析完整结果 —— Token 数组 + 变量名并行数组。
     /// 变量名数组与 Token 数组等长：非变量位置为 null，变量位置为捕获的名称。
     /// </summary>
-    public readonly struct LexResult<TData, TOper>
+    public readonly struct LexResult<TData>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
     {
-        public readonly FluxToken<TData, TOper>[] Tokens;
+        public readonly FluxToken<TData>[] Tokens;
         public readonly string[] VarNames;
 
-        public LexResult(FluxToken<TData, TOper>[] tokens, string[] varNames)
+        public LexResult(FluxToken<TData>[] tokens, string[] varNames)
         {
             Tokens = tokens;
             VarNames = varNames;
@@ -129,19 +125,18 @@ namespace FluxFormula.Core
     /// <summary>
     /// 词法分析器 —— 将字符串转换为 FluxToken 流。
     /// </summary>
-    public class FluxLexer<TData, TOper>
+    public class FluxLexer<TData>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
     {
-        private readonly LexerConfig<TData, TOper> _config;
+        private readonly LexerConfig<TData> _config;
         // 预索引数组 — 手写扫描器直接遍历，零字典查找，零堆分配集合
         private readonly VariablePatternRule[] _varRules;
         private readonly string[] _opSymbols;
-        private readonly TOper[] _opOpers;
+        private readonly byte[] _opOpers;
         private readonly string[] _brOpen, _brClose;
-        private readonly TOper[] _brLeftOpers, _brRightOpers;
+        private readonly byte[] _brLeftOpers, _brRightOpers;
 
-        public FluxLexer(LexerConfig<TData, TOper> config)
+        public FluxLexer(LexerConfig<TData> config)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
 
@@ -155,7 +150,7 @@ namespace FluxFormula.Core
             // ── 运算符（按长度降序确保 '**' 匹配先于 '*'）──
             config.Operators.Sort((a, b) => b.Symbol.Length.CompareTo(a.Symbol.Length));
             _opSymbols = new string[config.Operators.Count];
-            _opOpers   = new TOper[config.Operators.Count];
+            _opOpers   = new byte[config.Operators.Count];
             for (int i = 0; i < config.Operators.Count; i++)
             {
                 _opSymbols[i] = config.Operators[i].Symbol;
@@ -166,8 +161,8 @@ namespace FluxFormula.Core
             int bc = config.Brackets.Count;
             _brOpen   = new string[bc];
             _brClose  = new string[bc];
-            _brLeftOpers  = new TOper[bc];
-            _brRightOpers = new TOper[bc];
+            _brLeftOpers  = new byte[bc];
+            _brRightOpers = new byte[bc];
             for (int i = 0; i < bc; i++)
             {
                 var br = config.Brackets[i];
@@ -179,15 +174,15 @@ namespace FluxFormula.Core
         }
 
         /// <summary>解析字符串为 LexResult（Token 数组 + 变量名并行数组）</summary>
-        public LexResult<TData, TOper> Lex(string source)
+        public LexResult<TData> Lex(string source)
         {
             if (string.IsNullOrEmpty(source))
-                return new LexResult<TData, TOper>(
-                    Array.Empty<FluxToken<TData, TOper>>(),
+                return new LexResult<TData>(
+                    Array.Empty<FluxToken<TData>>(),
                     Array.Empty<string>());
 
             int maxTokens = source.Length;
-            var tokens   = new FluxToken<TData, TOper>[maxTokens];
+            var tokens   = new FluxToken<TData>[maxTokens];
             var varNames = new string[maxTokens];
             int tokenCount = 0;
             int pos = 0;
@@ -202,7 +197,7 @@ namespace FluxFormula.Core
                 int litEnd = TryScanLiteral(src, pos, out TData litVal);
                 if (litEnd > pos)
                 {
-                    tokens[tokenCount] = new FluxToken<TData, TOper>
+                    tokens[tokenCount] = new FluxToken<TData>
                         { Oper = _config.LiteralOper, Data = litVal };
                     varNames[tokenCount] = null;
                     tokenCount++;
@@ -214,7 +209,7 @@ namespace FluxFormula.Core
                 int varEnd = TryScanVariable(src, pos, out string varName);
                 if (varEnd > pos)
                 {
-                    tokens[tokenCount] = new FluxToken<TData, TOper>
+                    tokens[tokenCount] = new FluxToken<TData>
                         { Oper = _config.LiteralOper, Data = default };
                     varNames[tokenCount] = varName;
                     tokenCount++;
@@ -223,10 +218,10 @@ namespace FluxFormula.Core
                 }
 
                 // ── 尝试匹配运算符（已按长度降序排列）──
-                int opEnd = TryScanOperator(src, pos, out TOper op);
+                int opEnd = TryScanOperator(src, pos, out byte op);
                 if (opEnd > pos)
                 {
-                    tokens[tokenCount] = new FluxToken<TData, TOper> { Oper = op };
+                    tokens[tokenCount] = new FluxToken<TData> { Oper = op };
                     varNames[tokenCount] = null;
                     tokenCount++;
                     pos = opEnd;
@@ -234,10 +229,10 @@ namespace FluxFormula.Core
                 }
 
                 // ── 尝试匹配括号 ──
-                int brEnd = TryScanBracket(src, pos, out TOper brOp);
+                int brEnd = TryScanBracket(src, pos, out byte brOp);
                 if (brEnd > pos)
                 {
-                    tokens[tokenCount] = new FluxToken<TData, TOper> { Oper = brOp };
+                    tokens[tokenCount] = new FluxToken<TData> { Oper = brOp };
                     varNames[tokenCount] = null;
                     tokenCount++;
                     pos = brEnd;
@@ -250,7 +245,7 @@ namespace FluxFormula.Core
                     $"Lexer error at position {pos}: unexpected '{src.Slice(pos, Math.Min(rem, 20)).ToString()}'");
             }
 
-            var resultTokens   = new FluxToken<TData, TOper>[tokenCount];
+            var resultTokens   = new FluxToken<TData>[tokenCount];
             var resultVarNames = new string[tokenCount];
             Array.Copy(tokens, resultTokens, tokenCount);
             Array.Copy(varNames, resultVarNames, tokenCount);
@@ -259,7 +254,7 @@ namespace FluxFormula.Core
             if (_config.ImplicitOperators.Count > 0)
             {
                 int maxResolved = resultTokens.Length * 2;
-                var resolvedTokens   = new FluxToken<TData, TOper>[maxResolved];
+                var resolvedTokens   = new FluxToken<TData>[maxResolved];
                 var resolvedVarNames = new string[maxResolved];
                 int resolvedCount = 0;
                 for (int i = 0; i < resultTokens.Length; i++)
@@ -273,30 +268,26 @@ namespace FluxFormula.Core
                     {
                         if (_config.ImplicitOperators.Count == 1)
                         {
-                            resolvedTokens[resolvedCount] = new FluxToken<TData, TOper>
+                            resolvedTokens[resolvedCount] = new FluxToken<TData>
                                 { Oper = _config.ImplicitOperators[0] };
                             resolvedVarNames[resolvedCount] = null;
                             resolvedCount++;
                         }
                         else
                         {
-                            int implicitCount = _config.ImplicitOperators.Count;
-                            string[] syms = new string[implicitCount];
-                            for (int s = 0; s < implicitCount; s++)
-                                syms[s] = _config.ImplicitOperators[s].ToString();
                             throw new FormatException(
                                 $"Ambiguous implicit operator between '{resultTokens[i]}' and '{resultTokens[i + 1]}'. " +
-                                $"Candidates: {string.Join(", ", syms)}. Use explicit operator.");
+                                $"Use explicit operator.");
                         }
                     }
                 }
-                resultTokens   = new FluxToken<TData, TOper>[resolvedCount];
+                resultTokens   = new FluxToken<TData>[resolvedCount];
                 resultVarNames = new string[resolvedCount];
                 Array.Copy(resolvedTokens, resultTokens, resolvedCount);
                 Array.Copy(resolvedVarNames, resultVarNames, resolvedCount);
             }
 
-            return new LexResult<TData, TOper>(resultTokens, resultVarNames);
+            return new LexResult<TData>(resultTokens, resultVarNames);
         }
 
         // ── 扫描辅助方法 ────────────────────────────
@@ -378,9 +369,9 @@ namespace FluxFormula.Core
         }
 
         /// <summary>尝试匹配一个运算符（已按长度降序）</summary>
-        private int TryScanOperator(ReadOnlySpan<char> src, int pos, out TOper op)
+        private int TryScanOperator(ReadOnlySpan<char> src, int pos, out byte op)
         {
-            op = default;
+            op = 0;
             for (int i = 0; i < _opSymbols.Length; i++)
             {
                 if (src.Slice(pos).StartsWith(_opSymbols[i].AsSpan()))
@@ -393,9 +384,9 @@ namespace FluxFormula.Core
         }
 
         /// <summary>尝试匹配一个括号</summary>
-        private int TryScanBracket(ReadOnlySpan<char> src, int pos, out TOper brOp)
+        private int TryScanBracket(ReadOnlySpan<char> src, int pos, out byte brOp)
         {
-            brOp = default;
+            brOp = 0;
             for (int i = 0; i < _brOpen.Length; i++)
             {
                 if (src.Slice(pos).StartsWith(_brOpen[i].AsSpan()))
@@ -427,30 +418,30 @@ namespace FluxFormula.Core
 
         /// <summary>判断两个相邻 Token 是否需要隐式运算符。
         /// 内联数组扫描替代 HashSet：括号对数极少（1-3），线性扫描零堆分配且更快。</summary>
-        private bool IsJuxtaposition(FluxToken<TData, TOper> left, FluxToken<TData, TOper> right)
+        private bool IsJuxtaposition(FluxToken<TData> left, FluxToken<TData> right)
         {
-            bool leftEnd = left.Oper.Equals(_config.LiteralOper)
+            bool leftEnd = left.Oper == _config.LiteralOper
                         || IsRightBracket(left.Oper);
 
-            bool rightStart = right.Oper.Equals(_config.LiteralOper)
+            bool rightStart = right.Oper == _config.LiteralOper
                            || IsLeftBracket(right.Oper);
 
             return leftEnd && rightStart;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsLeftBracket(TOper op)
+        private bool IsLeftBracket(byte op)
         {
             for (int i = 0; i < _brLeftOpers.Length; i++)
-                if (_brLeftOpers[i].Equals(op)) return true;
+                if (_brLeftOpers[i] == op) return true;
             return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsRightBracket(TOper op)
+        private bool IsRightBracket(byte op)
         {
             for (int i = 0; i < _brRightOpers.Length; i++)
-                if (_brRightOpers[i].Equals(op)) return true;
+                if (_brRightOpers[i] == op) return true;
             return false;
         }
     }

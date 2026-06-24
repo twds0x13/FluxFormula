@@ -4,10 +4,9 @@ using FluxFormula.Core;
 
 namespace FluxFormula.Compiler
 {
-    internal readonly unsafe ref struct FluxCompiler<TData, TOper, TDef>
+    internal readonly unsafe ref struct FluxCompiler<TData, TDef>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
-        where TDef : struct, IFluxDefinition<TData, TOper>
+        where TDef : struct, IFluxDefinition<TData>
     {
         private readonly TDef _provider;
         private const int MaxStackDepth = 64;
@@ -15,7 +14,7 @@ namespace FluxFormula.Compiler
         public FluxCompiler(TDef provider) => _provider = provider;
 
         public int Compile(
-            ReadOnlySpan<FluxToken<TData, TOper>> infix,
+            ReadOnlySpan<FluxToken<TData>> infix,
             Span<Instruction> instructions,
             out int immediateCount,
             out int varSlotCount,
@@ -25,7 +24,7 @@ namespace FluxFormula.Compiler
         )
         {
             varSlotCount = 0;
-            TOper* opStack = stackalloc TOper[MaxStackDepth];
+            byte* opStack = stackalloc byte[MaxStackDepth];
             byte* regStack = stackalloc byte[MaxStackDepth];
 
             int opTop = -1;
@@ -42,18 +41,16 @@ namespace FluxFormula.Compiler
                 for (int i = 0; i < infix.Length; i++)
                 {
                     ref readonly var token = ref infix[i];
-                    TOper oper = token.Oper;
-                    byte opByte = *(byte*)&oper;
+                    byte opByte = token.Oper;
                     OpType kind = _provider.GetKind(opByte);
 
                     // ── 上下文消歧 ────────────────────────
                     if (kind == OpType.Instruction && ctx == TokenContext.OperandExpected)
                     {
-                        TOper resolved = _provider.ResolveToken(oper, TokenContext.OperandExpected);
-                        if (*(byte*)&resolved != 0) // 非 default → 消歧
+                        byte resolved = _provider.ResolveToken(opByte, TokenContext.OperandExpected);
+                        if (resolved != 0) // 非 default → 消歧
                         {
-                            oper   = resolved;
-                            opByte = *(byte*)&oper;
+                            opByte = resolved;
                             kind   = _provider.GetKind(opByte);
                         }
                     }
@@ -95,8 +92,8 @@ namespace FluxFormula.Compiler
                         continue;
                     }
 
-                    // 处理括号与运算符（使用消歧后的 oper）
-                    var pairInfo = _provider.GetPair(oper);
+                    // 处理括号与运算符（使用消歧后的 opByte）
+                    var pairInfo = _provider.GetPair(opByte);
 
                     if (pairInfo.PairRole == Pair.Left)
                     {
@@ -107,11 +104,11 @@ namespace FluxFormula.Compiler
                     }
                     else if (pairInfo.PairRole == Pair.Right)
                     {
-                        while (opTop >= 0 && !opStack[opTop].Equals(pairInfo.TargetLeft))
+                        while (opTop >= 0 && opStack[opTop] != pairInfo.TargetLeft)
                         {
-                            TOper emitOp = opStack[opTop--];
+                            byte emitOp = opStack[opTop--];
                             var emitPair = _provider.GetPair(emitOp);
-                            TOper actualOp = emitPair.EmitOnMatch ? emitPair.EmitOpCode : emitOp;
+                            byte actualOp = emitPair.EmitOnMatch ? emitPair.EmitOpCode : emitOp;
                             EmitOp(
                                 pDest,
                                 ref instIdx,
@@ -124,7 +121,7 @@ namespace FluxFormula.Compiler
                         }
 
                         if (opTop < 0)
-                            throw new FormatException($"Unmatched right bracket: {token.Oper}");
+                            throw new FormatException($"Unmatched right bracket: 0x{token.Oper:X2}");
 
                         if (pairInfo.IsSeparator)
                         {
@@ -138,9 +135,9 @@ namespace FluxFormula.Compiler
                             // 检查 '(' 下方是否有函数运算符（如 select/lerp）待发射
                             if (opTop >= 0)
                             {
-                                byte checkByte = *(byte*)&opStack[opTop];
+                                byte checkByte = opStack[opTop];
                                 if (_provider.GetArity(checkByte) > 0
-                                    && _provider.GetPair(opStack[opTop]).PairRole == Pair.None)
+                                    && _provider.GetPair(checkByte).PairRole == Pair.None)
                                 {
                                     EmitOp(
                                         pDest,
@@ -161,13 +158,13 @@ namespace FluxFormula.Compiler
                         // 处理优先级与结合性
                         while (opTop >= 0)
                         {
-                            TOper topOp = opStack[opTop];
+                            byte topOp = opStack[opTop];
                             if (_provider.GetPair(topOp).PairRole == Pair.Left)
                                 break;
 
                             int topPrec = _provider.GetPrecedence(topOp);
-                            int currPrec = _provider.GetPrecedence(oper);
-                            Associativity assoc = _provider.GetAssociativity(oper);
+                            int currPrec = _provider.GetPrecedence(opByte);
+                            Associativity assoc = _provider.GetAssociativity(opByte);
 
                             bool shouldPop =
                                 (topPrec > currPrec)
@@ -189,7 +186,7 @@ namespace FluxFormula.Compiler
 
                         if (opTop >= MaxStackDepth - 1)
                             throw new StackOverflowException("Operator stack overflow.");
-                        opStack[++opTop] = oper; // 使用消歧后的 oper（非原始 token.Oper）
+                        opStack[++opTop] = opByte; // 使用消歧后的 opByte（非原始 token.Oper）
                         ctx = TokenContext.OperandExpected; // 运算符后期待操作数
                     }
                 }
@@ -197,13 +194,13 @@ namespace FluxFormula.Compiler
                 // 清空操作符栈
                 while (opTop >= 0)
                 {
-                    TOper topOp = opStack[opTop--];
+                    byte topOp = opStack[opTop--];
                     var topPair = _provider.GetPair(topOp);
 
                     if (topPair.PairRole == Pair.Left)
                         throw new FormatException("Unmatched left parenthesis.");
 
-                    TOper actualOp = topPair.EmitOnMatch ? topPair.EmitOpCode : topOp;
+                    byte actualOp = topPair.EmitOnMatch ? topPair.EmitOpCode : topOp;
                     EmitOp(
                         pDest,
                         ref instIdx,
@@ -219,8 +216,8 @@ namespace FluxFormula.Compiler
                     throw new IndexOutOfRangeException("Buffer too small for return.");
 
                 Instruction* ret = pDest + (instIdx++);
-                TOper retOp = _provider.GetReturnOp();
-                ret->OpCode = *(byte*)&retOp;
+                byte retOp = _provider.GetReturnOp();
+                ret->OpCode = retOp;
                 ret->Dest = regTop >= 0 ? regStack[0] : Registers.Bus;
             }
             immediateCount = immCount;
@@ -232,7 +229,7 @@ namespace FluxFormula.Compiler
             Instruction* pDest,
             ref int idx,
             int maxLen,
-            TOper oper,
+            byte opByte,
             byte* regStack,
             ref int regTop,
             ref byte nextReg
@@ -241,7 +238,6 @@ namespace FluxFormula.Compiler
             if (idx >= maxLen)
                 throw new IndexOutOfRangeException("Instruction overflow.");
 
-            byte opByte = *(byte*)&oper;
             int arity = _provider.GetArity(opByte);
 
             Instruction* inst = pDest + (idx++);
@@ -279,14 +275,14 @@ namespace FluxFormula.Compiler
                 regTop = firstRegIdx;
                 regStack[regTop] = destReg;
             }
-            
+
             else
             {
                 throw new InvalidOperationException(
                     $"EmitOp invoked with arity 0 (opCode=0x{opByte:X2}). " +
                     "If this is a bracket/separator token, its PairRole should be Left or Right.");
             }
-            
+
         }
     }
 }

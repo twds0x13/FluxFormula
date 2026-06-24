@@ -8,27 +8,26 @@ namespace FluxFormula.Core
     /// 可执行的公式流式包装器 (Fluent API)。
     /// 支持原子公式（单次 JIT/解释器求值）、链式解释器求值、链式 JIT 求值。
     /// </summary>
-    public ref struct FluxInstance<TData, TOper, TDef>
+    public ref struct FluxInstance<TData, TDef>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
-        where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+        where TDef : unmanaged, IFluxJITDefinition<TData>
     {
         private readonly TDef _definition;
-        private readonly FluxFormula<TData, TOper> _formula;
-        private readonly FluxJITCompiler<TData, TOper, TDef>.CompiledFunc _jitFunc;
+        private readonly FluxFormula<TData, TDef> _formula;
+        private readonly FluxJITCompiler<TData, TDef>.CompiledFunc _jitFunc;
         private readonly bool _isJit;
 
         private FluxInjector<TData> _injector;
 
         // ── 链式 JIT ──
-        private readonly FluxJITCompiler<TData, TOper, TDef>.CompiledFunc[] _chainFuncs;
+        private readonly FluxJITCompiler<TData, TDef>.CompiledFunc[] _chainFuncs;
         private readonly FluxInjector<TData>[] _chainInjectors;
 
         internal FluxInstance(
             TDef definition,
-            FluxFormula<TData, TOper> formula,
+            FluxFormula<TData, TDef> formula,
             FluxInjector<TData> injector,
-            FluxJITCompiler<TData, TOper, TDef>.CompiledFunc jitFunc,
+            FluxJITCompiler<TData, TDef>.CompiledFunc jitFunc,
             bool isJit)
         {
             _definition     = definition;
@@ -42,9 +41,9 @@ namespace FluxFormula.Core
 
         internal FluxInstance(
             TDef definition,
-            FluxFormula<TData, TOper> formula,
+            FluxFormula<TData, TDef> formula,
             FluxInjector<TData> mergedInjector,
-            FluxJITCompiler<TData, TOper, TDef>.CompiledFunc[] chainFuncs,
+            FluxJITCompiler<TData, TDef>.CompiledFunc[] chainFuncs,
             FluxInjector<TData>[] chainInjectors)
         {
             _definition     = definition;
@@ -59,14 +58,14 @@ namespace FluxFormula.Core
         // ================= 流式数据注入 =================
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FluxInstance<TData, TOper, TDef> SetIndex(int index, TData value)
+        public FluxInstance<TData, TDef> SetIndex(int index, TData value)
         {
             _injector = _injector.SetIndex(index, value);
             return this;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public FluxInstance<TData, TOper, TDef> Set(string name, TData value)
+        public FluxInstance<TData, TDef> Set(string name, TData value)
         {
             _injector = _injector.Set(name, value);
             return this;
@@ -93,7 +92,7 @@ namespace FluxFormula.Core
             }
             else
             {
-                var kernel = new FluxEvaluator<TData, TOper, TDef>(_definition);
+                var kernel = new FluxEvaluator<TData, TDef>(_definition);
                 return kernel.Compute(_injector.GetBuffer().AsSpan(0, _formula.Count),
                     maxRegister: _formula.MaxRegister);
             }
@@ -127,7 +126,7 @@ namespace FluxFormula.Core
         private readonly TData RunChainInterpreter()
         {
             var links  = _formula.GetChainLinks();
-            var kernel = new FluxEvaluator<TData, TOper, TDef>(_definition);
+            var kernel = new FluxEvaluator<TData, TDef>(_definition);
             TData prevResult = default;
 
             for (int i = 0; i < links.Length; i++)

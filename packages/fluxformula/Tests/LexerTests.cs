@@ -194,7 +194,7 @@ public class LexerTests
     public void Variable_SetByName_Run()
     {
         var result = CreateVarLexer("[", "]").Lex("[atk] - [def]");
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst   = runner.Instantiate(runner.Compile(result), jit: false);
 
         float v = inst.Set("atk", 100f).Set("def", 50f).Run();
@@ -205,7 +205,7 @@ public class LexerTests
     public void Variable_SetByName_MissingVariable_Throws()
     {
         var result = CreateVarLexer("[", "]").Lex("[x] + [y]");
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst   = runner.Instantiate(runner.Compile(result), jit: false);
 
         bool threw = false;
@@ -217,7 +217,7 @@ public class LexerTests
     public void Variable_SetByName_JitPath()
     {
         var result = CreateVarLexer("[", "]").Lex("[a] * [b]");
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst   = runner.Instantiate(runner.Compile(result), jit: true);
 
         float v = inst.Set("a", 7f).Set("b", 3f).Run();
@@ -241,7 +241,7 @@ public class LexerTests
     {
         // [x] + [x] 中两个 x 共享同一注入值
         var result = CreateVarLexer("[", "]").Lex("[x] + [x]");
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst   = runner.Instantiate(runner.Compile(result), jit: false);
 
         float v = inst.Set("x", 5f).Run();
@@ -252,7 +252,7 @@ public class LexerTests
     public void Variable_SameName_SharesValue_Jit()
     {
         var result = CreateVarLexer("[", "]").Lex("[x] * [x]");
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst   = runner.Instantiate(runner.Compile(result), jit: true);
 
         float v = inst.Set("x", 3f).Run();
@@ -263,7 +263,7 @@ public class LexerTests
     public void Variable_SameName_ThreeOccurrences()
     {
         var result = CreateVarLexer("[", "]").Lex("[a] + [a] + [a]");
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst   = runner.Instantiate(runner.Compile(result), jit: false);
 
         float v = inst.Set("a", 10f).Run();
@@ -275,7 +275,7 @@ public class LexerTests
     {
         // [x] + [x] + [y] — x 共用，y 独立
         var result = CreateVarLexer("[", "]").Lex("[x] + [x] + [y]");
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst   = runner.Instantiate(runner.Compile(result), jit: false);
 
         float v = inst.Set("x", 2f).Set("y", 3f).Run();
@@ -286,7 +286,7 @@ public class LexerTests
     public void Variable_SameName_StillThrowsForUndefined()
     {
         var result = CreateVarLexer("[", "]").Lex("[x] + [x]");
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst   = runner.Instantiate(runner.Compile(result), jit: false);
 
         bool threw = false;
@@ -300,21 +300,21 @@ public class LexerTests
     public void ImplicitMul_Ambiguous_ThrowsFormatException()
     {
         // 配置多个隐式运算符，遇到无法消歧的邻接时报错
-        var lexer = new FluxLexer<float, FloatOp>(new LexerConfig<float, FloatOp>
+        var lexer = new FluxLexer<float>(new LexerConfig<float>
         {
             LiteralPattern = @"\d+(\.\d+)?f?",
             LiteralParser  = s => float.Parse(s.TrimEnd('f')),
-            LiteralOper    = FloatOp.Const,
+            LiteralOper = (byte)(byte)FloatOp.Const,
             Operators =
             {
-                new("+", FloatOp.Add), new("-", FloatOp.Sub),
-                new("*", FloatOp.Mul), new("/", FloatOp.Div),
+                new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
+                new("*", (byte)FloatOp.Mul), new("/", (byte)FloatOp.Div),
             },
             Brackets =
             {
-                new("(", ")", FloatOp.LParen, FloatOp.RParen),
+                new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen),
             },
-            ImplicitOperators = { FloatOp.Mul, FloatOp.Add },
+            ImplicitOperators = { (byte)(byte)FloatOp.Mul, (byte)FloatOp.Add },
         });
 
         Assert.That(
@@ -329,19 +329,19 @@ public class LexerTests
     public void VariablePattern_MultiplePatterns_SameLexer()
     {
         // 同一个 Lexer 支持 [...] 和 {var:...} 两种语法
-        var lexer = new FluxLexer<float, FloatOp>(new LexerConfig<float, FloatOp>
+        var lexer = new FluxLexer<float>(new LexerConfig<float>
         {
             LiteralPattern = @"\d+(\.\d+)?f?",
             LiteralParser  = s => float.Parse(s.TrimEnd('f')),
-            LiteralOper    = FloatOp.Const,
+            LiteralOper = (byte)(byte)FloatOp.Const,
             Operators =
             {
-                new("+", FloatOp.Add), new("-", FloatOp.Sub),
-                new("*", FloatOp.Mul), new("/", FloatOp.Div),
+                new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
+                new("*", (byte)FloatOp.Mul), new("/", (byte)FloatOp.Div),
             },
             Brackets =
             {
-                new("(", ")", FloatOp.LParen, FloatOp.RParen),
+                new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen),
             },
             VariablePatterns =
             {
@@ -354,7 +354,7 @@ public class LexerTests
         Assert.That(result.VarNames[0], Is.EqualTo("a"));
         Assert.That(result.VarNames[2], Is.EqualTo("b"));
 
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var inst   = runner.Instantiate(runner.Compile(result), jit: false);
         float v = inst.Set("a", 10f).Set("b", 7f).Run();
         Assert.That(v, Is.EqualTo(17f).Within(1e-6f));

@@ -146,17 +146,17 @@ namespace FluxFormula.Core
     // ═══════════════════════════════════════════════════════
 
     /// <summary>VFF 解析结果——包含构建好的链式公式和参数覆写元数据。</summary>
-    public readonly struct VffResolveResult<TData, TOper>
+    public readonly struct VffResolveResult<TData, TDef>
         where TData : unmanaged
-        where TOper : unmanaged, Enum
+        where TDef : unmanaged, IFluxJITDefinition<TData>
     {
         /// <summary>解析产出的链式公式（可传入 Instantiate）</summary>
-        public readonly FluxFormula<TData, TOper> Formula;
+        public readonly FluxFormula<TData, TDef> Formula;
 
         /// <summary>参数覆写列表（空数组 = 纯引用拼接无覆写）</summary>
         public readonly VffOverride<TData>[] Overrides;
 
-        public VffResolveResult(FluxFormula<TData, TOper> formula, VffOverride<TData>[] overrides)
+        public VffResolveResult(FluxFormula<TData, TDef> formula, VffOverride<TData>[] overrides)
         {
             Formula   = formula;
             Overrides = overrides ?? Array.Empty<VffOverride<TData>>();
@@ -184,7 +184,7 @@ namespace FluxFormula.Core
         /// 从 <see cref="FormulaCache"/> 读取 VFF 条目，解析为链式公式。
         /// </summary>
         /// <param name="vffHash">VFF 条目自身的 DualHash64（偏移表中存储的键）</param>
-        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TOper}"/> + 覆写元数据</returns>
+        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TDef}"/> + 覆写元数据</returns>
         /// <exception cref="InvalidOperationException">
         /// 缓存未命中、条目不是 VFF、版本不支持、或引用的公式不在缓存中。
         /// </exception>
@@ -192,14 +192,14 @@ namespace FluxFormula.Core
         /// 从 <see cref="FormulaCache"/> 读取 VFF 条目，解析为链式公式。
         /// </summary>
         /// <param name="vffHash">VFF 条目自身的 DualHash64（偏移表中存储的键）</param>
-        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TOper}"/> + 覆写元数据</returns>
+        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TDef}"/> + 覆写元数据</returns>
         /// <exception cref="InvalidOperationException">
         /// 缓存未命中、条目不是 VFF、版本不支持、或引用的公式不在缓存中。
         /// </exception>
-        public static unsafe VffResolveResult<TData, TOper> Resolve<TData, TOper>(
+        public static unsafe VffResolveResult<TData, TDef> Resolve<TData, TDef>(
             DualHash64 vffHash)
             where TData : unmanaged
-            where TOper : unmanaged, Enum
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             if (!FormulaCache.Instance.TryGet(vffHash, out IntPtr vffPtr, out int vffLen))
                 throw new InvalidOperationException(
@@ -208,7 +208,7 @@ namespace FluxFormula.Core
             var vffBytes = new ReadOnlySpan<byte>((void*)vffPtr, vffLen);
             var visited = new System.Collections.Generic.HashSet<DualHash64>();
             visited.Add(vffHash); // 顶层 VFF 自身入栈
-            return ParseAndResolve<TData, TOper>(vffBytes, visited);
+            return ParseAndResolve<TData, TDef>(vffBytes, visited);
         }
 
         /// <summary>
@@ -216,25 +216,25 @@ namespace FluxFormula.Core
         /// 被引用的公式仍通过 <see cref="FormulaCache"/> 查找——调用前须将依赖公式注入缓存。
         /// </summary>
         /// <param name="data">VFF 格式的字节数组（以 "VFF\0" magic 开头）</param>
-        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TOper}"/> + 覆写元数据</returns>
+        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TDef}"/> + 覆写元数据</returns>
         /// <exception cref="InvalidOperationException">
         /// 字节不是 VFF、版本不支持、或引用的公式不在缓存中。
         /// </exception>
-        public static VffResolveResult<TData, TOper> FromBytes<TData, TOper>(byte[] data)
+        public static VffResolveResult<TData, TDef> FromBytes<TData, TDef>(byte[] data)
             where TData : unmanaged
-            where TOper : unmanaged, Enum
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             var vffBytes = new ReadOnlySpan<byte>(data);
             // FromBytes 没有顶层哈希——VFF 字节来自外部，不在缓存中，因此无法被其他 VFF 引用形成循环。
             var visited = new System.Collections.Generic.HashSet<DualHash64>();
-            return ParseAndResolve<TData, TOper>(vffBytes, visited);
+            return ParseAndResolve<TData, TDef>(vffBytes, visited);
         }
 
         /// <summary>
         /// 将链式公式引用序列化为 VFF 字节数组。
         /// 与 <see cref="FromBytes{TData, TOper}"/> 配对使用——往返保证链路等价。
         /// </summary>
-        /// <param name="links">链式链接数组（如来自 <see cref="FluxFormula{TData, TOper}.GetChainLinks"/>）</param>
+        /// <param name="links">链式链接数组（如来自 <see cref="FluxFormula{TData, TDef}.GetChainLinks"/>）</param>
         /// <param name="overrides">参数覆写列表（无覆写传空数组）</param>
         /// <returns>VFF 格式字节数组</returns>
         public static byte[] ToBytes<TData>(
@@ -335,11 +335,11 @@ namespace FluxFormula.Core
         /// </summary>
         /// <param name="vffBytes">VFF 字节码跨度</param>
         /// <param name="visited">已访问的 VFF 哈希集合（用于循环检测）</param>
-        private static unsafe VffResolveResult<TData, TOper> ParseAndResolve<TData, TOper>(
+        private static unsafe VffResolveResult<TData, TDef> ParseAndResolve<TData, TDef>(
             ReadOnlySpan<byte> vffBytes,
             System.Collections.Generic.HashSet<DualHash64> visited)
             where TData : unmanaged
-            where TOper : unmanaged, Enum
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             // ── 解析头部 ──
             if (!IsVff(vffBytes))
@@ -352,7 +352,7 @@ namespace FluxFormula.Core
                     $"Unsupported VFF version: {version}. Expected: 1.");
 
             // ── 递归解析链接表 ──
-            var (links, overrides, totalImm) = ResolveLinks<TData, TOper>(vffBytes, visited);
+            var (links, overrides, totalImm) = ResolveLinks<TData, TDef>(vffBytes, visited);
 
             // ── 合并变量槽 ──
             int totalSlots = 0;
@@ -368,9 +368,9 @@ namespace FluxFormula.Core
             var chainType = (links.Length > 0 && links[0].Type == FluxType.Modifier)
                 ? FluxType.Modifier : FluxType.Formula;
 
-            var formula = new FluxFormula<TData, TOper>(links, chainType, totalImm, mergedSlots);
+            var formula = new FluxFormula<TData, TDef>(links, chainType, totalImm, mergedSlots);
 
-            return new VffResolveResult<TData, TOper>(formula, overrides);
+            return new VffResolveResult<TData, TDef>(formula, overrides);
         }
 
         /// <summary>
@@ -380,11 +380,11 @@ namespace FluxFormula.Core
         /// <param name="visited">当前递归栈中的 VFF 哈希集合（用于循环检测）</param>
         /// <returns>(展平的 ChainLink[], 展平的覆写列表, 总 ImmediateCount)</returns>
         private static unsafe (ChainLink[] links, VffOverride<TData>[] overrides, int totalImm)
-            ResolveLinks<TData, TOper>(
+            ResolveLinks<TData, TDef>(
                 ReadOnlySpan<byte> vffBytes,
                 System.Collections.Generic.HashSet<DualHash64> visited)
             where TData : unmanaged
-            where TOper : unmanaged, Enum
+            where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             byte linkCount     = vffBytes[5];
             byte overrideCount = vffBytes[6];
@@ -416,7 +416,7 @@ namespace FluxFormula.Core
                             "VFF recursion must form a DAG, not a cycle.");
 
                     var (nestedLinks, nestedOverrides, nestedImm) =
-                        ResolveLinks<TData, TOper>(fBytes, visited);
+                        ResolveLinks<TData, TDef>(fBytes, visited);
 
                     // 展平嵌套 links——SlotIndex 偏移 cumImm
                     for (int ni = 0; ni < nestedLinks.Length; ni++)

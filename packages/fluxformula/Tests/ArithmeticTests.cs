@@ -55,7 +55,7 @@ public class ArithmeticTests
     [Test]
     public void ParenthesesOverridePrecedence()
     {
-        Assert.That(Eval(new FluxToken<float, FloatOp>[]
+        Assert.That(Eval(new FluxToken<float>[]
         {
             Op(FloatOp.LParen), C(1f), Op(FloatOp.Add), C(2f), Op(FloatOp.RParen),
             Op(FloatOp.Mul), C(3f),
@@ -65,7 +65,7 @@ public class ArithmeticTests
     [Test]
     public void NestedParentheses()
     {
-        Assert.That(Eval(new FluxToken<float, FloatOp>[]
+        Assert.That(Eval(new FluxToken<float>[]
         {
             Op(FloatOp.LParen),
                 Op(FloatOp.LParen), C(1f), Op(FloatOp.Add), C(2f), Op(FloatOp.RParen),
@@ -97,7 +97,7 @@ public class ArithmeticTests
     [Test]
     public void ComplexExpression()
     {
-        Assert.That(Eval(new FluxToken<float, FloatOp>[]
+        Assert.That(Eval(new FluxToken<float>[]
         {
             Op(FloatOp.LParen), C(1f), Op(FloatOp.Add), C(2f), Op(FloatOp.RParen),
             Op(FloatOp.Mul),

@@ -10,7 +10,7 @@ public class LexerConfigTests
     [Test]
     public void DefaultLiteralParser_ReturnsDefault()
     {
-        var cfg = new LexerConfig<float, FloatOp>();
+        var cfg = new LexerConfig<float>();
         float result = cfg.LiteralParser("3.14");
         Assert.That(result, Is.EqualTo(0f));
     }
@@ -18,8 +18,8 @@ public class LexerConfigTests
     [Test]
     public void NullLiteralParser_ThrowsOnConstruct()
     {
-        var cfg = new LexerConfig<float, FloatOp> { LiteralParser = null! };
-        Assert.That(() => new FluxLexer<float, FloatOp>(cfg),
+        var cfg = new LexerConfig<float> { LiteralParser = null! };
+        Assert.That(() => new FluxLexer<float>(cfg),
             Throws.ArgumentException.With.Message.Contains("LiteralParser"));
     }
 }

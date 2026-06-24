@@ -33,7 +33,7 @@ public class JitConsistencyTests
     public void JitMatchesInterpreter_WithVariables()
     {
         var result = CreateVarLexer("[", "]").Lex("[a] * [b] + [c]");
-        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
 
         var instJit = runner.Instantiate(runner.Compile(result), jit: true);
         var instInt = runner.Instantiate(runner.Compile(result), jit: false);

@@ -22,9 +22,9 @@ public unsafe class FluxInjectorTests
     public void SetIndex_ValidIndex()
     {
         var lexer = CreateVarLexer("[", "]");
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("[x] + [y]"));
-        var inst = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var inst = new FluxAssembler<float, FloatMathDef>(Def)
             .Instantiate(f).Set("x", 99f).Set("y", 1f);
         Assert.That(inst.Run(), Is.EqualTo(100f).Within(1e-6f));
     }
@@ -33,9 +33,9 @@ public unsafe class FluxInjectorTests
     public void GetValue_ReturnsInjectedValue()
     {
         var lexer = CreateVarLexer("[", "]");
-        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
             .Compile(lexer.Lex("[a] + [b] + [c]"));
-        var inst = new FluxAssembler<float, FloatOp, FloatMathDef>(Def)
+        var inst = new FluxAssembler<float, FloatMathDef>(Def)
             .Instantiate(f).Set("a", 1f).Set("b", 2f).Set("c", 3f);
         Assert.That(inst.Run(), Is.EqualTo(6f).Within(1e-6f));
     }
