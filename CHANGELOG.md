@@ -1,3 +1,43 @@
+# [3.0.0](https://github.com/twds0x13/FluxFormula/compare/v2.1.0...v3.0.0) (2026-06-24)
+
+
+* refactor!: remove TOper generic parameter, replace with TDef in FluxFormula signature ([2a3cfab](https://github.com/twds0x13/FluxFormula/commit/2a3cfabd3d2b553d6da35debd7af7a8837702d07))
+
+
+### Bug Fixes
+
+* remove all residual TOper references across the entire repo ([c2fc2c7](https://github.com/twds0x13/FluxFormula/commit/c2fc2c7cc2890766c3defe865371a258bb517851))
+
+
+### BREAKING CHANGES
+
+* All types lose the TOper generic parameter.
+
+- IFluxJITDefinition<TData, TOper> → IFluxJITDefinition<TData> (all TOper params → byte)
+- OpPair<TOper> → OpPair (TOper fields → byte)
+- FluxToken<TData, TOper> → FluxToken<TData>
+- FluxLexer<TData, TOper> → FluxLexer<TData>
+- LexerConfig<TData, TOper> → LexerConfig<TData>
+- LexResult<TData, TOper> → LexResult<TData>
+- FluxCompiler<TData, TOper, TDef> → FluxCompiler<TData, TDef>
+- FluxAssembler<TData, TOper, TDef> → FluxAssembler<TData, TDef> (3 params → 2)
+- FluxFormula<TData, TOper> → FluxFormula<TData, TDef>
+- FluxEvaluator<TData, TOper, TDef> → FluxEvaluator<TData, TDef>
+- FluxJITCompiler<TData, TOper, TDef> → FluxJITCompiler<TData, TDef>
+- FluxInstance<TData, TOper, TDef> → FluxInstance<TData, TDef>
+- VffResolveResult<TData, TOper> → VffResolveResult<TData, TDef>
+- OperatorRule<TOper> → OperatorRule
+- BracketRule<TOper> → BracketRule
+
+Compile-time safety: FluxFormula<TData, TDef> prevents cross-definition
+Connect at the type level. Definition is now a complete, self-contained plugin.
+
+Design rationale: TOper was scaffolding during the prototype→v2.0 turbulence.
+The framework execution pipeline only sees byte — TOper was erased at runtime.
+Now that the architecture is stable (9.0 baseline), the scaffolding is removed.
+See memory/architecture/toper-removal-plan.md for full rationale and the
+planned follow-up (Formula/Modifier type split).
+
 # [2.1.0](https://github.com/twds0x13/FluxFormula/compare/v2.0.0...v2.1.0) (2026-06-24)
 
 
