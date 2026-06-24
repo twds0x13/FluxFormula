@@ -4,27 +4,33 @@ Full-chain architecture: formula bytecode hashing, caching, chain composition, a
 
 ## Architecture Overview
 
+**Offline** — formula file hashing into the offset table:
+
 ```mermaid
 flowchart TD
-    subgraph Offline
-        A[".ff files"] -->|DualHash64.Compute| B["Hash → offset table<br/>(SG output)"]
-    end
+    A[".ff files"] -->|DualHash64.Compute| B["Hash → offset table<br/>(SG output)"]
+```
 
-    subgraph Runtime
-        C["Expression string"] -->|Lex + Compile| D["FluxFormula<br/>Instruction[]"]
-        D -->|GetByteHash| E["DualHash64"]
-        E --> F["FormulaCache"]
-        F -->|TryGetDelegate| G{"Hit?"}
-        G -->|Yes| H["Reuse cached delegate<br/>+ rebuild payload"]
-        G -->|No| I["JIT Compile →<br/>GCHandle.Alloc → PutDelegate"]
-    end
+**Runtime** — Lex → Compile → cache query → JIT/reuse:
 
-    subgraph Connect
-        D1["fA"] -->|Connect| J["ChainLink[]"]
-        D2["fB"] -->|Connect| J
-        J -->|Short ≤8| K["RunChainInterpreter<br/>per-link + R1 chaining"]
-        J -->|Long >8| L["ToAtomic merge<br/>single evaluation"]
-    end
+```mermaid
+flowchart TD
+    C["Expression string"] -->|Lex + Compile| D["FluxFormula<br/>Instruction[]"]
+    D -->|GetByteHash| E["DualHash64"]
+    E --> F["FormulaCache"]
+    F -->|TryGetDelegate| G{"Hit?"}
+    G -->|Yes| H["Reuse cached delegate<br/>+ rebuild payload"]
+    G -->|No| I["JIT Compile →<br/>GCHandle.Alloc → PutDelegate"]
+```
+
+**Connect** — chain composition and evaluation strategy:
+
+```mermaid
+flowchart TD
+    D1["fA"] -->|Connect| J["ChainLink[]"]
+    D2["fB"] -->|Connect| J
+    J -->|Short ≤ MergeThreshold| K["RunChainInterpreter<br/>per-link + R1 chaining"]
+    J -->|Long > MergeThreshold| L["ToAtomic merge<br/>single evaluation"]
 ```
 
 ## Dual Hash Design

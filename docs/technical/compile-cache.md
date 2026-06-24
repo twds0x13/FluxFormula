@@ -4,27 +4,33 @@
 
 ## 架构全景
 
+**编译期**——公式文件哈希写入偏移表：
+
 ```mermaid
 flowchart TD
-    subgraph 编译期
-        A[".ff 文件"] -->|DualHash64.Compute| B["哈希写入<br/>偏移表 (SG 输出)"]
-    end
+    A[".ff 文件"] -->|DualHash64.Compute| B["哈希写入<br/>偏移表 (SG 输出)"]
+```
 
-    subgraph 运行时
-        C["公式表达式"] -->|Lex + Compile| D["FluxFormula<br/>Instruction[]"]
-        D -->|GetByteHash| E["DualHash64"]
-        E --> F["FormulaCache"]
-        F -->|TryGetDelegate| G{"命中?"}
-        G -->|是| H["复用 cached delegate<br/>+ 重建 payload"]
-        G -->|否| I["JIT Compile →<br/>GCHandle.Alloc → PutDelegate"]
-    end
+**运行时**——Lex → Compile → 缓存查询 → JIT/复用：
 
-    subgraph Connect
-        D1["fA"] -->|Connect| J["ChainLink[]"]
-        D2["fB"] -->|Connect| J
-        J -->|短链 ≤8| K["RunChainInterpreter<br/>逐 link + R1 传递"]
-        J -->|长链 >8| L["ToAtomic 合并<br/>单次求值"]
-    end
+```mermaid
+flowchart TD
+    C["公式表达式"] -->|Lex + Compile| D["FluxFormula<br/>Instruction[]"]
+    D -->|GetByteHash| E["DualHash64"]
+    E --> F["FormulaCache"]
+    F -->|TryGetDelegate| G{"命中?"}
+    G -->|是| H["复用 cached delegate<br/>+ 重建 payload"]
+    G -->|否| I["JIT Compile →<br/>GCHandle.Alloc → PutDelegate"]
+```
+
+**Connect**——链式组合与求值策略：
+
+```mermaid
+flowchart TD
+    D1["fA"] -->|Connect| J["ChainLink[]"]
+    D2["fB"] -->|Connect| J
+    J -->|短链 ≤ MergeThreshold| K["RunChainInterpreter<br/>逐 link + R1 传递"]
+    J -->|长链 > MergeThreshold| L["ToAtomic 合并<br/>单次求值"]
 ```
 
 ## 双重哈希设计

@@ -1,0 +1,16 @@
+/* Mermaid 图表统一居中 */
+.vp-doc .mermaid {
+    display: flex;
+    justify-content: center;
+    margin: 1.5rem 0;
+    overflow-x: auto;
+}
+
+/* SVG 不超出容器宽度 */
+.vp-doc .mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* 暗色模式下 Mermaid 使用内置 theme 变量即可，
+   vitepress-plugin-mermaid 已处理 theme 切换 */

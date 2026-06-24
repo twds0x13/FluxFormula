@@ -88,12 +88,11 @@ var combined = f42.Connect(mod);  // 42 + 5
 | Byte offset | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |-------------|---|---|---|---|---|---|---|---|
 | **Field** | OpCode | Dest | Arg0 | Arg1 | Arg2 | Arg3 | Arg4 | Arg5 |
-| **Overlay** | ← ← ← ← Raw (long) → → → → ||||||
 
 - **OpCode**: Operator's underlying byte (`*(byte*)&enumValue`)
 - **Dest**: Result destination register number
 - **Arg0-Arg5**: Operand register numbers, max arity = 6
-- **Raw**: Full 8-byte long view, sharing offset 0 with OpCode; for debugging
+- **Raw**: `long` view (`FieldOffset(0)`), spans all 8 bytes, shares start offset with OpCode; debugging use
 
 ## Register Model
 
@@ -121,10 +120,10 @@ Runtime allocation can be reduced per-formula via the `MaxRegister` header field
 
 ```mermaid
 graph LR
-    A["fA: x + y"] -->|Connect| C["Chain: [Link(fA), Link(fB)]"]
-    B["fB: z * 2"] -->|Connect| C
-    C -->|"Run"| D["Interpreter: short per-link / long ToAtomic"]
-    C -->|"Run (jit: true)"| E["JIT: per-link delegate chaining"]
+    A["fA: x + y<br/>(Formula)"] -->|Connect| C["Chain: [Link(fA), Link(mod)]"]
+    B["fB: z * 2<br/>↓ ToMultiplier()<br/>(Modifier)"] -->|Connect| C
+    C -->|"Run"| D["Interpreter: short per-link<br/>long ToAtomic"]
+    C -->|"Run (jit: true)"| E["JIT: per-link delegate"]
 ```
 
 This mirrors LINQ's deferred execution: `Where().Select()` builds iterator decorators; `foreach` / `ToList()` materializes. Chain Connect only appends references to `ChainLink[]`; physical bytecode merging is deferred to evaluation time.

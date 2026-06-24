@@ -88,12 +88,11 @@ var combined = f42.Connect(mod);  // 42 + 5
 | 字节偏移 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |----------|---|---|---|---|---|---|---|---|
 | **字段** | OpCode | Dest | Arg0 | Arg1 | Arg2 | Arg3 | Arg4 | Arg5 |
-| **覆盖** | ← ← ← ← Raw (long) → → → → ||||||
 
 - **OpCode**：操作符底层字节（`*(byte*)&enumValue`）
 - **Dest**：结果目标寄存器号
 - **Arg0-Arg5**：操作数寄存器号，最大 arity = 6
-- **Raw**：全部 8 字节的 long 视图，与 OpCode 共用 offset 0，调试用
+- **Raw**：`long` 视图（`FieldOffset(0)`），覆盖全部 8 字节，与 OpCode 共用起始位置，调试用途
 
 ## 寄存器模型
 
@@ -121,9 +120,9 @@ var combined = f42.Connect(mod);  // 42 + 5
 
 ```mermaid
 graph LR
-    A["fA: x + y"] -->|Connect| C["链: [Link(fA), Link(fB)]"]
-    B["fB: z * 2"] -->|Connect| C
-    C -->|"Run"| D["解释器: 短链逐 link / 长链 ToAtomic"]
+    A["fA: x + y<br/>（Formula）"] -->|Connect| C["链: [Link(fA), Link(mod)]"]
+    B["fB: z * 2<br/>↓ ToMultiplier()<br/>（Modifier）"] -->|Connect| C
+    C -->|"Run"| D["解释器: 短链逐 link<br/>长链 ToAtomic"]
     C -->|"Run (jit: true)"| E["JIT: 逐 link delegate 串联"]
 ```
 
