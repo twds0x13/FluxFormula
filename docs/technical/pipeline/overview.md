@@ -8,12 +8,12 @@ FluxFormula 的编译与执行管线分为四个阶段：**Lex（词法分析）
 字符串 / Token[]
   │
   ├─ 1. Lex ────────────────────────────────────────────
-  │   FluxLexer.Lex(string) → LexResult<TData, TOper>
+  │   FluxLexer.Lex(string) → LexResult<TData, TDef>
   │   产出: FluxToken[] + 变量名列表
   │   分配: Token 数组 + 变量名字符串数组（一次性）
   │
   ├─ 2. Compile ────────────────────────────────────────
-  │   FluxAssembler.Compile(LexResult) → FluxFormula<TData, TOper>
+  │   FluxAssembler.Compile(LexResult) → FluxFormula<TData, TDef>
   │   内部: FluxCompiler (调车场算法) → Instruction[] 字节码
   │   产出: FluxFormula (不可变容器, 持有 Instruction[] 缓冲)
   │   分配: Instruction[] 缓冲（一次性）
@@ -24,7 +24,7 @@ FluxFormula 的编译与执行管线分为四个阶段：**Lex（词法分析）
   │   产出: VFF 字节数组（可存为独立文件或嵌入 blob）
   │
   ├─ 3. Instantiate ────────────────────────────────────
-  │   FluxAssembler.Instantiate(FluxFormula) → FluxInstance<TData, TOper, TDef>
+  │   FluxAssembler.Instantiate(FluxFormula) → FluxInstance<TData, TDef, TDef>
   │   内部: 构建 FluxInjector + 可选的 JIT 委托编译
   │   产出: FluxInstance (ref struct, 栈分配)
   │   分配: JIT 模式下编译委托（可缓存）, Injector 元数据（栈）
@@ -40,9 +40,9 @@ FluxFormula 的编译与执行管线分为四个阶段：**Lex（词法分析）
 
 | 边界 | 输入类型 | 输出类型 | 不可变性 |
 |------|---------|---------|---------|
-| Lex → Compile | `string` | `LexResult<TData, TOper>` | LexResult 不可变 |
-| Compile → Instantiate | `LexResult` / `FluxToken[]` | `FluxFormula<TData, TOper>` | FluxFormula 不可变 |
-| Instantiate → Run | `FluxFormula` | `FluxInstance<TData, TOper, TDef>` | Instance 可修改 (Set) |
+| Lex → Compile | `string` | `LexResult<TData, TDef>` | LexResult 不可变 |
+| Compile → Instantiate | `LexResult` / `FluxToken[]` | `FluxFormula<TData, TDef>` | FluxFormula 不可变 |
+| Instantiate → Run | `FluxFormula` | `FluxInstance<TData, TDef, TDef>` | Instance 可修改 (Set) |
 | Run → Result | — | `TData` | 值类型结果 |
 
 关键设计：**编译产物（FluxFormula）是不可变的**，可被缓存在 FormulaCache 中并按 DualHash64 索引复用。实例化产物（FluxInstance）是轻量的 ref struct，栈分配，每次求值重新创建。

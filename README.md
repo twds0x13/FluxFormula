@@ -6,6 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black?logo=unity)](https://unity.com/)
 [![Docs](https://img.shields.io/badge/docs-vitepress-green)](https://twds0x13.github.io/FluxFormula/)
+[![Coverage](https://img.shields.io/badge/coverage-97.9%25-brightgreen)](./memory/quality/test-coverage-boundary.md)
 
 Unity 高性能线性公式编译管线（执行期零 GC，编译期一次性分配）。自定义运算符集，中缀表达式编译为紧凑字节码，解释器或 JIT 双后端执行
 

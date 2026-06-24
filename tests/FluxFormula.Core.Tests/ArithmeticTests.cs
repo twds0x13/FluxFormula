@@ -246,7 +246,7 @@ public class ArithmeticTests
     {
         var pair = Def.GetPair((byte)FloatOp.Question);
         Assert.That(pair.EmitOnMatch, Is.True, "Question.EmitOnMatch should be true");
-        Assert.That(pair.EmitOpCode, Is.EqualTo(FloatOp.Select), "Question.EmitOpCode should be Select");
+        Assert.That(pair.EmitOpCode, Is.EqualTo((byte)FloatOp.Select), "Question.EmitOpCode should be Select");
         Assert.That(pair.PairRole, Is.EqualTo(Pair.None), "Question.PairRole should be None");
     }
 

@@ -1,0 +1,110 @@
+# 词法分析器
+
+`FluxLexer<TData>` 是手写的零分配扫描器。它的核心设计问题：**如何在不使用正则表达式的前提下，将中缀表达式字符串高效转换为 Token 序列？**
+
+## 为什么不用正则？
+
+正则表达式在 .NET 中的 `Match` 操作会产生 `Match` 对象和 `Group` 集合的堆分配。对于 FluxFormula 的目标场景——编译期一次性分配，执行期零 GC——正则的分配开销可以接受（编译本身就有 Token 数组分配）。但手写扫描器提供了三个正则无法提供的优势：
+
+1. **精确的错误定位**：手写循环知道当前字符位置，可以产出带行列号的错误信息。
+2. **零中间字符串**：`ReadOnlySpan<char>` 切片直接传给 `LiteralParser`，仅在最终解析字面量时才 `ToString()`。
+3. **上下文感知**：操作符消歧（如 `-` 在 `OperandExpected` 位置是一元负号）在扫描阶段即可处理，不需要编译器的额外遍历。
+
+## 核心数据结构
+
+```csharp
+public readonly struct LexResult<TData> where TData : unmanaged
+{
+    public readonly FluxToken<TData>[] Tokens;  // Token 序列
+    public readonly string[] VarNames;          // 变量名列表（按出现顺序）
+}
+```
+
+`FluxToken<TData>` 本身是 16 字节（`byte Oper` + padding + `TData Data`）：
+
+```csharp
+public readonly struct FluxToken<TData> where TData : unmanaged
+{
+    public readonly byte Oper;   // 操作符字节码（由 Definition 定义）
+    public readonly TData Data;  // 字面量值（仅 Immediate 类型有效）
+}
+```
+
+关键设计：Token 不存储字符串。操作符通过 `byte` 标识（由 Definition 的 `ResolveToken` 转换），字面量值在解析时即完成 `TData` 转换。扫描完成后，原始字符串不再需要。
+
+## 扫描循环
+
+`Lex()` 方法的整体结构：
+
+```
+while (pos < input.Length):
+    if (char.IsWhiteSpace)  → skip
+    if (char.IsDigit/dot)   → TryScanLiteral → FluxToken(oper=LiteralOper, data=parsedValue)
+    if (operator starts)    → TryScanOperator → FluxToken(oper=operatorByte)
+    if (bracket starts)     → try match bracket pair
+    if (variable starts)    → TryScanVariable → FluxToken(oper=LiteralOper, data=default)
+```
+
+核心循环不分配任何堆内存。唯一的分配在退出循环后——`FluxToken[]` 数组和 `string[] VarNames`。
+
+## 操作符扫描：最长匹配
+
+`TryScanOperator` 不是简单的前缀匹配——它使用**最长匹配策略**。当输入 `select(a, b, c)` 时，扫描器先尝试匹配 `select` 而非 `s` 或 `se`：
+
+1. 遍历所有已注册操作符的 `TokenText`，找出所有前缀匹配
+2. 选择最长匹配（`select` > `s`）
+3. 如果最长匹配是函数操作符（带括号），自动进入函数参数模式
+
+这避免了用户定义 `select` 和 `s` 两个操作符时的歧义。
+
+## 括号匹配
+
+括号配置通过 `BracketRule` 定义：
+
+```csharp
+public readonly struct BracketRule
+{
+    public readonly string Left;    // "("
+    public readonly string Right;   // ")"
+    public readonly byte LeftOper;  // LParen 操作码
+    public readonly byte RightOper; // RParen 操作码
+}
+```
+
+扫描器不关心括号的嵌套层级——它只负责将 `(` 和 `)` 分别转为 `LParen` 和 `RParen` 操作码 Token。嵌套正确性由编译器（调车场算法）在处理括号栈时验证。
+
+## 变量模式
+
+变量通过 `VariablePatternRule` 配置（如 `["[", "]"]` 或 `["{var:", "}"]`）：
+
+```csharp
+public readonly struct VariablePatternRule
+{
+    public readonly string Prefix;  // "["
+    public readonly string Suffix;  // "]"
+}
+```
+
+扫描时，当遇到 prefix 起始字符时，扫描至 suffix 结束，提取中间的变量名。变量被映射为 `LiteralOper` 类型的 Token（`Data = default`），同时变量名加入 `VarNames` 列表。变量到 Immediate 槽位的映射在编译阶段完成。
+
+## 字面量解析
+
+字面量通过 `LiteralParser` 委托解析：
+
+```csharp
+public Func<string, TData> LiteralParser { get; set; }
+```
+
+这是一个接受 `string` 返回 `TData` 的委托。对于 `float`，典型的实现是 `s => float.Parse(s.TrimEnd('f'))`。`ToString()` 分配是编译期唯一与字面量相关的堆分配（~392B for simple, ~1080B for complex）。
+
+## 隐式乘法
+
+`ImplicitOperators` 集合允许配置哪些操作符可以在无显式符号时自动插入：
+
+```
+配置: ImplicitOperators = { Mul }
+输入: "2(3)"  → 扫描器在 "2" 和 "(" 之间自动插入 Mul Token
+输入: "(a)(b)" → 扫描器在 ")(" 之间自动插入 Mul Token
+```
+
+插入条件：当字面量/右括号后紧跟左括号/变量前缀时，且隐式操作符已注册。

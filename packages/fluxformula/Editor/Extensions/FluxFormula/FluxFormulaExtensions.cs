@@ -9,7 +9,7 @@ public static class FluxFormulaExtensions
         where TDef : unmanaged, IFluxJITDefinition<TData>
     {
         var insts = formula.Raw();
-        UnityEngine.Debug.Log($"--- Formula Dump ({formula.Type}) ---");
+        UnityEngine.Debug.Log($"--- Formula Dump ({formula.Count} instructions) ---");
 
         // 创建 StringBuilder 实例
         StringBuilder sb = new();

@@ -8,12 +8,12 @@ FluxFormula's compilation and execution pipeline is divided into four stages: **
 String / Token[]
   │
   ├─ 1. Lex ────────────────────────────────────────────
-  │   FluxLexer.Lex(string) → LexResult<TData, TOper>
+  │   FluxLexer.Lex(string) → LexResult<TData, TDef>
   │   Output: FluxToken[] + variable name list
   │   Allocation: Token array + variable name strings (one-time)
   │
   ├─ 2. Compile ────────────────────────────────────────
-  │   FluxAssembler.Compile(LexResult) → FluxFormula<TData, TOper>
+  │   FluxAssembler.Compile(LexResult) → FluxFormula<TData, TDef>
   │   Internal: FluxCompiler (shunting-yard) → Instruction[] bytecode
   │   Output: FluxFormula (immutable container holding Instruction[] buffer)
   │   Allocation: Instruction[] buffer (one-time)
@@ -24,7 +24,7 @@ String / Token[]
   │   Output: VFF byte array (saved as standalone file or embedded in blob)
   │
   ├─ 3. Instantiate ────────────────────────────────────
-  │   FluxAssembler.Instantiate(FluxFormula) → FluxInstance<TData, TOper, TDef>
+  │   FluxAssembler.Instantiate(FluxFormula) → FluxInstance<TData, TDef, TDef>
   │   Internal: build FluxInjector + optional JIT delegate compilation
   │   Output: FluxInstance (ref struct, stack-allocated)
   │   Allocation: JIT delegate compilation (cacheable), Injector metadata (stack)
@@ -40,9 +40,9 @@ String / Token[]
 
 | Boundary | Input Type | Output Type | Immutability |
 |----------|-----------|-------------|--------------|
-| Lex → Compile | `string` | `LexResult<TData, TOper>` | LexResult is immutable |
-| Compile → Instantiate | `LexResult` / `FluxToken[]` | `FluxFormula<TData, TOper>` | FluxFormula is immutable |
-| Instantiate → Run | `FluxFormula` | `FluxInstance<TData, TOper, TDef>` | Instance is mutable (Set) |
+| Lex → Compile | `string` | `LexResult<TData, TDef>` | LexResult is immutable |
+| Compile → Instantiate | `LexResult` / `FluxToken[]` | `FluxFormula<TData, TDef>` | FluxFormula is immutable |
+| Instantiate → Run | `FluxFormula` | `FluxInstance<TData, TDef, TDef>` | Instance is mutable (Set) |
 | Run → Result | — | `TData` | Value type result |
 
 Key design: **Compilation products (FluxFormula) are immutable**, cacheable in FormulaCache and retrievable by DualHash64. Instantiation products (FluxInstance) are lightweight ref structs, stack-allocated, recreated for each evaluation.

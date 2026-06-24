@@ -100,6 +100,41 @@ namespace FluxFormula.Core
             bool jit = false
         )
         {
+            // Modifier 首链（仅可能来自 VFF 反序列化）：首 link 适配为 Formula
+            // 以保证 Run() 时 R1 总线已初始化，避免 Release 下静默产出错误数值
+            if (formula.IsChained && formula.GetChainLinks().Length > 0
+                && formula.GetChainLinks()[0].Type == FluxType.Modifier)
+            {
+                var oldLinks = formula.GetChainLinks();
+                var newLinks = new ChainLink[oldLinks.Length];
+                for (int i = 0; i < oldLinks.Length; i++)
+                    newLinks[i] = oldLinks[i];
+
+                var firstPromoted = LinkToFormula(oldLinks[0], adaptModifier: true);
+                newLinks[0] = new ChainLink
+                {
+                    Key              = oldLinks[0].Key,
+                    Bytecode         = firstPromoted.Raw().ToArray(),
+                    InstructionCount = firstPromoted.Count,
+                    Type             = FluxType.Formula,
+                    ImmediateCount   = firstPromoted.ImmediateCount,
+                    VarSlots         = firstPromoted.VariableSlots,
+                    MaxRegister      = firstPromoted.MaxRegister,
+                };
+
+                int totalSlots = 0, totalImmNew = 0;
+                for (int i = 0; i < newLinks.Length; i++)
+                { totalSlots += newLinks[i].VarSlots.Length; totalImmNew += newLinks[i].ImmediateCount; }
+                var mergedSlots = new VariableSlot[totalSlots];
+                int sidx = 0;
+                for (int i = 0; i < newLinks.Length; i++)
+                    for (int j = 0; j < newLinks[i].VarSlots.Length; j++)
+                        mergedSlots[sidx++] = newLinks[i].VarSlots[j];
+
+                formula = new FluxFormula<TData, TDef>(
+                    newLinks, FluxType.Formula, totalImmNew, mergedSlots);
+            }
+
             if (jit && !FluxPlatform.IsJitDisabled)
             {
                 // ── JIT 链式路径：逐 link 编译 + delegate 缓存 ──
@@ -296,8 +331,8 @@ namespace FluxFormula.Core
 
             for (int i = 0; i < links.Length; i++)
             {
-                // 构建 link 对应的原子公式（Modifier 链路需适配）
-                var linkFormula = LinkToFormula(links[i], i > 0);
+                // 构建 link 对应的原子公式（非首 link 或首 link 为 Modifier 时需适配）
+                var linkFormula = LinkToFormula(links[i], i > 0 || links[i].Type == FluxType.Modifier);
                 var hash = linkFormula.GetByteHash();
 
                 if (cache.TryGetDelegate(hash, out IntPtr cachedHandle))

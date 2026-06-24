@@ -82,7 +82,7 @@ public unsafe class DataStructsTests
             EmitOpCode = (byte)FloatOp.Mul,
         };
         Assert.That(p.ToString(), Does.Contain("Left"));
-        Assert.That(p.ToString(), Does.Contain("LParen"));
+        Assert.That(p.ToString(), Does.Contain("0x0C"));
     }
 
     [Test]

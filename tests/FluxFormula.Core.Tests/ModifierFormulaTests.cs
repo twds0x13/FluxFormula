@@ -27,8 +27,8 @@ public class ModifierFormulaTests
         var f = Compile(lexer, "5 * 2");
         var m = f.ToModifier();
 
-        var m2 = m.ToModifier();
-        // Same bytecode, same type
+        // m.Inner is already Type=Modifier, so ToModifier() on it is a no-op
+        var m2 = m.Inner.ToModifier();
         Assert.That(m2.Type, Is.EqualTo(FluxType.Modifier));
         Assert.That(m2.Count, Is.EqualTo(m.Count));
     }
@@ -222,7 +222,7 @@ public class ModifierFormulaTests
         var lexer = CreateMathLexer();
         var f = Compile(lexer, "2 * 3");
         var mod = f.ToModifier();
-        var modAgain = mod.ToModifier();
+        var modAgain = mod.Inner.ToModifier();
         Assert.That(modAgain.IsChained, Is.EqualTo(mod.IsChained));
     }
 
@@ -248,6 +248,259 @@ public class ModifierFormulaTests
         float origVal = EvalFormula(orig);
         float restVal = EvalFormula(restored);
         Assert.That(restVal, Is.EqualTo(origVal).Within(1e-6f));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // FluxModifier.Connect
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void Modifier_Connect_TwoModifiers_ReturnsModifier()
+    {
+        var lexer = CreateMathLexer();
+        var mA = Compile(lexer, "1 + 2").ToModifier();
+        var mB = Compile(lexer, "3 + 4").ToModifier();
+
+        var chain = mA.Connect(mB);
+
+        Assert.That(chain.Type, Is.EqualTo(FluxType.Modifier));
+        Assert.That(chain.IsChained, Is.True);
+        // Can be promoted to Formula and evaluated
+        var formula = chain.ToFormula("x");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var result = runner.Instantiate(formula).Set("x", 1f).Run();
+        // mA="1+2"→"R1+2", mB="3+4"→"R1+4". Chain: (x+2)+4 = (1+2)+4 = 7
+        Assert.That(result, Is.EqualTo(7f).Within(1e-5f));
+    }
+
+    [Test]
+    public void Modifier_Connect_EmptyLeft_ReturnsRight()
+    {
+        var lexer = CreateMathLexer();
+        var m = Compile(lexer, "5 + 6").ToModifier();
+        var empty = FluxModifier<float, FloatMathDef>.Empty;
+
+        var result = empty.Connect(m);
+        Assert.That(result.Count, Is.GreaterThan(0));
+        Assert.That(result.Type, Is.EqualTo(FluxType.Modifier));
+    }
+
+    [Test]
+    public void Modifier_Connect_EmptyRight_ReturnsLeft()
+    {
+        var lexer = CreateMathLexer();
+        var m = Compile(lexer, "5 + 6").ToModifier();
+
+        var result = m.Connect(FluxModifier<float, FloatMathDef>.Empty);
+        Assert.That(result.Count, Is.EqualTo(m.Count));
+    }
+
+    [Test]
+    public void Modifier_Connect_ThreeModifierChain()
+    {
+        var lexer = CreateMathLexer();
+        var mA = Compile(lexer, "1 + 2").ToModifier();
+        var mB = Compile(lexer, "3 + 4").ToModifier();
+        var mC = Compile(lexer, "5 + 6").ToModifier();
+
+        var chain = mA.Connect(mB).Connect(mC);
+        Assert.That(chain.IsChained, Is.True);
+        Assert.That(chain.ChainLength, Is.EqualTo(3));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // FluxModifier 序列化
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void Modifier_ToBytes_FromBytes_RoundTrip()
+    {
+        var lexer = CreateMathLexer();
+        var orig = Compile(lexer, "7 + 3").ToModifier();
+        var bytes = orig.ToBytes();
+
+        var restored = FluxModifier<float, FloatMathDef>.FromBytes(bytes);
+        Assert.That(restored.Count, Is.EqualTo(orig.Count));
+        Assert.That(restored.Type, Is.EqualTo(FluxType.Modifier));
+        Assert.That(restored.ImmediateCount, Is.EqualTo(orig.ImmediateCount));
+    }
+
+    [Test]
+    public void Modifier_FromBytes_RoundTrip_CanRunAfterToFormula()
+    {
+        var lexer = CreateMathLexer();
+        var orig = Compile(lexer, "10 + 5").ToModifier();
+        var bytes = orig.ToBytes();
+
+        var restored = FluxModifier<float, FloatMathDef>.FromBytes(bytes);
+        var formula = restored.ToFormula("y");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var result = runner.Instantiate(formula).Set("y", 10f).Run();
+
+        Assert.That(result, Is.EqualTo(15f).Within(1e-5f));
+    }
+
+    [Test]
+    public void Modifier_FromBytes_ReadOnlySpan_RoundTrip()
+    {
+        var lexer = CreateMathLexer();
+        var orig = Compile(lexer, "2 * 8").ToModifier();
+        var bytes = orig.ToBytes();
+
+        var restored = FluxModifier<float, FloatMathDef>.FromBytes(new ReadOnlySpan<byte>(bytes));
+        Assert.That(restored.Count, Is.EqualTo(orig.Count));
+        Assert.That(restored.Type, Is.EqualTo(FluxType.Modifier));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // FluxModifier 属性与方法
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void Modifier_GetByteHash_SameBytecode_SameHash()
+    {
+        var lexer = CreateMathLexer();
+        var mA = Compile(lexer, "3 * 7").ToModifier();
+        var mB = Compile(lexer, "3 * 7").ToModifier();
+
+        Assert.That(mA.GetByteHash(), Is.EqualTo(mB.GetByteHash()));
+    }
+
+    [Test]
+    public void Modifier_GetByteHash_DifferentBytecode_DifferentHash()
+    {
+        var lexer = CreateMathLexer();
+        var mA = Compile(lexer, "3 * 7").ToModifier();
+        var mB = Compile(lexer, "4 + 9").ToModifier();
+
+        Assert.That(mA.GetByteHash(), Is.Not.EqualTo(mB.GetByteHash()));
+    }
+
+    [Test]
+    public void Modifier_Raw_ReturnsCorrectSpan()
+    {
+        var lexer = CreateMathLexer();
+        var f = Compile(lexer, "1 + 2");
+        var m = f.ToModifier();
+
+        var raw = m.Raw();
+        Assert.That(raw.Length, Is.EqualTo(m.Count));
+    }
+
+    [Test]
+    public void Modifier_GetChainLinks_AtomicModifier_ReturnsEmpty()
+    {
+        var lexer = CreateMathLexer();
+        var m = Compile(lexer, "1 + 2").ToModifier();
+
+        var links = m.GetChainLinks();
+        Assert.That(links.Length, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Modifier_GetChainLinks_ChainedModifier_ReturnsLinks()
+    {
+        var lexer = CreateMathLexer();
+        var mA = Compile(lexer, "1 + 2").ToModifier();
+        var mB = Compile(lexer, "3 + 4").ToModifier();
+        var chain = mA.Connect(mB);
+
+        var links = chain.GetChainLinks();
+        Assert.That(links.Length, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void Modifier_IsChained_AtomicModifier_ReturnsFalse()
+    {
+        var lexer = CreateMathLexer();
+        var m = Compile(lexer, "5 * 3").ToModifier();
+        Assert.That(m.IsChained, Is.False);
+    }
+
+    [Test]
+    public void Modifier_Empty_HasZeroCount()
+    {
+        var empty = FluxModifier<float, FloatMathDef>.Empty;
+        Assert.That(empty.Count, Is.EqualTo(0));
+        Assert.That(empty.IsChained, Is.False);
+    }
+
+    [Test]
+    public void Modifier_VariableSlots_Preserved()
+    {
+        var lex = CreateVarLexer("[", "]");
+        var f = Compile(lex, "[x] + [y]");
+        var m = f.ToModifier();
+
+        // First variable [x] removed (was the first operand), [y] remains
+        Assert.That(m.VariableSlots.Length, Is.EqualTo(1));
+        Assert.That(m.VariableSlots[0].Name, Is.EqualTo("y"));
+    }
+
+    [Test]
+    public void Modifier_MaxRegister_MatchesInner()
+    {
+        var lexer = CreateMathLexer();
+        var f = Compile(lexer, "1 + 2 * 3");
+        var m = f.ToModifier();
+
+        Assert.That(m.MaxRegister, Is.EqualTo(f.MaxRegister));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // P3-1 回归: Modifier 首链 Instantiate+Run 正确性
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void ModifierFirstChain_Instantiate_Run_Interpreter()
+    {
+        // 构造 Modifier 首链（模拟 VFF 反序列化的异常状态）
+        var lexer = CreateMathLexer();
+        var mA = Compile(lexer, "2 + 3").ToModifier();
+        var mB = Compile(lexer, "4 + 5").ToModifier();
+        var chain = mA.Connect(mB);
+        var modFormula = chain.Inner; // Type=Modifier, IsChained=true
+
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var inst = runner.Instantiate(modFormula, jit: false);
+
+        // 首 link 为 Modifier 时 Run() 应产出正确结果，而非静默错误
+        // mA 去除首操作数后为 "R1 + 3"，mB 去除首操作数后为 "R1 + 5"
+        // 串联后：R1 + 3 + 5，R1=default=0 → 8
+        Assert.That(inst.Run(), Is.EqualTo(8f).Within(1e-5f));
+    }
+
+    [Test]
+    public void ModifierFirstChain_Instantiate_Run_Jit()
+    {
+        var lexer = CreateMathLexer();
+        var mA = Compile(lexer, "2 + 3").ToModifier();
+        var mB = Compile(lexer, "4 + 5").ToModifier();
+        var chain = mA.Connect(mB);
+        var modFormula = chain.Inner;
+
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var inst = runner.Instantiate(modFormula, jit: true);
+        Assert.That(inst.Run(), Is.EqualTo(8f).Within(1e-5f));
+    }
+
+    [Test]
+    public void ModifierFirstChain_Instantiate_Run_Jit_WithVariable()
+    {
+        // 带变量的 Modifier 首链：JIT / 解释器一致性
+        // "1+[x]" → ToModifier: "R1+[x]"（字面量 1 剥离，变量 [x] 保留）
+        var lex = CreateVarLexer("[", "]");
+        var fA = Compile(lex, "1 + [x]");
+        var fB = Compile(lex, "2 + [y]");
+        var chain = fA.ToModifier().Connect(fB.ToModifier());
+        var modFormula = chain.Inner;
+
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var instJit = runner.Instantiate(modFormula, jit: true);
+        var instInt = runner.Instantiate(modFormula, jit: false);
+
+        // JIT 与解释器结果一致
+        Assert.That(instJit.Run(), Is.EqualTo(instInt.Run()).Within(1e-5f));
     }
 
     // ═══════════════════════════════════════════════════════

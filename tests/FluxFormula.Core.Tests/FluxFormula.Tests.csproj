@@ -58,6 +58,7 @@
     <Compile Include="ModifierFormulaTests.cs" />     <!-- Modifier/Formula 互转 -->
     <Compile Include="VffStructsTests.cs" />          <!-- VffHeader/LinkEntry/Override -->
     <Compile Include="VffFormatTests.cs" />           <!-- VffFormat 完整测试 -->
+    <Compile Include="FileFluxFileFormatterTests.cs" /> <!-- FileFluxFileFormatter -->
   </ItemGroup>
 
   <ItemGroup>
