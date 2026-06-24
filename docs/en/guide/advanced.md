@@ -127,3 +127,31 @@ float r = runner.Instantiate(loaded).Set("atk", 100f).Run();
 ```
 
 Bytecode is written directly to file — no JSON/XML serialization needed. For iOS hot-update scenarios: replace the `.ff` file to update formulas without triggering JIT, passing Apple review.
+
+## Persisting Chain Formulas as VFF
+
+Chain formulas produced by `Connect()` can be persisted as `.vff` files for deployment in blobs:
+
+```csharp
+// Compose a chain in the editor
+var chain = damageFormula.Connect(critModifier).Connect(elementModifier);
+
+// Extract chain links and serialize as VFF
+if (chain.IsChained)
+{
+    var links = chain.GetChainLinks();
+    byte[] vffData = VffFormat.ToBytes<float>(
+        links.ToArray(),
+        Array.Empty<VffOverride<float>>());
+
+    // Save via IFluxBinaryBuilder (Unity: AssetDatabase; standalone: File.WriteAllBytes)
+    builder.Save(vffData, FluxArtifactKind.Virtual, "DamagePipeline.vff");
+}
+
+// At runtime: load from .vff file or blob, resolve, execute
+var result = VffFormat.FromBytes<float, FloatOp>(vffData);
+float damage = assembler.Instantiate(result.Formula)
+    .Set("atk", 100f).Set("def", 50f).Run();
+```
+
+See [VffFormat API](../api/vff-format) for the complete VFF encoding/decoding reference.

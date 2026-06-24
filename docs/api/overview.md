@@ -61,7 +61,9 @@ graph TD
 | [IFluxCacheProvider](./iflux-cache-provider) | — | 可替换缓存后端接口 |
 | [FormulaFormat](./formula-format) | — | `.ff` 公式字节码格式定义（HeaderSize=14） |
 | `BinaryFormat` | — | 小端序二进制读写原语 |
-| [VffFormat](./vff-format) | — | `.vff` 虚拟公式格式定义与解析 |
+| [VffFormat](./vff-format) | — | `.vff` 虚拟公式格式定义、编码与解析 |
+| [FluxArtifactKind](./flux-artifact-kind) | — | 二进制产物类型枚举（`.ff` / `.vff`） |
+| [IFluxBinaryBuilder](./iflux-binary-builder) | — | 最小持久化契约接口（外部保存器注入） |
 | `FluxBlob` | — | Blob pinned 内存管理器（Initialize/Shutdown/VerifyIntegrity） |
 | `FluxBlobBuilder` | — | 离线构建管线（扫描 FluxAsset → 拼接 blob → 生成 C# 偏移表） |
 

@@ -1,6 +1,6 @@
 # 示例：ChainLink
 
-以下示例演示 `Connect()` 的链式行为。ChainLink 是 `internal` 结构体，用户通过 `FluxFormula` 的方法间接使用。
+以下示例演示 `Connect()` 的链式行为。ChainLink 为公开结构体——普通用户通过 `FluxFormula` 的方法间接使用，高级用户可通过 `GetChainLinks()` 读取链结构并配合 `VffFormat.ToBytes()` 持久化。
 
 ## 基础链式 Connect
 
@@ -110,4 +110,4 @@ Console.WriteLine(inst.Run()); // 10（与 f 求值一致）
 - `ChainReserved.InternalPrefix`（`"CHAIN_LINK_INTERNAL_"`）是链式求值内部使用的变量名前缀。用户不得在 `LexerConfig.VariablePatterns` 中声明此前缀开头的变量
 - Modifier（`FluxType.Modifier`）不能独立 `Run()`，必须作为链的后续 link 使用
 - `Connect` 要求第二个参数必须是 Modifier。传入 Formula 会抛出 `ArgumentException`，提示先调用 `.ToMultiplier()`
-- `IsChained`、`ChainLength` 和 `ChainLink` 均为 `internal`——用户无需关心公式内部是否为链式表示
+- `IsChained`、`ChainLength`、`GetChainLinks()` 和 `ChainLink` 均为公开 API——高级用户可通过 `GetChainLinks()` 读取链结构并配合 `VffFormat.ToBytes()` 持久化为 VFF

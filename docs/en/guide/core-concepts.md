@@ -129,7 +129,7 @@ graph LR
 
 This mirrors LINQ's deferred execution: `Where().Select()` builds iterator decorators; `foreach` / `ToList()` materializes. Chain Connect only appends references to `ChainLink[]`; physical bytecode merging is deferred to evaluation time.
 
-**ChainLink fields:**
+**ChainLink fields** (public since 2.0, accessible via `GetChainLinks()`)**:**
 
 | Field | Description |
 |-------|-------------|

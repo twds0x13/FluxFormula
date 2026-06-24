@@ -20,4 +20,17 @@ public class BinaryFormatTests
         Assert.That(val, Is.EqualTo(0x1234));
         Assert.That(readOff, Is.EqualTo(3));
     }
+
+    [Test]
+    public void WriteUInt16LE_Roundtrip()
+    {
+        var buf = new byte[4];
+        int off = 0;
+        BinaryFormat.WriteUInt16LE(buf, ref off, 0xABCD);
+        Assert.That(off, Is.EqualTo(2));
+
+        int readOff = 0;
+        ushort val = BinaryFormat.ReadUInt16LE(buf, ref readOff);
+        Assert.That(val, Is.EqualTo(0xABCD));
+    }
 }

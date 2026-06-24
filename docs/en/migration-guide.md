@@ -34,11 +34,8 @@ Scope: code directly referencing `ChainLink`, `IsChained`, or `ChainLength` requ
 
 | Change | 1.x Behavior | 2.0 Behavior | Migration |
 |--------|-------------|-------------|-----------|
-| `IsChained` | `public bool` | `internal` | Remove external references. Consumers no longer see dual atomic/chain modes |
-| `ChainLength` | `public int` | `internal` | Same as above |
-| `GetChainLinks()` | `public` | `internal` | Same as above |
-| `ChainLink` struct | Publicly referenceable | `internal struct` | Same as above |
 | `Connect(next)` | Accepts any `FluxFormula` | Requires `next` to be a Modifier | Call `.ToMultiplier()` on the right-hand formula before passing it |
+| `ChainLink` / `IsChained` / `ChainLength` / `GetChainLinks()` | `public` (1.x) → `internal` (early 2.0) | `public` (final 2.0) | Advanced users can access chain structure via `GetChainLinks()` and persist as VFF via `VffFormat.ToBytes()` |
 
 ### Behavioral Changes (Non-Signature)
 

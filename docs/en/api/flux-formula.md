@@ -26,6 +26,24 @@ public readonly struct FluxFormula<TData, TOper>
 |------|------|------|
 | `Empty` | `FluxFormula<TData, TOper>` | Empty formula (Count=0), for Connect edge cases |
 
+## Structs
+
+### ChainLink
+
+A single link in a chain formula. Stores bytecode reference and metadata for the formula fragment, with the `DualHash64.Key` used to look up its JIT delegate from cache. Public since 2.0.
+
+| Field | Type | Description |
+|------|------|------|
+| `Key` | `DualHash64` | Bytecode hash — cache key for delegate lookup |
+| `Bytecode` | `Instruction[]` | Bytecode reference (points to original formula's Instruction[], non-copying) |
+| `InstructionCount` | `int` | Number of Instructions |
+| `Type` | `FluxType` | `Formula` or `Modifier` |
+| `ImmediateCount` | `int` | Immediate count for this fragment (used for SetIndex offset calculation) |
+| `VarSlots` | `VariableSlot[]` | Variable slots for this fragment |
+| `MaxRegister` | `byte` | Max register index for this fragment (0 = unanalyzed) |
+
+Advanced users can access the chain structure via `GetChainLinks()` and persist it as a VFF file using `VffFormat.ToBytes()`.
+
 ## Construction
 
 The constructor is `internal`. Users generate instances via `FluxAssembler.Compile()` or use `FluxFormula<TData, TOper>.Empty` for an empty instance.
@@ -115,6 +133,40 @@ var fromBlob = FluxFormula<float, FloatOp>.FromBytes(blobSpan.Slice(offset, leng
 ```
 
 `FromBytes` validates `sizeof(TOper) == 1` during type initialization, throwing `TypeInitializationException` on failure.
+
+### IsChained
+
+```csharp
+public bool IsChained { get; }
+```
+
+Whether the formula is a chain formula (produced by `Connect()`). Chain formulas internally store multiple `ChainLink` entries; atomic formulas return `false`.
+
+### ChainLength
+
+```csharp
+public int ChainLength { get; }
+```
+
+Number of links in a chain formula. Returns `0` for atomic formulas.
+
+### GetChainLinks
+
+```csharp
+public ReadOnlySpan<ChainLink> GetChainLinks()
+```
+
+Returns a read-only view of chain links. Returns an empty span for atomic formulas. Advanced users can read the chain structure and persist it as a `.vff` file via `VffFormat.ToBytes()`.
+
+```csharp
+var chain = formulaA.Connect(formulaB);
+if (chain.IsChained)
+{
+    var links = chain.GetChainLinks();
+    byte[] vffData = VffFormat.ToBytes<float>(links.ToArray(), Array.Empty<VffOverride<float>>());
+    builder.Save(vffData, FluxArtifactKind.Virtual, "ComboChain.vff");
+}
+```
 
 ### ToString
 

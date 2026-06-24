@@ -1,6 +1,6 @@
 # Example: ChainLink
 
-ChainLink is an `internal` struct. Users interact with it indirectly through `Connect()`, `ToAtomic()`, and `ToMultiplier()`.
+ChainLink is a public struct. Typical users interact with it indirectly through `Connect()`, `ToAtomic()`, and `ToMultiplier()`. Advanced users can read the chain structure via `GetChainLinks()` and persist it using `VffFormat.ToBytes()`.
 
 ## Basic Chain Connect
 
@@ -110,4 +110,4 @@ Console.WriteLine(inst.Run()); // 10 (equivalent to f)
 - `ChainReserved.InternalPrefix` (`"CHAIN_LINK_INTERNAL_"`) is reserved for chain evaluation internal variables. User-declared variables must not use this prefix
 - Modifier formulas (`FluxType.Modifier`) cannot `Run()` standalone — they must appear as non-first links in a chain
 - `Connect` requires the second argument to be a Modifier. Passing a Formula throws `ArgumentException`, instructing the user to call `.ToMultiplier()` first
-- `IsChained`, `ChainLength`, and `ChainLink` are all `internal` — users never need to know whether a formula is internally chain-represented
+- `IsChained`, `ChainLength`, `GetChainLinks()`, and `ChainLink` are all public API — advanced users can read chain structure via `GetChainLinks()` and persist as VFF using `VffFormat.ToBytes()`

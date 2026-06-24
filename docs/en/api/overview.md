@@ -61,7 +61,9 @@ graph TD
 | [IFluxCacheProvider](./iflux-cache-provider) | — | Replaceable cache backend interface |
 | [FormulaFormat](./formula-format) | — | `.ff` formula bytecode format definition (HeaderSize=14) |
 | `BinaryFormat` | — | Little-endian binary read/write primitives |
-| [VffFormat](./vff-format) | — | `.vff` virtual formula format definition and resolution |
+| [VffFormat](./vff-format) | — | `.vff` virtual formula format definition, encoding, and resolution |
+| [FluxArtifactKind](./flux-artifact-kind) | — | Binary artifact type enum (`.ff` / `.vff`) |
+| [IFluxBinaryBuilder](./iflux-binary-builder) | — | Minimal persistence contract interface (external saver injection) |
 | `FluxBlob` | — | Blob pinned memory manager (Initialize/Shutdown/VerifyIntegrity) |
 | `FluxBlobBuilder` | — | Offline build pipeline (scan FluxAsset → concatenate blob → generate C# offset table) |
 

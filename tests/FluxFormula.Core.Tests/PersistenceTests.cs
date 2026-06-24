@@ -200,4 +200,31 @@ public class PersistenceTests
 
         Assert.That(actual, Is.EqualTo(42f).Within(1e-6f));
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 链式公式的 ChainLink 公开访问
+    // ═══════════════════════════════════════════════════════════════
+
+    [Test]
+    public void ChainFormula_GetChainLinks_ExposesLinks()
+    {
+        var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+        var lexer  = CreateMathLexer();
+        var fA = runner.Compile(lexer.Lex("1 + 2"));
+        var fB = runner.Compile(lexer.Lex("3 + 4")).ToMultiplier();
+        var chain = fA.Connect(fB);
+
+        Assert.That(chain.IsChained, Is.True);
+        Assert.That(chain.ChainLength, Is.EqualTo(2));
+
+        var links = chain.GetChainLinks();
+        Assert.That(links.Length, Is.EqualTo(2));
+        Assert.That(links[0].Type, Is.EqualTo(FluxType.Formula));
+        Assert.That(links[1].Type, Is.EqualTo(FluxType.Modifier));
+
+        // 链式公式仍然可以正常求值
+        float result = runner.Instantiate(chain, jit: false).Run();
+        // Connect(a+b, c+d as Modifier) = (a+b) + d = 1+2+4 = 7
+        Assert.That(result, Is.EqualTo(7f).Within(1e-6f));
+    }
 }

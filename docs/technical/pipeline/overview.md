@@ -18,6 +18,11 @@ FluxFormula 的编译与执行管线分为四个阶段：**Lex（词法分析）
   │   产出: FluxFormula (不可变容器, 持有 Instruction[] 缓冲)
   │   分配: Instruction[] 缓冲（一次性）
   │
+  ├─ 2b. Connect / VFF Encode ──────────────────────────
+  │   FluxFormula.Connect() → 链式公式 (ChainLink[])
+  │   GetChainLinks() → VffFormat.ToBytes() → .vff 字节码
+  │   产出: VFF 字节数组（可存为独立文件或嵌入 blob）
+  │
   ├─ 3. Instantiate ────────────────────────────────────
   │   FluxAssembler.Instantiate(FluxFormula) → FluxInstance<TData, TOper, TDef>
   │   内部: 构建 FluxInjector + 可选的 JIT 委托编译

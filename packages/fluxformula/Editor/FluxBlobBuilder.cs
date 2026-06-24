@@ -171,10 +171,23 @@ namespace FluxFormula.Editor
             WriteDataFile(blob, offsetTable);
             WriteBootstrapper();
 
-            // 6. 刷新 AssetDatabase
+            // 6. 统计 .ff / .vff 数量
+            int formulaCount = 0, vffCount = 0;
+            foreach (var (_, raw) in entries)
+            {
+                if (VffFormat.IsVff(new ReadOnlySpan<byte>(raw)))
+                    vffCount++;
+                else
+                    formulaCount++;
+            }
+
+            // 7. 刷新 AssetDatabase
             AssetDatabase.Refresh();
 
-            Debug.Log($"[FluxBlobBuilder] Blob built: {entries.Count} formulas, {totalBlobSize} bytes → {GeneratedDir}");
+            var parts = new System.Collections.Generic.List<string>();
+            if (formulaCount > 0) parts.Add($"{formulaCount} .ff");
+            if (vffCount > 0) parts.Add($"{vffCount} .vff");
+            Debug.Log($"[FluxBlobBuilder] Blob built: {string.Join(", ", parts)}, {totalBlobSize} bytes → {GeneratedDir}");
             return entries.Count;
         }
 

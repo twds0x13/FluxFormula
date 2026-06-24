@@ -26,6 +26,24 @@ public readonly struct FluxFormula<TData, TOper>
 |------|------|------|
 | `Empty` | `FluxFormula<TData, TOper>` | 空公式（Count=0），用于 Connect 边界场景 |
 
+## 结构体
+
+### ChainLink
+
+链式公式的一个环节。存储该公式片段的字节码引用和元数据，通过 `DualHash64.Key` 从缓存中检索 JIT delegate。2.0 起公开。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `Key` | `DualHash64` | 字节码哈希——在缓存中查找 delegate 的键 |
+| `Bytecode` | `Instruction[]` | 字节码引用（指向原始公式的 Instruction[]，不复制） |
+| `InstructionCount` | `int` | Instruction 数量 |
+| `Type` | `FluxType` | `Formula` 或 `Modifier` |
+| `ImmediateCount` | `int` | 该片段的 Immediate 数（用于 SetIndex 偏移计算） |
+| `VarSlots` | `VariableSlot[]` | 该片段的变量槽 |
+| `MaxRegister` | `byte` | 该片段的最大寄存器索引（0=未分析） |
+
+高级用户通过 `GetChainLinks()` 获取链结构，配合 `VffFormat.ToBytes()` 将链式引用持久化为 VFF 文件。
+
 ## 构造
 
 构造函数为 `internal`。用户通过 `FluxAssembler.Compile()` 生成，或使用 `FluxFormula<TData, TOper>.Empty` 获取空实例。
@@ -115,6 +133,40 @@ var fromBlob = FluxFormula<float, FloatOp>.FromBytes(blobSpan.Slice(offset, leng
 ```
 
 `FromBytes` 在类型初始化阶段校验 `sizeof(TOper) == 1`，不满足则抛出 `TypeInitializationException`。
+
+### IsChained
+
+```csharp
+public bool IsChained { get; }
+```
+
+公式是否为链式公式（由 `Connect()` 产生）。链式公式内部分多个 `ChainLink` 存储，原子公式则为 `false`。
+
+### ChainLength
+
+```csharp
+public int ChainLength { get; }
+```
+
+链式公式的链接数。原子公式返回 `0`。
+
+### GetChainLinks
+
+```csharp
+public ReadOnlySpan<ChainLink> GetChainLinks()
+```
+
+获取链式链接的只读视图。原子公式返回空 span。高级用户可通过此接口读取链结构，配合 `VffFormat.ToBytes()` 将链式公式持久化为 `.vff` 文件。
+
+```csharp
+var chain = formulaA.Connect(formulaB);
+if (chain.IsChained)
+{
+    var links = chain.GetChainLinks();
+    byte[] vffData = VffFormat.ToBytes<float>(links.ToArray(), Array.Empty<VffOverride<float>>());
+    builder.Save(vffData, FluxArtifactKind.Virtual, "ComboChain.vff");
+}
+```
 
 ### ToString
 

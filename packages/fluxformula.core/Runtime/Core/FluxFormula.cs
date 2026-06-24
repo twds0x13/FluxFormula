@@ -40,28 +40,28 @@ namespace FluxFormula.Core
     /// 链式公式的一个环节。存储该公式片段的字节码引用和元数据，
     /// 通过 DualHash64.Key 从缓存中检索 JIT delegate。
     /// </summary>
-    internal struct ChainLink
+    public struct ChainLink
     {
         /// <summary>字节码哈希——在缓存中查找 delegate 的键</summary>
-        internal DualHash64 Key;
+        public DualHash64 Key;
 
         /// <summary>字节码引用（指向原始公式的 Instruction[]，不复制）</summary>
-        internal Instruction[] Bytecode;
+        public Instruction[] Bytecode;
 
         /// <summary>Instruction 数量</summary>
-        internal int InstructionCount;
+        public int InstructionCount;
 
         /// <summary>Formula 或 Modifier</summary>
-        internal FluxType Type;
+        public FluxType Type;
 
         /// <summary>该片段的 Immediate 数（用于 SetIndex 偏移计算）</summary>
-        internal int ImmediateCount;
+        public int ImmediateCount;
 
         /// <summary>该片段的变量槽</summary>
-        internal VariableSlot[] VarSlots;
+        public VariableSlot[] VarSlots;
 
         /// <summary>该片段的最大寄存器索引（0=未分析）</summary>
-        internal byte MaxRegister;
+        public byte MaxRegister;
     }
 
     public readonly struct FluxFormula<TData, TOper>
@@ -146,13 +146,13 @@ namespace FluxFormula.Core
         // ── 链式访问器 ──
 
         /// <summary>是否为链式公式（vs 原子字节码公式）</summary>
-        internal bool IsChained => _chain != null && _chain.Length > 0;
+        public bool IsChained => _chain != null && _chain.Length > 0;
 
         /// <summary>链式表示的链接数（原子公式返回 0）</summary>
-        internal int ChainLength => _chain?.Length ?? 0;
+        public int ChainLength => _chain?.Length ?? 0;
 
         /// <summary>获取链式链接的只读视图</summary>
-        internal ReadOnlySpan<ChainLink> GetChainLinks() =>
+        public ReadOnlySpan<ChainLink> GetChainLinks() =>
             _chain != null ? _chain.AsSpan() : default;
 
         // ── Formula ↔ Modifier 互转 ──

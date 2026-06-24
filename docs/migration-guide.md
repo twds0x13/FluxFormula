@@ -34,11 +34,8 @@
 
 | 变更 | 1.x 行为 | 2.0 行为 | 迁移方式 |
 |------|----------|----------|----------|
-| `IsChained` | `public bool` | `internal` | 移除外部引用。消费者不再感知链式/原子双形态 |
-| `ChainLength` | `public int` | `internal` | 同上 |
-| `GetChainLinks()` | `public` | `internal` | 同上 |
-| `ChainLink` 结构体 | 可公开引用 | `internal struct` | 同上 |
 | `Connect(next)` | 接受任意 `FluxFormula` | 要求 `next` 为 Modifier | 右侧公式先调用 `.ToMultiplier()` 再传入 |
+| `ChainLink` / `IsChained` / `ChainLength` / `GetChainLinks()` | `public`（1.x）→ `internal`（2.0 初期） | `public`（2.0 最终） | 高级用户可通过 `GetChainLinks()` 访问链结构，配合 `VffFormat.ToBytes()` 持久化 VFF |
 
 ### 行为变更（非 API 签名）
 

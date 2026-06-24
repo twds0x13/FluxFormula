@@ -1,10 +1,13 @@
 # VffFormat
 
-VFF (Virtual FluxFormula) byte format definition and resolver. VFF is not a standalone asset type — it is an entry type within a blob, distinguished from formula entries by the `"VFF\0"` magic bytes. VFF and formula entries coexist in the same blob, sharing the `FluxBlob.Entry` offset table.
+VFF (Virtual FluxFormula) byte format definition, encoder, and parser. VFF entries coexist with formula entries in blobs, distinguished by the `"VFF\0"` magic.
 
 ## Purpose
 
-The core purpose of VFF is **persistent formula composition references**: during offline build, references to multiple formulas and their parameter override metadata are packed into a VFF entry in the blob. At runtime, `Resolve()` expands the VFF into an executable chain formula without recompilation.
+VFF provides two operational directions:
+
+- **Encoding**: `ToBytes()` serializes chain formula references (`ChainLink[]`) and parameter overrides into a VFF byte array. This is the **creation side** — compose long pipelines in the editor, persist them as standalone `.vff` files, and let `FluxBlobBuilder` embed them into the blob.
+- **Decoding**: `Resolve()` reads VFF entries from `FormulaCache` within a blob; `FromBytes()` parses from raw byte arrays. Both recursively expand into executable chain formulas without recompilation.
 
 ## Byte Layout
 
@@ -133,31 +136,99 @@ Reads a VFF entry from `FormulaCache` and recursively resolves it into a chain f
 
 **Cycle detection:** Uses a `HashSet<DualHash64>` to maintain the recursion stack. Throws `InvalidOperationException` when an already-visited hash is encountered. Removes from the stack on return, allowing different branches in a DAG to share the same sub-VFF.
 
-## Usage Example
+### ToBytes
 
 ```csharp
-// Assume the blob contains these entries:
-//   hash_a: formula "[atk] * 2"     (variable atk, slot 0)
-//   hash_b: formula "[def] + 10"    (variable def, slot 0)
-//   hash_v: VFF referencing hash_a + hash_b, overriding slot 0 to fixed value 100
+public static byte[] ToBytes<TData>(
+    ChainLink[] links,
+    VffOverride<TData>[] overrides)
+    where TData : unmanaged
+```
 
-var result = VffFormat.Resolve<float, FloatOp>(hash_v);
+Serializes chain formula references into a VFF byte array. Pairs with `FromBytes` — roundtrip guarantees link equivalence.
 
-// result.Formula is a chain formula with 2 links
-// ChainLink is an internal implementation detail — users don't access it directly
-// result.Formula.ImmediateCount == 2  (1 imm per link)
+| Parameter | Type | Description |
+|------|------|------|
+| `links` | `ChainLink[]` | Chain link array (e.g. from `FluxFormula.GetChainLinks()`) |
+| `overrides` | `VffOverride<TData>[]` | Parameter override list (pass empty array for no overrides) |
 
-// result.Overrides contains parameter overrides defined in the VFF
-// Pass overrides to FluxInstance during Instantiate
+The output byte layout matches the "Byte Layout" section above: Header ("VFF\0" + Version + LinkCount + OverrideCount + Flags) + LinkTable + OverrideTable. The `HasConstants` flag bit is computed automatically based on whether any override has `Constant` kind.
 
+### FromBytes
+
+```csharp
+public static VffResolveResult<TData, TOper> FromBytes<TData, TOper>(
+    byte[] data)
+    where TData : unmanaged
+    where TOper : unmanaged, Enum
+```
+
+Parses a VFF from a raw byte array, producing a chain formula. Functionally equivalent to `Resolve()`, but takes VFF bytes directly as a parameter rather than looking them up from `FormulaCache`.
+
+Referenced formulas are still resolved through `FormulaCache` — ensure dependent formula bytecode is injected into the cache before calling.
+
+| Parameter | Type | Description |
+|------|------|------|
+| `data` | `byte[]` | VFF-format byte array (must start with `"VFF\0"` magic) |
+
+**Exceptions:**
+
+| Condition | Exception Message |
+|------|------|
+| Magic mismatch | `"Data is not a VFF entry (magic mismatch)."` |
+| Unsupported version | `"Unsupported VFF version: … Expected: 1."` |
+| Referenced formula not in cache | `"VFF link [i] references entry not in cache. Hash: …"` |
+
+## Usage Example
+
+### Creating and Persisting a VFF
+
+```csharp
+// Compile two formulas and inject into cache
+var fA = assembler.Compile(lexer.Lex("[atk] * 2"));
+var fB = assembler.Compile(lexer.Lex("[def] + 10"));
+byte[] bytesA = fA.ToBytes(), bytesB = fB.ToBytes();
+var hashA = FormulaCache.Instance.Put(bytesA);
+var hashB = FormulaCache.Instance.Put(bytesB);
+
+// Build ChainLink references
+var links = new[]
+{
+    new ChainLink { Key = hashA, Bytecode = FormulaFormat.GetInstructionSpan(bytesA).ToArray(),
+        InstructionCount = fA.Count, Type = FluxType.Formula,
+        ImmediateCount = fA.ImmediateCount, VarSlots = fA.VariableSlots,
+        MaxRegister = fA.MaxRegister },
+    new ChainLink { Key = hashB, Bytecode = FormulaFormat.GetInstructionSpan(bytesB).ToArray(),
+        InstructionCount = fB.Count, Type = FluxType.Formula,
+        ImmediateCount = fB.ImmediateCount, VarSlots = fB.VariableSlots,
+        MaxRegister = fB.MaxRegister },
+};
+
+// Serialize to VFF byte array
+byte[] vffData = VffFormat.ToBytes<float>(links, Array.Empty<VffOverride<float>>());
+
+// Save as .vff file (via IFluxBinaryBuilder)
+builder.Save(vffData, FluxArtifactKind.Virtual, "AttackDefenseChain.vff");
+```
+
+### Parsing a VFF from Bytes
+
+```csharp
+// Load bytes from .vff file → resolve
+byte[] loaded = File.ReadAllBytes("AttackDefenseChain.vff");
+var result = VffFormat.FromBytes<float, FloatOp>(loaded);
+
+// result.Formula is a chain formula, ready to execute
 var instance = assembler.Instantiate(result.Formula, jit: true);
-// Apply overrides...
+instance.Set("atk", 100f).Set("def", 50f);
 float value = instance.Run();
 ```
 
 ## Internals
 
-`ResolveLinks<TData, TOper>(vffBytes, visited)` is the core recursive method, returning `(ChainLink[], VffOverride<TData>[], totalImm)`.
+`ResolveLinks<TData, TOper>(vffBytes, visited)` is the core recursive method shared by both `Resolve()` and `FromBytes()`, returning `(ChainLink[], VffOverride<TData>[], totalImm)`.
+
+`ToBytes<TData>()` produces exactly the byte layout defined above, using `BinaryFormat` for all multi-byte writes.
 
 - **Nested VFF flattening**: Recursively expands child VFF links; SlotIndex and GlobalSlot are offset by the current `cumImm` to ensure consecutive indices in the merged pipeline
 - **Variable slot merging**: All links' `VariableSlot[]` arrays are concatenated in order, with SlotIndex already corrected by offset

@@ -188,6 +188,14 @@ namespace FluxFormula.Core
         /// <exception cref="InvalidOperationException">
         /// 缓存未命中、条目不是 VFF、版本不支持、或引用的公式不在缓存中。
         /// </exception>
+        /// <summary>
+        /// 从 <see cref="FormulaCache"/> 读取 VFF 条目，解析为链式公式。
+        /// </summary>
+        /// <param name="vffHash">VFF 条目自身的 DualHash64（偏移表中存储的键）</param>
+        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TOper}"/> + 覆写元数据</returns>
+        /// <exception cref="InvalidOperationException">
+        /// 缓存未命中、条目不是 VFF、版本不支持、或引用的公式不在缓存中。
+        /// </exception>
         public static unsafe VffResolveResult<TData, TOper> Resolve<TData, TOper>(
             DualHash64 vffHash)
             where TData : unmanaged
@@ -198,11 +206,145 @@ namespace FluxFormula.Core
                     $"VFF entry not found in cache for hash: {vffHash}");
 
             var vffBytes = new ReadOnlySpan<byte>((void*)vffPtr, vffLen);
+            var visited = new System.Collections.Generic.HashSet<DualHash64>();
+            visited.Add(vffHash); // 顶层 VFF 自身入栈
+            return ParseAndResolve<TData, TOper>(vffBytes, visited);
+        }
 
+        /// <summary>
+        /// 从裸字节数组解析 VFF，产出链式公式。
+        /// 被引用的公式仍通过 <see cref="FormulaCache"/> 查找——调用前须将依赖公式注入缓存。
+        /// </summary>
+        /// <param name="data">VFF 格式的字节数组（以 "VFF\0" magic 开头）</param>
+        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TOper}"/> + 覆写元数据</returns>
+        /// <exception cref="InvalidOperationException">
+        /// 字节不是 VFF、版本不支持、或引用的公式不在缓存中。
+        /// </exception>
+        public static VffResolveResult<TData, TOper> FromBytes<TData, TOper>(byte[] data)
+            where TData : unmanaged
+            where TOper : unmanaged, Enum
+        {
+            var vffBytes = new ReadOnlySpan<byte>(data);
+            // FromBytes 没有顶层哈希——VFF 字节来自外部，不在缓存中，因此无法被其他 VFF 引用形成循环。
+            var visited = new System.Collections.Generic.HashSet<DualHash64>();
+            return ParseAndResolve<TData, TOper>(vffBytes, visited);
+        }
+
+        /// <summary>
+        /// 将链式公式引用序列化为 VFF 字节数组。
+        /// 与 <see cref="FromBytes{TData, TOper}"/> 配对使用——往返保证链路等价。
+        /// </summary>
+        /// <param name="links">链式链接数组（如来自 <see cref="FluxFormula{TData, TOper}.GetChainLinks"/>）</param>
+        /// <param name="overrides">参数覆写列表（无覆写传空数组）</param>
+        /// <returns>VFF 格式字节数组</returns>
+        public static byte[] ToBytes<TData>(
+            ChainLink[] links,
+            VffOverride<TData>[] overrides)
+            where TData : unmanaged
+        {
+            int linkCount = links?.Length ?? 0;
+            int overrideCount = overrides?.Length ?? 0;
+
+            // 确定 Flags
+            byte flags = 0;
+            if (overrides != null)
+            {
+                for (int i = 0; i < overrides.Length; i++)
+                {
+                    if (overrides[i].Kind == VffOverrideKind.Constant)
+                    {
+                        flags |= FlagHasConstants;
+                        break;
+                    }
+                }
+            }
+
+            // 计算 OverrideTable 总大小
+            int overrideTableSize = 0;
+            int dataLen = 0;
+            unsafe { dataLen = sizeof(TData); }
+            if (overrides != null)
+            {
+                for (int i = 0; i < overrides.Length; i++)
+                {
+                    overrideTableSize += 3; // GlobalSlot(2) + Kind(1)
+                    if (overrides[i].Kind == VffOverrideKind.Constant)
+                        overrideTableSize += 1 + dataLen; // DataLen(1) + Data
+                }
+            }
+
+            int totalSize = HeaderSize + linkCount * LinkEntrySize + overrideTableSize;
+            var buf = new byte[totalSize];
+            int offset = 0;
+
+            // ── 头部 ──
+            buf[offset++] = Magic[0];
+            buf[offset++] = Magic[1];
+            buf[offset++] = Magic[2];
+            buf[offset++] = Magic[3];
+            buf[offset++] = 1; // Version
+            buf[offset++] = (byte)linkCount;
+            buf[offset++] = (byte)overrideCount;
+            buf[offset++] = flags;
+
+            // ── 链接表 ──
+            if (links != null)
+            {
+                for (int i = 0; i < links.Length; i++)
+                {
+                    var link = links[i];
+                    BinaryFormat.WriteInt64LE(buf, ref offset, (long)link.Key.XxHash64);
+                    BinaryFormat.WriteInt64LE(buf, ref offset, (long)link.Key.FnvHash64);
+                    buf[offset++] = (byte)link.ImmediateCount;
+                    BinaryFormat.WriteUInt16LE(buf, ref offset, (ushort)link.InstructionCount);
+                    buf[offset++] = (byte)link.Type;
+                    BinaryFormat.WriteUInt16LE(buf, ref offset, (ushort)(link.VarSlots?.Length ?? 0));
+                }
+            }
+
+            // ── 覆写表 ──
+            if (overrides != null)
+            {
+                for (int i = 0; i < overrides.Length; i++)
+                {
+                    var ov = overrides[i];
+                    BinaryFormat.WriteUInt16LE(buf, ref offset, (ushort)ov.GlobalSlot);
+                    buf[offset++] = (byte)ov.Kind;
+
+                    if (ov.Kind == VffOverrideKind.Constant)
+                    {
+                        buf[offset++] = (byte)dataLen;
+                        unsafe
+                        {
+                            fixed (byte* p = &buf[offset])
+                            {
+                                *(TData*)p = ov.ConstantValue;
+                            }
+                        }
+                        offset += dataLen;
+                    }
+                }
+            }
+
+            return buf;
+        }
+
+        /// <summary>
+        /// 解析 VFF 字节码的公共逻辑。供 <see cref="Resolve{TData, TOper}"/> 和
+        /// <see cref="FromBytes{TData, TOper}"/> 共享。
+        /// </summary>
+        /// <param name="vffBytes">VFF 字节码跨度</param>
+        /// <param name="visited">已访问的 VFF 哈希集合（用于循环检测）</param>
+        private static unsafe VffResolveResult<TData, TOper> ParseAndResolve<TData, TOper>(
+            ReadOnlySpan<byte> vffBytes,
+            System.Collections.Generic.HashSet<DualHash64> visited)
+            where TData : unmanaged
+            where TOper : unmanaged, Enum
+        {
             // ── 解析头部 ──
             if (!IsVff(vffBytes))
                 throw new InvalidOperationException(
-                    $"Blob entry is not a VFF (magic mismatch). Hash: {vffHash}");
+                    "Data is not a VFF entry (magic mismatch).");
 
             byte version = vffBytes[4];
             if (version != 1)
@@ -210,8 +352,6 @@ namespace FluxFormula.Core
                     $"Unsupported VFF version: {version}. Expected: 1.");
 
             // ── 递归解析链接表 ──
-            var visited = new System.Collections.Generic.HashSet<DualHash64>();
-            visited.Add(vffHash); // 顶层 VFF 自身入栈
             var (links, overrides, totalImm) = ResolveLinks<TData, TOper>(vffBytes, visited);
 
             // ── 合并变量槽 ──

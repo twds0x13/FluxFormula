@@ -100,5 +100,14 @@ namespace FluxFormula.Core
             buf[offset + 7] = (byte)(value >> 56);
             offset += 8;
         }
+
+        /// <summary>写入 16-bit 小端序无符号整数。对标 <see cref="ReadUInt16LE"/>。</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void WriteUInt16LE(byte[] buf, ref int offset, ushort value)
+        {
+            buf[offset]     = (byte)value;
+            buf[offset + 1] = (byte)(value >> 8);
+            offset += 2;
+        }
     }
 }

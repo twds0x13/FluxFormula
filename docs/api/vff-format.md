@@ -1,10 +1,13 @@
 # VffFormat
 
-VFF (Virtual FluxFormula) 字节格式定义与解析器。VFF 不是独立资产类型——它是 blob 中的一种条目，通过 `"VFF\0"` magic 与公式条目区分，两者共用 `FluxBlob.Entry` 偏移表。
+VFF (Virtual FluxFormula) 字节格式定义、编码器与解析器。VFF 条目与公式条目共存于 blob，通过 `"VFF\0"` magic 区分。
 
 ## 定位
 
-VFF 的核心用途是**持久化公式组合引用**：在离线构建阶段将多条公式的引用及参数覆写信息打包为一个 VFF 条目写入 blob，运行时通过 `Resolve()` 一键展开为可执行的链式公式，无需重新编译。
+VFF 提供两种操作方向：
+
+- **编码**：`ToBytes()` 将链式公式引用（`ChainLink[]`）和参数覆写序列化为 VFF 字节数组。这是 VFF 的**创建侧**——在编辑器内拼出长管道后持久化为独立 `.vff` 文件，供 `FluxBlobBuilder` 嵌入 blob。
+- **解码**：`Resolve()` 从 `FormulaCache` 读取 blob 中的 VFF 条目；`FromBytes()` 从裸字节数组解析。两者均递归展开为可执行的链式公式，无需重新编译。
 
 ## 字节布局
 
@@ -133,31 +136,99 @@ public static VffResolveResult<TData, TOper> Resolve<TData, TOper>(
 
 **循环检测：** 使用 `HashSet<DualHash64>` 维护递归栈。遇到已访问的哈希时抛出 `InvalidOperationException`。递归返回时从栈中移除，允许 DAG 中不同分支共享同一子 VFF。
 
-## 使用示例
+### ToBytes
 
 ```csharp
-// 假设 blob 中已有以下条目：
-//   hash_a: 公式 "[atk] * 2"     (变量 atk, slot 0)
-//   hash_b: 公式 "[def] + 10"    (变量 def, slot 0)
-//   hash_v: VFF 引用 hash_a + hash_b，且覆盖 slot 0 为固定值 100
+public static byte[] ToBytes<TData>(
+    ChainLink[] links,
+    VffOverride<TData>[] overrides)
+    where TData : unmanaged
+```
 
-var result = VffFormat.Resolve<float, FloatOp>(hash_v);
+将链式公式引用序列化为 VFF 字节数组。与 `FromBytes` 配对——往返保证链路等价。
 
-// result.Formula 为链式公式，含 2 个 link
-// ChainLink 为 internal 实现细节——用户无需直接访问
-// result.Formula.ImmediateCount == 2  (两个 link 各 1 imm)
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `links` | `ChainLink[]` | 链式链接数组（如来自 `FluxFormula.GetChainLinks()`） |
+| `overrides` | `VffOverride<TData>[]` | 参数覆写列表（无覆写传空数组） |
 
-// result.Overrides 包含 VFF 中定义的参数覆写
-// 可在 Instantiate 时将 overrides 传给 FluxInstance
+产出的字节布局与本文档"字节布局"节一致：Header（"VFF\0" + Version + LinkCount + OverrideCount + Flags）+ LinkTable + OverrideTable。Flags 的 `HasConstants` 位自动根据 overrides 中是否存在 `Constant` 类型计算。
 
+### FromBytes
+
+```csharp
+public static VffResolveResult<TData, TOper> FromBytes<TData, TOper>(
+    byte[] data)
+    where TData : unmanaged
+    where TOper : unmanaged, Enum
+```
+
+从裸字节数组解析 VFF，产出链式公式。与 `Resolve()` 功能等价，但 VFF 字节直接来自参数而非 `FormulaCache` 查找。
+
+被引用的公式仍通过 `FormulaCache` 解析——调用前须将依赖公式的字节码注入缓存。
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `data` | `byte[]` | VFF 格式的字节数组（以 `"VFF\0"` magic 开头） |
+
+**异常：**
+
+| 条件 | 异常消息 |
+|------|----------|
+| magic 不匹配 | `"Data is not a VFF entry (magic mismatch)."` |
+| 版本不支持 | `"Unsupported VFF version: … Expected: 1."` |
+| 引用公式不在缓存 | `"VFF link [i] references entry not in cache. Hash: …"` |
+
+## 使用示例
+
+### 创建并持久化 VFF
+
+```csharp
+// 编译两条公式并注入缓存
+var fA = assembler.Compile(lexer.Lex("[atk] * 2"));
+var fB = assembler.Compile(lexer.Lex("[def] + 10"));
+byte[] bytesA = fA.ToBytes(), bytesB = fB.ToBytes();
+var hashA = FormulaCache.Instance.Put(bytesA);
+var hashB = FormulaCache.Instance.Put(bytesB);
+
+// 构建 ChainLink 引用
+var links = new[]
+{
+    new ChainLink { Key = hashA, Bytecode = FormulaFormat.GetInstructionSpan(bytesA).ToArray(),
+        InstructionCount = fA.Count, Type = FluxType.Formula,
+        ImmediateCount = fA.ImmediateCount, VarSlots = fA.VariableSlots,
+        MaxRegister = fA.MaxRegister },
+    new ChainLink { Key = hashB, Bytecode = FormulaFormat.GetInstructionSpan(bytesB).ToArray(),
+        InstructionCount = fB.Count, Type = FluxType.Formula,
+        ImmediateCount = fB.ImmediateCount, VarSlots = fB.VariableSlots,
+        MaxRegister = fB.MaxRegister },
+};
+
+// 序列化为 VFF 字节数组
+byte[] vffData = VffFormat.ToBytes<float>(links, Array.Empty<VffOverride<float>>());
+
+// 保存为 .vff 文件（通过 IFluxBinaryBuilder）
+builder.Save(vffData, FluxArtifactKind.Virtual, "AttackDefenseChain.vff");
+```
+
+### 从字节解析 VFF
+
+```csharp
+// 从 .vff 文件加载字节 → 解析
+byte[] loaded = File.ReadAllBytes("AttackDefenseChain.vff");
+var result = VffFormat.FromBytes<float, FloatOp>(loaded);
+
+// result.Formula 为链式公式，可直接执行
 var instance = assembler.Instantiate(result.Formula, jit: true);
-// 应用 overrides...
+instance.Set("atk", 100f).Set("def", 50f);
 float value = instance.Run();
 ```
 
 ## 内部细节
 
-`ResolveLinks<TData, TOper>(vffBytes, visited)` 是核心递归方法，返回 `(ChainLink[], VffOverride<TData>[], totalImm)`。
+`ResolveLinks<TData, TOper>(vffBytes, visited)` 是 `Resolve()` 和 `FromBytes()` 共享的核心递归方法，返回 `(ChainLink[], VffOverride<TData>[], totalImm)`。
+
+`ToBytes<TData>()` 按上述字节布局生成 VFF 字节数组，所有多字节写入通过 `BinaryFormat` 统一处理。
 
 - **嵌套 VFF 展平**：递归展开子 VFF 的 links，其 SlotIndex 和 GlobalSlot 按当前累积的 `cumImm` 偏移，确保合并管道中的序号连续
 - **变量槽合并**：所有 link 的 `VariableSlot[]` 按顺序拼接，SlotIndex 已由偏移修正

@@ -47,6 +47,8 @@ export default withMermaid(
                 { text: "DualHash64", link: "/api/dualhash64" },
                 { text: "FluxConfig", link: "/api/flux-config" },
                 { text: "IFluxCacheProvider", link: "/api/iflux-cache-provider" },
+                { text: "FluxArtifactKind", link: "/api/flux-artifact-kind" },
+                { text: "IFluxBinaryBuilder", link: "/api/iflux-binary-builder" },
               ],
             },
             {

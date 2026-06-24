@@ -670,4 +670,184 @@ public unsafe class VffFormatTests
         }
         finally { gcF.Free(); }
     }
+
+    // ═══════════════════════════════════════════════════════
+    // ToBytes — VFF 编码器
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void ToBytes_SingleLink_ProducesCorrectLayout()
+    {
+        var lexer = CreateMathLexer();
+        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("10 + 5"));
+        byte[] fBytes = f.ToBytes();
+        var fHash = DualHash64.Compute(fBytes);
+        var header = FormulaFormat.ReadHeader(fBytes);
+
+        var link = new ChainLink
+        {
+            Key              = fHash,
+            Bytecode         = FormulaFormat.GetInstructionSpan(fBytes).ToArray(),
+            InstructionCount = f.Count,
+            Type             = FluxType.Formula,
+            ImmediateCount   = header.ImmediateCount,
+            VarSlots         = f.VariableSlots,
+            MaxRegister      = f.MaxRegister,
+        };
+
+        var overrides = Array.Empty<VffOverride<float>>();
+        byte[] vffBytes = VffFormat.ToBytes<float>(new[] { link }, overrides);
+
+        // 验证头部
+        Assert.That(vffBytes.Length, Is.GreaterThan(VffFormat.HeaderSize));
+        Assert.That(vffBytes[0], Is.EqualTo((byte)'V'));
+        Assert.That(vffBytes[1], Is.EqualTo((byte)'F'));
+        Assert.That(vffBytes[2], Is.EqualTo((byte)'F'));
+        Assert.That(vffBytes[3], Is.EqualTo(0));
+        Assert.That(vffBytes[4], Is.EqualTo(1)); // Version
+        Assert.That(vffBytes[5], Is.EqualTo(1)); // LinkCount
+        Assert.That(vffBytes[6], Is.EqualTo(0)); // OverrideCount
+        Assert.That(vffBytes[7], Is.EqualTo(0)); // Flags (no constants)
+
+        // 验证链接表（22 bytes）
+        int lo = VffFormat.HeaderSize;
+        ulong xxh = BinaryFormat.ReadUInt64LE(vffBytes, lo);
+        Assert.That(xxh, Is.EqualTo(fHash.XxHash64));
+        ulong fnv = BinaryFormat.ReadUInt64LE(vffBytes, lo + 8);
+        Assert.That(fnv, Is.EqualTo(fHash.FnvHash64));
+        Assert.That(vffBytes[lo + 16], Is.EqualTo(header.ImmediateCount)); // ImmCount
+        Assert.That(vffBytes[lo + 19], Is.EqualTo((byte)FluxType.Formula));
+    }
+
+    [Test]
+    public void ToBytes_WithConstantOverride_SetsFlag()
+    {
+        var lexer = CreateMathLexer();
+        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("42"));
+        byte[] fBytes = f.ToBytes();
+        var fHash = DualHash64.Compute(fBytes);
+        var header = FormulaFormat.ReadHeader(fBytes);
+
+        var link = new ChainLink
+        {
+            Key              = fHash,
+            Bytecode         = FormulaFormat.GetInstructionSpan(fBytes).ToArray(),
+            InstructionCount = f.Count,
+            Type             = FluxType.Formula,
+            ImmediateCount   = header.ImmediateCount,
+            VarSlots         = f.VariableSlots,
+            MaxRegister      = f.MaxRegister,
+        };
+
+        var overrides = new[] { new VffOverride<float>(0, VffOverrideKind.Constant, 3.14f) };
+        byte[] vffBytes = VffFormat.ToBytes<float>(new[] { link }, overrides);
+
+        Assert.That(vffBytes[7], Is.EqualTo(VffFormat.FlagHasConstants)); // Flags
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // ToBytes → FromBytes 往返
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void Roundtrip_ToBytes_FromBytes_ChainMatches()
+    {
+        var lexer = CreateMathLexer();
+        var fA = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("3 + 4"));
+        var fB = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("5 + 6"));
+        byte[] bA = fA.ToBytes(), bB = fB.ToBytes();
+        var (hA, gcA) = PutInCache(bA);
+        var (hB, gcB) = PutInCache(bB);
+
+        try
+        {
+            var hdrA = FormulaFormat.ReadHeader(bA);
+            var hdrB = FormulaFormat.ReadHeader(bB);
+            var links = new[]
+            {
+                new ChainLink
+                {
+                    Key = hA, Bytecode = FormulaFormat.GetInstructionSpan(bA).ToArray(),
+                    InstructionCount = hdrA.Count, Type = FluxType.Formula,
+                    ImmediateCount = hdrA.ImmediateCount, VarSlots = fA.VariableSlots,
+                    MaxRegister = fA.MaxRegister,
+                },
+                new ChainLink
+                {
+                    Key = hB, Bytecode = FormulaFormat.GetInstructionSpan(bB).ToArray(),
+                    InstructionCount = hdrB.Count, Type = FluxType.Formula,
+                    ImmediateCount = hdrB.ImmediateCount, VarSlots = fB.VariableSlots,
+                    MaxRegister = fB.MaxRegister,
+                },
+            };
+
+            byte[] vffBytes = VffFormat.ToBytes<float>(links, Array.Empty<VffOverride<float>>());
+            var (vffHash, gcVff) = PutInCache(vffBytes);
+
+            try
+            {
+                // FromBytes 从裸字节解析
+                var fromBytesResult = VffFormat.FromBytes<float, FloatOp>(vffBytes);
+                Assert.That(fromBytesResult.Formula.ChainLength, Is.EqualTo(2));
+
+                // Resolve 从缓存解析——结果应一致
+                var resolveResult = VffFormat.Resolve<float, FloatOp>(vffHash);
+                Assert.That(resolveResult.Formula.ChainLength, Is.EqualTo(2));
+            }
+            finally { gcVff.Free(); }
+        }
+        finally { gcA.Free(); gcB.Free(); }
+    }
+
+    [Test]
+    public void FromBytes_Standalone_SameAsResolve()
+    {
+        var lexer = CreateMathLexer();
+        var f = new FluxAssembler<float, FloatOp, FloatMathDef>(Def).Compile(lexer.Lex("10 + 5"));
+        byte[] fBytes = f.ToBytes();
+        var (fHash, gcF) = PutInCache(fBytes);
+
+        try
+        {
+            var hdr = FormulaFormat.ReadHeader(fBytes);
+            var link = new ChainLink
+            {
+                Key = fHash, Bytecode = FormulaFormat.GetInstructionSpan(fBytes).ToArray(),
+                InstructionCount = hdr.Count, Type = FluxType.Formula,
+                ImmediateCount = hdr.ImmediateCount, VarSlots = f.VariableSlots,
+                MaxRegister = f.MaxRegister,
+            };
+
+            byte[] vffBytes = VffFormat.ToBytes<float>(new[] { link }, Array.Empty<VffOverride<float>>());
+            var (vffHash, gcVff) = PutInCache(vffBytes);
+
+            try
+            {
+                var fromBytes = VffFormat.FromBytes<float, FloatOp>(vffBytes);
+                var fromResolve = VffFormat.Resolve<float, FloatOp>(vffHash);
+
+                Assert.That(fromBytes.Formula.ChainLength, Is.EqualTo(fromResolve.Formula.ChainLength));
+                Assert.That(fromBytes.Overrides.Length, Is.EqualTo(fromResolve.Overrides.Length));
+
+                var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+                float rFromBytes = runner.Instantiate(fromBytes.Formula).Run();
+                float rResolve = runner.Instantiate(fromResolve.Formula).Run();
+                Assert.That(rFromBytes, Is.EqualTo(rResolve).Within(1e-6f));
+            }
+            finally { gcVff.Free(); }
+        }
+        finally { gcF.Free(); }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // FromBytes 错误路径
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void FromBytes_NotVffMagic_Throws()
+    {
+        byte[] notVff = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
+        Assert.That(() => VffFormat.FromBytes<float, FloatOp>(notVff),
+            Throws.InvalidOperationException.With.Message.Contains("not a VFF"));
+    }
 }

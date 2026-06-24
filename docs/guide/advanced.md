@@ -127,3 +127,31 @@ float r = runner.Instantiate(loaded).Set("atk", 100f).Run();
 ```
 
 字节码直接写入文件，无需 JSON/XML 序列化。iOS 热更新场景：替换 `.ff` 文件即更新公式，不触发 JIT，Apple 审核不拦截。
+
+## 将链式公式持久化为 VFF
+
+`Connect()` 产生的链式公式可持久化为 `.vff` 文件，供 blob 部署使用：
+
+```csharp
+// 在编辑器中拼接长管道
+var chain = damageFormula.Connect(critModifier).Connect(elementModifier);
+
+// 提取链接并序列化为 VFF
+if (chain.IsChained)
+{
+    var links = chain.GetChainLinks();
+    byte[] vffData = VffFormat.ToBytes<float>(
+        links.ToArray(),
+        Array.Empty<VffOverride<float>>());
+
+    // 通过 IFluxBinaryBuilder 保存（Unity: AssetDatabase；独立应用: File.WriteAllBytes）
+    builder.Save(vffData, FluxArtifactKind.Virtual, "DamagePipeline.vff");
+}
+
+// 运行时：从 .vff 文件或 blob 加载 → 解析 → 执行
+var result = VffFormat.FromBytes<float, FloatOp>(vffData);
+float damage = assembler.Instantiate(result.Formula)
+    .Set("atk", 100f).Set("def", 50f).Run();
+```
+
+参见 [VffFormat API](../api/vff-format) 获取完整的 VFF 编码/解码参考。

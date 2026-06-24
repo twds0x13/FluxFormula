@@ -129,7 +129,7 @@ graph LR
 
 这等效于 LINQ 的延迟求值：`Where().Select()` 只构造迭代器装饰器，`foreach` / `ToList()` 才真正遍历。链式 Connect 只在 `ChainLink[]` 末尾追加引用，字节码的物理合并推迟到实际求值时。
 
-**ChainLink 结构：**
+**ChainLink 结构**（2.0 起为公开类型，可通过 `GetChainLinks()` 直接访问）**：**
 
 | 字段 | 说明 |
 |------|------|
