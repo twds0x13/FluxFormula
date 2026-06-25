@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -74,6 +75,7 @@ namespace FluxFormula.Core
         private static byte* _blobPtr;
         private static GCHandle _blobHandle;
         private static int _blobLength;
+        private static readonly List<GCHandle> _decompressedHandles = new();
 
         // ═══════════════════════════════════════════════════════
         // 公开 API
@@ -103,6 +105,7 @@ namespace FluxFormula.Core
 
             // 将每条公式的字节码指针注册到 FormulaCache
             // FormulaCache 以 (key → IntPtr, length) 存储，不关心指针来源
+            // 压缩条目：解压到独立 pinned 数组；未压缩条目：直接指向 blob 内存
             var cache = FormulaCache.Instance;
             for (int i = 0; i < entries.Length; i++)
             {
@@ -112,8 +115,21 @@ namespace FluxFormula.Core
                     throw new ArgumentException(
                         $"Blob entry [{i}] out of bounds: offset={e.Offset}, length={e.Length}, blobSize={_blobLength}");
 
-                IntPtr ptr = (IntPtr)(_blobPtr + e.Offset);
-                cache.Put(e.Hash, ptr, e.Length);
+                byte* entryPtr = _blobPtr + e.Offset;
+                var storedSpan = new ReadOnlySpan<byte>(entryPtr, e.Length);
+
+                if (FluxCompression.IsCompressed(storedSpan))
+                {
+                    byte[] decompressed = FluxCompression.Decompress(storedSpan);
+                    var handle = GCHandle.Alloc(decompressed, GCHandleType.Pinned);
+                    _decompressedHandles.Add(handle);
+                    cache.Put(e.Hash, handle.AddrOfPinnedObject(), decompressed.Length);
+                }
+                else
+                {
+                    IntPtr ptr = (IntPtr)(_blobPtr + e.Offset);
+                    cache.Put(e.Hash, ptr, e.Length);
+                }
             }
 
             EntryCount    = entries.Length;
@@ -130,6 +146,14 @@ namespace FluxFormula.Core
 
             if (_blobHandle.IsAllocated)
                 _blobHandle.Free();
+
+            // 释放所有解压后独立分配的 pinned 数组
+            foreach (var h in _decompressedHandles)
+            {
+                if (h.IsAllocated)
+                    h.Free();
+            }
+            _decompressedHandles.Clear();
 
             _blobPtr    = null;
             _blobLength = 0;

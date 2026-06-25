@@ -126,7 +126,16 @@ namespace FluxFormula.Editor
                     continue;
                 }
 
-                entries.Add((hash, rawData));
+                // 根据配置决定是否压缩
+                if (FluxConfig.Current.CompressBlob)
+                {
+                    byte[] stored = FluxCompression.Compress(rawData);
+                    entries.Add((hash, stored));
+                }
+                else
+                {
+                    entries.Add((hash, rawData));
+                }
             }
 
             if (entries.Count == 0)
@@ -187,7 +196,8 @@ namespace FluxFormula.Editor
             var parts = new System.Collections.Generic.List<string>();
             if (formulaCount > 0) parts.Add($"{formulaCount} .ff");
             if (vffCount > 0) parts.Add($"{vffCount} .vff");
-            Debug.Log($"[FluxBlobBuilder] Blob built: {string.Join(", ", parts)}, {totalBlobSize} bytes → {GeneratedDir}");
+            string compressionNote = FluxConfig.Current.CompressBlob ? " [Brotli]" : "";
+            Debug.Log($"[FluxBlobBuilder] Blob built: {string.Join(", ", parts)}, {totalBlobSize} bytes{compressionNote} → {GeneratedDir}");
             return entries.Count;
         }
 
@@ -259,6 +269,8 @@ namespace FluxFormula.Editor
             sb.AppendLine($"// Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"// Formula count: {offsetTable.Length}");
             sb.AppendLine($"// Blob size: {blob.Length} bytes ({blob.Length / 1024.0:F1} KB)");
+            if (FluxConfig.Current.CompressBlob)
+                sb.AppendLine("// Compression: Brotli (FluxCompression)");
             sb.AppendLine();
             sb.AppendLine("using FluxFormula.Core;");
             sb.AppendLine();

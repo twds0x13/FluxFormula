@@ -30,6 +30,7 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FormulaFormat.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Registers.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxConfig.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxCompression.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/VffFormat.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxJITCompiler.cs" />
@@ -59,6 +60,7 @@
     <Compile Include="VffStructsTests.cs" />          <!-- VffHeader/LinkEntry/Override -->
     <Compile Include="VffFormatTests.cs" />           <!-- VffFormat 完整测试 -->
     <Compile Include="FileFluxFileFormatterTests.cs" /> <!-- FileFluxFileFormatter -->
+    <Compile Include="FluxCompressionTests.cs" />       <!-- FluxCompression -->
   </ItemGroup>
 
   <ItemGroup>

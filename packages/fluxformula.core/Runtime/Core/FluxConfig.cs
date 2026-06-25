@@ -20,6 +20,7 @@ namespace FluxFormula.Core
             MergeThreshold       = 8,
             BlobFilePath         = null,
             DiskCacheDirectory   = null,
+            CompressBlob         = false,
         };
 
         private static FluxConfig _current;
@@ -46,6 +47,13 @@ namespace FluxFormula.Core
         /// 合并为原子公式。默认 8。
         /// </summary>
         public int MergeThreshold { get; init; }
+
+        /// <summary>
+        /// Blob 构建时是否启用 Brotli 压缩。默认 false（向后兼容）。
+        /// 压缩在构建时发生（<c>FluxBlobBuilder</c>），加载时自动解压（<c>FluxBlob.Initialize</c>）。
+        /// 不影响运行时执行性能——解压仅在 blob 初始化时发生一次。
+        /// </summary>
+        public bool CompressBlob { get; init; }
 
         // ═══════════════════════════════════════════════════════
         // 文件与路径
