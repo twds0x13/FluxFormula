@@ -1,42 +1,60 @@
+## [3.0.1](https://github.com/twds0x13/FluxFormula/compare/v3.0.0...v3.0.1) (2026-06-25)
+
+### Bug Fixes
+
+* add 17 missing .meta files across all four packages, resolving empty file imports in UPM ([3c1cb15](https://github.com/twds0x13/FluxFormula/commit/3c1cb15dd43c734e39d130366c2227216c35f516))
+
 # [3.0.0](https://github.com/twds0x13/FluxFormula/compare/v2.1.0...v3.0.0) (2026-06-24)
 
 
 * refactor!: remove TOper generic parameter, replace with TDef in FluxFormula signature ([2a3cfab](https://github.com/twds0x13/FluxFormula/commit/2a3cfabd3d2b553d6da35debd7af7a8837702d07))
+* refactor!: split FluxFormula/FluxModifier types, make FluxType internal ([766e41d](https://github.com/twds0x13/FluxFormula/commit/766e41d1b6da6ddd779401dc32148e496d795fa2))
 
 
 ### Bug Fixes
 
+* add (FluxType) cast in FromBytes, add .ToModifier() in benchmarks Connect ([8c2bebb](https://github.com/twds0x13/FluxFormula/commit/8c2bebbc43f93ab3ff38cf72d0d998ceae94f76f))
+* add FluxFormula.Editor to InternalsVisibleTo for FluxFormula.Type access ([0ffbbab](https://github.com/twds0x13/FluxFormula/commit/0ffbbab9eef7ce9675cbf6a8d74dd2b99fb72539))
+* add FluxModifier.cs to benchmarks and tests csproj file lists ([bdf7252](https://github.com/twds0x13/FluxFormula/commit/bdf7252727ba5fda04e74529983042d7e4f0592c))
 * remove all residual TOper references across the entire repo ([c2fc2c7](https://github.com/twds0x13/FluxFormula/commit/c2fc2c7cc2890766c3defe865371a258bb517851))
+
+
+### Features
+
+* complete v3.0.0 security cleanup + pipeline docs + coverage to 97.9% ([f5c4bdb](https://github.com/twds0x13/FluxFormula/commit/f5c4bdbe6540e2335cde48df084c74c49a181318))
 
 
 ### BREAKING CHANGES
 
-* All types lose the TOper generic parameter.
+* TOper generic parameter removed from all core types.
 
 - IFluxJITDefinition<TData, TOper> → IFluxJITDefinition<TData> (all TOper params → byte)
-- OpPair<TOper> → OpPair (TOper fields → byte)
-- FluxToken<TData, TOper> → FluxToken<TData>
-- FluxLexer<TData, TOper> → FluxLexer<TData>
-- LexerConfig<TData, TOper> → LexerConfig<TData>
-- LexResult<TData, TOper> → LexResult<TData>
-- FluxCompiler<TData, TOper, TDef> → FluxCompiler<TData, TDef>
 - FluxAssembler<TData, TOper, TDef> → FluxAssembler<TData, TDef> (3 params → 2)
 - FluxFormula<TData, TOper> → FluxFormula<TData, TDef>
-- FluxEvaluator<TData, TOper, TDef> → FluxEvaluator<TData, TDef>
-- FluxJITCompiler<TData, TOper, TDef> → FluxJITCompiler<TData, TDef>
 - FluxInstance<TData, TOper, TDef> → FluxInstance<TData, TDef>
-- VffResolveResult<TData, TOper> → VffResolveResult<TData, TDef>
-- OperatorRule<TOper> → OperatorRule
-- BracketRule<TOper> → BracketRule
+- OpPair<TOper> → OpPair (TOper fields → byte)
+- And all other types: FluxToken, FluxLexer, LexerConfig, LexResult, FluxCompiler,
+  FluxEvaluator, FluxJITCompiler, VffResolveResult, OperatorRule, BracketRule
 
 Compile-time safety: FluxFormula<TData, TDef> prevents cross-definition
 Connect at the type level. Definition is now a complete, self-contained plugin.
 
-Design rationale: TOper was scaffolding during the prototype→v2.0 turbulence.
-The framework execution pipeline only sees byte — TOper was erased at runtime.
-Now that the architecture is stable (9.0 baseline), the scaffolding is removed.
-See memory/architecture/toper-removal-plan.md for full rationale and the
-planned follow-up (Formula/Modifier type split).
+* Formula/Modifier type split — FluxModifier<TData, TDef>
+introduced as independent public struct. FluxType enum is now internal.
+
+- New FluxModifier<TData, TDef> struct — no Instantiate()/Run(),
+  only Connect(FluxModifier) and ToFormula(string)
+- FluxFormula.Connect signature: Connect(FluxFormula) → Connect(FluxModifier)
+  — type system guarantees RHS is Modifier, eliminates runtime check
+- Rename ToMultiplier() → ToModifier(), returns FluxModifier
+  (old name retained as [Obsolete])
+- FluxType enum: public → internal; FluxFormula.Type → internal;
+  ChainLink.Type → internal
+- FormulaHeader.Type, VffLinkEntry.Type: FluxType → byte
+  for serialization-facing public APIs
+- FluxInstance.Run(): InvalidOperationException throw → Debug.Assert
+
+v3.0.0 — 4 runtime exceptions eliminated, all converted to compile errors.
 
 # [2.1.0](https://github.com/twds0x13/FluxFormula/compare/v2.0.0...v2.1.0) (2026-06-24)
 
@@ -64,11 +82,6 @@ planned follow-up (Formula/Modifier type split).
 * FluxFormula.Addressables.UniTask package ([9b78b97](https://github.com/twds0x13/FluxFormula/commit/9b78b97661eb2d6d57a01aae92e8863fb7f2ddac))
 * multi-arity operators (Select/Lerp/Sum6), ternary ?:, coverage 96.8->97.3% ([8ec1912](https://github.com/twds0x13/FluxFormula/commit/8ec1912d816d7d8cf43143170a664e59194f95c1))
 * support recursive VFF resolution with cycle detection ([5bd4c49](https://github.com/twds0x13/FluxFormula/commit/5bd4c49098afc8131ffbec06e0f7f909f4f3296e))
-
-
-### release
-
-* 2.0.0 — bump versions, write migration guide ([c9d0b63](https://github.com/twds0x13/FluxFormula/commit/c9d0b63f5f2ceb5a8f48df560b089b330cb15114))
 
 
 ### BREAKING CHANGES
