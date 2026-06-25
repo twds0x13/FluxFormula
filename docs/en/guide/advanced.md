@@ -42,7 +42,7 @@ restored.Set("input", 5f).Set("z", 3f).Run(); // equivalent to fB
 Define variable patterns via the Lexer at compile time. Inject values by name at runtime.
 
 ```csharp
-var config = new LexerConfig<float, MathDef>
+var config = new LexerConfig<float>
 {
     LiteralOper = (byte)MathOp.Const,
     LiteralParser = s => float.Parse(s, CultureInfo.InvariantCulture),
@@ -51,7 +51,7 @@ var config = new LexerConfig<float, MathDef>
     ImplicitOperators = { (byte)MathOp.Mul },
 };
 
-var lexer = new FluxLexer<float, MathDef>(config);
+var lexer = new FluxLexer<float>(config);
 var lexResult = lexer.Lex("[atk] * 2 + [bonus]");
 
 var formula = runner.Compile(lexResult);

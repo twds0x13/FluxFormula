@@ -73,7 +73,7 @@ Users fill in a `LexerConfig` table. The lexer internally sorts operators by des
 ## Usage
 
 ```csharp
-var lexer = new FluxLexer<float, MathDef>(new LexerConfig<float, MathDef>
+var lexer = new FluxLexer<float>(new LexerConfig<float>
 {
     LiteralOper = (byte)MathOp.Const,
     LiteralParser = s => float.Parse(s.TrimEnd('f')),

@@ -66,7 +66,7 @@ graph LR
 | [IFluxJITDefinition](./idefinition) | `<TData>` | Operator definition interface (with JIT path) |
 | [Instruction](./instruction) | — | 8-byte instruction struct |
 | [FluxToken](./flux-token) | `<TData>` | Lexical token (`Oper` is `byte`) |
-| `FluxLexer<TData, TDef>` | `<TData, TDef>` | Handwritten span lexer |
+| `FluxLexer<TData>` | `<TData>` | Handwritten span lexer |
 | `LexResult<TData>` | `<TData>` | Lexer output: token array + variable names |
 | `LexerConfig<TData>` | `<TData>` | Lexer config (operators/brackets/variable rules) |
 | `VariableSlot` | — | Variable name → slot index mapping |

@@ -4,8 +4,8 @@ Optional Addressables integration for FluxFormula. Op-in — add `FluxFormula.Ad
 
 ## What's in this package
 
-- `FluxFormulaRef<TData,TOper,TDef>` — type-safe `AssetReferenceT<FluxAsset>` for serialization in MonoBehaviour/ScriptableObject
-- `FormulaLibraryAddressablesExtensions` — `LoadAsync(string key)` / `Load(string key)` extension methods on `FormulaLibrary<TData,TOper,TDef>`
+- `FluxFormulaRef<TData,TDef>` — type-safe `AssetReferenceT<FluxAsset>` for serialization in MonoBehaviour/ScriptableObject
+- `FormulaLibraryAddressablesExtensions` — `LoadAsync(string key)` / `Load(string key)` extension methods on `FormulaLibrary<TData,TDef>`
 
 ## Usage
 
@@ -14,12 +14,12 @@ Optional Addressables integration for FluxFormula. Op-in — add `FluxFormula.Ad
 // 2. Serialize a reference
 public class DamageCalc : MonoBehaviour
 {
-    public FluxFormulaRef<float, FloatOp, FloatMathDef> formula;
+    public FluxFormulaRef<float, FloatMathDef> formula;
 
     async void Start()
     {
         var f = await formula.LoadFormulaAsync();
-        float result = new FluxAssembler<float, FloatOp, FloatMathDef>(default)
+        float result = new FluxAssembler<float, FloatMathDef>(default)
             .Instantiate(f).Set("atk", 10).Run();
     }
 }

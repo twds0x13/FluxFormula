@@ -199,14 +199,14 @@ if (!IsDefault(&regsPtr[0]))           // R0 non-default → short-circuit retur
 
 **(b) Configuration model**:
 ```csharp
-public class LexerConfig<TData, TOper>
+public class LexerConfig<TData>
 {
-    public TOper LiteralOper;                          // operator for numeric literals
-    public Func<string, TData> LiteralParser;          // literal → TData parse function
-    public List<OperatorRule<TOper>> Operators;        // operator symbol list
-    public List<BracketRule<TOper>> Brackets;          // bracket pair list
-    public List<TOper> ImplicitOperators;              // implicit multiplication operators
-    public List<VariablePatternRule> VariablePatterns; // variable patterns
+    public byte LiteralOper;                              // operator for numeric literals
+    public Func<string, TData> LiteralParser;             // literal → TData parse function
+    public List<OperatorRule> Operators;                  // operator symbol list
+    public List<BracketRule> Brackets;                    // bracket pair list
+    public List<byte> ImplicitOperators;                  // implicit multiplication opcodes
+    public List<VariablePatternRule> VariablePatterns;    // variable patterns
 }
 ```
 

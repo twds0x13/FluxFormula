@@ -109,7 +109,7 @@ readonly struct MathDef : IFluxJITDefinition<float>
 ## 第 3 步：配置 Lexer 并解析
 
 ```csharp
-var config = new LexerConfig<float, MathDef>
+var config = new LexerConfig<float>
 {
     LiteralOper = (byte)MathOp.Const,
     LiteralParser = s => float.Parse(s, CultureInfo.InvariantCulture),
@@ -131,7 +131,7 @@ var config = new LexerConfig<float, MathDef>
     ImplicitOperators = { (byte)MathOp.Mul },  // 2[atk] → 2*[atk]
 };
 
-var lexer = new FluxLexer<float, MathDef>(config);
+var lexer = new FluxLexer<float>(config);
 var lexResult = lexer.Lex("([atk] * 2 + [bonus]) / 100");
 // lexResult.Tokens   → FluxToken[]
 // lexResult.VarNames → 变量名数组（atk, bonus）

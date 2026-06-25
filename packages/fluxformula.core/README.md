@@ -21,10 +21,10 @@ string → Lex → Compile → Evaluate → result
 ```csharp
 // 1. Define your operator system (impl IFluxJITDefinition<TData, TOper>)
 var def = new FloatMathDef();
-var assembler = new FluxAssembler<float, FloatOp, FloatMathDef>(def);
+var assembler = new FluxAssembler<float, FloatMathDef>(def);
 
 // 2. Write a formula string
-var lexResult = new FluxLexer<float, FloatOp>(def).Lex("a + b * 2");
+var lexResult = new FluxLexer<float>(config).Lex("a + b * 2");
 
 // 3. Compile + instantiate + run
 float result = assembler

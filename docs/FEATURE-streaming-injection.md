@@ -76,7 +76,7 @@
 ### 方案 2：正则分词 + 配置表
 
 ```csharp
-var lexer = new FluxLexer<float, MathDef>(new LexerConfig<float, MathDef>
+var lexer = new FluxLexer<float>(new LexerConfig<float>
 {
     TokenPatterns = new[]
     {
@@ -133,12 +133,11 @@ var lexer = new FluxLexer<float, MathDef>(new LexerConfig<float, MathDef>
 /// <summary>
 /// 词法分析器：将字符串转换为 FluxToken 流。
 /// </summary>
-public class FluxLexer<TData, TDef>
+public class FluxLexer<TData>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
 {
     /// <summary>从配置表构建（推荐方式）</summary>
-    public FluxLexer(LexerConfig<TData, TDef> config);
+    public FluxLexer(LexerConfig<TData> config);
 
     /// <summary>解析字符串为 Token 数组</summary>
     public LexResult<TData> Lex(string source);
@@ -147,9 +146,8 @@ public class FluxLexer<TData, TDef>
 /// <summary>
 /// 纯配置驱动的词法规则表。
 /// </summary>
-public class LexerConfig<TData, TDef>
+public class LexerConfig<TData>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
 {
     public byte LiteralOper;
     public Func<string, TData> LiteralParser;
@@ -168,7 +166,7 @@ public record BracketRule(string Open, string Close, byte LeftOper, byte RightOp
 ### Layer 1：填表即用（推荐）
 
 ```csharp
-var lexer = new FluxLexer<float, MathDef>(new LexerConfig<float, MathDef>
+var lexer = new FluxLexer<float>(new LexerConfig<float>
 {
     LiteralOper = (byte)MathOp.Const,
     LiteralParser = s => float.Parse(s.TrimEnd('f')),

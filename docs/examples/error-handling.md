@@ -100,12 +100,12 @@ public Expression GetExpression(byte op, Instruction inst, ParameterExpression[]
 ## 使用
 
 ```csharp
-var runner = new FluxAssembler<float, SafeMathOp, SafeMathDef>(new SafeMathDef());
+var runner = new FluxAssembler<float, SafeMathDef>(new SafeMathDef());
 
 var formula = runner.Compile(new[]
 {
     // [a] / [b] + [c]
-    C(0f), Op(SafeMathOp.Div), C(0f), Op(SafeMathOp.Add), C(0f),
+    C(0f), Op((byte)SafeMathOp.Div), C(0f), Op((byte)SafeMathOp.Add), C(0f),
 });
 
 // 正常运行：10 / 2 + 3 = 8

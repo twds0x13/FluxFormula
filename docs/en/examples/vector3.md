@@ -127,15 +127,15 @@ public readonly struct Vector3Def : IFluxJITDefinition<Vector3f, Vector3Op>
 
 ```csharp
 var def    = new Vector3Def();
-var runner = new FluxAssembler<Vector3f, Vector3Op, Vector3Def>(def);
+var runner = new FluxAssembler<Vector3f, Vector3Def>(def);
 
 // Formula: P0 + V0 * t
 // Tokens: Const(P0), Const(V0), Scale, Add
 // P0 at slot 0, V0 at slot 1, scalar t injected at slot 2
-var formula = runner.Compile(new FluxToken<Vector3f, Vector3Op>[]
+var formula = runner.Compile(new FluxToken<Vector3f>[]
 {
-    new() { Oper = Vector3Op.Const, Data = new Vector3f(0f, 0f, 0f) },    // P0
-    new() { Oper = Vector3Op.Const, Data = new Vector3f(5f, 2f, 0f) },    // V0
+    new() { Oper = (byte)Vector3Op.Const, Data = new Vector3f(0f, 0f, 0f) },    // P0
+    new() { Oper = (byte)Vector3Op.Const, Data = new Vector3f(5f, 2f, 0f) },    // V0
     new() { Oper = Vector3Op.Scale },  // V0 * t
     new() { Oper = Vector3Op.Add },     // P0 + (V0 * t)
 });

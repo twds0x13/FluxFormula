@@ -92,20 +92,20 @@ public readonly struct DamageDef : IFluxJITDefinition<float, DamageOp>
 ## 使用
 
 ```csharp
-var config = new LexerConfig<float, DamageOp>
+var config = new LexerConfig<float>
 {
-    LiteralOper    = DamageOp.Const,
+    LiteralOper    = (byte)DamageOp.Const,
     LiteralParser  = s => float.Parse(s, CultureInfo.InvariantCulture),
-    Operators      = { new("+", DamageOp.Add), new("-", DamageOp.Sub),
-                       new("*", DamageOp.Mul), new("/", DamageOp.Div) },
-    Brackets       = { new("(", ")", DamageOp.LParen, DamageOp.RParen) },
+    Operators      = { new("+", (byte)DamageOp.Add), new("-", (byte)DamageOp.Sub),
+                       new("*", (byte)DamageOp.Mul), new("/", (byte)DamageOp.Div) },
+    Brackets       = { new("(", ")", (byte)DamageOp.LParen, (byte)DamageOp.RParen) },
     VariablePatterns = { new("[", "]") },
-    ImplicitOperators = { DamageOp.Mul },
+    ImplicitOperators = { (byte)DamageOp.Mul },
 };
 
 var def    = new DamageDef();
-var runner = new FluxAssembler<float, DamageOp, DamageDef>(def);
-var lexer  = new FluxLexer<float, DamageOp>(config);
+var runner = new FluxAssembler<float, DamageDef>(def);
+var lexer  = new FluxLexer<float>(config);
 
 // 编译一次，反复求值
 var formula = runner.Compile(lexer.Lex(

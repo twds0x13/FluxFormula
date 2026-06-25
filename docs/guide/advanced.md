@@ -42,7 +42,7 @@ restored.Set("input", 5f).Set("z", 3f).Run(); // 等价于 fB
 编译时通过 Lexer 定义变量模式，运行时按名称注入值。
 
 ```csharp
-var config = new LexerConfig<float, MathDef>
+var config = new LexerConfig<float>
 {
     LiteralOper = (byte)MathOp.Const,
     LiteralParser = s => float.Parse(s, CultureInfo.InvariantCulture),
@@ -51,7 +51,7 @@ var config = new LexerConfig<float, MathDef>
     ImplicitOperators = { (byte)MathOp.Mul },
 };
 
-var lexer = new FluxLexer<float, MathDef>(config);
+var lexer = new FluxLexer<float>(config);
 var lexResult = lexer.Lex("[atk] * 2 + [bonus]");
 
 var formula = runner.Compile(lexResult);

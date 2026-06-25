@@ -66,7 +66,7 @@ graph LR
 | [IFluxJITDefinition](./idefinition) | `<TData>` | 运算符定义接口（含 JIT 路径） |
 | [Instruction](./instruction) | — | 8 字节指令结构体 |
 | [FluxToken](./flux-token) | `<TData>` | 词法 Token（`Oper` 为 `byte`） |
-| `FluxLexer<TData, TDef>` | `<TData, TDef>` | 手写 Span 词法器 |
+| `FluxLexer<TData>` | `<TData>` | 手写 Span 词法器 |
 | `LexResult<TData>` | `<TData>` | Lexer 产出：Token 数组 + 变量名 |
 | `LexerConfig<TData>` | `<TData>` | Lexer 配置（运算符/括号/变量规则） |
 | `VariableSlot` | — | 变量名到槽位索引的映射 |

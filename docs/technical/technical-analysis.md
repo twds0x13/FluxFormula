@@ -199,14 +199,14 @@ if (!IsDefault(&regsPtr[0]))           // R0 非默认 → 短路返回
 
 **(b) 配置模型**:
 ```csharp
-public class LexerConfig<TData, TOper>
+public class LexerConfig<TData>
 {
-    public TOper LiteralOper;                          // 数字字面量对应操作符
-    public Func<string, TData> LiteralParser;          // 字面量→TData 解析函数
-    public List<OperatorRule<TOper>> Operators;        // 运算符符号列表
-    public List<BracketRule<TOper>> Brackets;          // 括号对列表
-    public List<TOper> ImplicitOperators;              // 隐式乘法操作符
-    public List<VariablePatternRule> VariablePatterns; // 变量模式
+    public byte LiteralOper;                              // 数字字面量对应操作码
+    public Func<string, TData> LiteralParser;             // 字面量→TData 解析函数
+    public List<OperatorRule> Operators;                  // 运算符符号列表
+    public List<BracketRule> Brackets;                    // 括号对列表
+    public List<byte> ImplicitOperators;                  // 隐式乘法操作码
+    public List<VariablePatternRule> VariablePatterns;    // 变量模式
 }
 ```
 

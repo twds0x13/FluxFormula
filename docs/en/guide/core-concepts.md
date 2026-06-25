@@ -14,7 +14,7 @@ graph LR
 
 ### Lexer
 
-`FluxLexer<TData, TDef>` parses string expressions into token streams. A hand-written `ReadOnlySpan<char>` scanner — zero regex, zero allocation.
+`FluxLexer<TData>` parses string expressions into token streams. A hand-written `ReadOnlySpan<char>` scanner — zero regex, zero allocation.
 
 Configuration:
 

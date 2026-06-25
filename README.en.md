@@ -141,7 +141,7 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
 }
 
 // 3. Configure Lexer, compile a formula, inject variables, execute
-var config = new LexerConfig<float, FloatOp>
+var config = new LexerConfig<float>
 {
     LiteralOper    = FloatOp.Const,
     LiteralParser  = s => float.Parse(s, CultureInfo.InvariantCulture),
@@ -153,8 +153,8 @@ var config = new LexerConfig<float, FloatOp>
 };
 
 var def    = new FloatMathDef();
-var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(def);
-var lexResult = new FluxLexer<float, FloatOp>(config).Lex("([atk] * 2 + [bonus]) / 100");
+var runner = new FluxAssembler<float, FloatMathDef>(def);
+var lexResult = new FluxLexer<float>(config).Lex("([atk] * 2 + [bonus]) / 100");
 
 float result = runner.Instantiate(runner.Compile(lexResult))
     .Set("atk", 150f)

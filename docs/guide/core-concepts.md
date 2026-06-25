@@ -14,7 +14,7 @@ graph LR
 
 ### Lexer（词法分析）
 
-`FluxLexer<TData, TDef>` 将字符串表达式解析为 Token 流。手写 `ReadOnlySpan<char>` 扫描器，零 Regex，零分配。
+`FluxLexer<TData>` 将字符串表达式解析为 Token 流。手写 `ReadOnlySpan<char>` 扫描器，零 Regex，零分配。
 
 配置项：
 
