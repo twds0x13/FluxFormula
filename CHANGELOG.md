@@ -1,3 +1,10 @@
+## [3.0.3](https://github.com/twds0x13/FluxFormula/compare/v3.0.2...v3.0.3) (2026-06-25)
+
+
+### Bug Fixes
+
+* replace all remaining sequential GUIDs with random GUIDs across fluxformula, addressables, and core packages ([b9d7f94](https://github.com/twds0x13/FluxFormula/commit/b9d7f94a86b88c8f9c3fa455e270eaf0a0723611))
+
 ## [3.0.2](https://github.com/twds0x13/FluxFormula/compare/v3.0.1...v3.0.2) (2026-06-25)
 
 
