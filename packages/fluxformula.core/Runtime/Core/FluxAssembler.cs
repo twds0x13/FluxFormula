@@ -175,6 +175,9 @@ namespace FluxFormula.Core
                     var delegateHandle = System.Runtime.InteropServices.GCHandle.Alloc(func);
                     cache.PutDelegate(hash, System.Runtime.InteropServices.GCHandle.ToIntPtr(delegateHandle));
 
+                    // ── 同时缓存字节码，使解释器路径也能享受缓存加速 ──
+                    cache.PutBytes(hash, formula.ToBytes());
+
                     var injector = new FluxInjector<TData>(payload, null, formula.VariableSlots);
                     return new FluxInstance<TData, TDef>(
                         _definition,
@@ -189,8 +192,9 @@ namespace FluxFormula.Core
                     || ex is NotSupportedException
                     || ex is InvalidOperationException)
                 {
-                    // IL2CPP / AOT 平台不支持 Expression.Compile()
-                    FluxPlatform.DisableJit();
+                    // IL2CPP / AOT 平台不支持 Expression.Compile()，或 Expression Tree
+                    // 无法编译特定值类型（如显式布局 struct）——降级到解释器
+                    FluxPlatform.DisableJit(ex.Message);
                 }
             }
 
@@ -352,6 +356,8 @@ namespace FluxFormula.Core
                             maxRegister: linkFormula.MaxRegister);
                         var handle = System.Runtime.InteropServices.GCHandle.Alloc(func);
                         cache.PutDelegate(hash, System.Runtime.InteropServices.GCHandle.ToIntPtr(handle));
+                        // 同时缓存字节码
+                        cache.PutBytes(hash, linkFormula.ToBytes());
                         funcs[i] = func;
                         injectors[i] = new FluxInjector<TData>(payload, null, linkFormula.VariableSlots);
                     }
@@ -360,7 +366,7 @@ namespace FluxFormula.Core
                         || ex is NotSupportedException
                         || ex is InvalidOperationException)
                     {
-                        FluxPlatform.DisableJit();
+                        FluxPlatform.DisableJit(ex.Message);
                         // 降级：合并为原子公式走解释器
                         return Instantiate(formula.ToAtomic(), jit: false);
                     }

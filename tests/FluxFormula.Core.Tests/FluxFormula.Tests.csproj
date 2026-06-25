@@ -61,6 +61,7 @@
     <Compile Include="VffFormatTests.cs" />           <!-- VffFormat 完整测试 -->
     <Compile Include="FileFluxFileFormatterTests.cs" /> <!-- FileFluxFileFormatter -->
     <Compile Include="FluxCompressionTests.cs" />       <!-- FluxCompression -->
+    <Compile Include="FecExplicitStructTests.cs" />       <!-- FEC × Explicit struct -->
   </ItemGroup>
 
   <ItemGroup>

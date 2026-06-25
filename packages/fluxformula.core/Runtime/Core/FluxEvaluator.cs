@@ -19,9 +19,31 @@ namespace FluxFormula.Core
         public static bool IsJitDisabled => _jitDisabled;
 
         /// <summary>
-        /// 标记 JIT 不可用，之后同进程内不再尝试
+        /// JIT 降级时触发。参数为异常消息。Unity 端可订阅以输出 <c>Debug.LogWarning</c>。
+        /// Core 包无 UnityEngine 引用，故此事件保持纯 System.Action。
         /// </summary>
-        public static void DisableJit() => _jitDisabled = true;
+        public static event Action<string> OnJitDisabled;
+
+        /// <summary>
+        /// 标记 JIT 不可用，之后同进程内不再尝试。
+        /// 调用前会触发 <see cref="OnJitDisabled"/> 事件携带原因。
+        /// </summary>
+        public static void DisableJit(string reason = null)
+        {
+            if (_jitDisabled) return;
+            _jitDisabled = true;
+            if (reason != null)
+                OnJitDisabled?.Invoke(reason);
+        }
+
+        /// <summary>
+        /// 重置 JIT 禁用标志（仅测试用）。
+        /// 生产环境中不应调用——一旦探测到平台不支持 JIT，应保持禁用。
+        /// </summary>
+        public static void ResetJit()
+        {
+            _jitDisabled = false;
+        }
     }
 
     internal readonly unsafe ref struct FluxEvaluator<TData, TDef>

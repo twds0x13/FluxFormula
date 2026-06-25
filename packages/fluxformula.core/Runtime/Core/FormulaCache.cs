@@ -36,6 +36,12 @@ namespace FluxFormula.Core
         /// <summary>JIT delegate 缓存槽位标记</summary>
         private const int DelegateSlot = -2;
 
+        /// <summary>
+        /// Delegate 条目键空间分离哨兵：XOR xxHash 使 delegate 与 bytecode 条目
+        /// 在同一公式哈希下占用不同槽位，避免 PutBytes 覆盖 PutDelegate。
+        /// </summary>
+        private const ulong DelegateKeySentinel = 0xA3C8F159D6B7E024;
+
         // ═══════════════════════════════════════════════════════
         // 存储
         // ═══════════════════════════════════════════════════════
@@ -61,6 +67,13 @@ namespace FluxFormula.Core
         /// </summary>
         private readonly int[] _valueLengths;
 
+        /// <summary>
+        /// 字节码自有内存的 GCHandle。
+        /// 仅当条目由 <see cref="PutBytes"/> 写入时非 Zero——此时缓存拥有该内存，
+        /// 驱逐/覆盖/压缩时需释放 GCHandle。blob 路径和 delegate 条目的此槽位恒为 Zero。
+        /// </summary>
+        private readonly IntPtr[] _gcHandles;
+
         /// <summary>当前存活条目数（不含墓碑）</summary>
         private int _count;
 
@@ -84,6 +97,7 @@ namespace FluxFormula.Core
             _fnvHashKeys  = new ulong[Capacity];
             _valuePtrs    = new IntPtr[Capacity];
             _valueLengths = new int[Capacity];
+            _gcHandles    = new IntPtr[Capacity];
 
             for (int i = 0; i < Capacity; i++)
                 _valueLengths[i] = Empty;
@@ -162,10 +176,10 @@ namespace FluxFormula.Core
             int existingSlot = FindSlot(key);
             if (existingSlot >= 0)
             {
-                _valuePtrs[existingSlot]    = ptr;
-                _valueLengths[existingSlot] = length;
-                _xxHashKeys[existingSlot]   = key.XxHash64;
-                _fnvHashKeys[existingSlot]  = key.FnvHash64;
+                // 若旧条目持有自有内存（PutBytes 写入的），先释放
+                if (_valueLengths[existingSlot] >= 0 && _gcHandles[existingSlot] != IntPtr.Zero)
+                    FreeGCHandle(_gcHandles[existingSlot]);
+                WriteSlot(existingSlot, key, ptr, length, IntPtr.Zero);
                 return;
             }
 
@@ -221,12 +235,53 @@ namespace FluxFormula.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void WriteSlot(int slot, DualHash64 key, IntPtr ptr, int length)
+        private void WriteSlot(int slot, DualHash64 key, IntPtr ptr, int length, IntPtr gcHandle = default)
         {
             _xxHashKeys[slot]   = key.XxHash64;
             _fnvHashKeys[slot]  = key.FnvHash64;
             _valuePtrs[slot]    = ptr;
             _valueLengths[slot] = length;
+            _gcHandles[slot]    = gcHandle;
+        }
+
+        /// <summary>
+        /// 将字节数组钉住（pinned）后写入缓存。缓存获取该内存的所有权——
+        /// 驱逐、覆盖或压缩时自动释放 GCHandle。
+        /// 调用方无需保留对数组的引用。
+        /// </summary>
+        public void PutBytes(DualHash64 key, byte[] bytes)
+        {
+            var handle = System.Runtime.InteropServices.GCHandle.Alloc(
+                bytes, System.Runtime.InteropServices.GCHandleType.Pinned);
+            IntPtr ptr = handle.AddrOfPinnedObject();
+            IntPtr gcHandle = System.Runtime.InteropServices.GCHandle.ToIntPtr(handle);
+
+            // 已存在 → 原地更新，先释放旧值
+            int existingSlot = FindSlot(key);
+            if (existingSlot >= 0)
+            {
+                if (_valueLengths[existingSlot] == DelegateSlot)
+                    FreeGCHandle(_valuePtrs[existingSlot]);
+                else if (_valueLengths[existingSlot] >= 0 && _gcHandles[existingSlot] != IntPtr.Zero)
+                    FreeGCHandle(_gcHandles[existingSlot]);
+                WriteSlot(existingSlot, key, ptr, bytes.Length, gcHandle);
+                return;
+            }
+
+            // 找插入位置
+            int insertSlot = FindInsertSlot(key.XxHash64);
+
+            if (insertSlot >= 0)
+            {
+                bool wasTombstone = _valueLengths[insertSlot] == Tombstone;
+                WriteSlot(insertSlot, key, ptr, bytes.Length, gcHandle);
+                if (!wasTombstone) _count++;
+                else               _tombstoneCount--;
+            }
+            else
+            {
+                EvictAndWrite(key, ptr, bytes.Length, gcHandle);
+            }
         }
 
         // ═══════════════════════════════════════════════════════
@@ -236,7 +291,9 @@ namespace FluxFormula.Core
         /// <inheritdoc cref="IFluxCacheProvider.TryGetDelegate"/>
         public bool TryGetDelegate(DualHash64 key, out IntPtr gcHandle)
         {
-            int slot = FindSlot(key);
+            // Delegate 条目使用独立键空间，避免与 bytecode 条目冲突
+            var delegateKey = MakeDelegateKey(key);
+            int slot = FindSlot(delegateKey);
 
             if (slot >= 0 && _valueLengths[slot] == DelegateSlot)
             {
@@ -253,31 +310,49 @@ namespace FluxFormula.Core
         /// <inheritdoc cref="IFluxCacheProvider.PutDelegate"/>
         public void PutDelegate(DualHash64 key, IntPtr gcHandle)
         {
+            // Delegate 条目使用独立键空间，避免与 bytecode 条目冲突
+            var delegateKey = MakeDelegateKey(key);
+
             // 已存在 → 原地更新，先释放旧的 GCHandle
-            int existingSlot = FindSlot(key);
+            int existingSlot = FindSlot(delegateKey);
             if (existingSlot >= 0)
             {
                 if (_valueLengths[existingSlot] == DelegateSlot)
                     FreeGCHandle(_valuePtrs[existingSlot]);
+                else if (_valueLengths[existingSlot] >= 0 && _gcHandles[existingSlot] != IntPtr.Zero)
+                    FreeGCHandle(_gcHandles[existingSlot]);
 
-                WriteSlot(existingSlot, key, gcHandle, DelegateSlot);
+                WriteSlot(existingSlot, delegateKey, gcHandle, DelegateSlot);
                 return;
             }
 
             // 找插入位置
-            int insertSlot = FindInsertSlot(key.XxHash64);
+            int insertSlot = FindInsertSlot(delegateKey.XxHash64);
 
             if (insertSlot >= 0)
             {
                 bool wasTombstone = _valueLengths[insertSlot] == Tombstone;
-                WriteSlot(insertSlot, key, gcHandle, DelegateSlot);
+                WriteSlot(insertSlot, delegateKey, gcHandle, DelegateSlot);
                 if (!wasTombstone) _count++;
                 else               _tombstoneCount--;
             }
             else
             {
-                EvictAndWrite(key, gcHandle, DelegateSlot);
+                EvictAndWrite(delegateKey, gcHandle, DelegateSlot);
             }
+        }
+
+        /// <summary>
+        /// 将公式字节码哈希映射到 delegate 独立键空间：XOR 两个分量。
+        /// 调用方仍传入原始 DualHash64——此方法在内部做变换，
+        /// 使 delegate 与 bytecode（同公式哈希）占用不同槽位。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static DualHash64 MakeDelegateKey(DualHash64 formulaKey)
+        {
+            return new DualHash64(
+                formulaKey.XxHash64 ^ DelegateKeySentinel,
+                formulaKey.FnvHash64 ^ DelegateKeySentinel);
         }
 
         // ═══════════════════════════════════════════════════════
@@ -307,7 +382,7 @@ namespace FluxFormula.Core
         /// 环形驱逐写入：覆盖 _ringHead 槽位，标记旧条目为墓碑后前移。
         /// 然后对受影响探测链做后向移位修复。
         /// </summary>
-        private void EvictAndWrite(DualHash64 key, IntPtr ptr, int length)
+        private void EvictAndWrite(DualHash64 key, IntPtr ptr, int length, IntPtr gcHandle = default)
         {
             int victim = _ringHead;
             _ringHead  = (_ringHead + 1) % Capacity;
@@ -316,6 +391,10 @@ namespace FluxFormula.Core
             int oldState = _valueLengths[victim];
             if (oldState >= 0)
             {
+                // 若为自有内存（PutBytes 写入），释放 GCHandle
+                if (_gcHandles[victim] != IntPtr.Zero)
+                    FreeGCHandle(_gcHandles[victim]);
+                _gcHandles[victim]    = IntPtr.Zero;
                 _valueLengths[victim] = Tombstone;
                 _tombstoneCount++;
                 _count--;
@@ -330,7 +409,7 @@ namespace FluxFormula.Core
             // 若 victim 原本就是墓碑或空——直接覆盖，不需额外操作
 
             // 写入新值
-            WriteSlot(victim, key, ptr, length);
+            WriteSlot(victim, key, ptr, length, gcHandle);
             _count++;
 
             // 墓碑过多时全量压缩
@@ -345,9 +424,10 @@ namespace FluxFormula.Core
         private void Compact()
         {
             // 收集所有存活条目
-            var liveKeys  = new (ulong xx, ulong fnv)[_count];
-            var livePtrs  = new IntPtr[_count];
-            var liveLens  = new int[_count];
+            var liveKeys    = new (ulong xx, ulong fnv)[_count];
+            var livePtrs    = new IntPtr[_count];
+            var liveLens    = new int[_count];
+            var liveHandles = new IntPtr[_count];
             int idx = 0;
 
             for (int i = 0; i < Capacity; i++)
@@ -355,9 +435,10 @@ namespace FluxFormula.Core
                 int state = _valueLengths[i];
                 if (state >= 0 || state == DelegateSlot) // 存活条目（字节码 或 delegate）
                 {
-                    liveKeys[idx]  = (_xxHashKeys[i], _fnvHashKeys[i]);
-                    livePtrs[idx]  = _valuePtrs[i];
-                    liveLens[idx]  = state;
+                    liveKeys[idx]    = (_xxHashKeys[i], _fnvHashKeys[i]);
+                    livePtrs[idx]    = _valuePtrs[i];
+                    liveLens[idx]    = state;
+                    liveHandles[idx] = _gcHandles[i];
                     idx++;
                 }
                 else if (state == Tombstone)
@@ -373,6 +454,7 @@ namespace FluxFormula.Core
                 _xxHashKeys[i]   = 0;
                 _fnvHashKeys[i]  = 0;
                 _valuePtrs[i]    = IntPtr.Zero;
+                _gcHandles[i]    = IntPtr.Zero;
             }
 
             _tombstoneCount = 0;
@@ -384,7 +466,7 @@ namespace FluxFormula.Core
                 var k = new DualHash64(liveKeys[i].xx, liveKeys[i].fnv);
                 int insertSlot = FindInsertSlot(k.XxHash64);
                 // 此时全表只有 Empty，FindInsertSlot 必定返回有效 slot
-                WriteSlot(insertSlot, k, livePtrs[i], liveLens[i]);
+                WriteSlot(insertSlot, k, livePtrs[i], liveLens[i], liveHandles[i]);
                 _count++;
             }
         }

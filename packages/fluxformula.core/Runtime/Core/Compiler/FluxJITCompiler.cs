@@ -16,6 +16,24 @@ namespace FluxFormula.Compiler
     {
         public delegate TData CompiledFunc(Instruction[] dataBuffer);
 
+        /// <summary>
+        /// <see cref="IsDefault"/> 的 MethodInfo 缓存——在 Expression 树中调用，
+        /// 避免 <c>Expression.Equal</c> 对无 <c>op_Equality</c> 的自定义 TData 抛出。
+        /// </summary>
+        private static readonly System.Reflection.MethodInfo _isDefaultMethod =
+            typeof(FluxJITCompiler<TData, TDef>).GetMethod(
+                nameof(IsDefault),
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        /// <summary>
+        /// 使用 <see cref="System.Collections.Generic.EqualityComparer{T}"/>.Default 比较，
+        /// 兼容无 <c>==</c>/<c>!=</c> 运算符的自定义值类型（TData : unmanaged）。
+        /// </summary>
+        private static bool IsDefault(TData value)
+        {
+            return System.Collections.Generic.EqualityComparer<TData>.Default.Equals(value, default);
+        }
+
         public static CompiledFunc Compile(
             ReadOnlySpan<Instruction> raw,
             TDef definition,
@@ -79,9 +97,6 @@ namespace FluxFormula.Compiler
                 BindingFlags.NonPublic | BindingFlags.Static
             );
 
-            TData zeroValue = default;
-            var defaultTDataExpr = Expression.Constant(zeroValue, typeof(TData));
-
             for (int ip = 0; ip < raw.Length; ip++)
             {
                 var inst = raw[ip];
@@ -110,17 +125,22 @@ namespace FluxFormula.Compiler
                     var operExpr = definition.GetExpression(inst.OpCode, inst, regs);
                     body.Add(Expression.Assign(regs[inst.Dest], operExpr));
 
+                    // Expression.Equal/NotEqual 要求 TData 定义 op_Equality/op_Inequality；
+                    // 对无运算符的自定义值类型，使用 EqualityComparer<T>.Default.Equals 代替。
                     body.Add(
                         Expression.IfThen(
-                            Expression.NotEqual(regs[Registers.Error], defaultTDataExpr),
+                            Expression.Not(Expression.Call(
+                                _isDefaultMethod, regs[Registers.Error])),
                             Expression.Return(returnTarget, regs[Registers.Error])
                         )
                     );
                 }
                 else if (kind == OpType.Return)
                 {
+                    Expression hasError = Expression.Not(
+                        Expression.Call(_isDefaultMethod, regs[Registers.Error]));
                     var resultExpr = Expression.Condition(
-                        Expression.NotEqual(regs[Registers.Error], defaultTDataExpr),
+                        hasError,
                         regs[Registers.Error],
                         regs[inst.Dest]
                     );
