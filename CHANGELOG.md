@@ -1,3 +1,10 @@
+## [3.1.1](https://github.com/twds0x13/FluxFormula/compare/v3.1.0...v3.1.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* JIT path bytecode caching + Expression.Equal compatibility for custom TData ([e63ed22](https://github.com/twds0x13/FluxFormula/commit/e63ed22629384881de3a6113bb71377e5d1cf9f7))
+
 # [3.1.0](https://github.com/twds0x13/FluxFormula/compare/v3.0.3...v3.1.0) (2026-06-25)
 
 
