@@ -59,6 +59,19 @@ namespace FluxFormula.Core
     }
 
     // ================================================================
+    // 委托
+    // ================================================================
+
+    /// <summary>
+    /// 字面量扫描器委托。尝试从源码指定位置开始扫描一个字面量（数字、标识符等）。
+    /// </summary>
+    /// <param name="src">源码跨度</param>
+    /// <param name="pos">扫描起始位置</param>
+    /// <param name="value">命中时为解析后的 TData 值；未命中为 default</param>
+    /// <returns>命中时返回扫描结束位置（&gt;pos）；未命中返回 pos</returns>
+    public delegate int LiteralScanner<TData>(ReadOnlySpan<char> src, int pos, out TData value);
+
+    // ================================================================
     // 词法配置
     // ================================================================
 
@@ -70,6 +83,10 @@ namespace FluxFormula.Core
         where TData : unmanaged
     {
         /// <summary>字面量（数字/标识符）匹配正则，如 @"\d+(\.\d+)?f?"</summary>
+        /// <remarks>
+        /// 此字段仅为文档参考。实际扫描行为由 <see cref="LiteralScanner"/> 控制——
+        /// 未设置时使用内置的默认数字扫描器（等价于 <c>\d+(\.\d+)?[fF]?</c> + <see cref="LiteralParser"/>）。
+        /// </remarks>
         public string LiteralPattern = @"\d+(\.\d+)?f?";
 
         /// <summary>字面量对应的操作码（如 FloatOp.Const）</summary>
@@ -77,6 +94,64 @@ namespace FluxFormula.Core
 
         /// <summary>字面量字符串 → TData 转换函数</summary>
         public Func<string, TData> LiteralParser = _ => default;
+
+        /// <summary>
+        /// 自定义字面量扫描器。设置后替代内置的数字扫描器。
+        /// 未设置（null）时回退到 <see cref="CreateDefaultNumberScanner"/>。
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// // 十六进制整数扫描器
+        /// config.LiteralScanner = (src, pos, out value) => {
+        ///     value = default;
+        ///     if (pos + 2 >= src.Length || src[pos] != '0' || src[pos+1] != 'x') return pos;
+        ///     int end = pos + 2;
+        ///     while (end < src.Length && IsHex(src[end])) end++;
+        ///     if (end == pos + 2) return pos;
+        ///     value = (TData)(object)Convert.ToInt32(src.Slice(pos, end-pos).ToString(), 16);
+        ///     return end;
+        /// };
+        /// </code>
+        /// </example>
+        public LiteralScanner<TData> LiteralScanner;
+
+        /// <summary>
+        /// 创建内置默认数字扫描器：匹配 <c>\d+(\.\d+)?[fF]?</c> 格式，通过 <paramref name="parser"/> 转换。
+        /// 等价于设置 <see cref="LiteralScanner"/> 为此返回值。
+        /// </summary>
+        public static LiteralScanner<TData> CreateDefaultNumberScanner(Func<string, TData> parser)
+        {
+            return (ReadOnlySpan<char> src, int pos, out TData value) =>
+            {
+                value = default;
+                if (pos >= src.Length) return pos;
+
+                char c = src[pos];
+                if (!char.IsDigit(c)) return pos;
+
+                int start = pos;
+
+                // 整数部分
+                while (pos < src.Length && char.IsDigit(src[pos])) pos++;
+
+                // 可选小数部分
+                if (pos < src.Length && src[pos] == '.')
+                {
+                    pos++;
+                    while (pos < src.Length && char.IsDigit(src[pos])) pos++;
+                }
+
+                // 必须有至少一个数字
+                if (pos == start) return start;
+
+                // 可选 'f' / 'F' 后缀
+                if (pos < src.Length && (src[pos] == 'f' || src[pos] == 'F'))
+                    pos++;
+
+                value = parser(src.Slice(start, pos - start).ToString());
+                return pos;
+            };
+        }
 
         /// <summary>空白/注释正则（匹配的内容被跳过）</summary>
         public string WhitespacePattern = @"\s+";
@@ -129,6 +204,7 @@ namespace FluxFormula.Core
         where TData : unmanaged
     {
         private readonly LexerConfig<TData> _config;
+        private readonly LiteralScanner<TData> _literalScanner;
         // 预索引数组 — 手写扫描器直接遍历，零字典查找，零堆分配集合
         private readonly VariablePatternRule[] _varRules;
         private readonly string[] _opSymbols;
@@ -143,6 +219,10 @@ namespace FluxFormula.Core
             if (config.LiteralParser == null)
                 throw new ArgumentException(
                     "LexerConfig.LiteralParser must be set.");
+
+            // 用户自定义扫描器优先，否则回退到内置数字扫描器
+            _literalScanner = config.LiteralScanner
+                ?? LexerConfig<TData>.CreateDefaultNumberScanner(config.LiteralParser);
 
             // ── 变量模式 ──
             _varRules = config.VariablePatterns.ToArray();
@@ -292,39 +372,13 @@ namespace FluxFormula.Core
 
         // ── 扫描辅助方法 ────────────────────────────
 
-        /// <summary>尝试匹配一个字面量（整数或浮点数，可选 f 后缀）</summary>
+        /// <summary>
+        /// 尝试匹配一个字面量。优先使用 <see cref="LexerConfig{TData}.LiteralScanner"/>，
+        /// 未设置时回退到内置默认数字扫描器（<c>\d+(\.\d+)?[fF]?</c>）。
+        /// </summary>
         private int TryScanLiteral(ReadOnlySpan<char> src, int pos, out TData value)
         {
-            value = default;
-            if (pos >= src.Length) return pos;
-
-            char c = src[pos];
-            if (!char.IsDigit(c)) return pos;
-
-            int start = pos;
-            bool hasDot = false;
-
-            // 整数部分
-            while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-
-            // 可选小数部分
-            if (pos < src.Length && src[pos] == '.')
-            {
-                hasDot = true;
-                pos++; // skip '.'
-                while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-            }
-
-            // 必须有至少一个数字（单独 '.' 不是字面量）
-            if (pos == start || (hasDot && pos == start + 1 && !char.IsDigit(src[start])))
-                return start;
-
-            // 可选 'f' 后缀
-            if (pos < src.Length && (src[pos] == 'f' || src[pos] == 'F'))
-                pos++;
-
-            value = _config.LiteralParser(src.Slice(start, pos - start).ToString());
-            return pos;
+            return _literalScanner(src, pos, out value);
         }
 
         /// <summary>尝试匹配一个变量模式</summary>
