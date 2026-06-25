@@ -1,3 +1,10 @@
+# [3.1.0](https://github.com/twds0x13/FluxFormula/compare/v3.0.3...v3.1.0) (2026-06-25)
+
+
+### Features
+
+* add FluxCompression — Brotli-based blob compression layer ([d052536](https://github.com/twds0x13/FluxFormula/commit/d052536141cec013d3ef2bb2e559bfa9f49bcf68))
+
 ## [3.0.3](https://github.com/twds0x13/FluxFormula/compare/v3.0.2...v3.0.3) (2026-06-25)
 
 
