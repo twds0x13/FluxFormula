@@ -1,3 +1,10 @@
+## [3.0.2](https://github.com/twds0x13/FluxFormula/compare/v3.0.1...v3.0.2) (2026-06-25)
+
+
+### Bug Fixes
+
+* replace hand-crafted sequential GUIDs with valid random GUIDs, add missing .meta for README/LICENSE ([afbd4e4](https://github.com/twds0x13/FluxFormula/commit/afbd4e479e5e5ce9bf86d89cac8b6af22e9ccb0a))
+
 ## [3.0.1](https://github.com/twds0x13/FluxFormula/compare/v3.0.0...v3.0.1) (2026-06-25)
 
 ### Bug Fixes
