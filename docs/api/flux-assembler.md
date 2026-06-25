@@ -5,11 +5,12 @@
 ## 签名
 
 ```csharp
-public readonly unsafe ref struct FluxAssembler<TData, TOper, TDef>
+public readonly unsafe ref struct FluxAssembler<TData, TDef>
     where TData : unmanaged
-    where TOper : unmanaged, Enum
-    where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+    where TDef : unmanaged, IFluxJITDefinition<TData>
 ```
+
+两个泛型参数：数据类型 `TData` + 定义体 `TDef`。v3.0.0 移除了 `TOper` 泛型参数：操作符枚举变为定义体的内部实现细节，框架层面仅见 `byte`。
 
 ## 构造
 
@@ -24,7 +25,7 @@ public FluxAssembler(TDef definition)
 ### Compile（Lexer 路径）
 
 ```csharp
-public FluxFormula<TData, TOper> Compile(LexResult<TData, TOper> lexResult)
+public FluxFormula<TData, TDef> Compile(LexResult<TData> lexResult)
 ```
 
 接受 `FluxLexer.Lex()` 返回的 `LexResult`，直接编译为字节码。LexResult 携带 Token 数组和变量名信息，Compile 将变量名写入 `FluxFormula.VariableSlots`。
@@ -32,8 +33,8 @@ public FluxFormula<TData, TOper> Compile(LexResult<TData, TOper> lexResult)
 ### Compile（Token 路径）
 
 ```csharp
-public FluxFormula<TData, TOper> Compile(
-    ReadOnlySpan<FluxToken<TData, TOper>> tokens,
+public FluxFormula<TData, TDef> Compile(
+    ReadOnlySpan<FluxToken<TData>> tokens,
     string[] varNames = null)
 ```
 
@@ -42,8 +43,8 @@ public FluxFormula<TData, TOper> Compile(
 ### Instantiate
 
 ```csharp
-public FluxInstance<TData, TOper, TDef> Instantiate(
-    FluxFormula<TData, TOper> formula,
+public FluxInstance<TData, TDef> Instantiate(
+    FluxFormula<TData, TDef> formula,
     bool jit = false)
 ```
 
@@ -55,28 +56,35 @@ public FluxInstance<TData, TOper, TDef> Instantiate(
 ### Build
 
 ```csharp
-public FluxInstance<TData, TOper, TDef> Build(
-    ReadOnlySpan<FluxToken<TData, TOper>> tokens,
+public FluxInstance<TData, TDef> Build(
+    ReadOnlySpan<FluxToken<TData>> tokens,
     bool jit = false)
 ```
 
 `Compile()` + `Instantiate()` 合并调用。适用于一次性公式，无需缓存。
 
 ```csharp
-var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(def);
+var runner = new FluxAssembler<float, MathDef>(def);
 float r = runner.Build(tokens, jit: true).Run();
 ```
 
 ## 公式类型判定
 
-`Compile()` 检查首 Token 判定 `Formula` 或 `Modifier`：
+`Compile()` 检查首 Token 判定 `Formula` 或 `Modifier`（内部 `FluxType` 枚举，v3.0.0 改为 `internal`；外部通过 `FluxFormula` / `FluxModifier` 类型区分）：
 
-| 首 Token | FluxType |
-|----------|----------|
-| Immediate（如 Const） | `Formula` |
-| 一元前缀运算符（arity=1） | `Formula` |
-| 左括号（PairRole=Left） | `Formula` |
-| 二元运算符（arity≥2 且非括号） | `Modifier` |
+| 首 Token | 产出的外部类型 |
+|----------|---------------|
+| Immediate（如 Const） | `FluxFormula<TData, TDef>` |
+| 一元前缀运算符（arity=1） | `FluxFormula<TData, TDef>` |
+| 左括号（PairRole=Left） | `FluxFormula<TData, TDef>` |
+| 二元运算符（arity≥2 且非括号） | `FluxModifier<TData, TDef>` |
+
+## v3.0.0 变更
+
+- `FluxAssembler<TData, TOper, TDef>` → `FluxAssembler<TData, TDef>`（三参数→两参数）
+- `LexResult<TData, TOper>` → `LexResult<TData>`
+- `FluxToken<TData, TOper>` → `FluxToken<TData>`（`Oper` 字段变为 `byte`）
+- 编译期跨定义类型安全检查：`FluxFormula<float, MathDef>` 和 `FluxFormula<float, GameDef>` 为不同编译器类型，误连编译不过
 
 ## 参见
 

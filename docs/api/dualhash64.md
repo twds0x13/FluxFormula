@@ -25,7 +25,7 @@ public readonly struct DualHash64 : IEquatable<DualHash64>
 public DualHash64(ulong xxHash64, ulong fnvHash64)
 ```
 
-通常不直接调用——使用静态工厂方法 `Compute` / `ComputeSeeded` / `Combine`。
+通常不直接调用；使用静态工厂方法 `Compute` / `ComputeSeeded` / `Combine`。
 
 ## 静态方法
 
@@ -51,7 +51,7 @@ public static DualHash64 ComputeSeeded(ReadOnlySpan<byte> data, ulong xxhSeed)
 public static DualHash64 Combine(DualHash64 accumulated, DualHash64 next)
 ```
 
-累进组合 hash——为 Connect 链路 key 计算设计。顺序敏感：`Combine(a, Combine(b, c)) ≠ Combine(b, Combine(a, c))`。O(1) 时间，不需要重新扫描字节码。
+累进组合 hash，为 Connect 链路 key 计算设计。顺序敏感：`Combine(a, Combine(b, c)) ≠ Combine(b, Combine(a, c))`。O(1) 时间，不需要重新扫描字节码。
 
 ### Parse
 

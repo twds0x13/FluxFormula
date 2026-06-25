@@ -5,26 +5,27 @@
 ## 签名
 
 ```csharp
-public struct FluxToken<TData, TOper>
+public struct FluxToken<TData>
     where TData : unmanaged
-    where TOper : unmanaged, Enum
 ```
+
+v3.0.0 移除了 `TOper` 泛型参数：操作符枚举是定义体的内部细节，Token 仅存储 `byte` 操作码。
 
 ## 字段
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `Oper` | `TOper` | 操作符枚举值 |
+| `Oper` | `byte` | 操作码（由定义体的 `ResolveToken()` 产出） |
 | `Data` | `TData` | 数据值（仅对 Immediate 类 Token 有效） |
 
 ## 使用示例
 
 ```csharp
-// 构造立即数 Token
-new FluxToken<float, FloatOp> { Oper = FloatOp.Const, Data = 3.14f };
+// 构造立即数 Token：Oper 由定义体定义
+new FluxToken<float> { Oper = (byte)MathOp.Const, Data = 3.14f };
 
 // 构造运算符 Token
-new FluxToken<float, FloatOp> { Oper = FloatOp.Add };
+new FluxToken<float> { Oper = (byte)MathOp.Add };
 // Data 为 default(float) = 0f，无实际意义
 ```
 
@@ -34,7 +35,13 @@ new FluxToken<float, FloatOp> { Oper = FloatOp.Add };
 - **Operator Token**：`Oper` 对应的 `GetKind()` 返回 `OpType.Instruction`，`Data` 忽略
 - **括号 Token**：`Oper` 对应的 `GetPair()` 返回 `PairRole = Left/Right`
 
+## v3.0.0 变更
+
+- `FluxToken<TData, TOper>` → `FluxToken<TData>`（两参数→一参数）
+- `Oper` 字段：`TOper` → `byte`
+- 不再需要 `where TOper : unmanaged, Enum` 约束
+
 ## 参见
 
-- [IDefinition](./idefinition) — Token 的 Oper 枚举与运算符定义
+- [IDefinition](./idefinition) — Token 的 Oper 字节码由定义体产出
 - [FluxAssembler](./flux-assembler) — Token 数组的编译入口

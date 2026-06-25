@@ -16,7 +16,7 @@ public enum FluxArtifactKind : byte
 
 | Value | Name | Extension | Description |
 |------|------|------|------|
-| `0` | `Formula` | `.ff` | Formula bytecode — product of `FluxFormula<TData, TOper>.ToBytes()` |
+| `0` | `Formula` | `.ff` | Formula bytecode — product of `FluxFormula<TData, TDef>.ToBytes()` |
 | `1` | `Virtual` | `.vff` | Virtual formula reference — product of `VffFormat.ToBytes()` |
 
 ## Usage

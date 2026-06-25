@@ -25,7 +25,7 @@ public struct Instruction
 ## 为什么选择 8 字节？
 
 ```
-1B OpCode + 1B Dest + 6×1B Args = 8 bytes ─── 完美对齐到 64 位字
+1B OpCode + 1B Dest + 6×1B Args = 8 bytes ─── 精确对齐到 64 位字
 ```
 
 - **缓存友好**：8 字节是 x86-64 的 L1 缓存行（64B）的整数因子。一条缓存行恰好容纳 8 条指令。

@@ -33,13 +33,13 @@ Return:     返回 reg[dest]             → registers[inst.Dest]
 ```csharp
 public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] registers)
 {
-    return ((FloatOp)op) switch
+    return ((MathOp)op) switch
     {
-        FloatOp.Add => Expression.Add(registers[inst.Arg0], registers[inst.Arg1]),
-        FloatOp.Sub => Expression.Subtract(registers[inst.Arg0], registers[inst.Arg1]),
-        FloatOp.Mul => Expression.Multiply(registers[inst.Arg0], registers[inst.Arg1]),
-        FloatOp.Div => Expression.Divide(registers[inst.Arg0], registers[inst.Arg1]),
-        FloatOp.Neg => Expression.Negate(registers[inst.Arg0]),
+        MathOp.Add => Expression.Add(registers[inst.Arg0], registers[inst.Arg1]),
+        MathOp.Sub => Expression.Subtract(registers[inst.Arg0], registers[inst.Arg1]),
+        MathOp.Mul => Expression.Multiply(registers[inst.Arg0], registers[inst.Arg1]),
+        MathOp.Div => Expression.Divide(registers[inst.Arg0], registers[inst.Arg1]),
+        MathOp.Neg => Expression.Negate(registers[inst.Arg0]),
         // ...
     };
 }

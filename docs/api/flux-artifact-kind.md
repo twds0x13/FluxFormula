@@ -16,8 +16,8 @@ public enum FluxArtifactKind : byte
 
 | 值 | 名称 | 扩展名 | 说明 |
 |------|------|------|------|
-| `0` | `Formula` | `.ff` | 公式字节码——`FluxFormula<TData, TOper>.ToBytes()` 的产物 |
-| `1` | `Virtual` | `.vff` | 虚拟公式引用——`VffFormat.ToBytes()` 的产物 |
+| `0` | `Formula` | `.ff` | 公式字节码：`FluxFormula<TData, TDef>.ToBytes()` 的产物 |
+| `1` | `Virtual` | `.vff` | 虚拟公式引用：`VffFormat.ToBytes()` 的产物 |
 
 ## 使用
 

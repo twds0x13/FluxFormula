@@ -1,74 +1,85 @@
 # Example: FloatMathDef
 
-A copy-paste-ready floating-point arithmetic definition.
+A copy-paste-ready floating-point arithmetic definition for v3.0.0.
+
+> **v3.0.0**: The operator enum is now a `private` implementation detail. The definition implements `IFluxJITDefinition<TData>` (1 generic param). All operator-related methods use `byte`.
 
 ## Operator Enum
 
 ```csharp
-public enum FloatOp : byte
+enum MathOp : byte
 {
     Const, Add, Sub, Mul, Div, Neg,
-    LParen, RParen, Return,
+    LParen, RParen, Return = 255,
 }
 ```
 
 ## Definition Body
 
 ```csharp
-public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
+readonly struct MathDef : IFluxJITDefinition<float>
 {
-    public FloatOp GetReturnOp() => FloatOp.Return;
+    public byte GetReturnOp() => (byte)MathOp.Return;
 
-    public int GetArity(byte op) => (FloatOp)op switch
+    public int GetArity(byte op) => ((MathOp)op) switch
     {
-        FloatOp.Add => 2, FloatOp.Sub => 2, FloatOp.Mul => 2,
-        FloatOp.Div => 2, FloatOp.Neg => 1, _ => 0,
+        MathOp.Add => 2, MathOp.Sub => 2, MathOp.Mul => 2,
+        MathOp.Div => 2, MathOp.Neg => 1, _ => 0,
     };
 
-    public OpType GetKind(byte op) => (FloatOp)op switch
+    public OpType GetKind(byte op) => ((MathOp)op) switch
     {
-        FloatOp.Const  => OpType.Immediate,
-        FloatOp.Return => OpType.Return,
-        _              => OpType.Instruction,
+        MathOp.Const  => OpType.Immediate,
+        MathOp.Return => OpType.Return,
+        _             => OpType.Instruction,
     };
 
-    public int GetPrecedence(FloatOp op) => op switch
+    public int GetPrecedence(byte op) => ((MathOp)op) switch
     {
-        FloatOp.Add => 1, FloatOp.Sub => 1,
-        FloatOp.Mul => 2, FloatOp.Div => 2,
-        FloatOp.Neg => 3,
-        _           => 0,
+        MathOp.Add => 1, MathOp.Sub => 1,
+        MathOp.Mul => 2, MathOp.Div => 2,
+        MathOp.Neg => 3,
+        _          => 0,
     };
 
-    public OpPair<FloatOp> GetPair(FloatOp op) => op switch
+    public OpPair GetPair(byte op) => ((MathOp)op) switch
     {
-        FloatOp.LParen => new OpPair<FloatOp> { PairRole = Pair.Left },
-        FloatOp.RParen => new OpPair<FloatOp>
+        MathOp.LParen => new OpPair { PairRole = Pair.Left },
+        MathOp.RParen => new OpPair
         {
             PairRole   = Pair.Right,
-            TargetLeft = FloatOp.LParen,
+            TargetLeft = (byte)MathOp.LParen,
         },
-        _ => new OpPair<FloatOp> { PairRole = Pair.None },
+        _ => new OpPair { PairRole = Pair.None },
     };
 
-    public Associativity GetAssociativity(FloatOp op) => op switch
+    public Associativity GetAssociativity(byte op) => ((MathOp)op) switch
     {
-        FloatOp.Neg => Associativity.Right,
-        _           => Associativity.Left,
+        MathOp.Neg => Associativity.Right,
+        _          => Associativity.Left,
     };
+
+    public byte ResolveToken(byte oper, TokenContext ctx)
+    {
+        if (oper == (byte)MathOp.Sub && ctx == TokenContext.OperandExpected)
+            return (byte)MathOp.Neg;
+        return oper;
+    }
+
+    public string GetOperatorName(byte op) => ((MathOp)op).ToString();
 
     // Interpreter
     public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
     {
-        return (FloatOp)op switch
+        return ((MathOp)op) switch
         {
-            FloatOp.Add => regs[inst.Arg0] + regs[inst.Arg1],
-            FloatOp.Sub => regs[inst.Arg0] - regs[inst.Arg1],
-            FloatOp.Mul => regs[inst.Arg0] * regs[inst.Arg1],
-            FloatOp.Div => Math.Abs(regs[inst.Arg1]) < float.Epsilon
+            MathOp.Add => regs[inst.Arg0] + regs[inst.Arg1],
+            MathOp.Sub => regs[inst.Arg0] - regs[inst.Arg1],
+            MathOp.Mul => regs[inst.Arg0] * regs[inst.Arg1],
+            MathOp.Div => Math.Abs(regs[inst.Arg1]) < float.Epsilon
                 ? float.NaN
                 : regs[inst.Arg0] / regs[inst.Arg1],
-            FloatOp.Neg => -regs[inst.Arg0],
+            MathOp.Neg => -regs[inst.Arg0],
             _ => 0f,
         };
     }
@@ -78,16 +89,16 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
     {
         var zero = Expression.Constant(0f);
         var nan  = Expression.Constant(float.NaN);
-        return (FloatOp)op switch
+        return ((MathOp)op) switch
         {
-            FloatOp.Add => Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Sub => Expression.Subtract(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Mul => Expression.Multiply(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Div => Expression.Condition(
+            MathOp.Add => Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Sub => Expression.Subtract(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Mul => Expression.Multiply(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Div => Expression.Condition(
                 Expression.Equal(regs[inst.Arg1], zero),
                 nan,
                 Expression.Divide(regs[inst.Arg0], regs[inst.Arg1])),
-            FloatOp.Neg => Expression.Negate(regs[inst.Arg0]),
+            MathOp.Neg => Expression.Negate(regs[inst.Arg0]),
             _ => Expression.Constant(0f),
         };
     }
@@ -97,17 +108,17 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
 ## Usage
 
 ```csharp
-var def    = new FloatMathDef();
-var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(def);
+var def    = new MathDef();
+var runner = new FluxAssembler<float, MathDef>(def);
 
 // 1 + 2 * 3 = 7
-var tokens = new FluxToken<float, FloatOp>[]
+var tokens = new FluxToken<float>[]
 {
-    new() { Oper = FloatOp.Const, Data = 1f },
-    new() { Oper = FloatOp.Add },
-    new() { Oper = FloatOp.Const, Data = 2f },
-    new() { Oper = FloatOp.Mul },
-    new() { Oper = FloatOp.Const, Data = 3f },
+    new() { Oper = (byte)MathOp.Const, Data = 1f },
+    new() { Oper = (byte)MathOp.Add },
+    new() { Oper = (byte)MathOp.Const, Data = 2f },
+    new() { Oper = (byte)MathOp.Mul },
+    new() { Oper = (byte)MathOp.Const, Data = 3f },
 };
 Assert.That(runner.Build(tokens).Run(), Is.EqualTo(7f).Within(1e-6f));
 
@@ -116,4 +127,14 @@ Assert.That(runner.Build(tokens).Run(), Is.EqualTo(7f).Within(1e-6f));
 // 1 / 0 → NaN
 ```
 
-Full source at `tests/FluxFormula.Core.Tests/SmokeTest.cs` (standalone, no Unity required).
+### Key v3.0.0 Changes
+
+- `IFluxJITDefinition<float, FloatOp>` → `IFluxJITDefinition<float>` — single generic param
+- Operator enum (`MathOp`) is `private` — no longer needs to be `public`
+- All method signatures use `byte` instead of enum type
+- `OpPair<FloatOp>` → `OpPair` (non-generic)
+- `FluxToken<float, FloatOp>` → `FluxToken<float>`; `Oper` is `byte`
+- `FluxAssembler<float, FloatOp, FloatMathDef>` → `FluxAssembler<float, MathDef>`
+- No more `sizeof(TOper) != 1` runtime check — `byte` is always 1 byte
+
+Full source at `tests/FluxFormula.Core.Tests/TestDefinition.cs`.

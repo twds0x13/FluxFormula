@@ -5,11 +5,12 @@ Compilation entry point. Compiles lexical tokens into bytecode and instantiates 
 ## Signature
 
 ```csharp
-public readonly unsafe ref struct FluxAssembler<TData, TOper, TDef>
+public readonly unsafe ref struct FluxAssembler<TData, TDef>
     where TData : unmanaged
-    where TOper : unmanaged, Enum
-    where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+    where TDef : unmanaged, IFluxJITDefinition<TData>
 ```
+
+Two generic parameters: data type `TData` + definition `TDef`. v3.0.0 removed the `TOper` generic parameter — the operator enum is now an internal implementation detail of the definition; the framework only sees `byte`.
 
 ## Construction
 
@@ -24,7 +25,7 @@ Takes an operator definition instance (value type, no heap allocation).
 ### Compile (Lexer Path)
 
 ```csharp
-public FluxFormula<TData, TOper> Compile(LexResult<TData, TOper> lexResult)
+public FluxFormula<TData, TDef> Compile(LexResult<TData> lexResult)
 ```
 
 Accepts the `LexResult` returned by `FluxLexer.Lex()` and compiles it directly to bytecode. LexResult carries the token array and variable name information; Compile writes variable names into `FluxFormula.VariableSlots`.
@@ -32,8 +33,8 @@ Accepts the `LexResult` returned by `FluxLexer.Lex()` and compiles it directly t
 ### Compile (Token Path)
 
 ```csharp
-public FluxFormula<TData, TOper> Compile(
-    ReadOnlySpan<FluxToken<TData, TOper>> tokens,
+public FluxFormula<TData, TDef> Compile(
+    ReadOnlySpan<FluxToken<TData>> tokens,
     string[] varNames = null)
 ```
 
@@ -42,8 +43,8 @@ Compiles an infix token sequence into bytecode `Formula`. Internally executes th
 ### Instantiate
 
 ```csharp
-public FluxInstance<TData, TOper, TDef> Instantiate(
-    FluxFormula<TData, TOper> formula,
+public FluxInstance<TData, TDef> Instantiate(
+    FluxFormula<TData, TDef> formula,
     bool jit = false)
 ```
 
@@ -55,28 +56,35 @@ Activates an existing Formula as an executable Instance.
 ### Build
 
 ```csharp
-public FluxInstance<TData, TOper, TDef> Build(
-    ReadOnlySpan<FluxToken<TData, TOper>> tokens,
+public FluxInstance<TData, TDef> Build(
+    ReadOnlySpan<FluxToken<TData>> tokens,
     bool jit = false)
 ```
 
 Combined `Compile()` + `Instantiate()` call. Suitable for one-shot formulas that don't need caching.
 
 ```csharp
-var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(def);
+var runner = new FluxAssembler<float, MathDef>(def);
 float r = runner.Build(tokens, jit: true).Run();
 ```
 
 ## Formula Type Classification
 
-`Compile()` inspects the first token to determine `Formula` or `Modifier`:
+`Compile()` inspects the first token to determine `Formula` or `Modifier` (internal `FluxType` enum — v3.0.0 made it `internal`; external consumers distinguish via `FluxFormula` / `FluxModifier` types):
 
-| First Token | FluxType |
-|-------------|----------|
-| Immediate (e.g., Const) | `Formula` |
-| Unary prefix operator (arity=1) | `Formula` |
-| Left bracket (PairRole=Left) | `Formula` |
-| Binary operator (arity≥2, non-bracket) | `Modifier` |
+| First Token | Produced External Type |
+|-------------|----------------------|
+| Immediate (e.g., Const) | `FluxFormula<TData, TDef>` |
+| Unary prefix operator (arity=1) | `FluxFormula<TData, TDef>` |
+| Left bracket (PairRole=Left) | `FluxFormula<TData, TDef>` |
+| Binary operator (arity≥2, non-bracket) | `FluxModifier<TData, TDef>` |
+
+## v3.0.0 Changes
+
+- `FluxAssembler<TData, TOper, TDef>` → `FluxAssembler<TData, TDef>` (3 params → 2 params)
+- `LexResult<TData, TOper>` → `LexResult<TData>`
+- `FluxToken<TData, TOper>` → `FluxToken<TData>` (`Oper` field is now `byte`)
+- Compile-time cross-definition safety: `FluxFormula<float, MathDef>` and `FluxFormula<float, GameDef>` are different types — accidental connection won't compile
 
 ## See Also
 

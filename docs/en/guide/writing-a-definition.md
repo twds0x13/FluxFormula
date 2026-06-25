@@ -1,23 +1,26 @@
 # Writing a Definition
 
-Implement `IFluxJITDefinition<TData, TOper>` to define operator semantics. One implementation yields both interpreter and JIT execution paths.
+Define operator semantics. One implementation yields both interpreter and JIT execution paths. Since v3.0.0, the interface uses a single generic parameter — the operator enum is a `private` internal detail of the definition.
 
 ## Interface Overview
 
 ```csharp
-public interface IFluxDefinition<TData, TOper>
+public interface IFluxDefinition<TData>
+    where TData : unmanaged
 {
-    TOper GetReturnOp();                                      // Termination instruction
-    int GetArity(byte op);                                    // Operand count
-    OpType GetKind(byte op);                                  // Instruction classification
-    int GetPrecedence(TOper op);                              // Operator precedence
-    OpPair<TOper> GetPair(TOper op);                          // Bracket pairing
-    Associativity GetAssociativity(TOper op);                 // Binding direction
-    TOper ResolveToken(TOper op, TokenContext ctx);           // Token disambiguation
+    byte GetReturnOp();                                               // Termination instruction
+    int GetArity(byte op);                                            // Operand count
+    OpType GetKind(byte op);                                          // Instruction classification
+    int GetPrecedence(byte op);                                       // Operator precedence
+    OpPair GetPair(byte op);                                          // Bracket pairing
+    Associativity GetAssociativity(byte op);                          // Binding direction
+    byte ResolveToken(byte oper, TokenContext ctx);                   // Token disambiguation
     TData Compute(byte op, Instruction inst, ReadOnlySpan<TData> registers); // Interpreter computation
+    string GetOperatorName(byte op);                                  // Display name (DIM, optional)
 }
 
-public interface IFluxJITDefinition<TData, TOper> : IFluxDefinition<TData, TOper>
+public interface IFluxJITDefinition<TData> : IFluxDefinition<TData>
+    where TData : unmanaged
 {
     Expression GetExpression(byte op, Instruction inst, ParameterExpression[] registers); // JIT expression
 }
@@ -27,10 +30,10 @@ public interface IFluxJITDefinition<TData, TOper> : IFluxDefinition<TData, TOper
 
 ### GetReturnOp
 
-Returns which enum value represents the termination instruction. The compiler automatically inserts it at the end of the bytecode.
+Returns which byte value represents the termination instruction. The compiler automatically inserts it at the end of the bytecode.
 
 ```csharp
-public FloatOp GetReturnOp() => FloatOp.Return;
+public byte GetReturnOp() => (byte)MathOp.Return;
 ```
 
 ### GetArity
@@ -38,10 +41,10 @@ public FloatOp GetReturnOp() => FloatOp.Return;
 Number of operands. Immediate and Return types return 0. Maximum arity is 6, limited by Instruction's Arg0-Arg5 field count.
 
 ```csharp
-public int GetArity(byte op) => ((FloatOp)op) switch
+public int GetArity(byte op) => ((MathOp)op) switch
 {
-    FloatOp.Add => 2,   // left + right
-    FloatOp.Neg => 1,   // negation needs only one operand
+    MathOp.Add => 2,   // left + right
+    MathOp.Neg => 1,   // negation needs only one operand
     _ => 0,
 };
 ```
@@ -51,11 +54,11 @@ public int GetArity(byte op) => ((FloatOp)op) switch
 Classifies opcodes into three `OpType` values:
 
 ```csharp
-public OpType GetKind(byte op) => ((FloatOp)op) switch
+public OpType GetKind(byte op) => ((MathOp)op) switch
 {
-    FloatOp.Const  => OpType.Immediate,   // Carries a data value
-    FloatOp.Return => OpType.Return,      // Terminates execution
-    _              => OpType.Instruction, // Normal operation
+    MathOp.Const  => OpType.Immediate,   // Carries a data value
+    MathOp.Return => OpType.Return,      // Terminates execution
+    _             => OpType.Instruction, // Normal operation
 };
 ```
 
@@ -64,39 +67,44 @@ public OpType GetKind(byte op) => ((FloatOp)op) switch
 Operator precedence. Higher values bind more tightly. Typical assignment: add/sub = 1, mul/div = 2, unary prefix = 3, power = 4.
 
 ```csharp
-public int GetPrecedence(FloatOp op) => op switch
+public int GetPrecedence(byte op) => ((MathOp)op) switch
 {
-    FloatOp.Add => 1,
-    FloatOp.Mul => 2,
-    FloatOp.Neg => 3,
-    _           => 0,
+    MathOp.Add => 1,
+    MathOp.Mul => 2,
+    MathOp.Neg => 3,
+    _          => 0,
 };
 ```
 
 ### GetPair
 
-Defines bracket behavior. `OpPair` maps syntactic brackets to semantic instructions.
+Defines bracket behavior. `OpPair` is a non-generic struct; `TargetLeft` and `EmitOpCode` are both `byte`:
 
 ```csharp
-public struct OpPair<TOper>
+public struct OpPair
 {
     public Pair PairRole;      // None / Left / Right
-    public TOper TargetLeft;   // The left opcode a right bracket targets
+    public byte TargetLeft;    // The left opcode a right bracket targets
     public bool EmitOnMatch;   // Whether to emit an instruction on match
-    public TOper EmitOpCode;   // Which instruction to emit
+    public byte EmitOpCode;    // Which instruction to emit
+    public bool IsSeparator;   // Argument separator (e.g., comma)
 }
 ```
 
 **Standard brackets:**
 
 ```csharp
-FloatOp.LParen => new OpPair<FloatOp> { PairRole = Pair.Left },
-FloatOp.RParen => new OpPair<FloatOp>
+public OpPair GetPair(byte op) => ((MathOp)op) switch
 {
-    PairRole   = Pair.Right,
-    TargetLeft = FloatOp.LParen,
-    // EmitOnMatch defaults to false; LParen is just popped from the stack
-},
+    MathOp.LParen => new OpPair { PairRole = Pair.Left },
+    MathOp.RParen => new OpPair
+    {
+        PairRole   = Pair.Right,
+        TargetLeft = (byte)MathOp.LParen,
+        // EmitOnMatch defaults to false; LParen is just popped from the stack
+    },
+    _ => new OpPair { PairRole = Pair.None },
+};
 ```
 
 **Function call simulation (sin):**
@@ -104,22 +112,22 @@ FloatOp.RParen => new OpPair<FloatOp>
 In `sin(x)`, `sin` is a Left-pair, and `(` triggers `EmitOnMatch` to emit a `SinOp` instruction:
 
 ```csharp
-SomeOp.Sin => new OpPair<SomeOp>
+(byte)MyOp.Sin => new OpPair
 {
     PairRole    = Pair.Left,
     EmitOnMatch = false,     // Sin itself does not emit
 },
-SomeOp.FuncLParen => new OpPair<SomeOp>
+(byte)MyOp.FuncLParen => new OpPair
 {
     PairRole    = Pair.Left,
     EmitOnMatch = false,
 },
-SomeOp.FuncRParen => new OpPair<SomeOp>
+(byte)MyOp.FuncRParen => new OpPair
 {
     PairRole    = Pair.Right,
-    TargetLeft  = SomeOp.FuncLParen,
+    TargetLeft  = (byte)MyOp.FuncLParen,
     EmitOnMatch = true,       // Emit Sin instruction on match
-    EmitOpCode  = SomeOp.Sin,
+    EmitOpCode  = (byte)MyOp.Sin,
 },
 ```
 
@@ -128,24 +136,24 @@ SomeOp.FuncRParen => new OpPair<SomeOp>
 `Left` or `Right`. Binary operators typically use `Left` (`2 - 1 - 1 = 0`); unary prefix uses `Right`.
 
 ```csharp
-public Associativity GetAssociativity(FloatOp op) => op switch
+public Associativity GetAssociativity(byte op) => ((MathOp)op) switch
 {
-    FloatOp.Neg => Associativity.Right,
-    _           => Associativity.Left,
+    MathOp.Neg => Associativity.Right,
+    _          => Associativity.Left,
 };
 ```
 
 ### ResolveToken
 
-The lexer cannot determine whether the current position expects an operand or an operator. `ResolveToken` performs secondary disambiguation after token generation, mapping the same symbol to different operators based on `TokenContext`. If no disambiguation is needed, return `op` directly.
+The lexer cannot determine whether the current position expects an operand or an operator. `ResolveToken` performs secondary disambiguation after token generation, mapping the same symbol to different opcodes based on `TokenContext`. Return `oper` directly if no disambiguation is needed; return `0` to skip.
 
 ```csharp
-public FloatOp ResolveToken(FloatOp op, TokenContext ctx)
+public byte ResolveToken(byte oper, TokenContext ctx)
 {
     // '-' is unary negation when operand expected, binary subtraction otherwise
-    if (op == FloatOp.Sub && ctx == TokenContext.OperandExpected)
-        return FloatOp.Neg;
-    return op;
+    if (oper == (byte)MathOp.Sub && ctx == TokenContext.OperandExpected)
+        return (byte)MathOp.Neg;
+    return oper;
 }
 ```
 
@@ -159,17 +167,17 @@ public FloatOp ResolveToken(FloatOp op, TokenContext ctx)
 ```csharp
 public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
 {
-    return ((FloatOp)op) switch
+    return ((MathOp)op) switch
     {
-        FloatOp.Add => regs[inst.Arg0] + regs[inst.Arg1],
-        FloatOp.Mul => regs[inst.Arg0] * regs[inst.Arg1],
+        MathOp.Add => regs[inst.Arg0] + regs[inst.Arg1],
+        MathOp.Mul => regs[inst.Arg0] * regs[inst.Arg1],
 
         // Division by zero → write NaN to dest register, triggering R0 early exit
-        FloatOp.Div => Math.Abs(regs[inst.Arg1]) < float.Epsilon
+        MathOp.Div => Math.Abs(regs[inst.Arg1]) < float.Epsilon
             ? float.NaN
             : regs[inst.Arg0] / regs[inst.Arg1],
 
-        FloatOp.Neg => -regs[inst.Arg0],
+        MathOp.Neg => -regs[inst.Arg0],
         _ => 0f,
     };
 }
@@ -182,32 +190,35 @@ Must match `Compute` semantics exactly, expressed via LINQ Expressions:
 ```csharp
 public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
 {
-    return ((FloatOp)op) switch
+    return ((MathOp)op) switch
     {
-        FloatOp.Add => Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
-        FloatOp.Mul => Expression.Multiply(regs[inst.Arg0], regs[inst.Arg1]),
-        FloatOp.Div => Expression.Condition(
+        MathOp.Add => Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
+        MathOp.Mul => Expression.Multiply(regs[inst.Arg0], regs[inst.Arg1]),
+        MathOp.Div => Expression.Condition(
             Expression.Equal(regs[inst.Arg1], Expression.Constant(0f)),
             Expression.Constant(float.NaN),
             Expression.Divide(regs[inst.Arg0], regs[inst.Arg1])
         ),
+        MathOp.Neg => Expression.Negate(regs[inst.Arg0]),
         _ => Expression.Constant(0f),
     };
 }
+```
+
+### GetOperatorName (Optional)
+
+Display name for the opcode, used by editors and toolchains. The DIM returns `null` by default — override to provide meaningful names.
+
+```csharp
+public string GetOperatorName(byte op) => ((MathOp)op).ToString();
 ```
 
 ## Error Handling: R0 Early Exit
 
 If `Compute()` or `GetExpression()` returns a non-default value, that value is written to R0 (the error register). The executor checks R0 after each instruction; if non-default, execution terminates immediately and returns the error value.
 
-```csharp
-// Division-by-zero error propagated via NaN
-C(1f), Op(Div), C(0f), Op(Add), C(5f)
-// → 1/0 = NaN → early exit → entire formula returns NaN, Add is never executed
-```
-
 ## Performance Recommendations
 
 - Mark all methods with `[MethodImpl(MethodImplOptions.AggressiveInlining)]`
-- Use enum value casting rather than `Enum.Equals()` in Compute switch statements to avoid boxing
+- Use `(MathOp)op` cast in switch expressions — zero boxing overhead
 - For non-bracket ops on the hot path, return a default `Pair.None` instance directly from `GetPair`

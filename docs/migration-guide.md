@@ -17,7 +17,7 @@
 - **VFF 虚拟公式**：`VffFormat` 实现持久化公式引用 + 参数覆写，DLL 式符号解析。
 - **FluxConfig 全局配置**：`FluxConfig` 替代硬编码常量。Unity 端通过 `FluxConfigAsset` ScriptableObject 注入。
 - **MaxRegister 按需分配**：公式头部存储编译期最高寄存器号，运行时按需栈分配。
-- **Per-link JIT 链式求值**：JIT 路径不再强制 ToAtomic——每 link 独立编译 delegate，`SetIndex(0, prevResult)` 串联。
+- **Per-link JIT 链式求值**：JIT 路径不再强制 ToAtomic：每 link 独立编译 delegate，`SetIndex(0, prevResult)` 串联。
 - **FluxFormula.Addressables.UniTask**：UniTask 异步加载扩展包。
 
 ---
@@ -59,7 +59,7 @@
 
 ### 概述
 
-3.0 完成两个方向的重构：(1) `TOper` 泛型参数移除——`TDef` 进入 `FluxFormula` 签名；(2) Formula/Modifier 类型分裂——`FluxModifier<TData, TDef>` 作为独立公开类型。
+3.0 完成两个方向的重构：(1) `TOper` 泛型参数移除，`TDef` 进入 `FluxFormula` 签名；(2) Formula/Modifier 类型分裂，`FluxModifier<TData, TDef>` 作为独立公开类型。
 
 影响范围：所有 Definition 实现、`Connect` 调用点、Modifier 变量声明。
 
@@ -73,8 +73,8 @@
 | `FluxType` 枚举 | `public` | `internal` — 不再暴露 | 移除所有 `FluxType` 断言 |
 | `FluxFormula.Type` | `public` | `internal` — 类型身份由 struct 保证 | 移除 `.Type` 访问 |
 | `FluxModifier` | 不存在 | 新增独立 struct，无 `Instantiate()`/`Run()` | Modifier 变量类型改为 `FluxModifier<TData, TDef>` |
-| `Modifier.Run()` | 抛 `InvalidOperationException` | 编译错误——`FluxModifier` 无此方法 | 通过 `ToFormula()` 转换后求值 |
-| `sizeof(TOper) != 1` 检查 | 运行时异常 | 消除——`byte` 始终 1 字节 | 无需迁移 |
+| `Modifier.Run()` | 抛 `InvalidOperationException` | 编译错误：`FluxModifier` 无此方法 | 通过 `ToFormula()` 转换后求值 |
+| `sizeof(TOper) != 1` 检查 | 运行时异常 | 消除：`byte` 始终 1 字节 | 无需迁移 |
 
 ### 新增
 

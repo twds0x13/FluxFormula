@@ -2,24 +2,24 @@
 
 ## "Modifier cannot run standalone" 是什么错误
 
-编译了以二元运算符开头的 Token 序列（如 `+ 5`），它被判定为 `FluxType.Modifier`。Modifier 缺少左操作数，必须通过 `Connect()` 拼接到一个完整的 Formula 后面。
+编译了以二元运算符开头的 Token 序列（如 `+ 5`），它被判定为 Modifier（内部 `FluxType.Modifier`）。**v3.0.0 起此错误在编译期被阻止**：`FluxModifier<TData, TDef>` 没有 `Instantiate()` 方法，任何尝试独立求值 Modifier 的代码编译不过。
 
 ```csharp
-// 错误：以 Add 开头 → Modifier
-var tokens = new[] { Op(FloatOp.Add), C(5f) };
-runner.Build(tokens).Run(); // InvalidOperationException
+// 编译错误：以 Add 开头 → 产出 FluxModifier，没有 Instantiate()
+var tokens = new[] { Op((byte)MathOp.Add), C(5f) };
+// var inst = runner.Compile(tokens).Instantiate(...);  // CS1061: FluxModifier has no Instantiate
 
 // 正确：拼接到完整公式
 var f1   = runner.Compile(new[] { C(10f) });
-var mod  = runner.Compile(new[] { Op(FloatOp.Add), C(5f) });
-var combined = f1.Connect(mod); // 10 + 5
+var mod  = runner.Compile(new[] { Op((byte)MathOp.Add), C(5f) });
+var combined = f1.Connect(mod); // 10 + 5（Connect 接受 FluxModifier）
 ```
 
 ## Connect 之后结果不正确
 
 `Connect()` 不重映射寄存器号。如果两个公式使用了相同的寄存器，拼接后会发生覆写。安全用法：
 
-- 连接空公式（`FluxFormula<T,TOper>.Empty`）：零寄存器冲突
+- 连接空公式（`FluxFormula<TData, TDef>.Empty`）：零寄存器冲突
 - 在单次 `Compile()` 中完成完整表达式编译，而非编译后拼接
 
 如果需动态组合大量公式片段，建议在 Token 层面拼接后再一次性 `Compile()`。
@@ -68,14 +68,11 @@ C(1f), Add, C(2f), Mul, C(3f)  // → 7
 
 ## 操作符枚举为什么必须使用 `: byte`
 
-框架通过 `*(byte*)&oper` 取枚举的第一个字节作为 opcode。若 `enum Foo : short` 且值 > 255，取到的字节是错误的。类型初始化阶段会做 `sizeof(TOper) != 1` 检查并抛出明确异常。
+> **v3.0.0**：`TOper` 泛型参数已移除。操作符枚举现在是定义体的内部实现细节，`FluxToken.Oper` 直接使用 `byte`。不再需要 `sizeof(TOper) != 1` 运行时检查：`byte` 永远是 1 字节。
 
 ```csharp
-// 正确
-public enum MyOp : byte { Add, Sub, Mul }
-
-// 类型初始化异常
-public enum MyOp : int { Add = 256, Sub }
+// v3.0.0：定义体内部枚举
+enum MyOp : byte { Add, Sub, Mul }  // 仍然是 : byte，但不再是框架约束
 ```
 
 ## TData 能否使用自定义结构体

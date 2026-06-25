@@ -2,7 +2,7 @@
 
 ## Connect: Chain Composition
 
-`Connect()` no longer merges bytecode. It appends reference slices to `ChainLink[]` — zero bytecode copy, deferred materialization.
+`Connect()` does not merge bytecode. It appends reference slices to `ChainLink[]` — zero bytecode copy, deferred materialization.
 
 ```
 Connect(fA, fB):
@@ -13,20 +13,20 @@ At evaluation time, short chains (≤8) evaluate per-link through the R1 bus; lo
 
 ### Formula ↔ Modifier
 
-`ToMultiplier()` replaces a Formula's first operand with R1 input (from previous link output). `ToFormula(name)` replaces a Modifier's R1 input with a named variable.
+`ToModifier()` replaces a Formula's first operand with R1 input (from previous link output). `ToFormula(name)` replaces a Modifier's R1 input with a named variable.
 
 ```csharp
 var fA = Compile("x + y");                 // Formula
 var fB = Compile("z * 2");                 // Formula
 
 // ✅ B consumes A's output: convert to Modifier first
-var chain = fA.Connect(fB.ToMultiplier());  // B's first operand from R1
+var chain = fA.Connect(fB.ToModifier());    // B's first operand from R1
 
-// ❌ Connect rejects Formula — compile-time guard against implicit overwrite
-// var chain2 = fA.Connect(fB);             // throws ArgumentException
+// ❌ Compile error: Connect only accepts FluxModifier
+// var chain2 = fA.Connect(fB);             // CS1503
 
 // Round-trip preserves evaluation equivalence
-var restored = fB.ToMultiplier().ToFormula("input");
+var restored = fB.ToModifier().ToFormula("input");
 restored.Set("input", 5f).Set("z", 3f).Run(); // equivalent to fB
 ```
 
@@ -37,23 +37,21 @@ restored.Set("input", 5f).Set("z", 3f).Run(); // equivalent to fB
 | Interpreter | Per-link Compute (R1 chaining) | ToAtomic merge → single Compute |
 | JIT | Per-link delegates (`RunJitChain`) | Per-link delegates (`RunJitChain`) |
 
-The JIT path compiles each link into an independent delegate, chained via `SetIndex(0, prevResult)`. The interpreter uses per-link evaluation for short chains (avoiding merge allocations) and merges long chains into contiguous bytecode for a single Compute (reducing loop overhead). The merge threshold is configurable via `FluxConfig.MergeThreshold` (default 8).
-
 ## Set: Named Variable Injection
 
-Define variable patterns via the Lexer at compile time. Inject values by name at runtime. All variables with the same name are written. `Set()` uses an inline binary search to locate variable slots, zero GC. Throws `ArgumentException` if the name was not defined in `VariablePatterns`.
+Define variable patterns via the Lexer at compile time. Inject values by name at runtime.
 
 ```csharp
-var config = new LexerConfig<float, FloatOp>
+var config = new LexerConfig<float, MathDef>
 {
-    LiteralOper = FloatOp.Const,
+    LiteralOper = (byte)MathOp.Const,
     LiteralParser = s => float.Parse(s, CultureInfo.InvariantCulture),
-    Operators = { new("+", FloatOp.Add), new("*", FloatOp.Mul) },
+    Operators = { new("+", (byte)MathOp.Add), new("*", (byte)MathOp.Mul) },
     VariablePatterns = { new("[", "]") },
-    ImplicitOperators = { FloatOp.Mul },
+    ImplicitOperators = { (byte)MathOp.Mul },
 };
 
-var lexer = new FluxLexer<float, FloatOp>(config);
+var lexer = new FluxLexer<float, MathDef>(config);
 var lexResult = lexer.Lex("[atk] * 2 + [bonus]");
 
 var formula = runner.Compile(lexResult);
@@ -69,14 +67,12 @@ Inject values by Immediate slot index when variable names are not used:
 
 ```csharp
 var formula = runner.Compile(new[] {
-    C(0f), Op(FloatOp.Add), C(0f)  // 0 + 0 template
+    C(0f), Op((byte)MathOp.Add), C(0f)  // 0 + 0 template
 });
 
 var inst = runner.Instantiate(formula);
 float r = inst.SetIndex(0, 10f).SetIndex(1, 20f).Run();  // = 30
 ```
-
-The JIT path uses the same injection approach, but data is written to a separate payload array rather than the formula buffer.
 
 ## JIT vs Interpreter: Selection Strategy
 
@@ -90,19 +86,12 @@ flowchart TD
     E --> F["Interpreter execution"]
 ```
 
-| Scenario | Recommendation |
-|------|------|
-| Unity Editor development | JIT (faster after compilation) |
-| IL2CPP builds (iOS/WebGL/Console) | Interpreter (auto-degrade, no manual configuration) |
-| Formula executed far more often than compiled | JIT (compile once, invoke repeatedly) |
-| Formula rebuilt frequently | Interpreter (no compilation overhead) |
-
 ## Delegate Caching
 
-FluxFormula includes built-in JIT delegate caching. The first `Instantiate(formula, jit: true)` call compiles and stores the delegate; subsequent instantiations of the same formula reuse it:
+The first `Instantiate(formula, jit: true)` call compiles and stores the delegate; subsequent instantiations reuse it:
 
 ```csharp
-var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+var runner = new FluxAssembler<float, MathDef>(Def);
 var f = runner.Compile(lexer.Lex("2 + 3"));
 
 // First: JIT compile → delegate stored in global cache
@@ -112,8 +101,6 @@ var r1 = runner.Instantiate(f, jit: true).Run(); // 5
 var r2 = runner.Instantiate(f, jit: true).Run(); // 5
 ```
 
-The cache backend `IFluxCacheProvider` defaults to `FormulaCache` (slot count controlled by `FluxConfig.FormulaCacheCapacity`, default 2048). Replace it by implementing `TryGet`/`Put`/`TryGetDelegate`/`PutDelegate`. See [Compile Cache Pipeline](../technical/compile-cache). Other configurable parameters (`MergeThreshold`, `ConnectBufferSize`) are managed through `FluxConfig`.
-
 ## Persistence: ToBytes / FromBytes
 
 ```csharp
@@ -122,21 +109,15 @@ byte[] raw = formula.ToBytes();
 File.WriteAllBytes("damage_formula.ff", raw);
 
 // Deserialize (zero compilation)
-var loaded = FluxFormula<float, FloatOp>.FromBytes(raw);
+var loaded = FluxFormula<float, MathDef>.FromBytes(raw);
 float r = runner.Instantiate(loaded).Set("atk", 100f).Run();
 ```
 
-Bytecode is written directly to file — no JSON/XML serialization needed. For iOS hot-update scenarios: replace the `.ff` file to update formulas without triggering JIT, passing Apple review.
-
 ## Persisting Chain Formulas as VFF
 
-Chain formulas produced by `Connect()` can be persisted as `.vff` files for deployment in blobs:
-
 ```csharp
-// Compose a chain in the editor
 var chain = damageFormula.Connect(critModifier).Connect(elementModifier);
 
-// Extract chain links and serialize as VFF
 if (chain.IsChained)
 {
     var links = chain.GetChainLinks();
@@ -144,13 +125,12 @@ if (chain.IsChained)
         links.ToArray(),
         Array.Empty<VffOverride<float>>());
 
-    // Save via IFluxFileFormatter (default: FileFluxFileFormatter)
     var formatter = new FileFluxFileFormatter();
     formatter.Save(vffData, FluxArtifactKind.Virtual, "DamagePipeline");
 }
 
-// At runtime: load from .vff file or blob, resolve, execute
-var result = VffFormat.FromBytes<float, FloatOp>(vffData);
+// At runtime: load → resolve → execute
+var result = VffFormat.FromBytes<float, MathDef>(vffData);
 float damage = assembler.Instantiate(result.Formula)
     .Set("atk", 100f).Set("def", 50f).Run();
 ```

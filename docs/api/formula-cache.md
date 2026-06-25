@@ -1,6 +1,6 @@
 # FormulaCache
 
-公式编译产物缓存：`DualHash64 → (指针 + 长度)` 的开放寻址哈希表。单例生命周期内零动态分配——所有数组在构造时一次性分配。
+公式编译产物缓存：`DualHash64 → (指针 + 长度)` 的开放寻址哈希表。单例生命周期内零动态分配，所有数组在构造时一次性分配。
 
 ## 签名
 
@@ -24,8 +24,8 @@ public unsafe class FormulaCache : IFluxCacheProvider
 
 | 常量 | 值 | 说明 |
 |------|------|------|
-| `Empty` | `-1` | 空槽位——从未写入过 |
-| `Tombstone` | `-3` | 墓碑——曾经有值但已被驱逐 |
+| `Empty` | `-1` | 空槽位，从未写入过 |
+| `Tombstone` | `-3` | 墓碑，曾经有值但已被驱逐 |
 | `DelegateSlot` | `-2` | JIT delegate 缓存槽位标记 |
 
 ## 静态成员
@@ -158,7 +158,7 @@ unsafe
 if (FormulaCache.Instance.TryGet(hash, out IntPtr ptr, out int len))
 {
     var span = new ReadOnlySpan<byte>((void*)ptr, len);
-    var loaded = FluxFormula<float, FloatOp>.FromBytes(span);
+    var loaded = FluxFormula<float, MathDef>.FromBytes(span);
 }
 
 // — JIT delegate 缓存 —

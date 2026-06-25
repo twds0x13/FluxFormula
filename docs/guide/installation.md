@@ -1,6 +1,6 @@
 # 安装
 
-FluxFormula 是三分包 monorepo。按需选择安装哪些包——用户只需装真正需要的模块。
+FluxFormula 是三分包 monorepo。按需选择安装哪些包，用户只需装真正需要的模块。
 
 ## 包结构
 
@@ -28,7 +28,7 @@ https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula
 https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.addressables
 ```
 
-安装顺序无要求。UPM 自动解析依赖——例如添加 `fluxformula` 时若 `core` 不存在会报错，先装 `core` 即可。
+安装顺序无要求。UPM 自动解析依赖：例如添加 `fluxformula` 时若 `core` 不存在会报错，先装 `core` 即可。
 
 需要 Unity 2019.3.4f1 或更高版本以支持 `?path` 查询参数。包自身最低要求 Unity 2021.3。
 

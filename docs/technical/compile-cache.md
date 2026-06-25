@@ -4,14 +4,14 @@
 
 ## 架构全景
 
-**编译期**——公式文件哈希写入偏移表：
+**编译期**：公式文件哈希写入偏移表：
 
 ```mermaid
 flowchart TD
     A[".ff 文件"] -->|DualHash64.Compute| B["哈希写入<br/>偏移表 (SG 输出)"]
 ```
 
-**运行时**——Lex → Compile → 缓存查询 → JIT/复用：
+**运行时**：Lex → Compile → 缓存查询 → JIT/复用：
 
 ```mermaid
 flowchart TD
@@ -23,7 +23,7 @@ flowchart TD
     G -->|否| I["JIT Compile →<br/>GCHandle.Alloc → PutDelegate"]
 ```
 
-**Connect**——链式组合与求值策略：
+**Connect**：链式组合与求值策略：
 
 ```mermaid
 flowchart TD
@@ -39,7 +39,7 @@ flowchart TD
 
 ### 为什么需要两个
 
-单独一个非密码学哈希的碰撞空间在生日攻击下约 2³²（对 64-bit 输出）。了解内部状态的攻击者可构造结构性碰撞——利用哈希函数的代数弱点找到冲突的输入对。
+单独一个非密码学哈希的碰撞空间在生日攻击下约 2³²（对 64-bit 输出）。了解内部状态的攻击者可构造结构性碰撞：利用哈希函数的代数弱点找到冲突的输入对。
 
 两个内部结构正交的哈希函数使碰撞攻击退化为"同时满足两个联立方程"：攻击者需要找到一条字节序列，同时满足 xxHash64 和 FNV-1a 64 的碰撞条件。两者的代数弱点不共享（xxHash 依赖乘法混洗和旋转，FNV 依赖 XOR 和质数乘法），联立求解在实际意义上不可行。
 
@@ -53,7 +53,7 @@ flowchart TD
   offset_B → (hash1, hash2)    →    [bytecode_B 原始字节]
 ```
 
-攻击者修改 blob 文件时必须同步修改偏移表——而偏移表已编译为 IL，篡改需要反编译并重编译程序集。
+攻击者修改 blob 文件时必须同步修改偏移表，而偏移表已编译为 IL，篡改需要反编译并重编译程序集。
 
 ### xxHash64 实现
 
@@ -136,9 +136,9 @@ Delegate 通过 `GCHandle.Alloc(func)` → `GCHandle.ToIntPtr()` 存储。驱逐
 
 ## FormulaCache 静态单例
 
-所有缓存操作通过 `FormulaCache.Instance` 全局单例。预编译公式由 `FluxBlob.Initialize()` 在启动时注册——字节码指针直接来自 pinned blob，零拷贝存入 FormulaCache。运行时 JIT delegate 编译后通过 `PutDelegate` 缓存。
+所有缓存操作通过 `FormulaCache.Instance` 全局单例。预编译公式由 `FluxBlob.Initialize()` 在启动时注册：字节码指针直接来自 pinned blob，零拷贝存入 FormulaCache。运行时 JIT delegate 编译后通过 `PutDelegate` 缓存。
 
-ConnectCache（原 1 MB pinned buffer 中间复制层）已移除——blob 管线完成后不再需要运行时字节码中转。
+ConnectCache（原 1 MB pinned buffer 中间复制层）已移除；blob 管线完成后不再需要运行时字节码中转。
 
 ## 链式 Connect
 
@@ -161,7 +161,7 @@ struct ChainLink
 
 ### Connect 策略
 
-`Connect` 始终产链——不判断长度，不合并字节码。合并决策集中在 `Instantiate`：
+`Connect` 始终产链，不判断长度，不合并字节码。合并决策集中在 `Instantiate`：
 
 | 路径 | 链长 ≤ MergeThreshold | 链长 > MergeThreshold |
 |------|----------------------|----------------------|
@@ -179,7 +179,7 @@ result = kernel.Compute(link2.字节码, initialR1: result)
 ...
 ```
 
-每个 link 的字节码独立——`BuildLinkBuffer` 为每个 link 分配临时 `Instruction[]` 副本并注入变量值（通过 `FluxInjector.GetValue()` O(1) 回读）。
+每个 link 的字节码独立；`BuildLinkBuffer` 为每个 link 分配临时 `Instruction[]` 副本并注入变量值（通过 `FluxInjector.GetValue()` O(1) 回读）。
 
 ## JIT 委托缓存
 

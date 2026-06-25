@@ -158,7 +158,7 @@ unsafe
 if (FormulaCache.Instance.TryGet(hash, out IntPtr ptr, out int len))
 {
     var span = new ReadOnlySpan<byte>((void*)ptr, len);
-    var loaded = FluxFormula<float, FloatOp>.FromBytes(span);
+    var loaded = FluxFormula<float, MathDef>.FromBytes(span);
 }
 
 // — JIT delegate caching —

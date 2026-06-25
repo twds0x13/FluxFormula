@@ -1,46 +1,17 @@
 # FluxFormula Technical Analysis
 
-> Generated: 2026-06-19 | Last updated: 2026-06-21 | Based on version: 1.5.0
+> Generated: 2026-06-19 | Last updated: 2026-06-25 | Based on version: v3.0.0 (type signatures fully updated)
 >
 > A file-by-file technical analysis of FluxFormula's source code, noting potential issues, implicit conventions, and optimization opportunities. Read-only analysis, no source modifications.
->
-> Relationship with other technical documents:
-> - [Internals](./internals.md) — high-level architectural overview
-> - [Compile Cache Pipeline](./compile-cache.md) — cache architecture deep dive
-> - [ChainLink Deep Dive](./chainlink-deep-dive.md) — chain evaluation deep dive
-> - [Architecture Decisions](./architecture-decisions.md) — design decisions and context
->
-> This document serves as a **source-level supplement** — when the abstract descriptions in the documents above are insufficient to answer implementation questions, consult this file-by-file analysis.
 
----
-
-## 1. Architecture Overview
-
-```
-String expression / FluxToken[]
-  → FluxLexer.Lex()
-    → LexResult (Token[] + VarNames[])
-  → FluxAssembler.Compile()
-    → FluxCompiler (shunting-yard algorithm)
-      → Instruction[] bytecode
-        → FluxFormula (immutable, holds buffer)
-  → FluxAssembler.Instantiate()
-    → FluxInjector (inject data)
-      → FluxInstance (fluent API)
-        → .Run()
-          ├─ Interpreter path: FluxEvaluator.Compute()  ← stackalloc + unsafe pointers
-          └─ JIT path:       FluxJITCompiler.Compile() → Expression.Lambda.Compile() delegate
-```
-
-Compared to v1.0.0, v1.5.0 adds FluxLexer (lexical analysis), FluxPlatform (JIT degradation), compile-cache pipeline (DualHash64 + FormulaCache), blob build pipeline (FluxBlobBuilder + FluxBlob), VFF virtual formula format, global configuration (FluxConfig), and MaxRegister on-demand allocation.
-
-### Three-Layer Generic Constraints (shared by all core types)
+### Generic Constraints (shared by all core types)
 
 | Parameter | Constraint | Meaning |
 |-----------|-----------|---------|
 | `TData` | `unmanaged` | Data unit type (float, int, custom blittable struct) |
-| `TOper` | `unmanaged, Enum` | Operator enum with byte-sized underlying representation |
-| `TDef` | `unmanaged, IFluxDefinition<TData,TOper>` | Operator semantics definition, value type to eliminate virtual dispatch |
+| `TDef` | `unmanaged, IFluxJITDefinition<TData>` | Operator semantics definition, value type to eliminate virtual dispatch |
+
+v3.0.0 removed the `TOper` generic parameter — the operator enum is now a `private` definition detail; all operator methods use `byte`. `IFluxJITDefinition<TData>` replaces the former `IFluxJITDefinition<TData, TOper>`.
 
 ---
 
@@ -51,7 +22,7 @@ Compared to v1.0.0, v1.5.0 adds FluxLexer (lexical analysis), FluxPlatform (JIT 
 **Role**: Lexical layer — the most basic unit users build.
 
 **Key points**:
-- `TOper` is cast to its underlying value as opcode via `*(byte*)&oper`. The operator enum's underlying type must be `byte` (validated in `FluxFormula`'s static constructor, see §2.5).
+- v3.0.0: `FluxToken.Oper` is now directly `byte` — no `*(byte*)&oper` conversion needed.
 - The Token's `Data` field is only meaningful for Immediate-type tokens; for operator tokens it holds `default` — an implicit convention with no runtime validation.
 
 **Potential issues**:
@@ -74,7 +45,7 @@ Compared to v1.0.0, v1.5.0 adds FluxLexer (lexical analysis), FluxPlatform (JIT 
 
 **Key points**:
 - `OpType.Immediate` means "immediate load" — loading a TData value from the instruction stream into a register. This matches the traditional CPU "immediate" concept.
-- `FluxType.Modifier` semantics: a formula fragment with no "source", cannot execute standalone; must be concatenated to a Formula via `Connect()`.
+- `FluxType` was made `internal` in v3.0.0. Modifier semantics are now carried by the `FluxModifier<TData, TDef>` type — which has no `Instantiate()` method, preventing standalone execution at compile time.
 - `TokenContext` enum is used in the compiler/lexer to distinguish symbol context semantics.
 
 #### 2.2.2 FluxPlatform (added in v1.3.0)
@@ -95,24 +66,21 @@ internal static class FluxPlatform
 - `DisableJit()` is only called by the framework in `FluxAssembler.Instantiate()` when `Expression.Compile()` fails; users do not call it directly.
 - `MaxRegisters = 255` is the byte index limit; R0 (error) and R1 (bus) are reserved, leaving 253 general-purpose registers.
 
-#### 2.2.3 OpPair\<TOper\>
+#### 2.2.3 OpPair (v3.0.0: non-generic)
 
 ```csharp
-struct OpPair<TOper> {
+struct OpPair {
     Pair PairRole;        // bracket role
-    TOper TargetLeft;     // matching target left bracket
+    byte TargetLeft;      // matching target left bracket opcode
     bool EmitOnMatch;     // whether to emit instruction on match
-    TOper EmitOpCode;     // what instruction to emit
+    byte EmitOpCode;      // what instruction to emit
 }
 ```
 
 **Key points**:
 - A micro DSL engine: maps syntactic brackets to semantic instructions.
-- Typical use case: function call `sin(x)` — `sin` is a Left-pair, right bracket match triggers `EmitOnMatch=true`, emitting `EmitOpCode=SinOp`.
-- `TargetLeft` allows different left bracket types to pair — e.g. `[` and `]` can have different opcodes.
-
-**Potential issues**:
-- `TargetLeft` uses `Equals()` comparison, which boxes Enum values. Since TOper is likely backed by byte, the JIT will optimize it; negligible impact but worth noting.
+- Typical use case: function call `sin(x)`.
+- v3.0.0: `OpPair` is non-generic — `TargetLeft` and `EmitOpCode` are both `byte`, eliminating Enum boxing.
 
 #### 2.2.4 Instruction (8-Byte Explicit Layout)
 
@@ -132,23 +100,24 @@ Field:   OpCode   Dest     Arg0  Arg1  Arg2  Arg3  Arg4  Arg5
 - Arity capped at 6, balanced against 8-byte struct size: 6 operands + OpCode + Dest = 8 bytes.
 - Dest can be set to 0 (R0 error register) — this is intentional. If a user-defined operator writes to R0, it triggers short-circuit return for custom error handling.
 
-#### 2.2.5 IFluxDefinition\<TData, TOper\>
+#### 2.2.5 IFluxDefinition\<TData\> (v3.0.0)
 
 ```csharp
-interface IFluxDefinition<TData, TOper> {
-    TOper GetReturnOp();                          // which opcode is Return
-    int GetArity(byte op);                       // operand count
-    OpType GetKind(byte op);                     // Immediate/Instruction/Return
-    int GetPrecedence(TOper op);                 // precedence (higher = tighter)
-    OpPair<TOper> GetPair(TOper op);            // bracket pair info
-    Associativity GetAssociativity(TOper op);    // Left/Right
-    TOper ResolveToken(TOper op, TokenContext ctx); // token disambiguation (v1.2.0)
+interface IFluxDefinition<TData> {
+    byte GetReturnOp();                            // which opcode is Return
+    int GetArity(byte op);                         // operand count
+    OpType GetKind(byte op);                       // Immediate/Instruction/Return
+    int GetPrecedence(byte op);                    // precedence (higher = tighter)
+    OpPair GetPair(byte op);                       // bracket pair info
+    Associativity GetAssociativity(byte op);       // Left/Right
+    byte ResolveToken(byte oper, TokenContext ctx); // token disambiguation
     TData Compute(byte op, Instruction inst, ReadOnlySpan<TData> registers); // execution
+    string GetOperatorName(byte op);               // display name (DIM)
 }
 ```
 
 **Key points**:
-- Parameter `op` is `byte`, not `TOper` — callers have already converted via `*(byte*)&oper`.
+- v3.0.0: Removed `TOper` generic parameter. All methods use `byte`. Operator enum is a `private` definition detail.
 - `Compute` receives the entire `Instruction`, not just the opcode, allowing access to Dest and Arg0–Arg5.
 - `registers` is a `Span<TData>` of length 256 — the interpreter guarantees at least this size.
 - `ResolveToken` added in v1.2.0, maps the same symbol to different operators based on context (e.g., `-` → unary negate vs binary subtract).
@@ -157,10 +126,10 @@ interface IFluxDefinition<TData, TOper> {
   - R1: Bus / default result register.
   - R2–R254: General-purpose registers.
 
-#### 2.2.6 IFluxJITDefinition\<TData, TOper\>
+#### 2.2.6 IFluxJITDefinition\<TData\> (v3.0.0)
 
 ```csharp
-interface IFluxJITDefinition<TData, TOper> : IFluxDefinition<TData, TOper> {
+interface IFluxJITDefinition<TData> : IFluxDefinition<TData> {
     Expression GetExpression(byte op, Instruction inst, ParameterExpression[] registers);
 }
 ```
@@ -173,7 +142,7 @@ interface IFluxJITDefinition<TData, TOper> : IFluxDefinition<TData, TOper> {
 #### 2.2.7 FluxEvaluator (Interpreter Core)
 
 ```csharp
-internal unsafe ref struct FluxEvaluator<TData, TOper, TDef> {
+internal unsafe ref struct FluxEvaluator<TData, TDef> {
     TData Compute(ReadOnlySpan<Instruction> raw);
     static bool IsDefault(TData* ptr);
 }
@@ -310,19 +279,8 @@ ret->Dest = regTop >= 0 ? regStack[0] : (byte)1;  // default return R1
 
 **Key points**:
 
-**(a) TOper type validation (static constructor)**
-```csharp
-static FluxFormula()
-{
-    if (sizeof(TOper) != 1)
-        throw new TypeInitializationException(
-            typeof(FluxFormula<TData, TOper>).FullName,
-            new NotSupportedException(
-                $"FluxFormula requires TOper underlying type to be byte. Current: {typeof(TOper).Name} (sizeof={sizeof(TOper)}). Use `enum {typeof(TOper).Name} : byte`."
-            )
-        );
-}
-```
+**(a) TOper type validation (v3.0.0: removed)**
+- v3.0.0 removed the `TOper` generic parameter. `FluxToken.Oper` is now directly `byte` — always 1 byte, no runtime validation needed. The former `sizeof(TOper) != 1` static constructor check has been removed.
 - Automatically executes on type initialization; raises a clear exception immediately if TOper's underlying type is not byte.
 - Exception message includes the specific type name and sizeof value for easy diagnosis.
 
@@ -446,26 +404,22 @@ fixed (Instruction* pBase = _buffer) {
 
 **(a) ref struct design**
 ```csharp
-public ref struct FluxInstance<TData, TOper, TDef>
+public ref struct FluxInstance<TData, TDef>
 ```
-- Allows `Set()` to modify internal state (injector). Stack-allocated, cannot be boxed, cannot be a class field.
-- Cost: cannot be used in lambda captures (`Assert.Throws(() => inst.Run())` won't work), requires try-catch instead.
+- v3.0.0: removed `TOper` generic parameter. Stack-allocated, cannot be boxed, cannot be a class field.
 
 **(b) Run() dispatch**
 ```csharp
 if (_isJit)
     return _jitFunc(_injector.GetBuffer());    // JIT delegate
 else
-    return new FluxEvaluator<TData, TOper, TDef>(_provider).Compute(_formula.Raw());  // interpreter
+    return new FluxEvaluator<TData, TDef>(_definition).Compute(_formula.Raw());  // interpreter
 ```
 - JIT: passes the injected data buffer (compact payload array).
 - Interpreter: creates a new FluxEvaluator each time (ref struct, stack-allocated), passing the full formula buffer.
 
-**(c) Modifier protection**
-```csharp
-if (_formula.Type != FluxType.Formula)
-    throw new InvalidOperationException("Modifier cannot run standalone.");
-```
+**(c) Modifier protection (v3.0.0: compile-time guarantee)**
+- v3.0.0: `FluxModifier<TData, TDef>` has no `Instantiate()` method — any attempt to independently evaluate a Modifier **won't compile**. The runtime `InvalidOperationException` check has been replaced with a defensive `Debug.Assert`.
 
 ---
 
@@ -530,35 +484,40 @@ Expression.Condition(
 
 ---
 
-## 3. Current Status Assessment (v1.5.0)
+## 3. Current Status Assessment
 
-### 3.1 Resolved v1.0.0 Issues
+### 3.1 Resolved Historical Issues
 
-The following issues are confirmed fixed in the current version:
+The following issues are confirmed fixed across version history:
 
-| # | Original Issue | Solution | Location |
-|---|---------------|----------|----------|
-| 1 | JIT crash on IL2CPP/AOT platforms | `FluxPlatform` + `Instantiate()` try-catch auto-degradation | `FluxEvaluator.cs` / `FluxAssembler.cs` |
-| 2 | `Connect()` no Count=0 guard | Guard: `if (this.Count == 0) return next; if (next.Count == 0) return this;` | `FluxFormula.cs` |
-| 3 | TOper underlying type unvalidated | `FluxFormula` static ctor `sizeof(TOper) != 1` check | `FluxFormula.cs` |
-| 4 | No real tests | 152 unit tests covering compile/interpreter/JIT/Connect/Lexer/persistence/cache/blob | `tests/` + `Tests/` directories |
-| 5 | No IFluxDefinition example | `FloatMathDef` complete example + `SmokeTest.cs` | `TestDefinition.cs` |
-| 6 | Register model undocumented | VitePress bilingual docs covering core concepts/API/internals | `docs/` directory |
-| 7 | FluxBinder residual naming | `ToString()` updated to `"FluxInjector<{TData}>"` | `FluxInjector.cs` |
-| 8 | AOT compatibility undeclared | Docs/FAQ explicitly document platform support matrix | `docs/faq.md` |
-| 9 | README not implemented | Bilingual README + badge system complete | `README.md` / `README.en.md` |
+| # | Original Issue | Solution | Version |
+|---|---------------|----------|---------|
+| 1 | JIT crash on IL2CPP/AOT platforms | `FluxPlatform` + `Instantiate()` try-catch auto-degradation | v1.3.0 |
+| 2 | `Connect()` no Count=0 guard | Guard: `if (this.Count == 0) return next; if (next.Count == 0) return this;` | v1.3.0 |
+| 3 | TOper underlying type unvalidated | `TOper` generic parameter removed; `FluxToken.Oper` is directly `byte` — no validation needed | v3.0.0 |
+| 4 | No real tests | 332 unit tests (97.9% line coverage) covering compile/interpreter/JIT/Connect/Lexer/persistence/cache/blob/VFF | v1.5+ |
+| 5 | No IFluxDefinition example | `MathDef` complete example + `TestDefinition.cs` | v1.5+ |
+| 6 | Register model undocumented | VitePress bilingual docs covering core concepts/API/internals/pipeline | v1.5+ |
+| 7 | FluxBinder residual naming | `ToString()` updated to `"FluxInjector<{TData}>"` | v1.3.0 |
+| 8 | AOT compatibility undeclared | Docs/FAQ explicitly document platform support matrix | v1.5+ |
+| 9 | README not implemented | Bilingual README + badge system complete | v1.5+ |
 
-### 3.2 New Capabilities in v1.5.0
+### 3.2 Capabilities Added Across Versions
 
-| Capability | Description | Location |
-|-----------|-------------|----------|
-| Compile cache | DualHash64 → FormulaCache → Delegate cache, significant cold/warm latency divergence | `DualHash64.cs`, `FormulaCache.cs` |
-| Blob build pipeline | FluxBlobBuilder scans FluxAsset → concatenates blob → generates C# offset table | `FluxBlobBuilder.cs`, `FluxBlob.cs` |
-| VFF virtual formula | "VFF\0" format persistent formula references + parameter overrides, DLL-style symbol resolution | `VffFormat.cs` |
-| Format centralization | FormulaFormat/BinaryFormat eliminate scattered helpers; single source of truth for format definitions | `FormulaFormat.cs`, `BinaryFormat.cs` |
-| MaxRegister on-demand | Formula header stores compile-time-analyzed max register number; on-demand stackalloc | `FormulaFormat.cs` |
-| Global configuration | FluxConfig replaces hardcoded constants (cache capacity/merge threshold/buffer size) | `FluxConfig.cs` |
-| Per-link JIT chain evaluation | Connect products JIT-compiled per link, SetIndex(0, prevResult) chaining | `FluxJITCompiler.cs`, `FluxInstance.cs` |
+| Capability | Description | Introduced |
+|-----------|-------------|------------|
+| Compile cache | DualHash64 → FormulaCache → Delegate cache | v1.5.0 |
+| Blob build pipeline | FluxBlobBuilder scans FluxAsset → concatenates blob → generates C# offset table | v1.5.0 |
+| VFF virtual formula | "VFF\0" format persistent formula references + parameter overrides | v1.5.0 |
+| VFF encoder + IFluxFileFormatter | VffFormat.ToBytes() encoder + FromBytes() standalone decoder + file persistence interface | v2.0.0 |
+| Format centralization | FormulaFormat/BinaryFormat eliminate scattered helpers | v1.5.0 |
+| MaxRegister on-demand | Formula header stores compile-time max register number | v1.5.0 |
+| Global configuration | FluxConfig replaces hardcoded constants | v1.5.0 |
+| Per-link JIT chain evaluation | Connect products JIT-compiled per link, SetIndex(0, prevResult) chaining | v1.5.0 |
+| **TOper removal** | `FluxFormula<TData, TDef>` replaces `<TData, TOper>`; operator enum becomes definition-private detail; 4 runtime exceptions → compile errors | **v3.0.0** |
+| **Formula/Modifier type split** | `FluxModifier<TData, TDef>` independent struct; Connect compile-time type safety | **v3.0.0** |
+| **IFluxFileFormatter** | Core built-in file persistence interface + `FileFluxFileFormatter` implementation | v2.0.0 |
+| **Pipeline docs** | 8 pipeline docs bilingual (lexer/compiler/instruction/evaluator/jit/platform/overview/injector) | v3.0.0 |
 
 ### 3.3 Current Improvement Items
 
@@ -576,7 +535,7 @@ The following issues are confirmed fixed in the current version:
 ## 4. Architecture Assessment
 
 ### Strengths
-- **Generic design**: TData/TOper/TDef three-layer parameter separation, compile-time type safety, zero virtual dispatch overhead.
+- **Generic design**: v3.0.0 simplified to TData/TDef two-layer parameters — the operator enum is a `private` definition detail; all operator methods use `byte`. Compile-time type safety, zero virtual dispatch overhead.
 - **Zero-GC completeness**: ref struct + stackalloc + unsafe + unmanaged constraints cover the complete hot path from Instantiate to Run.
 - **Dual-backend strategy**: Interpreter with zero compile overhead, full platform compatibility; JIT compiles to near-native performance. Auto-degradation lets IL2CPP users be unaware of the switch.
 - **Compact bytecode**: 8-byte fixed-size instructions, suitable for caching, serialization, and cross-platform transport.

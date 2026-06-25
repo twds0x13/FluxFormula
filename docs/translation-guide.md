@@ -31,13 +31,13 @@ docs/
 
 - 优先**信息准确**，其次表达流畅
 - 技术术语保持统一：`立即数 → immediate`，`字节码 → bytecode`，`短路返回 → early exit`，`寄存器 → register`
-- 代码块不翻译——代码块内的注释可以翻译，但变量名、类型名保持原样
+- 代码块不翻译；代码块内的注释可以翻译，但变量名、类型名保持原样
 - 链接路径需要加 `/en/` 前缀：中文源文件写 `/guide/getting-started`，英文翻译写 `/en/guide/getting-started`
 
 ### 风格
 
 - 工程文档风格：陈述事实，不加感叹号、不加主观修饰语
-- 不需要逐字直译——自然英文优先，但不要偏离中文原文的技术含义
+- 不需要逐字直译：自然英文优先，但不要偏离中文原文的技术含义
 - 参考已有翻译页面的语气和术语选择
 
 ## 流程
@@ -52,7 +52,7 @@ npx vitepress dev
 ```
 
 4. 提交 PR，描述修改了哪些页面
-5. 中英文页面数量需要保持一致——新增中文页面时，同时提供英文翻译（至少包含框架性翻译，可以后续迭代）
+5. 中英文页面数量需要保持一致：新增中文页面时，同时提供英文翻译（至少包含框架性翻译，可以后续迭代）
 
 ## 已翻译页面
 
@@ -72,6 +72,14 @@ npx vitepress dev
 | `api/idefinition.md` | `en/api/idefinition.md` | ✅ |
 | `api/instruction.md` | `en/api/instruction.md` | ✅ |
 | `api/flux-token.md` | `en/api/flux-token.md` | ✅ |
+| `api/flux-config.md` | `en/api/flux-config.md` | ✅ |
+| `api/flux-artifact-kind.md` | `en/api/flux-artifact-kind.md` | ✅ |
+| `api/formula-cache.md` | `en/api/formula-cache.md` | ✅ |
+| `api/formula-format.md` | `en/api/formula-format.md` | ✅ |
+| `api/iflux-cache-provider.md` | `en/api/iflux-cache-provider.md` | ✅ |
+| `api/iflux-file-formatter.md` | `en/api/iflux-file-formatter.md` | ✅ |
+| `api/vff-format.md` | `en/api/vff-format.md` | ✅ |
+| `api/dualhash64.md` | `en/api/dualhash64.md` | ✅ |
 | `examples/float-math.md` | `en/examples/float-math.md` | ✅ |
 | `examples/damage-formula.md` | `en/examples/damage-formula.md` | ✅ |
 | `examples/error-handling.md` | `en/examples/error-handling.md` | ✅ |
@@ -84,6 +92,13 @@ npx vitepress dev
 | `technical/technical-analysis.md` | `en/technical/technical-analysis.md` | ✅ |
 | `technical/pipeline/overview.md` | `en/technical/pipeline/overview.md` | ✅ |
 | `technical/pipeline/injector.md` | `en/technical/pipeline/injector.md` | ✅ |
+| `technical/pipeline/compiler.md` | `en/technical/pipeline/compiler.md` | ✅ |
+| `technical/pipeline/evaluator.md` | `en/technical/pipeline/evaluator.md` | ✅ |
+| `technical/pipeline/instruction.md` | `en/technical/pipeline/instruction.md` | ✅ |
+| `technical/pipeline/jit.md` | `en/technical/pipeline/jit.md` | ✅ |
+| `technical/pipeline/lexer.md` | `en/technical/pipeline/lexer.md` | ✅ |
+| `technical/pipeline/platform.md` | `en/technical/pipeline/platform.md` | ✅ |
+| `FEATURE-streaming-injection.md` | `en/FEATURE-streaming-injection.md` | ✅ |
 | `migration-guide.md` | `en/migration-guide.md` | ✅ |
 | `translation-guide.md` | `en/translation-guide.md` | ✅ |
 

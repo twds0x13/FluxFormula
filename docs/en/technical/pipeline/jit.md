@@ -31,11 +31,11 @@ Return:       return reg[dest]           → registers[inst.Dest]
 ```csharp
 public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] registers)
 {
-    return ((FloatOp)op) switch
+    return ((MathOp)op) switch
     {
-        FloatOp.Add => Expression.Add(registers[inst.Arg0], registers[inst.Arg1]),
-        FloatOp.Sub => Expression.Subtract(...),
-        FloatOp.Mul => Expression.Multiply(...),
+        MathOp.Add => Expression.Add(registers[inst.Arg0], registers[inst.Arg1]),
+        MathOp.Sub => Expression.Subtract(...),
+        MathOp.Mul => Expression.Multiply(...),
         // ...
     };
 }

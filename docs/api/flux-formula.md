@@ -5,12 +5,12 @@
 ## 签名
 
 ```csharp
-// 完整公式——可求值
+// 完整公式，可独立求值
 public readonly struct FluxFormula<TData, TDef>
     where TData : unmanaged
     where TDef : unmanaged, IFluxJITDefinition<TData>
 
-// 修饰符——缺少第一操作数，不可独立求值
+// 修饰符，缺少第一操作数，不可独立求值
 public readonly struct FluxModifier<TData, TDef>
     where TData : unmanaged
     where TDef : unmanaged, IFluxJITDefinition<TData>
@@ -25,7 +25,7 @@ public readonly struct FluxModifier<TData, TDef>
 | `VariableSlots` | `VariableSlot[]` | 变量名到槽位索引的映射表，由 Lexer 路径填充 |
 | `MaxRegister` | `byte` | 编译期分析的最高寄存器索引（0=未分析，回退到全量 255） |
 
-> `Type` 字段为 `internal`。类型身份由 struct 类型本身保证——`FluxFormula` 始终是 Formula，`FluxModifier` 始终是 Modifier。
+> `Type` 字段为 `internal`。类型身份由 struct 类型本身保证：`FluxFormula` 始终是 Formula，`FluxModifier` 始终是 Modifier。
 
 ## 静态成员
 
@@ -54,11 +54,11 @@ public readonly struct FluxModifier<TData, TDef>
 
 ### ChainLink
 
-链式公式的一个环节。存储该公式片段的字节码引用和元数据，通过 `DualHash64.Key` 从缓存中检索 JIT delegate。2.0 起公开。
+链式公式的一个环节。存储该公式片段的字节码引用和元数据，通过 `DualHash64.Key` 从缓存中检索 JIT delegate。公开结构体，可通过 `GetChainLinks()` 访问。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `Key` | `DualHash64` | 字节码哈希——在缓存中查找 delegate 的键 |
+| `Key` | `DualHash64` | 字节码哈希，缓存中查找 delegate 的键 |
 | `Bytecode` | `Instruction[]` | 字节码引用（指向原始公式的 Instruction[]，不复制） |
 | `InstructionCount` | `int` | Instruction 数量 |
 | `ImmediateCount` | `int` | 该片段的 Immediate 数（用于 SetIndex 偏移计算） |
@@ -81,10 +81,10 @@ public readonly struct FluxModifier<TData, TDef>
 public FluxFormula<TData, TDef> Connect(FluxModifier<TData, TDef> next)
 ```
 
-链式组合当前公式与一个 Modifier。不合并字节码——追加 `ChainLink` 引用切片。物理拼接推迟到求值时刻。
+链式组合当前公式与一个 Modifier。不合并字节码，追加 `ChainLink` 引用切片。物理拼接推迟到求值时刻。
 
 - 卫语句：任一方为空则直接返回另一方
-- **`next` 的类型 `FluxModifier` 由类型系统保证**——传入 Formula 前须先调用 `.ToModifier()` 剥离首操作数
+- **`next` 的类型 `FluxModifier` 由类型系统保证**：传入 Formula 前须先调用 `.ToModifier()` 剥离首操作数
 - 参见 [ChainLink 深度解析](../technical/chainlink-deep-dive)
 
 ### ToModifier
@@ -113,13 +113,13 @@ internal FluxFormula<TData, TDef> ToAtomic()
 
 ### GetByteHash / Raw / ToBytes / FromBytes / IsChained / ChainLength / GetChainLinks
 
-与 v2.x 一致，详见各方法 XML doc 注释。
+各方法签名见上方代码块，行为细节见源码 XML doc 注释。
 
 ### ToString
 
 ```csharp
 public override string ToString()
-// "FluxFormula<Single, FloatMathDef> [Type: Formula, Instructions: 4]"
+// "FluxFormula<Single, MathDef> [Type: Formula, Instructions: 4]"
 ```
 
 ## FluxModifier 方法

@@ -1,6 +1,6 @@
 # IFluxFileFormatter
 
-最小文件持久化契约。Core 提供读写方法——消费者注入外部实现或直接使用内置的 `FileFluxFileFormatter`。
+最小文件持久化契约。Core 提供读写方法，消费者注入外部实现或直接使用内置的 `FileFluxFileFormatter`。
 
 ## 签名
 
@@ -14,7 +14,7 @@ public interface IFluxFileFormatter
 
 ## 设计原理
 
-接口故意非泛型——调用方在传入 `byte[]` 之前已完成序列化（`FluxFormula.ToBytes()` 或 `VffFormat.ToBytes()`），收到 `byte[]` 后自行反序列化（`FluxFormula.FromBytes()` 或 `VffFormat.FromBytes()`）。接口只需关心"字节存到哪"和"从哪读字节"。
+接口故意非泛型：调用方在传入 `byte[]` 之前已完成序列化（`FluxFormula.ToBytes()` 或 `VffFormat.ToBytes()`），收到 `byte[]` 后自行反序列化（`FluxFormula.FromBytes()` 或 `VffFormat.FromBytes()`）。接口只需关心"字节存到哪"和"从哪读字节"。
 
 ## 方法
 
@@ -64,7 +64,7 @@ formatter.Save(formula.ToBytes(), FluxArtifactKind.Formula, "Damage");
 
 // 加载
 byte[] data = formatter.Load("Damage", out var kind);
-var loaded = FluxFormula<float, FloatOp>.FromBytes(data);
+var loaded = FluxFormula<float, MathDef>.FromBytes(data);
 
 // VFF 往返
 var links = chain.GetChainLinks().ToArray();
@@ -73,7 +73,7 @@ formatter.Save(VffFormat.ToBytes<float>(links, overrides),
 // → DamageChain.vff
 
 byte[] vffData = formatter.Load("DamageChain", out var vffKind);
-var result = VffFormat.FromBytes<float, FloatOp>(vffData);
+var result = VffFormat.FromBytes<float, MathDef>(vffData);
 ```
 
 ## 参见

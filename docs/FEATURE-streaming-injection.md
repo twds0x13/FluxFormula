@@ -1,6 +1,6 @@
 # Feature: Lexer 层 + 流式注入优化
 
-> 状态：A 已完成（v1.1.0-v1.3.0），B 部分完成 | 发起：2026-06-18
+> 状态：A 已完成（v1.1.0-v1.3.0），B 部分完成 | 发起：2026-06-18 | 代码示例已更新至 v3.0.0 API
 
 ## 功能拆分
 
@@ -21,10 +21,10 @@
      ▼
   Lexer.Parse("(1 + 2) * 3.f")
      │  1. 切分词素
-     │  2. 查符号表 → TOper
+     │  2. 查符号表 → byte 操作码
      │  3. 解析字面量 → TData
      ▼
-  FluxToken<float, FloatOp>[]
+  FluxToken<float>[]
      │
      ▼
   FluxAssembler.Compile()  ← 已有，不动
@@ -38,17 +38,17 @@
 ```
 输入: "(1 * 2) + (3 / 4)"
 输出: [
-  { Oper: LParen },
-  { Oper: Const, Data: 1 },
-  { Oper: Mul },
-  { Oper: Const, Data: 2 },
-  { Oper: RParen },
-  { Oper: Add },
-  { Oper: LParen },
-  { Oper: Const, Data: 3 },
-  { Oper: Div },
-  { Oper: Const, Data: 4 },
-  { Oper: RParen },
+  { Oper: (byte)MathOp.LParen },
+  { Oper: (byte)MathOp.Const, Data: 1 },
+  { Oper: (byte)MathOp.Mul },
+  { Oper: (byte)MathOp.Const, Data: 2 },
+  { Oper: (byte)MathOp.RParen },
+  { Oper: (byte)MathOp.Add },
+  { Oper: (byte)MathOp.LParen },
+  { Oper: (byte)MathOp.Const, Data: 3 },
+  { Oper: (byte)MathOp.Div },
+  { Oper: (byte)MathOp.Const, Data: 4 },
+  { Oper: (byte)MathOp.RParen },
 ]
 ```
 
@@ -76,17 +76,17 @@
 ### 方案 2：正则分词 + 配置表
 
 ```csharp
-var lexer = new FluxLexer<float, FloatOp>(new LexerConfig<float, FloatOp>
+var lexer = new FluxLexer<float, MathDef>(new LexerConfig<float, MathDef>
 {
     TokenPatterns = new[]
     {
-        new(@"\d+\.?\d*f?",         FloatOp.Const,  TokenType.Immediate),
-        new(@"\+",                  FloatOp.Add,    TokenType.Operator),
-        new(@"\-",                  FloatOp.Sub,    TokenType.Operator),
-        new(@"\*",                  FloatOp.Mul,    TokenType.Operator),
-        new(@"/",                   FloatOp.Div,    TokenType.Operator),
-        new(@"\(",                  FloatOp.LParen, TokenType.Operator),
-        new(@"\)",                  FloatOp.RParen, TokenType.Operator),
+        new(@"\d+\.?\d*f?",         (byte)MathOp.Const,  TokenType.Immediate),
+        new(@"\+",                  (byte)MathOp.Add,    TokenType.Operator),
+        new(@"\-",                  (byte)MathOp.Sub,    TokenType.Operator),
+        new(@"\*",                  (byte)MathOp.Mul,    TokenType.Operator),
+        new(@"/",                   (byte)MathOp.Div,    TokenType.Operator),
+        new(@"\(",                  (byte)MathOp.LParen, TokenType.Operator),
+        new(@"\)",                  (byte)MathOp.RParen, TokenType.Operator),
     },
     LiteralParser = s => float.Parse(s.TrimEnd('f')),
     IgnorePattern = @"\s+",
@@ -132,61 +132,35 @@ var lexer = new FluxLexer<float, FloatOp>(new LexerConfig<float, FloatOp>
 ```csharp
 /// <summary>
 /// 词法分析器：将字符串转换为 FluxToken 流。
-/// 内部使用 Pidgin 实现，用户通过 LexerConfig 配置。
 /// </summary>
-public class FluxLexer<TData, TOper>
+public class FluxLexer<TData, TDef>
     where TData : unmanaged
-    where TOper : unmanaged, Enum
+    where TDef : unmanaged, IFluxJITDefinition<TData>
 {
-    /// <summary>从配置表构建（推荐方式，零 Pidgin 知识）</summary>
-    public FluxLexer(LexerConfig<TData, TOper> config);
-
-    /// <summary>从用户手写的 Pidgin 解析器桥接（高级模式）</summary>
-    public static FluxLexer<TData, TOper> FromPidgin(
-        Parser<char, FluxToken<TData, TOper>> customParser,
-        Func<string, TData> literalParser);
+    /// <summary>从配置表构建（推荐方式）</summary>
+    public FluxLexer(LexerConfig<TData, TDef> config);
 
     /// <summary>解析字符串为 Token 数组</summary>
-    public FluxToken<TData, TOper>[] Lex(string source);
+    public LexResult<TData> Lex(string source);
 }
 
 /// <summary>
 /// 纯配置驱动的词法规则表。
-/// 用户不需要理解 Pidgin，填表即可使用。
 /// </summary>
-public class LexerConfig<TData, TOper>
+public class LexerConfig<TData, TDef>
     where TData : unmanaged
-    where TOper : unmanaged, Enum
+    where TDef : unmanaged, IFluxJITDefinition<TData>
 {
-    /// <summary>空白/注释模式（被跳过）</summary>
-    public string WhitespacePattern = @"\s+";
-
-    /// <summary>字面量 → TData 转换函数</summary>
+    public byte LiteralOper;
     public Func<string, TData> LiteralParser;
-
-    /// <summary>运算符规则列表</summary>
-    public List<OperatorRule<TOper>> Operators = new();
-
-    /// <summary>括号规则列表</summary>
-    public List<BracketRule<TOper>> Brackets = new();
-
-    /// <summary>数字/标识符 正则模式</summary>
-    public string LiteralPattern = @"\d+(\.\d+)?f?";
+    public List<OperatorRule> Operators = new();
+    public List<BracketRule> Brackets = new();
+    public List<VariablePatternRule> VariablePatterns = new();
+    public List<byte> ImplicitOperators = new();
 }
 
-/// <summary>运算符映射规则</summary>
-public record OperatorRule<TOper>(
-    string Symbol,    // 如 "+", "*", "&&", "**"
-    TOper Oper        // 关联的枚举值
-);
-
-/// <summary>括号映射规则</summary>
-public record BracketRule<TOper>(
-    string Open,      // 如 "(", "[", "{"
-    string Close,     // 如 ")", "]", "}"
-    TOper LeftOper,   // 左括号枚举
-    TOper RightOper   // 右括号枚举
-);
+public record OperatorRule(string Symbol, byte Oper);
+public record BracketRule(string Open, string Close, byte LeftOper, byte RightOper);
 ```
 
 ## 使用示例
@@ -194,42 +168,27 @@ public record BracketRule<TOper>(
 ### Layer 1：填表即用（推荐）
 
 ```csharp
-var lexer = new FluxLexer<float, FloatOp>(new LexerConfig<float, FloatOp>
+var lexer = new FluxLexer<float, MathDef>(new LexerConfig<float, MathDef>
 {
-    LiteralPattern = @"\d+(\.\d+)?f?",
-    LiteralParser  = s => float.Parse(s.TrimEnd('f')),
+    LiteralOper = (byte)MathOp.Const,
+    LiteralParser = s => float.Parse(s.TrimEnd('f')),
 
     Operators =
     {
-        new("+", FloatOp.Add),
-        new("-", FloatOp.Sub),
-        new("*", FloatOp.Mul),
-        new("/", FloatOp.Div),
+        new("+", (byte)MathOp.Add),
+        new("-", (byte)MathOp.Sub),
+        new("*", (byte)MathOp.Mul),
+        new("/", (byte)MathOp.Div),
     },
     Brackets =
     {
-        new("(", ")", FloatOp.LParen, FloatOp.RParen),
+        new("(", ")", (byte)MathOp.LParen, (byte)MathOp.RParen),
     },
 });
 
 var tokens = lexer.Lex("(1.5f + 2f) * 3f");
-var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(def);
-float r = runner.Build(tokens, jit: true).Run(); // 10.5
-```
-
-### Layer 2：手写 Pidgin 解析器（高级）
-
-```csharp
-// 用户自己写的 Pidgin 解析器
-var myParser = OneOf(
-    DecimalNum.Select(v => Token(MyOp.Const, v)),
-    Char('+').ThenReturn(Token(MyOp.Add, 0f)),
-    // ...
-);
-
-// 通过 FromPidgin 桥接，享受与 FluxLexer 相同的下游链路
-var lexer = FluxLexer<float, FloatOp>.FromPidgin(myParser, s => float.Parse(s));
-var tokens = lexer.Lex("1 + 2");
+var runner = new FluxAssembler<float, MathDef>(def);
+float r = runner.Build(tokens.Tokens, jit: true).Run(); // 10.5
 ```
 
 ---
@@ -253,8 +212,8 @@ var tokens = lexer.Lex("1 + 2");
 
 ## 实施检查表
 
-- [ ] A. Lexer 方案确认（方案 2 or 方案 3）
-- [ ] A. 接口设计定稿
-- [ ] A. 实现 + 单元测试
+- [x] A. Lexer 方案确认（方案 1：手写 Span）
+- [x] A. 接口设计定稿
+- [x] A. 实现 + 单元测试
 - [ ] B. 注入路径统一
 - [ ] 文档更新 (guide/lexer.md)

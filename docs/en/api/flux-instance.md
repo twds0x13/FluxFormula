@@ -5,10 +5,9 @@ ref struct streaming executor. Stack-allocated, zero GC.
 ## Signature
 
 ```csharp
-public ref struct FluxInstance<TData, TOper, TDef>
+public ref struct FluxInstance<TData, TDef>
     where TData : unmanaged
-    where TOper : unmanaged, Enum
-    where TDef : unmanaged, IFluxJITDefinition<TData, TOper>
+    where TDef : unmanaged, IFluxJITDefinition<TData>
 ```
 
 `ref struct` can only exist on the stack — cannot be boxed, cannot be a class field — ensuring zero heap allocation on the execution path.
@@ -18,7 +17,7 @@ public ref struct FluxInstance<TData, TOper, TDef>
 ### Set
 
 ```csharp
-public FluxInstance<TData, TOper, TDef> Set(string name, TData value)
+public FluxInstance<TData, TDef> Set(string name, TData value)
 ```
 
 Injects a value by variable name. Uses an inline binary search to locate the variable slot. All variables sharing the same name are written. Throws `ArgumentException` if `name` was not present in the Lexer's `VariablePatterns`.
@@ -31,7 +30,7 @@ float r = inst.Set("atk", 150f).Set("def", 50f).Run();
 ### SetIndex
 
 ```csharp
-public FluxInstance<TData, TOper, TDef> SetIndex(int index, TData value)
+public FluxInstance<TData, TDef> SetIndex(int index, TData value)
 ```
 
 Injects a value by positional index (the `index`-th Immediate data slot). No variable name validation.
@@ -47,7 +46,7 @@ public readonly TData Run()
 
 Starts the computation engine and returns a `TData` result.
 
-- If `Type == Modifier`, throws `InvalidOperationException`
+- v3.0.0: `FluxModifier` has no `Instantiate()` method — the "Modifier run standalone" error is now prevented at compile time
 - If `_isJit == true`, invokes the JIT-compiled delegate
 - Otherwise, creates a `FluxEvaluator`, `stackalloc`s registers, and executes the bytecode loop
 
@@ -77,6 +76,11 @@ float r = runner.Instantiate(formula)
     .SetIndex(1, 4f)
     .Run();
 ```
+
+## v3.0.0 Changes
+
+- `FluxInstance<TData, TOper, TDef>` → `FluxInstance<TData, TDef>` (3 params → 2 params)
+- Removed `Type == Modifier` runtime check — `FluxModifier` type has no `Instantiate()`, ensuring compile-time safety
 
 ## See Also
 

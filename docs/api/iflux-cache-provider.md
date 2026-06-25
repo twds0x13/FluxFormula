@@ -10,8 +10,8 @@ public interface IFluxCacheProvider
 
 ## 设计约束
 
-- 所有方法使用 `IntPtr` 而非 `byte*`——实现者不需要 `unsafe` 上下文
-- Delegate 通过 `GCHandle` 转 `IntPtr` 存储——调用方负责创建和释放
+- 所有方法使用 `IntPtr` 而非 `byte*`：实现者不需要 `unsafe` 上下文
+- Delegate 通过 `GCHandle` 转 `IntPtr` 存储，调用方负责创建和释放
 - 缓存的生命周期管理（指针有效期、GCHandle 存活期）由实现者完全负责
 
 ## 方法
@@ -50,7 +50,7 @@ void PutDelegate(DualHash64 key, IntPtr gcHandle)
 
 ## 内置实现
 
-`FormulaCache` 是默认实现——2048 槽开放寻址哈希表，单例生命周期零分配。
+`FormulaCache` 是默认实现：2048 槽开放寻址哈希表，单例生命周期零分配。
 
 ## 自定义实现示例
 

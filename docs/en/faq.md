@@ -2,24 +2,24 @@
 
 ## "Modifier cannot run standalone" Error
 
-This occurs when compiling a token sequence that starts with a binary operator (e.g., `+ 5`), which is classified as `FluxType.Modifier`. A Modifier lacks a left operand and must be attached to a complete Formula via `Connect()`.
+This occurs when compiling a token sequence that starts with a binary operator (e.g., `+ 5`), which is classified as Modifier (internal `FluxType.Modifier`). **As of v3.0.0, this error is prevented at compile time** — `FluxModifier<TData, TDef>` has no `Instantiate()` method; any code that attempts to independently evaluate a Modifier won't compile.
 
 ```csharp
-// Error: starts with Add → Modifier
-var tokens = new[] { Op(FloatOp.Add), C(5f) };
-runner.Build(tokens).Run(); // InvalidOperationException
+// Compile error: starts with Add → produces FluxModifier, no Instantiate()
+var tokens = new[] { Op((byte)MathOp.Add), C(5f) };
+// var inst = runner.Compile(tokens).Instantiate(...);  // CS1061: FluxModifier has no Instantiate
 
 // Correct: connect to a complete formula
 var f1   = runner.Compile(new[] { C(10f) });
-var mod  = runner.Compile(new[] { Op(FloatOp.Add), C(5f) });
-var combined = f1.Connect(mod); // 10 + 5
+var mod  = runner.Compile(new[] { Op((byte)MathOp.Add), C(5f) });
+var combined = f1.Connect(mod); // 10 + 5 (Connect accepts FluxModifier)
 ```
 
 ## Incorrect Results After Connect
 
 `Connect()` does not remap register numbers. If two formulas use the same registers, concatenation causes overwrites. Safe practices:
 
-- Connect empty formulas (`FluxFormula<TData,TOper>.Empty`): zero register conflicts
+- Connect empty formulas (`FluxFormula<TData, TDef>.Empty`): zero register conflicts
 - Compile the complete expression in a single `Compile()` call rather than post-compilation concatenation
 
 If dynamic composition of many formula fragments is required, concatenate at the token level before a single `Compile()`.
@@ -68,14 +68,11 @@ C(1f), Add, C(2f), Mul, C(3f)  // → 7
 
 ## Why Must Operator Enums Use `: byte`
 
-The framework reads the first byte of the enum via `*(byte*)&oper` as the opcode. If `enum Foo : short` and the value exceeds 255, the byte read is incorrect. A `sizeof(TOper) != 1` check during type initialization throws a clear exception.
+> **v3.0.0**: The `TOper` generic parameter has been removed. The operator enum is now an internal implementation detail of the definition; `FluxToken.Oper` directly uses `byte`. The `sizeof(TOper) != 1` runtime check is no longer needed — `byte` is always 1 byte.
 
 ```csharp
-// Correct
-public enum MyOp : byte { Add, Sub, Mul }
-
-// TypeInitializationException
-public enum MyOp : int { Add = 256, Sub }
+// v3.0.0: definition-internal enum
+enum MyOp : byte { Add, Sub, Mul }  // still : byte, but no longer a framework constraint
 ```
 
 ## Can TData Use Custom Structs

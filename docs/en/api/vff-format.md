@@ -70,13 +70,13 @@ Resolved parameter override metadata.
 
 Constructor: `new VffOverride<TData>(globalSlot, kind, constantValue)`
 
-### VffResolveResult\<TData, TOper\>
+### VffResolveResult\<TData, TDef\>
 
 VFF resolution result.
 
 | Field | Type | Description |
 |------|------|------|
-| `Formula` | `FluxFormula<TData, TOper>` | Resolved chain formula (can be passed to `Instantiate()`) |
+| `Formula` | `FluxFormula<TData, TDef>` | Resolved chain formula (can be passed to `Instantiate()`) |
 | `Overrides` | `VffOverride<TData>[]` | Parameter override list (empty array = pure reference, no overrides) |
 
 ## Enum
@@ -104,10 +104,10 @@ Checks whether a byte span is a VFF entry. Compares the first 4 bytes against `"
 ### Resolve
 
 ```csharp
-public static VffResolveResult<TData, TOper> Resolve<TData, TOper>(
+public static VffResolveResult<TData, TDef> Resolve<TData, TDef>(
     DualHash64 vffHash)
     where TData : unmanaged
-    where TOper : unmanaged, Enum
+    where TDef : unmanaged, IFluxJITDefinition<TData>
 ```
 
 Reads a VFF entry from `FormulaCache` and recursively resolves it into a chain formula.
@@ -157,10 +157,10 @@ The output byte layout matches the "Byte Layout" section above: Header ("VFF\0" 
 ### FromBytes
 
 ```csharp
-public static VffResolveResult<TData, TOper> FromBytes<TData, TOper>(
+public static VffResolveResult<TData, TDef> FromBytes<TData, TDef>(
     byte[] data)
     where TData : unmanaged
-    where TOper : unmanaged, Enum
+    where TDef : unmanaged, IFluxJITDefinition<TData>
 ```
 
 Parses a VFF from a raw byte array, producing a chain formula. Functionally equivalent to `Resolve()`, but takes VFF bytes directly as a parameter rather than looking them up from `FormulaCache`.
@@ -195,7 +195,7 @@ var hashB = FormulaCache.Instance.Put(bytesB);
 var links = new[]
 {
     new ChainLink { Key = hashA, Bytecode = FormulaFormat.GetInstructionSpan(bytesA).ToArray(),
-        InstructionCount = fA.Count, Type = FluxType.Formula,
+        InstructionCount = fA.Count, Type = (byte)FluxType.Formula,  // internal enum; 0=Modifier, 1=Formula
         ImmediateCount = fA.ImmediateCount, VarSlots = fA.VariableSlots,
         MaxRegister = fA.MaxRegister },
     new ChainLink { Key = hashB, Bytecode = FormulaFormat.GetInstructionSpan(bytesB).ToArray(),
@@ -216,7 +216,7 @@ builder.Save(vffData, FluxArtifactKind.Virtual, "AttackDefenseChain.vff");
 ```csharp
 // Load bytes from .vff file → resolve
 byte[] loaded = File.ReadAllBytes("AttackDefenseChain.vff");
-var result = VffFormat.FromBytes<float, FloatOp>(loaded);
+var result = VffFormat.FromBytes<float, MathDef>(loaded);
 
 // result.Formula is a chain formula, ready to execute
 var instance = assembler.Instantiate(result.Formula, jit: true);
@@ -226,7 +226,7 @@ float value = instance.Run();
 
 ## Internals
 
-`ResolveLinks<TData, TOper>(vffBytes, visited)` is the core recursive method shared by both `Resolve()` and `FromBytes()`, returning `(ChainLink[], VffOverride<TData>[], totalImm)`.
+`ResolveLinks<TData, TDef>(vffBytes, visited)` is the core recursive method shared by both `Resolve()` and `FromBytes()`, returning `(ChainLink[], VffOverride<TData>[], totalImm)`.
 
 `ToBytes<TData>()` produces exactly the byte layout defined above, using `BinaryFormat` for all multi-byte writes.
 

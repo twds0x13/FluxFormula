@@ -28,11 +28,11 @@ public static void Set(FluxConfig config)
 | 属性 | 类型 | 默认 | 说明 |
 |------|------|------|------|
 | `FormulaCacheCapacity` | `int` | `2048` | `FormulaCache` 哈希表槽位数。增大可减少碰撞，但增加内存 |
-| `MergeThreshold` | `int` | `8` | 链式公式合并阈值——链长超过此值时 `ToAtomic()` 合并为原子公式 |
+| `MergeThreshold` | `int` | `8` | 链式公式合并阈值：链长超过此值时 `ToAtomic()` 合并为原子公式 |
 | `BlobFilePath` | `string` | `null` | Blob 二进制文件路径。null 使用 `StreamingAssets/flux.blob` |
 | `DiskCacheDirectory` | `string` | `null` | 磁盘缓存目录。null 使用 `Application.persistentDataPath` |
 
-所有配置项均使用 `init` 访问器——创建后不可修改。
+所有配置项均使用 `init` 访问器，创建后不可修改。
 
 ## 使用示例
 

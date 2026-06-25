@@ -30,7 +30,7 @@ graph LR
     Formula -->|"Connect()"| Chain["ChainLink[]"]
 ```
 
-## Persistence & Cache
+## Persistence & Caching
 
 ```mermaid
 graph LR
@@ -40,7 +40,7 @@ graph LR
 
     FF --> Fmt["IFluxFileFormatter<br/>Save / Load"]
     VFF --> Fmt
-    Fmt --> FileFmt["FileFluxFileFormatter<br/>System.IO default"]
+    Fmt --> FileFmt["FileFluxFileFormatter<br/>System.IO default impl"]
 
     F --> Hash["DualHash64"]
     Hash --> Cache[("FormulaCache<br/>2048 slots")]
@@ -58,62 +58,54 @@ graph LR
 
 | Type | Generics | Role |
 |------|:--:|------|
-| [FluxAssembler](./flux-assembler) | `<TData, TOper, TDef>` | Main entry: compilation and instantiation |
-| [FluxFormula](./flux-formula) | `<TData, TOper>` | Immutable bytecode container |
-| [FluxInstance](./flux-instance) | `<TData, TOper, TDef>` | ref struct streaming executor |
-| [IFluxDefinition](./idefinition) | `<TData, TOper>` | Operator definition interface (interpreter path) |
-| [IFluxJITDefinition](./idefinition) | `<TData, TOper>` | Operator definition interface (with JIT path) |
+| [FluxAssembler](./flux-assembler) | `<TData, TDef>` | Main entry: compile & instantiate |
+| [FluxFormula](./flux-formula) | `<TData, TDef>` | Immutable bytecode container (complete formula) |
+| `FluxModifier` | `<TData, TDef>` | Immutable bytecode container (missing left operand, chain-only) |
+| [FluxInstance](./flux-instance) | `<TData, TDef>` | ref struct streaming executor |
+| [IFluxDefinition](./idefinition) | `<TData>` | Operator definition interface (interpreter path) |
+| [IFluxJITDefinition](./idefinition) | `<TData>` | Operator definition interface (with JIT path) |
 | [Instruction](./instruction) | — | 8-byte instruction struct |
-| [FluxToken](./flux-token) | `<TData, TOper>` | Lexical token |
-| `LexerConfig<TData, TOper>` | `<TData, TOper>` | Lexer configuration (operators/brackets/variable rules) |
-| `FluxLexer<TData, TOper>` | `<TData, TOper>` | Hand-written Span lexer |
-| `LexResult<TData, TOper>` | `<TData, TOper>` | Lexer output: token array + variable names |
-| `OperatorRule<TOper>` | `<TOper>` | Operator symbol-to-enum mapping |
-| `BracketRule<TOper>` | `<TOper>` | Bracket symbol pair-to-enum mapping |
-| `VariablePatternRule` | — | Variable prefix/suffix pattern definition |
-| `OpPair<TOper>` | `<TOper>` | Bracket pair descriptor |
-| `FluxAsset` | — | ScriptableObject asset container |
-| `FluxConfigAsset` | — | ScriptableObject global config container (auto-loaded via `Resources.Load`) |
-| `FormulaLibrary<TData, TOper, TDef>` | `<TData, TOper, TDef>` | Asset creation and loading (requires FLUX_ADDRESSABLES) |
-| `FluxFormulaRef<TData, TOper, TDef>` | `<TData, TOper, TDef>` | Type-safe AssetReference wrapper (requires FLUX_ADDRESSABLES) |
-| `VariableSlot` | — | Variable name to slot index mapping |
+| [FluxToken](./flux-token) | `<TData>` | Lexical token (`Oper` is `byte`) |
+| `FluxLexer<TData, TDef>` | `<TData, TDef>` | Handwritten span lexer |
+| `LexResult<TData>` | `<TData>` | Lexer output: token array + variable names |
+| `LexerConfig<TData>` | `<TData>` | Lexer config (operators/brackets/variable rules) |
+| `VariableSlot` | — | Variable name → slot index mapping |
 | [DualHash64](./dualhash64) | — | 128-bit dual hash (xxHash64 + FNV-1a 64), content-addressable cache key |
-| `Registers` | — | Register semantic constants (Error=0, Bus=1, FirstAlloc=2, Max=255) |
-| [FluxConfig](./flux-config) | — | Project-level global configuration (FormulaCacheCapacity, MergeThreshold, BlobFilePath, DiskCacheDirectory) |
+| [FluxConfig](./flux-config) | — | Project-level global configuration |
 | [FormulaCache](./formula-cache) | — | 2048-slot open-addressing hashmap cache |
 | [IFluxCacheProvider](./iflux-cache-provider) | — | Replaceable cache backend interface |
 | [FormulaFormat](./formula-format) | — | `.ff` formula bytecode format definition (HeaderSize=14) |
-| `BinaryFormat` | — | Little-endian binary read/write primitives |
-| [VffFormat](./vff-format) | — | `.vff` virtual formula format definition, encoding, and resolution |
+| [VffFormat](./vff-format) | — | `.vff` virtual formula format definition, encoding & parsing |
 | [FluxArtifactKind](./flux-artifact-kind) | — | Binary artifact type enum (`.ff` / `.vff`) |
-| [IFluxFileFormatter](./iflux-file-formatter) | — | Minimal persistence contract interface (external saver injection) |
-| `FluxBlob` | — | Blob pinned memory manager (Initialize/Shutdown/VerifyIntegrity) |
-| `FluxBlobBuilder` | — | Offline build pipeline (scan FluxAsset → concatenate blob → generate C# offset table) |
+| [IFluxFileFormatter](./iflux-file-formatter) | — | Minimal persistence contract interface (with `FileFluxFileFormatter` built-in impl) |
+| `FluxAsset` | — | ScriptableObject asset container |
+| `FluxBlob` | — | Blob pinned memory manager |
+| `FluxBlobBuilder` | — | Offline build pipeline |
 
 ### Internal Types
 
-The following types are not public API, listed for reference only:
+The following types are not Public API, listed for reference only:
 
+- `FluxType` — internal enum (Formula / Modifier), made `internal` in v3.0.0
 - `FluxPlatform` — JIT degradation state control
-- `FluxEvaluator<TData, TOper, TDef>` — Interpreter execution engine
-- `FluxCompiler<TData, TOper, TDef>` — Shunting-yard algorithm compiler
-- `FluxJITCompiler<TData, TOper, TDef>` — LINQ Expression Tree JIT
-- `FluxInjector<TData>` — Data injector
-- `FormulaCache` — Static singleton cache, DualHash64 → (bytecode pointer + length / JIT delegate)
-- `FluxCompiler<TData, TOper, TDef>` — Shunting-yard algorithm implementation
-- `FluxJITCompiler<TData, TOper, TDef>` — LINQ Expression Tree compilation
-- `FluxInjector<TData>` — Data injector
+- `ChainLink` — chain link struct (public struct, typically accessed indirectly via `GetChainLinks()`)
+- `FluxEvaluator<TData, TDef>` — interpreter execution engine
+- `FluxCompiler<TData, TDef>` — shunting-yard algorithm compiler
+- `FluxJITCompiler<TData, TDef>` — LINQ Expression Tree JIT
+- `FluxInjector<TData>` — data injector
+- `OpPair` — bracket pairing descriptor (non-generic)
 
 ## Namespaces
 
-- **`FluxFormula.Core`** — All public types and internal runtime types
+- **`FluxFormula.Core`** — all public types and internal runtime types
 - **`FluxFormula.Compiler`** — `FluxCompiler` and `FluxJITCompiler` (internal)
-- **`FluxFormula.Editor`** — `FluxAssetEditor`, `FluxAssetInspector`, Dump extension (Editor-only)
+- **`FluxFormula.Editor`** — `FluxAssetEditor`, `FluxAssetInspector`, Dump extensions (Editor-only)
 
 ## Generic Constraints
 
 ```
 TData  : unmanaged               (float, int, custom blittable struct)
-TOper  : unmanaged, Enum         (must be enum X : byte)
-TDef   : unmanaged, IFluxJITDefinition<TData, TOper>
+TDef   : unmanaged, IFluxJITDefinition<TData>
 ```
+
+v3.0.0 removed the `TOper` generic parameter — the operator enum is now an internal implementation detail of the definition.

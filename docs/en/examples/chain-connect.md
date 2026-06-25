@@ -1,46 +1,48 @@
 # Example: ChainLink
 
-ChainLink is a public struct. Typical users interact with it indirectly through `Connect()`, `ToAtomic()`, and `ToMultiplier()`. Advanced users can read the chain structure via `GetChainLinks()` and persist it using `VffFormat.ToBytes()`.
+The following examples demonstrate the chaining behavior of `Connect()`. ChainLink is a public struct — regular users interact with it indirectly via `FluxFormula` / `FluxModifier` methods; advanced users can read the chain structure via `GetChainLinks()` and persist it using `VffFormat.ToBytes()`.
+
+> **v3.0.0**: `Connect()`'s type signature upgraded from runtime checking to compile-time guarantee — the parameter is `FluxModifier<TData, TDef>`; passing a `FluxFormula` won't compile. `ToMultiplier()` renamed to `ToModifier()` (old name retained as `[Obsolete]`).
 
 ## Basic Chain Connect
 
-`Connect()` requires the second argument to be a Modifier. Passing a Formula directly throws `ArgumentException`. Call `.ToMultiplier()` first to strip the first operand:
+`Connect()`'s type signature only accepts `FluxModifier`. Call `.ToModifier()` first to strip the first operand:
 
 ```csharp
 using FluxFormula.Core;
 
 var lexer = CreateMathLexer();
-var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(Def);
+var runner = new FluxAssembler<float, MathDef>(Def);
 
-var fA = runner.Compile(lexer.Lex("10 + 5"));                // = 15
+var fA = runner.Compile(lexer.Lex("10 + 5"));                // Formula (has first operand 10)
 var fB = runner.Compile(lexer.Lex("2 * 3"));                 // Formula (has first operand 2)
 
-// ❌ Error: fB is a Formula — its first operand would be silently overwritten
-// var chain = fA.Connect(fB);  // throws ArgumentException
+// ❌ Compile error: Connect only accepts FluxModifier, FluxFormula won't type-check
+// var chain = fA.Connect(fB);  // CS1503: cannot convert FluxFormula to FluxModifier
 
-// ✅ Correct: convert fB to Modifier first (strip operand 2, read from R1 instead)
-var chain = fA.Connect(fB.ToMultiplier());  // (10+5) * 3 = 45
+// ✅ Correct: convert fB to Modifier first (strip first operand 2, read from R1 bus)
+var chain = fA.Connect(fB.ToModifier());  // (10+5) * 3 = 45
 
 var inst = runner.Instantiate(chain);
 Console.WriteLine(inst.Run()); // 45
 ```
 
-## Modifier Chain: Passing Output Forward
+## Modifier Chains: previous link output feeds the next
 
-`ToMultiplier()` converts a Formula to a Modifier — removes the first operand, replacing it with R1 bus input:
+`ToModifier()` converts a Formula to a Modifier — removes the first operand, replacing it with R1 bus input:
 
 ```csharp
 var fBase = runner.Compile(lexer.Lex("1 + 2"));     // = 3
 var fMod  = runner.Compile(lexer.Lex("2 * 3"));     // = 6
 
-// fMod.ToMultiplier() turns "2*3" into "R1*3" (a multiply-by-3 modifier)
-var chainMod = fBase.Connect(fMod.ToMultiplier());
+// fMod.ToModifier() turns "2*3" into "R1*3" (a multiply-by-3 modifier)
+var chainMod = fBase.Connect(fMod.ToModifier());
 
 var inst2 = runner.Instantiate(chainMod);
 Console.WriteLine(inst2.Run()); // 9 = (1+2) * 3
 ```
 
-Multiple modifiers in sequence:
+Chaining multiple modifiers:
 
 ```csharp
 var current = runner.Compile(lexer.Lex("1 + 2")); // = 3
@@ -48,7 +50,7 @@ var current = runner.Compile(lexer.Lex("1 + 2")); // = 3
 // Chain 3 multiply-by-2 modifiers
 for (int i = 0; i < 3; i++)
     current = current.Connect(
-        runner.Compile(lexer.Lex("3 * 2")).ToMultiplier());
+        runner.Compile(lexer.Lex("3 * 2")).ToModifier());
 // Semantics: ((3 * 2) * 2) * 2 = 24
 
 var inst3 = runner.Instantiate(current);
@@ -57,10 +59,10 @@ Console.WriteLine(inst3.Run()); // 24
 
 ## Chain vs Atomic: ToAtomic
 
-A chain formula can be merged to a regular atomic formula via `ToAtomic()`:
+A chain formula can be merged into a plain atomic formula via `ToAtomic()`:
 
 ```csharp
-var chain = fA.Connect(fB.ToMultiplier());
+var chain = fA.Connect(fB.ToModifier());
 
 // Both paths produce the same result
 float perLinkResult = runner.Instantiate(chain).Run();
@@ -69,27 +71,27 @@ float atomicResult  = runner.Instantiate(chain.ToAtomic()).Run();
 Console.WriteLine(perLinkResult == atomicResult); // True
 ```
 
-`ToAtomic()` concatenates all link bytecodes into a single `Instruction[]`. It is called automatically for JIT compilation and for chains exceeding the length threshold (>8).
+`ToAtomic()` concatenates all link bytecodes into a single `Instruction[]`. Automatically called during JIT compilation or when evaluating long chains (>8 links).
 
-## Auto-Merge on Long Chains
+## Automatic Merge on Threshold Exceeded
 
-When chain length exceeds `ChainReserved.MergeThreshold` (8), `Instantiate` automatically calls `ToAtomic`:
+When chain length exceeds `ChainReserved.MergeThreshold` (8), `Instantiate` automatically calls `ToAtomic` before evaluation:
 
 ```csharp
 var current = runner.Compile(lexer.Lex("1 + 1"));
 for (int i = 0; i < 10; i++)
     current = current.Connect(
-        runner.Compile(lexer.Lex("2 * 1")).ToMultiplier());
+        runner.Compile(lexer.Lex("2 * 1")).ToModifier());
 
 // chain.ChainLength = 11 (exceeds 8)
-// Instantiate auto-merges rather than doing 11 per-link calls
+// Instantiate auto-merges, avoiding 11 per-link calls
 var inst = runner.Instantiate(current);
 Console.WriteLine(inst.Run()); // evaluates correctly
 ```
 
-Users don't need to worry about the threshold — `Instantiate` picks the optimal path automatically.
+Users don't need to worry about the threshold — `Instantiate` automatically chooses the optimal path.
 
-## ToMultiplier / ToFormula Round-Trip
+## ToModifier / ToFormula Round-Trip
 
 Formula ↔ Modifier conversion preserves evaluation equivalence:
 
@@ -97,17 +99,24 @@ Formula ↔ Modifier conversion preserves evaluation equivalence:
 var f = runner.Compile(lexer.Lex("7 + 3")); // = 10
 
 // Formula → Modifier → Formula (round-trip)
-var mod      = f.ToMultiplier();
+var mod      = f.ToModifier();
 var restored = mod.ToFormula("input");
 
-// Inject original value via the new variable name
+// Inject the original value via the new variable name
 var inst = runner.Instantiate(restored).Set("input", 7f);
-Console.WriteLine(inst.Run()); // 10 (equivalent to f)
+Console.WriteLine(inst.Run()); // 10 (equivalent to f's evaluation)
 ```
+
+## Modifier Cannot Run Standalone
+
+In v3.0.0, `FluxModifier<TData, TDef>` has no `Instantiate()` method — any code that attempts to independently evaluate a Modifier **won't compile**. A Modifier can only be attached behind a Formula via `Connect()`, or converted to a complete Formula via `ToFormula(varName)`.
+
+## Cross-Definition Type Safety
+
+`FluxFormula<TData, TDef>` binds to a specific definition via the `TDef` generic parameter. `FluxFormula<float, MathDef>` and `FluxFormula<float, GameDef>` are different compile-time types — any accidental cross-connection won't compile.
 
 ## Notes
 
-- `ChainReserved.InternalPrefix` (`"CHAIN_LINK_INTERNAL_"`) is reserved for chain evaluation internal variables. User-declared variables must not use this prefix
-- Modifier formulas (`FluxType.Modifier`) cannot `Run()` standalone — they must appear as non-first links in a chain
-- `Connect` requires the second argument to be a Modifier. Passing a Formula throws `ArgumentException`, instructing the user to call `.ToMultiplier()` first
-- `IsChained`, `ChainLength`, `GetChainLinks()`, and `ChainLink` are all public API — advanced users can read chain structure via `GetChainLinks()` and persist as VFF using `VffFormat.ToBytes()`
+- `ChainReserved.InternalPrefix` (`"CHAIN_LINK_INTERNAL_"`) is a variable name prefix used internally for chain evaluation. Users must not declare variables with this prefix in `LexerConfig.VariablePatterns`
+- `IsChained`, `ChainLength`, `GetChainLinks()`, and `ChainLink` are all public API — advanced users can read chain structure via `GetChainLinks()` and persist it as VFF using `VffFormat.ToBytes()`
+- `ToMultiplier()` is retained as a `[Obsolete]` alias pointing to `ToModifier()`

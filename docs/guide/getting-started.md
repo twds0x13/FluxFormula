@@ -1,11 +1,13 @@
 # 快速入门
 
-从零构建一个完整的浮点四则运算公式。
+从零构建一个完整的浮点四则运算公式（v3.0.0）。
 
 ## 第 1 步：定义操作符枚举
 
+操作符枚举现在是定义体的 `private` 实现细节，框架只看到 `byte`：
+
 ```csharp
-public enum FloatOp : byte
+enum MathOp : byte
 {
     Const,     // 立即数（操作数）
     Add,       // +
@@ -15,56 +17,75 @@ public enum FloatOp : byte
     Neg,       // 一元取负
     LParen,    // (
     RParen,    // )
-    Return,    // 终止指令
+    Return = 255,  // 终止指令
 }
 ```
 
-枚举底层类型必须为 `: byte`。框架通过 `*(byte*)&oper` 取底层字节作为 opcode，底层类型不为 byte 会在类型初始化阶段抛出异常。
-
 ## 第 2 步：实现定义
 
+实现 `IFluxJITDefinition<float>`（单泛型参数），所有操作符相关方法接收/返回 `byte`：
+
 ```csharp
-public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
+readonly struct MathDef : IFluxJITDefinition<float>
 {
-    public FloatOp GetReturnOp() => FloatOp.Return;
+    public byte GetReturnOp() => (byte)MathOp.Return;
 
-    public int GetArity(byte op) => ((FloatOp)op) switch
+    public int GetArity(byte op) => ((MathOp)op) switch
     {
-        FloatOp.Add => 2, FloatOp.Sub => 2, FloatOp.Mul => 2,
-        FloatOp.Div => 2, FloatOp.Neg => 1, _ => 0,
+        MathOp.Add => 2, MathOp.Sub => 2, MathOp.Mul => 2,
+        MathOp.Div => 2, MathOp.Neg => 1, _ => 0,
     };
 
-    public OpType GetKind(byte op) => ((FloatOp)op) switch
+    public OpType GetKind(byte op) => ((MathOp)op) switch
     {
-        FloatOp.Const  => OpType.Immediate,
-        FloatOp.Return => OpType.Return,
-        _              => OpType.Instruction,
+        MathOp.Const  => OpType.Immediate,
+        MathOp.Return => OpType.Return,
+        _             => OpType.Instruction,
     };
 
-    public int GetPrecedence(FloatOp op) => op switch
+    public int GetPrecedence(byte op) => ((MathOp)op) switch
     {
-        FloatOp.Add => 1, FloatOp.Sub => 1, FloatOp.Mul => 2,
-        FloatOp.Div => 2, FloatOp.Neg => 3, _ => 0,
+        MathOp.Add => 1, MathOp.Sub => 1, MathOp.Mul => 2,
+        MathOp.Div => 2, MathOp.Neg => 3, _ => 0,
+    };
+
+    public Associativity GetAssociativity(byte op) => ((MathOp)op) switch
+    {
+        MathOp.Neg => Associativity.Right,
+        _          => Associativity.Left,
+    };
+
+    public OpPair GetPair(byte op) => ((MathOp)op) switch
+    {
+        MathOp.LParen => new OpPair { PairRole = Pair.Left },
+        MathOp.RParen => new OpPair
+        {
+            PairRole   = Pair.Right,
+            TargetLeft = (byte)MathOp.LParen,
+        },
+        _ => new OpPair { PairRole = Pair.None },
     };
 
     // Token 消歧：'-' 在期望操作数时是一元取负
-    public FloatOp ResolveToken(FloatOp op, TokenContext ctx)
+    public byte ResolveToken(byte oper, TokenContext ctx)
     {
-        if (op == FloatOp.Sub && ctx == TokenContext.OperandExpected)
-            return FloatOp.Neg;
-        return op;
+        if (oper == (byte)MathOp.Sub && ctx == TokenContext.OperandExpected)
+            return (byte)MathOp.Neg;
+        return oper;
     }
+
+    public string GetOperatorName(byte op) => ((MathOp)op).ToString();
 
     // 解释器路径
     public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
     {
-        return ((FloatOp)op) switch
+        return ((MathOp)op) switch
         {
-            FloatOp.Add => regs[inst.Arg0] + regs[inst.Arg1],
-            FloatOp.Mul => regs[inst.Arg0] * regs[inst.Arg1],
-            FloatOp.Sub => regs[inst.Arg0] - regs[inst.Arg1],
-            FloatOp.Div => regs[inst.Arg0] / regs[inst.Arg1],
-            FloatOp.Neg => -regs[inst.Arg0],
+            MathOp.Add => regs[inst.Arg0] + regs[inst.Arg1],
+            MathOp.Mul => regs[inst.Arg0] * regs[inst.Arg1],
+            MathOp.Sub => regs[inst.Arg0] - regs[inst.Arg1],
+            MathOp.Div => regs[inst.Arg0] / regs[inst.Arg1],
+            MathOp.Neg => -regs[inst.Arg0],
             _ => 0f,
         };
     }
@@ -72,46 +93,45 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
     // JIT 路径
     public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
     {
-        return ((FloatOp)op) switch
+        return ((MathOp)op) switch
         {
-            FloatOp.Add => Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Mul => Expression.Multiply(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Sub => Expression.Subtract(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Div => Expression.Divide(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Neg => Expression.Negate(regs[inst.Arg0]),
+            MathOp.Add => Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Mul => Expression.Multiply(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Sub => Expression.Subtract(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Div => Expression.Divide(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Neg => Expression.Negate(regs[inst.Arg0]),
             _ => Expression.Constant(0f),
         };
     }
-    // 括号和结合性配置省略，详见"自定义运算符"章节
 }
 ```
 
 ## 第 3 步：配置 Lexer 并解析
 
 ```csharp
-var config = new LexerConfig<float, FloatOp>
+var config = new LexerConfig<float, MathDef>
 {
-    LiteralOper = FloatOp.Const,
+    LiteralOper = (byte)MathOp.Const,
     LiteralParser = s => float.Parse(s, CultureInfo.InvariantCulture),
     Operators =
     {
-        new("+", FloatOp.Add),
-        new("-", FloatOp.Sub),
-        new("*", FloatOp.Mul),
-        new("/", FloatOp.Div),
+        new("+", (byte)MathOp.Add),
+        new("-", (byte)MathOp.Sub),
+        new("*", (byte)MathOp.Mul),
+        new("/", (byte)MathOp.Div),
     },
     Brackets =
     {
-        new("(", ")", FloatOp.LParen, FloatOp.RParen),
+        new("(", ")", (byte)MathOp.LParen, (byte)MathOp.RParen),
     },
     VariablePatterns =
     {
         new("[", "]"),  // 变量用 [ ] 包裹： [atk]、[def]
     },
-    ImplicitOperators = { FloatOp.Mul },  // 2[atk] → 2*[atk]
+    ImplicitOperators = { (byte)MathOp.Mul },  // 2[atk] → 2*[atk]
 };
 
-var lexer = new FluxLexer<float, FloatOp>(config);
+var lexer = new FluxLexer<float, MathDef>(config);
 var lexResult = lexer.Lex("([atk] * 2 + [bonus]) / 100");
 // lexResult.Tokens   → FluxToken[]
 // lexResult.VarNames → 变量名数组（atk, bonus）
@@ -120,8 +140,8 @@ var lexResult = lexer.Lex("([atk] * 2 + [bonus]) / 100");
 ## 第 4 步：编译并执行
 
 ```csharp
-var def    = new FloatMathDef();
-var runner = new FluxAssembler<float, FloatOp, FloatMathDef>(def);
+var def    = new MathDef();
+var runner = new FluxAssembler<float, MathDef>(def);
 
 var formula = runner.Compile(lexResult);
 float result = runner.Instantiate(formula)
@@ -149,13 +169,13 @@ float r = inst.Set("atk", 100f).Set("bonus", 20f).Run();
 当不需要字符串解析时，可直接构造 Token 数组：
 
 ```csharp
-var tokens = new FluxToken<float, FloatOp>[]
+var tokens = new FluxToken<float>[]
 {
-    new() { Oper = FloatOp.Const, Data = 1f },
-    new() { Oper = FloatOp.Add },
-    new() { Oper = FloatOp.Const, Data = 2f },
-    new() { Oper = FloatOp.Mul },
-    new() { Oper = FloatOp.Const, Data = 3f },
+    new() { Oper = (byte)MathOp.Const, Data = 1f },
+    new() { Oper = (byte)MathOp.Add },
+    new() { Oper = (byte)MathOp.Const, Data = 2f },
+    new() { Oper = (byte)MathOp.Mul },
+    new() { Oper = (byte)MathOp.Const, Data = 3f },
 };
 // 表达式: 1 + 2 * 3
 
@@ -163,8 +183,20 @@ float result = runner.Build(tokens, jit: true).Run();
 // result = 7.0
 ```
 
+## v3.0.0 关键变更
+
+| v2.x | v3.0.0 |
+|------|--------|
+| `public enum FloatOp : byte` | `enum MathOp : byte`（private） |
+| `IFluxJITDefinition<float, FloatOp>` | `IFluxJITDefinition<float>` |
+| `GetPrecedence(FloatOp op)` | `GetPrecedence(byte op)` |
+| `ResolveToken(FloatOp op, ...)` | `ResolveToken(byte oper, ...)` |
+| `OpPair<FloatOp>` | `OpPair`（非泛型） |
+| `FluxToken<float, FloatOp>` | `FluxToken<float>` |
+| `FluxAssembler<float, FloatOp, FloatMathDef>` | `FluxAssembler<float, MathDef>` |
+
 ## 下一步
 
 - [核心概念](/guide/core-concepts) — Token → Formula → Instance 完整流水线
 - [自定义运算符](/guide/writing-a-definition) — `IFluxJITDefinition` 各方法详解
-- [完整示例](/examples/float-math) — 可直接拷贝的 FloatMathDef 完整实现
+- [完整示例](/examples/float-math) — 可直接拷贝的 MathDef 完整实现
