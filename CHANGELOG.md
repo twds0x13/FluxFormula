@@ -1,3 +1,10 @@
+# [3.2.0](https://github.com/twds0x13/FluxFormula/compare/v3.1.1...v3.2.0) (2026-06-25)
+
+
+### Features
+
+* LiteralScanner delegate replaces hardcoded literal scanning ([a729ad0](https://github.com/twds0x13/FluxFormula/commit/a729ad0e5a80372f53f87feb47d1a8b815510a23))
+
 ## [3.1.1](https://github.com/twds0x13/FluxFormula/compare/v3.1.0...v3.1.1) (2026-06-25)
 
 
