@@ -264,7 +264,7 @@ namespace FluxFormula.Benchmarks
         private FloatMathDef _def;
         private FluxFormula<float, FloatMathDef> _fSimple;
         private FluxFormula<float, FloatMathDef> _fComplex;
-        private FluxFormula<float, FloatMathDef> _fChain;
+        private FluxChain<float, FloatMathDef> _fChain;
 
         [GlobalSetup]
         public void Setup()

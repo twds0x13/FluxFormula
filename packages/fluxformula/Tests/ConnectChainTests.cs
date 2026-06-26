@@ -17,9 +17,6 @@ public class ConnectChainTests
     [Test]
     public void ThreeDeepConnect_SlotIndicesAccumulateCorrectly()
     {
-        // fA=[a]+0, fB=+[b], fC=+[c]（modifier 形式）
-        // Connect: fA → fB → fC
-        // 预期: VariableSlots = [a(slot0), b(slot1), c(slot2)]
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lexA = CreateVarLexer("[", "]").Lex("[a] + 0");
         var lexB = CreateVarLexer("[", "]").Lex("+ [b]");
@@ -30,29 +27,29 @@ public class ConnectChainTests
         var fC = runner.Compile(lexC);
 
         var chain = fA.Connect(fB.ToModifier()).Connect(fC.ToModifier());
-        Assert.That(chain.VariableSlots.Length, Is.EqualTo(3));
+        var slots = chain.ToAtomic().VariableSlots;
+        Assert.That(slots.Length, Is.EqualTo(3));
 
-        Assert.That(chain.VariableSlots[0].Name, Is.EqualTo("a"));
-        Assert.That(chain.VariableSlots[0].SlotIndex, Is.EqualTo(0));
+        Assert.That(slots[0].Name, Is.EqualTo("a"));
+        Assert.That(slots[0].SlotIndex, Is.EqualTo(0));
 
-        Assert.That(chain.VariableSlots[1].Name, Is.EqualTo("b"));
-        Assert.That(chain.VariableSlots[1].SlotIndex,
+        Assert.That(slots[1].Name, Is.EqualTo("b"));
+        Assert.That(slots[1].SlotIndex,
             Is.EqualTo(fB.VariableSlots[0].SlotIndex + fA.ImmediateCount));
 
-        Assert.That(chain.VariableSlots[2].Name, Is.EqualTo("c"));
-        Assert.That(chain.VariableSlots[2].SlotIndex,
+        Assert.That(slots[2].Name, Is.EqualTo("c"));
+        Assert.That(slots[2].SlotIndex,
             Is.EqualTo(fC.VariableSlots[0].SlotIndex + fA.ImmediateCount + fB.ImmediateCount));
     }
 
     [Test]
     public void FiveDeepConnect_JitAndInterpreterAgree()
     {
-        // 5 层 Connect：验证长链解释器路径正确
-        // 注：链式 JIT 路径存在 per-link delegate 注入不同步问题（已知 issue）
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lex = CreateVarLexer("[", "]").Lex("[a]");
 
-        var chain = runner.Compile(lex); // f1 = [a]
+        var f = runner.Compile(lex);
+        var chain = f.Connect(FluxModifier<float, FloatMathDef>.Empty); // start as chain
         string[] vars = { "b", "c", "d", "e" };
         for (int i = 0; i < vars.Length; i++)
         {
@@ -61,9 +58,9 @@ public class ConnectChainTests
             chain = chain.Connect(modifier.ToModifier());
         }
 
-        Assert.That(chain.VariableSlots.Length, Is.EqualTo(5));
+        var slots = chain.ToAtomic().VariableSlots;
+        Assert.That(slots.Length, Is.EqualTo(5));
 
-        // 解释器路径：逐变量注入，a+b+c+d+e = 1+2+3+4+5 = 15
         float result = runner.Instantiate(chain, jit: false)
             .Set("a", 1f).Set("b", 2f).Set("c", 3f).Set("d", 4f).Set("e", 5f).Run();
 
@@ -77,17 +74,15 @@ public class ConnectChainTests
     [Test]
     public void Connect_FormulaThenModifier_TypesAreCorrect()
     {
-        // [a] + [b] (Formula) → * 2 (Modifier)
         var runner   = new FluxAssembler<float, FloatMathDef>(Def);
         var lexF     = CreateVarLexer("[", "]").Lex("[a] + [b]");
         var formula  = runner.Compile(lexF);
         var modifier = runner.Compile(new[] { Op(FloatOp.Mul), C(2f) });
 
         var chain = formula.Connect(modifier.ToModifier());
-        Assert.That(chain.Type, Is.EqualTo(FluxType.Formula));
-        Assert.That(chain.VariableSlots.Length, Is.EqualTo(2)); // a, b（modifier 无变量）
+        Assert.That(chain.GetLinks()[0].Type, Is.EqualTo(FluxType.Formula));
+        Assert.That(chain.ToAtomic().VariableSlots.Length, Is.EqualTo(2));
 
-        // (a+b) * 2, 其中 a=3, b=4 → 14
         float result = runner.Instantiate(chain, jit: false)
             .Set("a", 3f).Set("b", 4f).Run();
         Assert.That(result, Is.EqualTo(14f).Within(1e-6f));
@@ -96,17 +91,15 @@ public class ConnectChainTests
     [Test]
     public void Connect_ModifierThenModifier_ChainOfTwo()
     {
-        // 两个 modifier 串联：_ * 2 → _ + 1
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var mod1 = runner.Compile(new[] { Op(FloatOp.Mul), C(2f) });
         var mod2 = runner.Compile(new[] { Op(FloatOp.Add), C(1f) });
 
         var chain = mod1.Connect(mod2.ToModifier());
-        Assert.That(chain.Type, Is.EqualTo(FluxType.Modifier));
+        Assert.That(chain.GetLinks()[0].Type, Is.EqualTo(FluxType.Modifier));
 
-        // 提供输入 10: (10 * 2) + 1 = 21
         var provider = runner.Compile(new[] { C(10f) });
-        var fullChain = provider.Connect(chain.ToModifier());
+        var fullChain = provider.Connect(chain.ToAtomic().ToModifier());
         Assert.That(runner.Instantiate(fullChain, jit: false).Run(),
             Is.EqualTo(21f).Within(1e-6f));
     }
@@ -118,7 +111,6 @@ public class ConnectChainTests
     [Test]
     public void ToAtomic_PreservesCorrectness()
     {
-        // 3 层 Connect → ToAtomic → 验证与链式求值一致
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lexA = CreateVarLexer("[", "]").Lex("[a]");
         var lexB = CreateVarLexer("[", "]").Lex("+ [b]");
@@ -128,13 +120,12 @@ public class ConnectChainTests
             .Connect(runner.Compile(lexB).ToModifier())
             .Connect(runner.Compile(lexC).ToModifier());
 
-        Assert.That(chain.IsChained, Is.True);
+        Assert.That(chain.Length, Is.EqualTo(3));
 
         float chainedResult = runner.Instantiate(chain, jit: false)
             .Set("a", 2f).Set("b", 3f).Set("c", 4f).Run();
 
         var atomic = chain.ToAtomic();
-        Assert.That(atomic.IsChained, Is.False);
 
         float atomicResult = runner.Instantiate(atomic, jit: false)
             .Set("a", 2f).Set("b", 3f).Set("c", 4f).Run();
@@ -169,13 +160,12 @@ public class ConnectChainTests
     [Test]
     public void Connect_SingleImmediateCount1_ReturnsNext()
     {
-        // 验证 Connect 对简单公式 Modifier 链的求值正确性
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var base_ = runner.Compile(CreateVarLexer("[", "]").Lex("[a] + 0"));
         var mod   = runner.Compile(CreateVarLexer("[", "]").Lex("+ [b]"));
 
         var chain = base_.Connect(mod.ToModifier());
-        Assert.That(chain.VariableSlots.Length, Is.EqualTo(2));
+        Assert.That(chain.ToAtomic().VariableSlots.Length, Is.EqualTo(2));
 
         float result = runner.Instantiate(chain, jit: false)
             .Set("a", 10f).Set("b", 5f).Run();
@@ -185,7 +175,6 @@ public class ConnectChainTests
     [Test]
     public void Connect_ChainedWithVariables_PreservesSetIndexOrder()
     {
-        // 验证多层 Connect 后 SetIndex 的顺序 = 链拼接顺序
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var lexA = CreateVarLexer("[", "]").Lex("[first] + 0");
         var lexB = CreateVarLexer("[", "]").Lex("+ [second]");
@@ -195,7 +184,6 @@ public class ConnectChainTests
             .Connect(runner.Compile(lexB).ToModifier())
             .Connect(runner.Compile(lexC).ToModifier());
 
-        // 按 SlotIndex 顺序：first=0, second=1, third=2
         float result = runner.Instantiate(chain, jit: false)
             .SetIndex(0, 100f)
             .SetIndex(1, 10f)
