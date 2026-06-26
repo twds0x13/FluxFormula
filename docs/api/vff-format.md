@@ -218,8 +218,8 @@ builder.Save(vffData, FluxArtifactKind.Virtual, "AttackDefenseChain.vff");
 byte[] loaded = File.ReadAllBytes("AttackDefenseChain.vff");
 var result = VffFormat.FromBytes<float, MathDef>(loaded);
 
-// result.Formula 为链式公式，可直接执行
-var instance = assembler.Instantiate(result.Formula, jit: true);
+// result.Chain 为 FluxChain，可直接传入 Instantiate
+var instance = assembler.Instantiate(result.Chain, jit: true);
 instance.Set("atk", 100f).Set("def", 50f);
 float value = instance.Run();
 ```
