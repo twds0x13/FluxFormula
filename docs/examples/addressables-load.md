@@ -25,7 +25,7 @@ public class DamageCalculator : MonoBehaviour
         _formula = await FormulaRef.LoadFormulaAsync();
         Debug.Log($"Loaded: {_formula}");
 
-        // 编译一次，多次求值——走 FormulaCache
+        // 编译一次，多次求值：走 FormulaCache
         var assembler = new FluxAssembler<float, MathDef>(new MathDef());
         var instance = assembler.Instantiate(_formula);
         float result = instance.Set("atk", 100f).Set("def", 50f).Run();

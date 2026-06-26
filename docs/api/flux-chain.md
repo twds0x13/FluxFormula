@@ -79,7 +79,7 @@ foreach (var link in links)
 public DualHash64 GetByteHash()
 ```
 
-计算链式公式的组合哈希。用于缓存查找——与 `ToAtomic().GetByteHash()` 结果不同（链式哈希反映 link 组合，原子哈希反映合并后字节码）。
+计算链式公式的组合哈希。用于缓存查找：与 `ToAtomic().GetByteHash()` 结果不同（链式哈希反映 link 组合，原子哈希反映合并后字节码）。
 
 ## 求值路径
 

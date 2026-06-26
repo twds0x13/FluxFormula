@@ -10,14 +10,14 @@
 
 ### 概述
 
-3.2 将链式公式表示从 `FluxFormula`/`FluxModifier` 中提取为独立 `FluxChain<TData, TDef>` 类型。`FluxFormula` 永远是原子公式，`FluxChain` 永远是链式公式——两个形态由类型系统而非运行时布尔字段区分。
+3.2 将链式公式表示从 `FluxFormula`/`FluxModifier` 中提取为独立 `FluxChain<TData, TDef>` 类型。`FluxFormula` 永远是原子公式，`FluxChain` 永远是链式公式：两个形态由类型系统而非运行时布尔字段区分。
 
 ### Breaking Changes
 
 | 变更 | 说明 | 迁移 |
 |------|------|------|
 | `Connect()` 返回 `FluxChain` | `FluxFormula.Connect()` 和 `FluxModifier.Connect()` 现在返回 `FluxChain<TData, TDef>` 而非 `FluxFormula`/`FluxModifier` | 将接收 `Connect` 返回值的变量类型从 `var`/`FluxFormula` 改为 `FluxChain`，或显式调 `.ToAtomic()` |
-| `IsChained` 移除 | `FluxFormula` 和 `FluxModifier` 不再有 `IsChained` 属性 | 删除所有 `if (formula.IsChained)` 分支——不再需要 |
+| `IsChained` 移除 | `FluxFormula` 和 `FluxModifier` 不再有 `IsChained` 属性 | 删除所有 `if (formula.IsChained)` 分支：不再需要 |
 | `ChainLength` → `FluxChain.Length` | 链长属性移至 `FluxChain` | `chain.ChainLength` → `chain.Length` |
 | `GetChainLinks()` → `FluxChain.GetLinks()` | 链结构访问移至 `FluxChain` | `formula.GetChainLinks()` → `chain.GetLinks()` |
 | `ToAtomic()` 移至 `FluxChain` | `FluxFormula.ToAtomic()` 移除；`FluxChain.ToAtomic()` 返回 `FluxFormula` | `chain.ToAtomic()` 显式合并，一次分配 |
@@ -32,7 +32,7 @@
 
 ### 消除的隐式分配
 
-`FluxFormula.Raw()` 和 `FluxFormula.ToBytes()` 对链式公式的隐式 `ToAtomic()` 分配已消除——原子公式永远 O(1)。
+`FluxFormula.Raw()` 和 `FluxFormula.ToBytes()` 对链式公式的隐式 `ToAtomic()` 分配已消除：原子公式永远 O(1)。
 
 ---
 

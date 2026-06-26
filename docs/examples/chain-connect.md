@@ -122,5 +122,5 @@ v3.0.0 中 `FluxModifier<TData, TDef>` 没有 `Instantiate()` 方法，任何尝
 
 - `ChainReserved.InternalPrefix`（`"CHAIN_LINK_INTERNAL_"`）是链式求值内部使用的变量名前缀。用户不得在 `LexerConfig.VariablePatterns` 中声明此前缀开头的变量
 - `FluxChain.Length`、`FluxChain.GetLinks()` 和 `ChainLink` 均为公开 API，高级用户可通过 `GetLinks()` 读取链结构并配合 `VffFormat.ToBytes()` 持久化为 VFF
-- `Connect()` 始终返回 `FluxChain<TData, TDef>`——`FluxFormula` 和 `FluxModifier` 不再是链式容器
+- `Connect()` 始终返回 `FluxChain<TData, TDef>`：`FluxFormula` 和 `FluxModifier` 不再是链式容器
 - `ToMultiplier()` 保留为 `[Obsolete]` 别名，指向 `ToModifier()`

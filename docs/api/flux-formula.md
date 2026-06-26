@@ -48,7 +48,7 @@ public readonly struct FluxChain<TData, TDef>
 | `VariableSlots` | `VariableSlot[]` | 变量槽映射 |
 | `MaxRegister` | `byte` | 最高寄存器索引 |
 
-> `FluxModifier` 没有 `Instantiate()` 方法——任何尝试独立求值 Modifier 的代码编译不过。链相关属性（`IsChained`/`ChainLength`/`GetChainLinks()`）已移至 `FluxChain`。
+> `FluxModifier` 没有 `Instantiate()` 方法：任何尝试独立求值 Modifier 的代码编译不过。链相关属性（`IsChained`/`ChainLength`/`GetChainLinks()`）已移至 `FluxChain`。
 
 ## 静态成员
 
