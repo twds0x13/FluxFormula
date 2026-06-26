@@ -116,7 +116,7 @@ graph LR
     C -->|"Run (jit: true)"| E["JIT: per-link delegate chain"]
 ```
 
-**ChainLink fields** (public struct, accessible via `GetChainLinks()`):
+**ChainLink fields** (public struct, accessible via `FluxChain.GetLinks()`):
 
 | Field | Description |
 |-------|-------------|

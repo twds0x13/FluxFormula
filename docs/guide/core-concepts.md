@@ -116,7 +116,7 @@ graph LR
     C -->|"Run (jit: true)"| E["JIT: 逐 link delegate 串联"]
 ```
 
-**ChainLink 字段**（公开结构体，可通过 `GetChainLinks()` 访问）：
+**ChainLink 字段**（公开结构体，可通过 `FluxChain.GetLinks()` 访问）：
 
 | 字段 | 说明 |
 |------|------|

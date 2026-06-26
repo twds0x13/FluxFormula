@@ -51,7 +51,7 @@ Back to caching: A's delegate and B's delegate are independently cached. No matt
 ```
 Chain 1: Connect(A, B)           → [Link(A), Link(B)]           → A.delegate + B.delegate (both hit)
 Chain 2: Connect(C, B)           → [Link(C), Link(B)]           → C.delegate + B.delegate (both hit)
-Chain 3: Connect(A.ToMultiplier, B.ToMultiplier) → [Link(A_mod), Link(B_mod)] → both hit
+Chain 3: Connect(A.ToModifier, B.ToModifier) → [Link(A_mod), Link(B_mod)] → both hit
 ```
 
 N formulas, O(N) delegates. Any chain combination evaluates using only already-cached delegates. Combinatorial explosion eliminated.
@@ -79,7 +79,7 @@ Per-link evaluation guarantees correctness through two mechanisms:
 
 ### Interpreter Path
 
-`FluxEvaluator.Compute(ReadOnlySpan<Instruction>)` executes each link's bytecode as an independent program. Non-first links use `Compute(span, initialR1)` — R1 is initialized to the previous link's output before execution begins. A Modifier's bytecode (transformed by `ToMultiplier`) has its first Immediate removed; its first instruction reads directly from R1.
+`FluxEvaluator.Compute(ReadOnlySpan<Instruction>)` executes each link's bytecode as an independent program. Non-first links use `Compute(span, initialR1)` — R1 is initialized to the previous link's output before execution begins. A Modifier's bytecode (transformed by `ToModifier`) has its first Immediate removed; its first instruction reads directly from R1.
 
 ### JIT Path
 
@@ -96,20 +96,20 @@ In merged bytecode, each link's Return naturally serves as an "R1 bus write poin
 
 A ChainLink can be a Formula or a Modifier. Formula starts from its own first operand; Modifier takes its first operand from R1 (the previous link's output).
 
-`ToMultiplier()` implements this conversion at the bytecode level:
+`ToModifier()` implements this conversion at the bytecode level:
 
 ```
 Formula "2 + 3":
   [Imm(2)→R2] [Imm(3)→R3] [Add R2,R3→R4] [Return R4]
 
-ToMultiplier() → Modifier:
+ToModifier() → Modifier:
   [Imm(3)→R3] [Add R1,R3→R4] [Return R4]
    ↑ First operand supplied by R1; 2 removed; R2 renamed to 1
 ```
 
 `ToFormula(varName)` performs the inverse: inserts a named variable in place of the R1 input.
 
-ChainLink does not auto-convert — `Connect(A, B)` keeps B as-is. To let B consume A's output, explicitly use `Connect(A, B.ToMultiplier())`.
+ChainLink does not auto-convert — `Connect(A, B)` keeps B as-is. To let B consume A's output, explicitly use `Connect(A, B.ToModifier())`.
 
 ## ToAtomic: Chain → Atomic Merge
 

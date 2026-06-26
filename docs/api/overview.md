@@ -27,7 +27,8 @@ graph LR
     Def -.-> Interp
     Def -.-> JIT
 
-    Formula -->|"Connect()"| Chain["ChainLink[]"]
+    Formula -->|"Connect()"| ChainNode["FluxChain"]
+    ChainNode --> Chain["ChainLink[]"]
 ```
 
 ## 持久化与缓存
@@ -35,7 +36,8 @@ graph LR
 ```mermaid
 graph LR
     F["FluxFormula"] -->|"ToBytes()"| FF[".ff 字节码"]
-    F -->|"GetChainLinks()"| Chain["ChainLink[]"]
+    F -->|"Connect()"| FC["FluxChain"]
+    FC -->|"GetLinks()"| Chain["ChainLink[]"]
     Chain -->|"VffFormat.ToBytes()"| VFF[".vff 引用"]
 
     FF --> Fmt["IFluxFileFormatter<br/>Save / Load"]
@@ -59,7 +61,8 @@ graph LR
 | 类型 | 泛型 | 定位 |
 |------|:--:|------|
 | [FluxAssembler](./flux-assembler) | `<TData, TDef>` | 主入口：编译与实例化 |
-| [FluxFormula](./flux-formula) | `<TData, TDef>` | 不可变字节码容器（完整公式） |
+| [FluxFormula](./flux-formula) | `<TData, TDef>` | 不可变字节码容器（完整公式，永远原子） |
+| [FluxChain](./flux-chain) | `<TData, TDef>` | 不可变链式字节码容器（Connect 串联产物） |
 | `FluxModifier` | `<TData, TDef>` | 不可变字节码容器（缺左操作数，仅可串联） |
 | [FluxInstance](./flux-instance) | `<TData, TDef>` | ref struct 流式执行器 |
 | [IFluxDefinition](./idefinition) | `<TData>` | 运算符定义接口（解释器路径） |
@@ -88,7 +91,7 @@ graph LR
 
 - `FluxType` — 内部枚举（Formula / Modifier），v3.0.0 改为 `internal`
 - `FluxPlatform` — JIT 降级状态控制
-- `ChainLink` — 链式公式环节结构体（public struct，但通常通过 `GetChainLinks()` 间接使用）
+- `ChainLink` — 链式公式环节结构体（public struct，通过 `FluxChain.GetLinks()` 访问）
 - `FluxEvaluator<TData, TDef>` — 解释器执行引擎
 - `FluxCompiler<TData, TDef>` — 调车场算法编译器
 - `FluxJITCompiler<TData, TDef>` — LINQ Expression Tree JIT

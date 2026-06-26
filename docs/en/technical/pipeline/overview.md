@@ -19,8 +19,8 @@ String / Token[]
   │   Allocation: Instruction[] buffer (one-time)
   │
   ├─ 2b. Connect / VFF Encode ──────────────────────────
-  │   FluxFormula.Connect() → chain formula (ChainLink[])
-  │   GetChainLinks() → VffFormat.ToBytes() → .vff bytecode
+  │   FluxFormula.Connect() → FluxChain (ChainLink[])
+  │   FluxChain.GetLinks() → VffFormat.ToBytes() → .vff bytecode
   │   Output: VFF byte array (saved as standalone file or embedded in blob)
   │
   ├─ 3. Instantiate ────────────────────────────────────

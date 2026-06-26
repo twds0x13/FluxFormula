@@ -232,7 +232,7 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 将链式公式引用序列化为 VFF 字节数组。
-        /// 与 <see cref="FromBytes{TData, TOper}"/> 配对使用——往返保证链路等价。
+        /// 与 <see cref="FromBytes{TData, TDef}"/> 配对使用——往返保证链路等价。
         /// </summary>
         /// <param name="links">链式链接数组（如来自 <see cref="FluxFormula{TData, TDef}.GetChainLinks"/>）</param>
         /// <param name="overrides">参数覆写列表（无覆写传空数组）</param>
@@ -330,8 +330,8 @@ namespace FluxFormula.Core
         }
 
         /// <summary>
-        /// 解析 VFF 字节码的公共逻辑。供 <see cref="Resolve{TData, TOper}"/> 和
-        /// <see cref="FromBytes{TData, TOper}"/> 共享。
+        /// 解析 VFF 字节码的公共逻辑。供 <see cref="Resolve{TData, TDef}"/> 和
+        /// <see cref="FromBytes{TData, TDef}"/> 共享。
         /// </summary>
         /// <param name="vffBytes">VFF 字节码跨度</param>
         /// <param name="visited">已访问的 VFF 哈希集合（用于循环检测）</param>

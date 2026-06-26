@@ -21,7 +21,7 @@ AddressablesLoad/
 
 ## Key Points
 
-- `FluxFormulaRef<TData, TOper, TDef>` is a serializable `AssetReferenceT<FluxAsset>`
+- `FluxFormulaRef<TData, TDef>` is a serializable `AssetReferenceT<FluxAsset>`
 - `LoadFormulaAsync()` is a single await: Addressables load → type check → `FromBytes` deserialization
 - Type mismatch between the asset's `TypeId` and `TDef` throws `InvalidOperationException`
-- On load failure, returns `FluxFormula<TData, TOper>.Empty`
+- On load failure, returns `FluxFormula<TData, TDef>.Empty`

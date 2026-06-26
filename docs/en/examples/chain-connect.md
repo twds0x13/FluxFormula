@@ -1,6 +1,6 @@
 # Example: ChainLink
 
-The following examples demonstrate the chaining behavior of `Connect()`. ChainLink is a public struct — regular users interact with it indirectly via `FluxFormula` / `FluxModifier` methods; advanced users can read the chain structure via `GetChainLinks()` and persist it using `VffFormat.ToBytes()`.
+The following examples demonstrate the chaining behavior of `Connect()`. ChainLink is a public struct — regular users interact with it indirectly via `FluxFormula` / `FluxModifier` methods; advanced users can read the chain structure via `FluxChain.GetLinks()` and persist it using `VffFormat.ToBytes()`.
 
 > **v3.0.0**: `Connect()`'s type signature upgraded from runtime checking to compile-time guarantee — the parameter is `FluxModifier<TData, TDef>`; passing a `FluxFormula` won't compile. `ToMultiplier()` renamed to `ToModifier()` (old name retained as `[Obsolete]`).
 
@@ -45,15 +45,17 @@ Console.WriteLine(inst2.Run()); // 9 = (1+2) * 3
 Chaining multiple modifiers:
 
 ```csharp
-var current = runner.Compile(lexer.Lex("1 + 2")); // = 3
+var base = runner.Compile(lexer.Lex("1 + 2")); // FluxFormula
+var chain = base.Connect(
+    runner.Compile(lexer.Lex("3 * 2")).ToModifier()); // FluxChain
 
-// Chain 3 multiply-by-2 modifiers
-for (int i = 0; i < 3; i++)
-    current = current.Connect(
+// Chain 2 more multiply-by-2 modifiers
+for (int i = 0; i < 2; i++)
+    chain = chain.Connect(
         runner.Compile(lexer.Lex("3 * 2")).ToModifier());
 // Semantics: ((3 * 2) * 2) * 2 = 24
 
-var inst3 = runner.Instantiate(current);
+var inst3 = runner.Instantiate(chain);
 Console.WriteLine(inst3.Run()); // 24
 ```
 
@@ -75,17 +77,18 @@ Console.WriteLine(perLinkResult == atomicResult); // True
 
 ## Automatic Merge on Threshold Exceeded
 
-When chain length exceeds `ChainReserved.MergeThreshold` (8), `Instantiate` automatically calls `ToAtomic` before evaluation:
+When chain length exceeds `FluxConfig.MergeThreshold` (default 8), `Instantiate` automatically calls `ToAtomic` before evaluation:
 
 ```csharp
-var current = runner.Compile(lexer.Lex("1 + 1"));
-for (int i = 0; i < 10; i++)
-    current = current.Connect(
+FluxChain<float, MathDef> chain = runner.Compile(lexer.Lex("1 + 1"))
+    .Connect(runner.Compile(lexer.Lex("2 * 1")).ToModifier());
+for (int i = 0; i < 9; i++)
+    chain = chain.Connect(
         runner.Compile(lexer.Lex("2 * 1")).ToModifier());
 
-// chain.ChainLength = 11 (exceeds 8)
+// chain.Length = 11 (exceeds MergeThreshold 8)
 // Instantiate auto-merges, avoiding 11 per-link calls
-var inst = runner.Instantiate(current);
+var inst = runner.Instantiate(chain);
 Console.WriteLine(inst.Run()); // evaluates correctly
 ```
 
@@ -118,5 +121,6 @@ In v3.0.0, `FluxModifier<TData, TDef>` has no `Instantiate()` method — any cod
 ## Notes
 
 - `ChainReserved.InternalPrefix` (`"CHAIN_LINK_INTERNAL_"`) is a variable name prefix used internally for chain evaluation. Users must not declare variables with this prefix in `LexerConfig.VariablePatterns`
-- `IsChained`, `ChainLength`, `GetChainLinks()`, and `ChainLink` are all public API — advanced users can read chain structure via `GetChainLinks()` and persist it as VFF using `VffFormat.ToBytes()`
+- `FluxChain.Length`, `FluxChain.GetLinks()`, and `ChainLink` are all public API — advanced users can read chain structure via `GetLinks()` and persist it as VFF using `VffFormat.ToBytes()`
+- `Connect()` always returns `FluxChain<TData, TDef>` — `FluxFormula` and `FluxModifier` are no longer chain containers
 - `ToMultiplier()` is retained as a `[Obsolete]` alias pointing to `ToModifier()`

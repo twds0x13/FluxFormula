@@ -149,7 +149,7 @@ public static byte[] ToBytes<TData>(
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `links` | `ChainLink[]` | 链式链接数组（如来自 `FluxFormula.GetChainLinks()`） |
+| `links` | `ChainLink[]` | 链式链接数组（如来自 `FluxChain.GetLinks()`） |
 | `overrides` | `VffOverride<TData>[]` | 参数覆写列表（无覆写传空数组） |
 
 产出的字节布局与本文档"字节布局"节一致：Header（"VFF\0" + Version + LinkCount + OverrideCount + Flags）+ LinkTable + OverrideTable。Flags 的 `HasConstants` 位自动根据 overrides 中是否存在 `Constant` 类型计算。

@@ -27,7 +27,8 @@ graph LR
     Def -.-> Interp
     Def -.-> JIT
 
-    Formula -->|"Connect()"| Chain["ChainLink[]"]
+    Formula -->|"Connect()"| ChainNode["FluxChain"]
+    ChainNode --> Chain["ChainLink[]"]
 ```
 
 ## Persistence & Caching
@@ -35,7 +36,8 @@ graph LR
 ```mermaid
 graph LR
     F["FluxFormula"] -->|"ToBytes()"| FF[".ff bytecode"]
-    F -->|"GetChainLinks()"| Chain["ChainLink[]"]
+    F -->|"Connect()"| FC["FluxChain"]
+    FC -->|"GetLinks()"| Chain["ChainLink[]"]
     Chain -->|"VffFormat.ToBytes()"| VFF[".vff reference"]
 
     FF --> Fmt["IFluxFileFormatter<br/>Save / Load"]
@@ -59,7 +61,8 @@ graph LR
 | Type | Generics | Role |
 |------|:--:|------|
 | [FluxAssembler](./flux-assembler) | `<TData, TDef>` | Main entry: compile & instantiate |
-| [FluxFormula](./flux-formula) | `<TData, TDef>` | Immutable bytecode container (complete formula) |
+| [FluxFormula](./flux-formula) | `<TData, TDef>` | Immutable bytecode container (complete formula, always atomic) |
+| [FluxChain](./flux-chain) | `<TData, TDef>` | Immutable chained bytecode container (Connect product) |
 | `FluxModifier` | `<TData, TDef>` | Immutable bytecode container (missing left operand, chain-only) |
 | [FluxInstance](./flux-instance) | `<TData, TDef>` | ref struct streaming executor |
 | [IFluxDefinition](./idefinition) | `<TData>` | Operator definition interface (interpreter path) |
@@ -88,7 +91,7 @@ The following types are not Public API, listed for reference only:
 
 - `FluxType` — internal enum (Formula / Modifier), made `internal` in v3.0.0
 - `FluxPlatform` — JIT degradation state control
-- `ChainLink` — chain link struct (public struct, typically accessed indirectly via `GetChainLinks()`)
+- `ChainLink` — chain link struct (public struct, accessed via `FluxChain.GetLinks()`)
 - `FluxEvaluator<TData, TDef>` — interpreter execution engine
 - `FluxCompiler<TData, TDef>` — shunting-yard algorithm compiler
 - `FluxJITCompiler<TData, TDef>` — LINQ Expression Tree JIT

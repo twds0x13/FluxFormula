@@ -1,6 +1,6 @@
-# FluxFormula / FluxModifier
+# FluxFormula / FluxModifier / FluxChain
 
-不可变字节码容器。`FluxFormula<TData, TDef>` 是完整公式（可独立求值），`FluxModifier<TData, TDef>` 是缺少第一操作数的半成品（只能被串联或转为 Formula）。
+不可变字节码容器。`FluxFormula<TData, TDef>` 是完整公式（可独立求值），`FluxModifier<TData, TDef>` 是缺少第一操作数的半成品（只能被串联或转为 Formula），`FluxChain<TData, TDef>` 是多次 Connect 串联而成的多段字节码序列。
 
 ## 签名
 
@@ -14,24 +14,30 @@ public readonly struct FluxFormula<TData, TDef>
 public readonly struct FluxModifier<TData, TDef>
     where TData : unmanaged
     where TDef : unmanaged, IFluxJITDefinition<TData>
+
+// 链式公式，不可直接求值
+public readonly struct FluxChain<TData, TDef>
+    where TData : unmanaged
+    where TDef : unmanaged, IFluxJITDefinition<TData>
 ```
 
-## FluxFormula 字段
+## FluxFormula 属性
 
-| 字段 | 类型 | 说明 |
+| 属性 | 类型 | 说明 |
 |------|------|------|
 | `Count` | `int` | 指令数量（含末尾 Return） |
 | `ImmediateCount` | `int` | Immediate 指令数量，即 `SetIndex()` 的有效索引上限 |
 | `VariableSlots` | `VariableSlot[]` | 变量名到槽位索引的映射表，由 Lexer 路径填充 |
 | `MaxRegister` | `byte` | 编译期分析的最高寄存器索引（0=未分析，回退到全量 255） |
 
-> `Type` 字段为 `internal`。类型身份由 struct 类型本身保证：`FluxFormula` 始终是 Formula，`FluxModifier` 始终是 Modifier。
+> `Type` 字段为 `internal`。类型身份由 struct 类型本身保证：`FluxFormula` 始终是原子公式。
 
 ## 静态成员
 
 | 成员 | 类型 | 说明 |
 |------|------|------|
-| `Empty` | `FluxFormula<TData, TDef>` | 空公式（Count=0），用于 Connect 边界场景 |
+| `Empty` | `FluxFormula<TData, TDef>` | 空公式（Count=0），Connect 的单位元 |
+| `FromBytes(byte[])` | `FluxFormula<TData, TDef>` | 从字节码反序列化 |
 
 ## FluxModifier 属性
 
@@ -41,8 +47,8 @@ public readonly struct FluxModifier<TData, TDef>
 | `ImmediateCount` | `int` | Immediate 指令数量 |
 | `VariableSlots` | `VariableSlot[]` | 变量槽映射 |
 | `MaxRegister` | `byte` | 最高寄存器索引 |
-| `IsChained` | `bool` | 是否为链式 |
-| `ChainLength` | `int` | 链式链接数 |
+
+> `FluxModifier` 没有 `Instantiate()` 方法——任何尝试独立求值 Modifier 的代码编译不过。链相关属性（`IsChained`/`ChainLength`/`GetChainLinks()`）已移至 `FluxChain`。
 
 ## 静态成员
 
@@ -50,11 +56,95 @@ public readonly struct FluxModifier<TData, TDef>
 |------|------|------|
 | `Empty` | `FluxModifier<TData, TDef>` | 空 Modifier，Connect 的单位元 |
 
+## 构造
+
+构造函数均为 `internal`。用户通过 `FluxAssembler.Compile()` 生成，`Connect()` 返回 `FluxChain`，或使用 `Empty` 获取空实例。
+
+## FluxFormula 方法
+
+### Connect
+
+```csharp
+public FluxChain<TData, TDef> Connect(FluxModifier<TData, TDef> next)
+```
+
+链式组合当前公式与一个 Modifier。不合并字节码，返回 `FluxChain`。物理拼接推迟到求值时刻。
+
+- 卫语句：`next` 为空时返回单 link 的 `FluxChain`
+- **`next` 的类型 `FluxModifier` 由类型系统保证**：传入 Formula 前须先调用 `.ToModifier()` 剥离首操作数
+- 参见 [ChainLink 深度解析](../technical/chainlink-deep-dive)
+
+### ToModifier
+
+```csharp
+public FluxModifier<TData, TDef> ToModifier()
+```
+
+将 Formula 转为 Modifier。移除第一 Immediate 指令及数据槽位，将其 dest 寄存器重命名为 R1（Bus）。
+
+### ToFormula
+
+```csharp
+public FluxFormula<TData, TDef> ToFormula(string varName)
+```
+
+将 Modifier 转为 Formula。插入以 `varName` 命名的 Immediate 指令替代 R1 输入，R1 引用重命名为新寄存器。
+
+### GetByteHash
+
+```csharp
+public DualHash64 GetByteHash()
+```
+
+计算字节码的 `DualHash64` 哈希。原子公式始终序列化后哈希。
+
+### Raw / ToBytes / ToString
+
+```csharp
+public ReadOnlySpan<Instruction> Raw()              // O(1)，永不分配
+public byte[] ToBytes()                             // 序列化为字节数组
+public override string ToString()
+```
+
+## FluxModifier 方法
+
+### Connect
+
+```csharp
+public FluxChain<TData, TDef> Connect(FluxModifier<TData, TDef> next)
+```
+
+将两个 Modifier 串联，返回 `FluxChain`。结果仍缺第一操作数，需 `.ToAtomic()` 或连接至 `FluxFormula` 后才能求值。
+
+### ToFormula
+
+```csharp
+public FluxFormula<TData, TDef> ToFormula(string varName)
+```
+
+Modifier→Formula：插入命名变量替代 R1 输入。这是 `FluxModifier` 转为可求值 `FluxFormula` 的唯一途径。
+
+## FluxChain 方法
+
+详见 [FluxChain API 文档](./flux-chain)。
+
+| 方法 | 返回类型 | 说明 |
+|------|------|------|
+| `Connect(FluxModifier)` | `FluxChain` | 在链末尾追加 Modifier |
+| `ToAtomic()` | `FluxFormula` | 显式合并所有 link 为原子公式 |
+| `GetLinks()` | `ReadOnlySpan<ChainLink>` | 获取链式链接的只读视图 |
+| `GetByteHash()` | `DualHash64` | 链式字节码组合哈希 |
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `Length` | `int` | 链中的链接数 |
+| `Empty` | `FluxChain`（静态） | 空链（Length=0），Connect 的单位元 |
+
 ## 结构体
 
 ### ChainLink
 
-链式公式的一个环节。存储该公式片段的字节码引用和元数据，通过 `DualHash64.Key` 从缓存中检索 JIT delegate。公开结构体，可通过 `GetChainLinks()` 访问。
+链式公式的一个环节。存储该公式片段的字节码引用和元数据，通过 `DualHash64.Key` 从缓存中检索 JIT delegate。通过 `FluxChain.GetLinks()` 访问。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -67,86 +157,10 @@ public readonly struct FluxModifier<TData, TDef>
 
 > `Type` 字段为 `internal`。
 
-高级用户通过 `GetChainLinks()` 获取链结构，配合 `VffFormat.ToBytes()` 将链式引用持久化为 VFF 文件。
-
-## 构造
-
-构造函数为 `internal`。用户通过 `FluxAssembler.Compile()` 生成，或使用 `Empty` 获取空实例。
-
-## FluxFormula 方法
-
-### Connect
-
-```csharp
-public FluxFormula<TData, TDef> Connect(FluxModifier<TData, TDef> next)
-```
-
-链式组合当前公式与一个 Modifier。不合并字节码，追加 `ChainLink` 引用切片。物理拼接推迟到求值时刻。
-
-- 卫语句：任一方为空则直接返回另一方
-- **`next` 的类型 `FluxModifier` 由类型系统保证**：传入 Formula 前须先调用 `.ToModifier()` 剥离首操作数
-- 参见 [ChainLink 深度解析](../technical/chainlink-deep-dive)
-
-### ToModifier
-
-```csharp
-public FluxModifier<TData, TDef> ToModifier()
-```
-
-将 Formula 转为 Modifier。移除第一 Immediate 指令及数据槽位，将其 dest 寄存器重命名为 R1（Bus）。已为 Modifier 则包装返回。链式公式先 `ToAtomic` 再转换。
-
-### ToFormula
-
-```csharp
-public FluxFormula<TData, TDef> ToFormula(string varName)
-```
-
-将 Modifier 转为 Formula。插入以 `varName` 命名的 Immediate 指令替代 R1 输入，R1 引用重命名为新寄存器。已为 Formula 则返回自身。
-
-### ToAtomic
-
-```csharp
-internal FluxFormula<TData, TDef> ToAtomic()
-```
-
-将链式公式合并为原子公式。所有 link 的 `Instruction[]` 完整拼接（含中间 Return）。JIT 路径和长链（>8）解释器路径自动调用。
-
-### GetByteHash / Raw / ToBytes / FromBytes / IsChained / ChainLength / GetChainLinks
-
-各方法签名见上方代码块，行为细节见源码 XML doc 注释。
-
-### ToString
-
-```csharp
-public override string ToString()
-// "FluxFormula<Single, MathDef> [Type: Formula, Instructions: 4]"
-```
-
-## FluxModifier 方法
-
-### Connect
-
-```csharp
-public FluxModifier<TData, TDef> Connect(FluxModifier<TData, TDef> next)
-```
-
-将两个 Modifier 串联。结果仍为 Modifier（仍然缺少第一操作数）。
-
-### ToFormula
-
-```csharp
-public FluxFormula<TData, TDef> ToFormula(string varName)
-```
-
-Modifier→Formula：插入命名变量替代 R1 输入。这是 `FluxModifier` 转为可求值 `FluxFormula` 的唯一途径。
-
-### Raw / ToBytes / GetByteHash / GetChainLinks / FromBytes
-
-与 `FluxFormula` 对应方法一致。
-
 ## 参见
 
+- [FluxChain API](./flux-chain) — 链式公式专用 API
 - [FluxAssembler](./flux-assembler) — 编译入口，产出 FluxFormula
 - [FluxInstance](./flux-instance) — 公式实例化后的流式执行器
 - [Instruction](./instruction) — 8 字节指令结构体
-- [FormulaFormat](./formula-format) — 字节码序列化格式定义
+- [ChainLink 深度解析](../technical/chainlink-deep-dive) — 链式求值原理

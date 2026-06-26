@@ -1,6 +1,6 @@
 # 示例：ChainLink
 
-以下示例演示 `Connect()` 的链式行为。ChainLink 为公开结构体：普通用户通过 `FluxFormula` / `FluxModifier` 的方法间接使用，高级用户可通过 `GetChainLinks()` 读取链结构并配合 `VffFormat.ToBytes()` 持久化。
+以下示例演示 `Connect()` 的链式行为。ChainLink 为公开结构体：普通用户通过 `FluxFormula` / `FluxModifier` 的方法间接使用，高级用户可通过 `FluxChain.GetLinks()` 读取链结构并配合 `VffFormat.ToBytes()` 持久化。
 
 > **v3.0.0**：`Connect()` 的类型签名从运行时检查提升为编译期保证：参数是 `FluxModifier<TData, TDef>`，传入 `FluxFormula` 编译不过。`ToMultiplier()` 重命名为 `ToModifier()`（旧名保留 `[Obsolete]`）。
 
@@ -45,15 +45,17 @@ Console.WriteLine(inst2.Run()); // 9 = (1+2) * 3
 多个 modifier 串联：
 
 ```csharp
-var current = runner.Compile(lexer.Lex("1 + 2")); // = 3
+var base = runner.Compile(lexer.Lex("1 + 2")); // FluxFormula
+var chain = base.Connect(
+    runner.Compile(lexer.Lex("3 * 2")).ToModifier()); // FluxChain
 
-// 串联 3 个乘 2 的 modifier
-for (int i = 0; i < 3; i++)
-    current = current.Connect(
+// 再串联 2 个乘 2 的 modifier
+for (int i = 0; i < 2; i++)
+    chain = chain.Connect(
         runner.Compile(lexer.Lex("3 * 2")).ToModifier());
 // 语义: ((3 * 2) * 2) * 2 = 24
 
-var inst3 = runner.Instantiate(current);
+var inst3 = runner.Instantiate(chain);
 Console.WriteLine(inst3.Run()); // 24
 ```
 
@@ -75,17 +77,18 @@ Console.WriteLine(perLinkResult == atomicResult); // True
 
 ## 链长超过阈值时的自动合并
 
-链长超过 `ChainReserved.MergeThreshold`（8）时，`Instantiate` 自动调用 `ToAtomic` 合并后求值：
+链长超过 `FluxConfig.MergeThreshold`（默认 8）时，`Instantiate` 自动调用 `ToAtomic` 合并后求值：
 
 ```csharp
-var current = runner.Compile(lexer.Lex("1 + 1"));
-for (int i = 0; i < 10; i++)
-    current = current.Connect(
+FluxChain<float, MathDef> chain = runner.Compile(lexer.Lex("1 + 1"))
+    .Connect(runner.Compile(lexer.Lex("2 * 1")).ToModifier());
+for (int i = 0; i < 9; i++)
+    chain = chain.Connect(
         runner.Compile(lexer.Lex("2 * 1")).ToModifier());
 
-// chain.ChainLength = 11（超过 8）
+// chain.Length = 11（超过 MergeThreshold 8）
 // Instantiate 时自动合并，避免 11 次 per-link 调用
-var inst = runner.Instantiate(current);
+var inst = runner.Instantiate(chain);
 Console.WriteLine(inst.Run()); // 正常求值
 ```
 
@@ -118,5 +121,6 @@ v3.0.0 中 `FluxModifier<TData, TDef>` 没有 `Instantiate()` 方法，任何尝
 ## 注意事项
 
 - `ChainReserved.InternalPrefix`（`"CHAIN_LINK_INTERNAL_"`）是链式求值内部使用的变量名前缀。用户不得在 `LexerConfig.VariablePatterns` 中声明此前缀开头的变量
-- `IsChained`、`ChainLength`、`GetChainLinks()` 和 `ChainLink` 均为公开 API，高级用户可通过 `GetChainLinks()` 读取链结构并配合 `VffFormat.ToBytes()` 持久化为 VFF
+- `FluxChain.Length`、`FluxChain.GetLinks()` 和 `ChainLink` 均为公开 API，高级用户可通过 `GetLinks()` 读取链结构并配合 `VffFormat.ToBytes()` 持久化为 VFF
+- `Connect()` 始终返回 `FluxChain<TData, TDef>`——`FluxFormula` 和 `FluxModifier` 不再是链式容器
 - `ToMultiplier()` 保留为 `[Obsolete]` 别名，指向 `ToModifier()`

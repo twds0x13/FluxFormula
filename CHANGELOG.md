@@ -1,3 +1,32 @@
+# Changelog
+
+## Breaking Changes by Version
+
+> **升级前必读。** 每个大版本的破坏性变更、迁移成本和推荐操作。
+
+### v3.x → next (ongoing on `dev`)
+
+| 变更 | 影响 | 迁移 |
+|------|------|------|
+| `FluxChain<TData,TDef>` 独立类型 | `FluxFormula.Connect()` 现在返回 `FluxChain` 而非 `FluxFormula`。`IsChained`/`ChainLength`/`GetChainLinks()` 从 `FluxFormula`/`FluxModifier` 移除 | `var chain = formula.Connect(modifier)` → 类型变为 `FluxChain`。`chain.GetChainLinks()` → `chain.GetLinks()`。`chain.ChainLength` → `chain.Length`。`chain.ToAtomic()` 显式转为 `FluxFormula` |
+
+### v2.x → v3.0.0
+
+| 变更 | 影响 | 迁移 |
+|------|------|------|
+| `TOper` 泛型参数移除 | 所有类型签名减少一个泛型参数。`FluxAssembler<TData, TOper, TDef>` → `FluxAssembler<TData, TDef>`（三参数→两参数） | 删除所有 `TOper` 参数。`IFluxJITDefinition<TData, TOper>` → `IFluxJITDefinition<TData>`。操作符枚举改为 `byte`，定义体内部强转。旧枚举可保留为 `const byte` 容器 |
+| `FluxModifier<TData,TDef>` 独立 struct | Formula/Modifier 分属两个类型。`FluxType` 枚举变为 `internal` | `Connect(FluxFormula)` → `Connect(FluxModifier)`，需先调 `.ToModifier()`。`ToMultiplier()` → `ToModifier()`（旧名保留 `[Obsolete]`）。Modifier 无 `Instantiate()` 方法 |
+
+### v1.x → v2.0.0
+
+| 变更 | 影响 | 迁移 |
+|------|------|------|
+| 四包拆分（Core / Unity / Addressables / UniTask） | 原单包分为四层。Core 零 UnityEngine 依赖 | 直接引用 `FluxFormula.Core` 命名空间即可。Unity 端额外引用 `FluxFormula` 包 |
+| Blob 管线 + FormulaCache 替代 ConnectCache | ConnectCache 删除，FormulaCache.Instance 为唯一缓存入口 | 无需改动。序列化路径自动走 blob |
+| `IFluxFileFormatter` 替代 `IFluxBinaryBuilder` | 接口重命名，`FluxArtifactKind` 枚举区分 .ff/.vff | 将 `IFluxBinaryBuilder` 引用改为 `IFluxFileFormatter` |
+
+---
+
 # [3.2.0](https://github.com/twds0x13/FluxFormula/compare/v3.1.1...v3.2.0) (2026-06-25)
 
 

@@ -43,7 +43,7 @@ namespace FluxFormula.Core
         public int FormulaCacheCapacity { get; init; }
 
         /// <summary>
-        /// 链式公式合并阈值——链长超过此值时 <see cref="FluxFormula{TData, TOper}.ToAtomic"/>
+        /// 链式公式合并阈值——链长超过此值时 <see cref="FluxChain{TData, TDef}.ToAtomic"/>
         /// 合并为原子公式。默认 8。
         /// </summary>
         public int MergeThreshold { get; init; }

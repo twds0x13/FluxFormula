@@ -67,7 +67,7 @@ byte[] data = formatter.Load("Damage", out var kind);
 var loaded = FluxFormula<float, MathDef>.FromBytes(data);
 
 // VFF roundtrip
-var links = chain.GetChainLinks().ToArray();
+var links = chain.GetLinks().ToArray();
 formatter.Save(VffFormat.ToBytes<float>(links, overrides),
     FluxArtifactKind.Virtual, "DamageChain");
 // → DamageChain.vff

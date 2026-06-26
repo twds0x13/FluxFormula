@@ -149,7 +149,7 @@ Serializes chain formula references into a VFF byte array. Pairs with `FromBytes
 
 | Parameter | Type | Description |
 |------|------|------|
-| `links` | `ChainLink[]` | Chain link array (e.g. from `FluxFormula.GetChainLinks()`) |
+| `links` | `ChainLink[]` | Chain link array (e.g. from `FluxChain.GetLinks()`) |
 | `overrides` | `VffOverride<TData>[]` | Parameter override list (pass empty array for no overrides) |
 
 The output byte layout matches the "Byte Layout" section above: Header ("VFF\0" + Version + LinkCount + OverrideCount + Flags) + LinkTable + OverrideTable. The `HasConstants` flag bit is computed automatically based on whether any override has `Constant` kind.

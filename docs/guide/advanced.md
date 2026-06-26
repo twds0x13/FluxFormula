@@ -116,22 +116,19 @@ float r = runner.Instantiate(loaded).Set("atk", 100f).Run();
 ## 将链式公式持久化为 VFF
 
 ```csharp
-var chain = damageFormula.Connect(critModifier).Connect(elementModifier);
+FluxChain<float, MathDef> chain = damageFormula.Connect(critModifier).Connect(elementModifier);
 
-if (chain.IsChained)
-{
-    var links = chain.GetChainLinks();
-    byte[] vffData = VffFormat.ToBytes<float>(
-        links.ToArray(),
-        Array.Empty<VffOverride<float>>());
+var links = chain.GetLinks();
+byte[] vffData = VffFormat.ToBytes<float>(
+    links.ToArray(),
+    Array.Empty<VffOverride<float>>());
 
-    var formatter = new FileFluxFileFormatter();
-    formatter.Save(vffData, FluxArtifactKind.Virtual, "DamagePipeline");
-}
+var formatter = new FileFluxFileFormatter();
+formatter.Save(vffData, FluxArtifactKind.Virtual, "DamagePipeline");
 
 // 运行时加载 → 解析 → 执行
 var result = VffFormat.FromBytes<float, MathDef>(vffData);
-float damage = assembler.Instantiate(result.Formula)
+float damage = assembler.Instantiate(result.Chain)
     .Set("atk", 100f).Set("def", 50f).Run();
 ```
 
