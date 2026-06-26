@@ -329,7 +329,7 @@ namespace FluxFormula.Core
 
             // 每个变量槽：NameLen(4) + NameBytes + SlotIndex(4) = 8 + nameLen
             int slotSectionSize = varSlotCount * 8 + nameBytesTotal;
-            int totalSize = FormulaFormat.HeaderSize + instByteLen + slotSectionSize;
+            int totalSize = FormulaFormat.HeaderSize + instByteLen + slotSectionSize + FormulaFormat.FingerprintSize;
 
             byte[] data = new byte[totalSize];
             int offset = 0;
@@ -352,6 +352,9 @@ namespace FluxFormula.Core
                 Buffer.BlockCopy(nb, 0, data, offset, nb.Length); offset += nb.Length;
                 BinaryFormat.WriteInt32LE(data, ref offset, VariableSlots[i].SlotIndex);
             }
+
+            // ── 类型指纹（V2 尾部 8 字节）──
+            FormulaFormat.WriteTypeFingerprint<TData, TDef>(data, ref offset);
 
             return data;
         }
@@ -400,6 +403,12 @@ namespace FluxFormula.Core
                 int slotIdx = BinaryFormat.ReadInt32LE(data, ref offset);
                 varSlots[i] = new VariableSlot(name, slotIdx);
             }
+
+            // ── 类型指纹校验 ──
+            if (!FormulaFormat.ValidateTypeFingerprint<TData, TDef>(data, offset))
+                throw new InvalidOperationException(
+                    $"Type fingerprint mismatch: the .ff bytecode was compiled for a different TDef (expected {typeof(TDef).FullName}). " +
+                    "Cross-definition bytecode injection blocked.");
 
             return new FluxFormula<TData, TDef>(instructions, header.Count, (FluxType)header.Type, header.ImmediateCount, varSlots, header.MaxRegister);
         }

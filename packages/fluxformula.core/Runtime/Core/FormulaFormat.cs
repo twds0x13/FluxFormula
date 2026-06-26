@@ -67,6 +67,56 @@ namespace FluxFormula.Core
         private const int OffImmediateCount = 5;  // int32 LE
         private const int OffVarSlotCount   = 9;  // int32 LE
         private const int OffMaxRegister    = 13; // byte
+
+        /// <summary>类型指纹后缀大小（字节）。置于 .ff 文件末尾，Header + Body + VarSlots 之后。</summary>
+        public const int FingerprintSize = 8;
+
+        // ── 类型指纹 ──
+
+        /// <summary>
+        /// 计算 TData/TDef 组合的类型指纹。
+        /// 指纹 = xxHash64(typeof(TDef).FullName + "|" + sizeof(TData))。
+        /// 用于 .ff 文件反序列化时的类型校验，防止跨定义注入。
+        /// </summary>
+        public static ulong ComputeTypeFingerprint<TData, TDef>()
+            where TData : unmanaged
+            where TDef : unmanaged, IFluxJITDefinition<TData>
+        {
+            unsafe
+            {
+                string key = $"{typeof(TDef).FullName}|{sizeof(TData)}";
+                byte[] keyBytes = System.Text.Encoding.UTF8.GetBytes(key);
+                return DualHash64.Compute(keyBytes).XxHash64;
+            }
+        }
+
+        /// <summary>向字节缓冲区末尾写入类型指纹。</summary>
+        public static void WriteTypeFingerprint<TData, TDef>(byte[] buf, ref int offset)
+            where TData : unmanaged
+            where TDef : unmanaged, IFluxJITDefinition<TData>
+        {
+            BinaryFormat.WriteInt64LE(buf, ref offset, (long)ComputeTypeFingerprint<TData, TDef>());
+        }
+
+        /// <summary>
+        /// 从字节跨度指定偏移量读取 ulong 指纹，验证与 TData/TDef 匹配。
+        /// 若指纹为零（旧格式无指纹），跳过后向兼容。
+        /// </summary>
+        /// <returns>true = 通过；false = 指纹不匹配（跨定义注入或数据损坏）。调用方应抛出。</returns>
+        public static bool ValidateTypeFingerprint<TData, TDef>(ReadOnlySpan<byte> data, int fingerprintOffset)
+            where TData : unmanaged
+            where TDef : unmanaged, IFluxJITDefinition<TData>
+        {
+            if (fingerprintOffset + FingerprintSize > data.Length)
+                return true; // not enough data for fingerprint — old format, assume valid
+
+            ulong stored = BinaryFormat.ReadUInt64LE(data, fingerprintOffset);
+            if (stored == 0)
+                return true; // old format (no fingerprint written) — skip validation
+
+            ulong expected = ComputeTypeFingerprint<TData, TDef>();
+            return stored == expected;
+        }
     }
 
     /// <summary>公式字节码头——不包含 magic byte（非 VFF 即为公式）。</summary>
