@@ -164,6 +164,12 @@ public static class TestHelper
         return runner.Instantiate(formula, jit).Run();
     }
 
+    public static float EvalFormula(FluxChain<float, FloatMathDef> chain, bool jit = false)
+    {
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        return runner.Instantiate(chain, jit).Run();
+    }
+
     public static FluxLexer<float> CreateMathLexer()
     {
         return new FluxLexer<float>(new LexerConfig<float>

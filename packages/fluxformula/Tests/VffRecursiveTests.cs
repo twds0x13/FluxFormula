@@ -204,7 +204,7 @@ public class VffRecursiveTests
         var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
 
         Assert.That(result.Chain.Length, Is.EqualTo(3));
-        Assert.That(result.Chain.ImmediateCount, Is.EqualTo(3)); // 1+1+1 = 3
+        Assert.That(result.Chain.ToAtomic().ImmediateCount, Is.EqualTo(3)); // 1+1+1 = 3
     }
 
     [Test]
@@ -231,7 +231,7 @@ public class VffRecursiveTests
         var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
 
         Assert.That(result.Chain.Length, Is.EqualTo(3)); // C + A + B
-        Assert.That(result.Chain.ImmediateCount, Is.EqualTo(6)); // 1 + 2 + 3 = 6
+        Assert.That(result.Chain.ToAtomic().ImmediateCount, Is.EqualTo(6)); // 1 + 2 + 3 = 6
     }
 
     [Test]
@@ -350,13 +350,13 @@ public class VffRecursiveTests
         var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
 
         // 展平后应有 3 个变量：z(0), x(1), y(2)
-        Assert.That(result.Chain.VariableSlots.Length, Is.EqualTo(3));
-        Assert.That(result.Chain.VariableSlots[0].Name, Is.EqualTo("z"));
-        Assert.That(result.Chain.VariableSlots[0].SlotIndex, Is.EqualTo(0));
-        Assert.That(result.Chain.VariableSlots[1].Name, Is.EqualTo("x"));
-        Assert.That(result.Chain.VariableSlots[1].SlotIndex, Is.EqualTo(1));
-        Assert.That(result.Chain.VariableSlots[2].Name, Is.EqualTo("y"));
-        Assert.That(result.Chain.VariableSlots[2].SlotIndex, Is.EqualTo(2));
+        Assert.That(result.Chain.ToAtomic().VariableSlots.Length, Is.EqualTo(3));
+        Assert.That(result.Chain.ToAtomic().VariableSlots[0].Name, Is.EqualTo("z"));
+        Assert.That(result.Chain.ToAtomic().VariableSlots[0].SlotIndex, Is.EqualTo(0));
+        Assert.That(result.Chain.ToAtomic().VariableSlots[1].Name, Is.EqualTo("x"));
+        Assert.That(result.Chain.ToAtomic().VariableSlots[1].SlotIndex, Is.EqualTo(1));
+        Assert.That(result.Chain.ToAtomic().VariableSlots[2].Name, Is.EqualTo("y"));
+        Assert.That(result.Chain.ToAtomic().VariableSlots[2].SlotIndex, Is.EqualTo(2));
     }
 
     [Test]
@@ -435,6 +435,6 @@ public class VffRecursiveTests
 
         // 展平后：leafL + leafM + leafN = 3 个 link
         Assert.That(result.Chain.Length, Is.EqualTo(3));
-        Assert.That(result.Chain.ImmediateCount, Is.EqualTo(3));
+        Assert.That(result.Chain.ToAtomic().ImmediateCount, Is.EqualTo(3));
     }
 }
