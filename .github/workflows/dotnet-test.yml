@@ -36,13 +36,11 @@ jobs:
         run: dotnet tool install -g dotnet-coverage
 
       - name: Run tests with coverage
-        run: |
-          dotnet-coverage collect \
-            --output coverage-latest.xml \
-            --output-format cobertura \
-            dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj \
-              --configuration Release \
-              --no-build:false
+        run: >
+          dotnet-coverage collect
+          --output coverage-latest.xml
+          --output-format cobertura
+          "dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --configuration Release"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
