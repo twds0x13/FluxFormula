@@ -27,225 +27,144 @@
 
 ---
 
-# [3.2.0](https://github.com/twds0x13/FluxFormula/compare/v3.1.1...v3.2.0) (2026-06-25)
-
+# [3.4.0](https://github.com/twds0x13/FluxFormula/compare/v3.3.0...v3.4.0) (2026-06-26)
 
 ### Features
 
-* LiteralScanner delegate replaces hardcoded literal scanning ([a729ad0](https://github.com/twds0x13/FluxFormula/commit/a729ad0e5a80372f53f87feb47d1a8b815510a23))
+* add type fingerprint to .ff format — prevents cross-definition bytecode injection ([593f102](https://github.com/twds0x13/FluxFormula/commit/593f10252995ad506c868c3ea76386ce7565e4a7))
+
+### Bug Fixes
+
+* quote dotnet test in coverage CI to prevent MSBuild split arg error ([9fb1058](https://github.com/twds0x13/FluxFormula/commit/9fb1058b02b5a702acdf9c872a7de9cc33b07115))
+
+# [3.3.0](https://github.com/twds0x13/FluxFormula/compare/v3.2.0...v3.3.0) (2026-06-26)
+
+### Features
+
+* add fluxformula.burst package — Burst/Jobs interpreter for Unity ([9bce25e](https://github.com/twds0x13/FluxFormula/commit/9bce25ee47fc5cf1973049ad94c8386c5668e0f2))
+* FormulaCache thread-safe read — ReaderWriterLockSlim with Interlocked stats ([c323594](https://github.com/twds0x13/FluxFormula/commit/c323594c17ce091a83f33d4feb0b59ca81b2b3df))
+* split FluxChain from FluxFormula — eliminate dual-representation and hidden ToAtomic allocations ([b4c8409](https://github.com/twds0x13/FluxFormula/commit/b4c840982d1a9c26e7024b7350d9d6df488b2df4))
+
+### Bug Fixes
+
+* Unity test residual — EvalFormula(FluxChain) overload, FluxChain field access via ToAtomic ([b964dc8](https://github.com/twds0x13/FluxFormula/commit/b964dc8279edd7ac108090523c05c447e01fdeb5))
+* add FluxChain.cs to benchmark csproj, fix Unity test files for FluxChain API ([3402905](https://github.com/twds0x13/FluxFormula/commit/3402905c79ede2af5b4d8632e454cdaa384cfd85))
+
+# [3.2.0](https://github.com/twds0x13/FluxFormula/compare/v3.1.1...v3.2.0) (2026-06-25)
+
+### Features
+
+* LiteralScanner delegate replaces hardcoded literal scanning ([ec7e4f3](https://github.com/twds0x13/FluxFormula/commit/ec7e4f39d01333dab821e80f337260e753f7ad39))
 
 ## [3.1.1](https://github.com/twds0x13/FluxFormula/compare/v3.1.0...v3.1.1) (2026-06-25)
 
-
 ### Bug Fixes
 
-* JIT path bytecode caching + Expression.Equal compatibility for custom TData ([e63ed22](https://github.com/twds0x13/FluxFormula/commit/e63ed22629384881de3a6113bb71377e5d1cf9f7))
+* JIT path bytecode caching + Expression.Equal compatibility for custom TData ([8abba8a](https://github.com/twds0x13/FluxFormula/commit/8abba8a1c03a0450ae0e4c4b7bf14735181dc37a))
 
 # [3.1.0](https://github.com/twds0x13/FluxFormula/compare/v3.0.3...v3.1.0) (2026-06-25)
 
-
 ### Features
 
-* add FluxCompression — Brotli-based blob compression layer ([d052536](https://github.com/twds0x13/FluxFormula/commit/d052536141cec013d3ef2bb2e559bfa9f49bcf68))
+* add FluxCompression — Brotli-based blob compression layer ([9d2162b](https://github.com/twds0x13/FluxFormula/commit/9d2162be9e2057d71ca7145d35ac6755e91a6b4b))
 
 ## [3.0.3](https://github.com/twds0x13/FluxFormula/compare/v3.0.2...v3.0.3) (2026-06-25)
 
-
 ### Bug Fixes
 
-* replace all remaining sequential GUIDs with random GUIDs across fluxformula, addressables, and core packages ([b9d7f94](https://github.com/twds0x13/FluxFormula/commit/b9d7f94a86b88c8f9c3fa455e270eaf0a0723611))
+* replace all remaining sequential GUIDs with random GUIDs across fluxformula, addressables, and core packages ([ea3837c](https://github.com/twds0x13/FluxFormula/commit/ea3837cd9d1d48580e43847e9250c83d5924e484))
 
 ## [3.0.2](https://github.com/twds0x13/FluxFormula/compare/v3.0.1...v3.0.2) (2026-06-25)
 
-
 ### Bug Fixes
 
-* replace hand-crafted sequential GUIDs with valid random GUIDs, add missing .meta for README/LICENSE ([afbd4e4](https://github.com/twds0x13/FluxFormula/commit/afbd4e479e5e5ce9bf86d89cac8b6af22e9ccb0a))
+* replace hand-crafted sequential GUIDs with valid random GUIDs, add missing .meta for README/LICENSE ([cb028ff](https://github.com/twds0x13/FluxFormula/commit/cb028ff3cb30159ddfe4a72531b01b8f798590d5))
 
 ## [3.0.1](https://github.com/twds0x13/FluxFormula/compare/v3.0.0...v3.0.1) (2026-06-25)
 
 ### Bug Fixes
 
-* add 17 missing .meta files across all four packages, resolving empty file imports in UPM ([3c1cb15](https://github.com/twds0x13/FluxFormula/commit/3c1cb15dd43c734e39d130366c2227216c35f516))
+* add 17 missing .meta files across all four packages, resolving empty file imports in UPM ([2ca63e8](https://github.com/twds0x13/FluxFormula/commit/2ca63e8c2e3cdcae2dc14b4a3d62fa0f786651a8))
 
 # [3.0.0](https://github.com/twds0x13/FluxFormula/compare/v2.1.0...v3.0.0) (2026-06-24)
 
+### Refactors
 
-* refactor!: remove TOper generic parameter, replace with TDef in FluxFormula signature ([2a3cfab](https://github.com/twds0x13/FluxFormula/commit/2a3cfabd3d2b553d6da35debd7af7a8837702d07))
-* refactor!: split FluxFormula/FluxModifier types, make FluxType internal ([766e41d](https://github.com/twds0x13/FluxFormula/commit/766e41d1b6da6ddd779401dc32148e496d795fa2))
-
+* **BREAKING:** remove TOper generic parameter, replace with TDef in FluxFormula signature ([1192ed3](https://github.com/twds0x13/FluxFormula/commit/1192ed30f0a204226decd26b2ebdd42452bda93e))
+* **BREAKING:** split FluxFormula/FluxModifier types, make FluxType internal ([96d1925](https://github.com/twds0x13/FluxFormula/commit/96d192543c603ef0a6b841205351baacbdba11fb))
+* rename IFluxBinaryBuilder → IFluxFileFormatter, add Load method, split overview diagram ([9aa9cad](https://github.com/twds0x13/FluxFormula/commit/9aa9cadc0c1e0346bd1793a52927a4363fd1790e))
 
 ### Bug Fixes
 
-* add (FluxType) cast in FromBytes, add .ToModifier() in benchmarks Connect ([8c2bebb](https://github.com/twds0x13/FluxFormula/commit/8c2bebbc43f93ab3ff38cf72d0d998ceae94f76f))
-* add FluxFormula.Editor to InternalsVisibleTo for FluxFormula.Type access ([0ffbbab](https://github.com/twds0x13/FluxFormula/commit/0ffbbab9eef7ce9675cbf6a8d74dd2b99fb72539))
-* add FluxModifier.cs to benchmarks and tests csproj file lists ([bdf7252](https://github.com/twds0x13/FluxFormula/commit/bdf7252727ba5fda04e74529983042d7e4f0592c))
-* remove all residual TOper references across the entire repo ([c2fc2c7](https://github.com/twds0x13/FluxFormula/commit/c2fc2c7cc2890766c3defe865371a258bb517851))
-
+* remove all residual TOper references across the entire repo ([fc63225](https://github.com/twds0x13/FluxFormula/commit/fc632252de09dc50ec0eaf6f208d90f8d4d3b86a))
+* add (FluxType) cast in FromBytes, add .ToModifier() in benchmarks Connect ([0f08172](https://github.com/twds0x13/FluxFormula/commit/0f0817261a7e0e1748b77f7830af99e85933242f))
+* add FluxFormula.Editor to InternalsVisibleTo for FluxFormula.Type access ([23efc83](https://github.com/twds0x13/FluxFormula/commit/23efc8382273c2d8a95f4aaa248e8573ccff5826))
+* add FluxModifier.cs to benchmarks and tests csproj file lists ([0d5d53c](https://github.com/twds0x13/FluxFormula/commit/0d5d53c8c8dcb94f9c9308e6b482435954d62a9f))
 
 ### Features
 
-* complete v3.0.0 security cleanup + pipeline docs + coverage to 97.9% ([f5c4bdb](https://github.com/twds0x13/FluxFormula/commit/f5c4bdbe6540e2335cde48df084c74c49a181318))
-
+* complete v3.0.0 security cleanup + pipeline docs + coverage to 97.9% ([c966839](https://github.com/twds0x13/FluxFormula/commit/c9668390e0a81923fca10afed01d5d398b48b94a))
 
 ### BREAKING CHANGES
 
-* TOper generic parameter removed from all core types.
+**TOper 泛型参数移除。** 所有类型签名减少一个泛型参数：
 
-- IFluxJITDefinition<TData, TOper> → IFluxJITDefinition<TData> (all TOper params → byte)
-- FluxAssembler<TData, TOper, TDef> → FluxAssembler<TData, TDef> (3 params → 2)
-- FluxFormula<TData, TOper> → FluxFormula<TData, TDef>
-- FluxInstance<TData, TOper, TDef> → FluxInstance<TData, TDef>
-- OpPair<TOper> → OpPair (TOper fields → byte)
-- And all other types: FluxToken, FluxLexer, LexerConfig, LexResult, FluxCompiler,
-  FluxEvaluator, FluxJITCompiler, VffResolveResult, OperatorRule, BracketRule
+* `IFluxJITDefinition<TData, TOper>` → `IFluxJITDefinition<TData>`（所有 TOper 参数改为 `byte`）
+* `FluxAssembler<TData, TOper, TDef>` → `FluxAssembler<TData, TDef>`（三参数→两参数）
+* `FluxFormula<TData, TOper>` → `FluxFormula<TData, TDef>`
+* `FluxInstance<TData, TOper, TDef>` → `FluxInstance<TData, TDef>`
+* 其他受影响类型：FluxToken、FluxLexer、LexerConfig、LexResult、FluxCompiler、FluxEvaluator、FluxJITCompiler、VffResolveResult、OperatorRule、BracketRule
 
-Compile-time safety: FluxFormula<TData, TDef> prevents cross-definition
-Connect at the type level. Definition is now a complete, self-contained plugin.
+`FluxFormula<TData, TDef>` 在类型层面阻止跨 Definition Connect。Definition 现在是完整、自包含的插件。
 
-* Formula/Modifier type split — FluxModifier<TData, TDef>
-introduced as independent public struct. FluxType enum is now internal.
+**Formula/Modifier 类型分裂。** `FluxModifier<TData, TDef>` 作为独立公开 struct 引入。`FluxType` 枚举变为 `internal`。
 
-- New FluxModifier<TData, TDef> struct — no Instantiate()/Run(),
-  only Connect(FluxModifier) and ToFormula(string)
-- FluxFormula.Connect signature: Connect(FluxFormula) → Connect(FluxModifier)
-  — type system guarantees RHS is Modifier, eliminates runtime check
-- Rename ToMultiplier() → ToModifier(), returns FluxModifier
-  (old name retained as [Obsolete])
-- FluxType enum: public → internal; FluxFormula.Type → internal;
-  ChainLink.Type → internal
-- FormulaHeader.Type, VffLinkEntry.Type: FluxType → byte
-  for serialization-facing public APIs
-- FluxInstance.Run(): InvalidOperationException throw → Debug.Assert
+* 新 `FluxModifier<TData, TDef>` struct——无 `Instantiate()`/`Run()`，仅 `Connect(FluxModifier)` 和 `ToFormula(string)`
+* `FluxFormula.Connect` 签名：`Connect(FluxFormula)` → `Connect(FluxModifier)`——类型系统保证 RHS 为 Modifier，消除运行时检查
+* `ToMultiplier()` → `ToModifier()`，返回 `FluxModifier`（旧名保留 `[Obsolete]`）
+* 序列化层公开 API（`FormulaHeader.Type`、`VffLinkEntry.Type`）：`FluxType` → `byte`
 
-v3.0.0 — 4 runtime exceptions eliminated, all converted to compile errors.
+v3.0.0——4 个运行时异常全部转为编译错误。
 
 # [2.1.0](https://github.com/twds0x13/FluxFormula/compare/v2.0.0...v2.1.0) (2026-06-24)
 
+### Features
+
+* add VFF encoder, BinaryBuilder interface, and make ChainLink public ([a1dfc26](https://github.com/twds0x13/FluxFormula/commit/a1dfc264b5ea5ab1fc1a79f17d472019d5501372))
+
+# [2.0.0](https://github.com/twds0x13/FluxFormula/compare/5a90667...v2.0.0) (2026-06-23)
 
 ### Features
 
-* add VFF encoder, BinaryBuilder interface, and make ChainLink public ([fe210c9](https://github.com/twds0x13/FluxFormula/commit/fe210c9be5b736e3b949d9985a88dfe9da966c40))
-
-# [2.0.0](https://github.com/twds0x13/FluxFormula/compare/v1.5.0...v2.0.0) (2026-06-23)
-
+* **compile-cache pipeline** — DualHash, FormulaCache, ChainLink, delegate caching ([04e3af5](https://github.com/twds0x13/FluxFormula/commit/04e3af5ddd5bd5e4694e92019b0a1680396f7adc))
+* **blob pipeline** — format centralization, register semantics, global config ([c7ab900](https://github.com/twds0x13/FluxFormula/commit/c7ab900d6d8ba81ab08951077aa5ce406690ca7a))
+* FluxFormula.Addressables.UniTask package ([fa78bd1](https://github.com/twds0x13/FluxFormula/commit/fa78bd1c0e8aecac88f2d88053a1ab3f929fbe71))
+* multi-arity operators (Select/Lerp/Sum6), ternary ?:, coverage 96.8→97.3% ([be1c84d](https://github.com/twds0x13/FluxFormula/commit/be1c84d9601fa400eb892ab84d2732dcca140cda))
+* support recursive VFF resolution with cycle detection ([ea40ae3](https://github.com/twds0x13/FluxFormula/commit/ea40ae33e4c75f47e78adcd0a02c54559514955f))
+* enforce Connect() only accepts Modifier as second argument ([793c69a](https://github.com/twds0x13/FluxFormula/commit/793c69a65ce47e0a8135b140bc311955980fa1f6))
+* per-link JIT chain evaluation ([179968b](https://github.com/twds0x13/FluxFormula/commit/179968b4aaa27108f13a3ce9464caf9699c302a8))
+* add Addressables/UniTask samples, extend FluxConfig with file path settings ([c7d726a](https://github.com/twds0x13/FluxFormula/commit/c7d726a530e6ee4453353d595a3021254c849570))
 
 ### Bug Fixes
 
-* resolve 7 compilation errors, add VFF/FormulaCache API docs, translate FEATURE-streaming-injection ([bae97a8](https://github.com/twds0x13/FluxFormula/commit/bae97a88fa16b6e528279d1bc6f169262e854772))
-* rework remaining Unity test failures ([1b4aaca](https://github.com/twds0x13/FluxFormula/commit/1b4aacad2fbbf7ece4cab79f1517a7c91be7b8cc))
-* update Unity-side tests for Connect Modifier-only guard ([5bcd75f](https://github.com/twds0x13/FluxFormula/commit/5bcd75f023580f4c48543cfb13d9c0f2379f1ada))
+* resolve 7 compilation errors, add VFF/FormulaCache API docs ([e57883b](https://github.com/twds0x13/FluxFormula/commit/e57883b6e25255ffd4791d4a20da3603af56ec16))
+* rework remaining Unity test failures ([52d15d9](https://github.com/twds0x13/FluxFormula/commit/52d15d9bdfcea27ad062478ca3a4b7a932e473cc))
+* update Unity-side tests for Connect Modifier-only guard ([905f407](https://github.com/twds0x13/FluxFormula/commit/905f407d3a6c4917d07b3320514796ee3adc5094))
 
+---
 
-### Features
+## 1.x — Pre-Monorepo
 
-* add Addressables/UniTask samples, extend FluxConfig with file path settings ([791fb2b](https://github.com/twds0x13/FluxFormula/commit/791fb2bcbee488b255b167cf7bdf2132f0d8ac33))
-* blob pipeline, format centralization, register semantics, global config ([9cecc9d](https://github.com/twds0x13/FluxFormula/commit/9cecc9d693349e5bda064d01ee06244a17d62334))
-* enforce Connect() only accepts Modifier as second argument ([5b8ed3c](https://github.com/twds0x13/FluxFormula/commit/5b8ed3c3e2861eec97d5c18fa2907c710eb5dd70))
-* extend benchmark auto-sync to README files, use flat table format [skip test] ([2f27ad0](https://github.com/twds0x13/FluxFormula/commit/2f27ad066629506f78e380b5ddbcc268a3f34a36))
-* FluxFormula.Addressables.UniTask package ([9b78b97](https://github.com/twds0x13/FluxFormula/commit/9b78b97661eb2d6d57a01aae92e8863fb7f2ddac))
-* multi-arity operators (Select/Lerp/Sum6), ternary ?:, coverage 96.8->97.3% ([8ec1912](https://github.com/twds0x13/FluxFormula/commit/8ec1912d816d7d8cf43143170a664e59194f95c1))
-* support recursive VFF resolution with cycle detection ([5bd4c49](https://github.com/twds0x13/FluxFormula/commit/5bd4c49098afc8131ffbec06e0f7f909f4f3296e))
+> v1.0.0（2026-04-16）至 v1.5.0（2026-06-20）。以下为关键里程碑摘要，完整历史已 squash 为仓库的 `Initial commit`。
 
-
-### BREAKING CHANGES
-
-* table, behavioral notes, and version compatibility.
-All four package.json bumped to 2.0.0 with internal dependency
-versions aligned.
-
-# [1.5.0](https://github.com/twds0x13/FluxFormula/compare/v1.4.0...v1.5.0) (2026-06-20)
-
-
-### Features
-
-* per-link JIT chain evaluation ([1a5df32](https://github.com/twds0x13/FluxFormula/commit/1a5df32e4c032f7305f2d26b0b2f797083c30606))
-
-# [1.4.0](https://github.com/twds0x13/FluxFormula/compare/v1.3.2...v1.4.0) (2026-06-20)
-
-
-### Bug Fixes
-
-* quote benchmark filter to prevent shell glob expansion ([9cf5585](https://github.com/twds0x13/FluxFormula/commit/9cf55857fa56aa929890ff0cf70a3f8ebda4311d))
-* replace Unsafe.SizeOf<T> with sizeof in unsafe blocks ([f8dfd32](https://github.com/twds0x13/FluxFormula/commit/f8dfd3296fb6b4c6c293f8debf9dce0b47d61571))
-* update .releaserc to monorepo package paths ([4776dec](https://github.com/twds0x13/FluxFormula/commit/4776dece9ae611daf94014a565045758903e1cf9))
-* update CI and all paths from old com.twds0x13.fluxformula/ to monorepo packages/ ([d646bd7](https://github.com/twds0x13/FluxFormula/commit/d646bd776894609708393a22abc29b99b5823917))
-
-
-### Features
-
-* compile-cache pipeline — DualHash, FormulaCache, ChainLink, delegate caching ([5541a3f](https://github.com/twds0x13/FluxFormula/commit/5541a3ffe2cad66dc1f4a816e9a6fe52dee3838e))
-
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [1.3.2] - 2026-06-18
-
-### Fixed
-
-- Invalidate Unity Library cache when UPM package sources change
-
-## [1.3.1] - 2026-06-18
-
-### Fixed
-
-- Same-name variables now share injected value across all occurrences
-- Replace `Dictionary` with inline binary search for variable lookup, reducing GC allocation
-
-## [1.3.0] - 2026-06-18
-
-### Added
-
-- Named variable injection with configurable lexer patterns
-- `FluxPlatform` class for JIT capability detection and auto-degradation
-- `Connect()` empty formula guard
-
-## [1.2.0] - 2026-06-18
-
-### Added
-
-- `TokenContext` disambiguation: `ResolveToken(TOper, TokenContext)` allows same-symbol operators to resolve to different semantics based on parser context (e.g. `-` → unary negate vs binary subtract)
-- Implicit operator insertion in `FluxLexer`: automatically inserts multiplication between juxtaposed tokens (e.g. `2[atk]` → `2*[atk]`)
-
-### Fixed
-
-- Replace C# 12 collection expressions with `new[]` syntax for Unity 2021.3 compatibility
-
-## [1.1.0] - 2026-06-18
-
-### Added
-
-- `FluxLexer<TData, TOper>`: config-driven lexical analyzer. Hand-written `ReadOnlySpan<char>` scanner, zero regex, zero allocation. Configurable operators, brackets, variable patterns, and literal parsers
-
-## [1.0.1] - 2026-06-18
-
-### Fixed
-
-- `Connect()` empty formula guard: prevent `new Instruction[负数]` crash when connecting empty formulas
-- JIT AOT fallback: `FluxPlatform.DisableJit()` auto-called on `Expression.Compile()` failure, subsequent instantiation skips JIT silently
-- `TOper` `sizeof` validation in `FluxFormula` static constructor: throws `TypeInitializationException` with descriptive error message if underlying type is not `byte`
-
-## [1.0.0] - 2026-04-16
-
-### Added
-
-- Initial release: high-performance, zero-GC linear formula pipeline for Unity
-- Custom instruction set via `IFluxJITDefinition<TData, TOper>` interface
-- Shunting-yard compiler producing 8-byte compact bytecode
-- Interpreter backend: `stackalloc` registers + `fixed` pointer loop
-- JIT backend: LINQ Expression Tree → compiled delegate
-- `FluxType.Formula` / `FluxType.Modifier` type system with `Connect()` composition
-- Unity Editor window (`FluxAssetEditor`) for visual formula creation and testing
-- `ScriptableObject` asset container (`FluxAsset`) with `ToBytes()` / `FromBytes()` serialization
-
-[1.3.2]: https://github.com/twds0x13/FluxFormula/compare/v1.3.1...v1.3.2
-[1.3.1]: https://github.com/twds0x13/FluxFormula/compare/v1.3.0...v1.3.1
-[1.3.0]: https://github.com/twds0x13/FluxFormula/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/twds0x13/FluxFormula/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/twds0x13/FluxFormula/compare/v1.0.1...v1.1.0
-[1.0.1]: https://github.com/twds0x13/FluxFormula/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/twds0x13/FluxFormula/releases/tag/v1.0.0
+| Version | Date | Highlights |
+|---------|------|------------|
+| **1.0.0** | 2026-04-16 | Initial release: `IFluxJITDefinition`, shunting-yard compiler, interpreter + JIT backends, `FluxAsset` serialization |
+| **1.0.1** | 2026-06-18 | Connect empty guard, JIT AOT fallback, TOper sizeof validation |
+| **1.1.0** | 2026-06-18 | `FluxLexer` — config-driven scanner, zero allocation |
+| **1.2.0** | 2026-06-18 | `TokenContext` disambiguation, implicit operator insertion, C# 12→new[] compat |
+| **1.3.0** | 2026-06-18 | Named variable injection, `FluxPlatform` JIT detection |
+| **1.3.1** | 2026-06-18 | Same-name variable sharing, Dictionary→binary search |
+| **1.3.2** | 2026-06-18 | Unity Library cache invalidation on UPM source changes |
+| **1.4.0** | 2026-06-20 | Compile-cache pipeline (DualHash, FormulaCache, ChainLink) |
+| **1.5.0** | 2026-06-20 | Per-link JIT chain evaluation |
