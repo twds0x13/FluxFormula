@@ -99,7 +99,7 @@ namespace FluxFormula.Burst
         }
 
         /// <summary>小端序读取 int32</summary>
-        private static int ReadInt32LE(byte* p)
+        private static unsafe int ReadInt32LE(byte* p)
         {
             return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
         }

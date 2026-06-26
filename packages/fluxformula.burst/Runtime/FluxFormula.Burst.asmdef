@@ -2,7 +2,8 @@
   "name": "FluxFormula.Burst",
   "rootNamespace": "FluxFormula.Burst",
   "references": [
-    "FluxFormula.Core"
+    "FluxFormula.Core",
+    "Unity.Burst"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
