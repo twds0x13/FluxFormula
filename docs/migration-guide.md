@@ -2,7 +2,37 @@
 
 本文档记录 FluxFormula 各主版本之间的 breaking changes 及迁移步骤。
 
-当前最新版本为 3.0.0。
+当前最新版本为 3.2.x。
+
+---
+
+## 从 3.0 迁移到 3.2
+
+### 概述
+
+3.2 将链式公式表示从 `FluxFormula`/`FluxModifier` 中提取为独立 `FluxChain<TData, TDef>` 类型。`FluxFormula` 永远是原子公式，`FluxChain` 永远是链式公式——两个形态由类型系统而非运行时布尔字段区分。
+
+### Breaking Changes
+
+| 变更 | 说明 | 迁移 |
+|------|------|------|
+| `Connect()` 返回 `FluxChain` | `FluxFormula.Connect()` 和 `FluxModifier.Connect()` 现在返回 `FluxChain<TData, TDef>` 而非 `FluxFormula`/`FluxModifier` | 将接收 `Connect` 返回值的变量类型从 `var`/`FluxFormula` 改为 `FluxChain`，或显式调 `.ToAtomic()` |
+| `IsChained` 移除 | `FluxFormula` 和 `FluxModifier` 不再有 `IsChained` 属性 | 删除所有 `if (formula.IsChained)` 分支——不再需要 |
+| `ChainLength` → `FluxChain.Length` | 链长属性移至 `FluxChain` | `chain.ChainLength` → `chain.Length` |
+| `GetChainLinks()` → `FluxChain.GetLinks()` | 链结构访问移至 `FluxChain` | `formula.GetChainLinks()` → `chain.GetLinks()` |
+| `ToAtomic()` 移至 `FluxChain` | `FluxFormula.ToAtomic()` 移除；`FluxChain.ToAtomic()` 返回 `FluxFormula` | `chain.ToAtomic()` 显式合并，一次分配 |
+| `VffResolveResult.Formula` → `.Chain` | VFF 解析结果字段重命名 | `result.Formula` → `result.Chain`（`FluxChain` 可直接传入 `Instantiate`） |
+
+### 新增
+
+- `FluxChain<TData, TDef>` — 独立链式公式类型，`Instantiate(FluxChain)` 逐 link 求值
+- `FluxChain.GetLinks()` — 零拷贝 span 访问链结构
+- `FluxChain.Connect(FluxModifier)` — 链式追加，返回新 `FluxChain`
+- `FluxAssembler.Instantiate(FluxChain, bool)` — 链式公式实例化重载
+
+### 消除的隐式分配
+
+`FluxFormula.Raw()` 和 `FluxFormula.ToBytes()` 对链式公式的隐式 `ToAtomic()` 分配已消除——原子公式永远 O(1)。
 
 ---
 

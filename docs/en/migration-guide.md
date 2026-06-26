@@ -2,7 +2,69 @@
 
 This document tracks breaking changes between major FluxFormula versions and the steps required to migrate.
 
-The current latest version is 2.0.0.
+The current latest version is 3.2.x.
+
+---
+
+## Migrating from 3.0 to 3.2
+
+### Overview
+
+3.2 extracts chained formula representation from `FluxFormula`/`FluxModifier` into an independent `FluxChain<TData, TDef>` type. `FluxFormula` is always atomic, `FluxChain` always chained — the two forms are distinguished by the type system rather than a runtime boolean field.
+
+### Breaking Changes
+
+| Change | Description | Migration |
+|--------|-------------|-----------|
+| `Connect()` returns `FluxChain` | `FluxFormula.Connect()` and `FluxModifier.Connect()` now return `FluxChain<TData, TDef>` instead of `FluxFormula`/`FluxModifier` | Change receiving variable type from `var`/`FluxFormula` to `FluxChain`, or explicitly call `.ToAtomic()` |
+| `IsChained` removed | `FluxFormula` and `FluxModifier` no longer have `IsChained` | Remove all `if (formula.IsChained)` branches — no longer needed |
+| `ChainLength` → `FluxChain.Length` | Chain length property moved to `FluxChain` | `chain.ChainLength` → `chain.Length` |
+| `GetChainLinks()` → `FluxChain.GetLinks()` | Chain structure access moved to `FluxChain` | `formula.GetChainLinks()` → `chain.GetLinks()` |
+| `ToAtomic()` moved to `FluxChain` | `FluxFormula.ToAtomic()` removed; `FluxChain.ToAtomic()` returns `FluxFormula` | `chain.ToAtomic()` for explicit one-time merge |
+| `VffResolveResult.Formula` → `.Chain` | VFF resolve result field renamed | `result.Formula` → `result.Chain` (`FluxChain` can be passed directly to `Instantiate`) |
+
+### Additions
+
+- `FluxChain<TData, TDef>` — standalone chain formula type, `Instantiate(FluxChain)` for per-link evaluation
+- `FluxChain.GetLinks()` — zero-copy span access to chain structure
+- `FluxChain.Connect(FluxModifier)` — chain append returning new `FluxChain`
+- `FluxAssembler.Instantiate(FluxChain, bool)` — chain formula instantiation overload
+
+### Eliminated Hidden Allocations
+
+`FluxFormula.Raw()` and `FluxFormula.ToBytes()` no longer trigger hidden `ToAtomic()` allocations for chained formulas — atomic formulas are always O(1).
+
+---
+
+## Migrating from 2.x to 3.0
+
+### Overview
+
+3.0 removes the `TOper` generic parameter from all core types and splits `FluxFormula`/`FluxModifier` into two independent structs. Four runtime exceptions are eliminated and converted to compile errors.
+
+### Breaking Changes
+
+| Change | 2.x Behavior | 3.0 Behavior | Migration |
+|--------|-------------|-------------|-----------|
+| `TOper` removed | `FluxAssembler<TData, TOper, TDef>` (3 params) | `FluxAssembler<TData, TDef>` (2 params) | Delete all `TOper` parameters. `IFluxJITDefinition<TData, TOper>` → `IFluxJITDefinition<TData>`. Operator enums become `byte` with internal casts |
+| `FluxModifier` split | Single `FluxFormula` type with `FluxType` enum | Two types: `FluxFormula` + `FluxModifier` | `Connect(FluxFormula)` → `Connect(FluxModifier)`. Call `.ToModifier()` first |
+| `ToMultiplier()` renamed | `ToMultiplier()` returns `FluxFormula` | `ToModifier()` returns `FluxModifier` | Rename calls. Old name retained as `[Obsolete]` |
+| `FluxType` internalized | `FluxType` enum was `public` | `FluxType` is `internal` | Remove direct references to `formula.Type` |
+
+### Eliminated Runtime Exceptions
+
+| Original Exception | Eliminated By |
+|--------------------|---------------|
+| `Connect requires Modifier` | Signature only accepts `FluxModifier` |
+| `Modifier cannot run standalone` | `FluxModifier` has no `Instantiate()` |
+| Cross-definition Connect unchecked | `FluxFormula<TData, TDef>` type-level distinction |
+| `sizeof(TOper) != 1` | TOper gone; `byte` always 1 byte |
+
+### Version Compatibility
+
+| FluxFormula | Unity |
+|-------------|-------|
+| 3.x | 2021.3+ |
 
 ---
 
