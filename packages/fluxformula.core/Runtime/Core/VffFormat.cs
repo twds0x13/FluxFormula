@@ -150,15 +150,15 @@ namespace FluxFormula.Core
         where TData : unmanaged
         where TDef : unmanaged, IFluxJITDefinition<TData>
     {
-        /// <summary>解析产出的链式公式（可传入 Instantiate）</summary>
-        public readonly FluxFormula<TData, TDef> Formula;
+        /// <summary>解析产出的链式公式（可传入 <see cref="FluxAssembler{TData, TDef}.Instantiate(FluxChain{TData, TDef}, bool)"/>）</summary>
+        public readonly FluxChain<TData, TDef> Chain;
 
         /// <summary>参数覆写列表（空数组 = 纯引用拼接无覆写）</summary>
         public readonly VffOverride<TData>[] Overrides;
 
-        public VffResolveResult(FluxFormula<TData, TDef> formula, VffOverride<TData>[] overrides)
+        public VffResolveResult(FluxChain<TData, TDef> chain, VffOverride<TData>[] overrides)
         {
-            Formula   = formula;
+            Chain     = chain;
             Overrides = overrides ?? Array.Empty<VffOverride<TData>>();
         }
     }
@@ -365,12 +365,9 @@ namespace FluxFormula.Core
                 for (int j = 0; j < links[i].VarSlots.Length; j++)
                     mergedSlots[sidx++] = links[i].VarSlots[j];
 
-            var chainType = (links.Length > 0 && links[0].Type == FluxType.Modifier)
-                ? FluxType.Modifier : FluxType.Formula;
+            var chain = new FluxChain<TData, TDef>(links);
 
-            var formula = new FluxFormula<TData, TDef>(links, chainType, totalImm, mergedSlots);
-
-            return new VffResolveResult<TData, TDef>(formula, overrides);
+            return new VffResolveResult<TData, TDef>(chain, overrides);
         }
 
         /// <summary>

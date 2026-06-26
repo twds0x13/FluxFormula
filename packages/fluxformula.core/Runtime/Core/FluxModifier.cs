@@ -31,8 +31,6 @@ namespace FluxFormula.Core
         public int ImmediateCount => Inner.ImmediateCount;
         public VariableSlot[] VariableSlots => Inner.VariableSlots;
         public byte MaxRegister => Inner.MaxRegister;
-        public bool IsChained => Inner.IsChained;
-        public int ChainLength => Inner.ChainLength;
 
         /// <summary>内部类型标记（始终为 Modifier）。测试用。</summary>
         internal FluxType Type => Inner.Type;
@@ -50,22 +48,26 @@ namespace FluxFormula.Core
         // ── Connect ──
 
         /// <summary>
-        /// 将两个 Modifier 串联。前者的 R1 输出流入后者的首操作数位置。
-        /// 结果仍为 Modifier（仍然缺少第一操作数）。
+        /// 将两个 Modifier 串联，返回 <see cref="FluxChain{TData, TDef}"/>。
+        /// 前者的 R1 输出流入后者的首操作数位置。
+        /// 结果仍为 Modifier 链——仍然缺少第一操作数，
+        /// 需通过 <see cref="FluxChain{TData, TDef}.ToAtomic"/> 或连接至 Formula 后才能求值。
         /// </summary>
-        public FluxModifier<TData, TDef> Connect(FluxModifier<TData, TDef> next)
+        public FluxChain<TData, TDef> Connect(FluxModifier<TData, TDef> next)
         {
-            if (this.Count == 0) return next;
-            if (next.Count == 0) return this;
+            if (Count == 0)
+                return new FluxChain<TData, TDef>(new[] { next.Inner.ToLink() });
+            if (next.Count == 0)
+                return new FluxChain<TData, TDef>(new[] { Inner.ToLink() });
 
-            var result = FluxFormula<TData, TDef>.ChainConnect(
-                Inner.GetLinks(), next.Inner.GetLinks());
-            return new FluxModifier<TData, TDef>(result);
+            return new FluxChain<TData, TDef>(
+                FluxChain<TData, TDef>.ChainConnect(
+                    new[] { Inner.ToLink() }, new[] { next.Inner.ToLink() }));
         }
 
         // ── 序列化 / 字节码访问 ──
 
-        /// <summary>返回底层指令跨度。链式 Modifier 自动合并为原子后返回。</summary>
+        /// <summary>返回底层指令跨度。零分配。</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlySpan<Instruction> Raw() => Inner.Raw();
 
@@ -74,15 +76,6 @@ namespace FluxFormula.Core
 
         /// <summary>计算字节码哈希。</summary>
         public readonly DualHash64 GetByteHash() => Inner.GetByteHash();
-
-        /// <summary>获取链式链接的只读视图。</summary>
-        public ReadOnlySpan<ChainLink> GetChainLinks() => Inner.GetChainLinks();
-
-        /// <summary>将链式 Modifier 合并为原子。</summary>
-        internal FluxModifier<TData, TDef> ToAtomic()
-        {
-            return new FluxModifier<TData, TDef>(Inner.ToAtomic());
-        }
 
         /// <summary>
         /// 从字节数组反序列化 Modifier。

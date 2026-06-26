@@ -24,6 +24,11 @@ namespace FluxFormula.Core
         private readonly FluxJITCompiler<TData, TDef>.CompiledFunc[] _chainFuncs;
         private readonly FluxInjector<TData>[] _chainInjectors;
 
+        // ── 链式表示（解释器链式路径或 JIT 降级）──
+        private readonly FluxChain<TData, TDef> _chain;
+
+        // ── 原子构造器 ──
+
         internal FluxInstance(
             TDef definition,
             FluxFormula<TData, TDef> formula,
@@ -38,22 +43,47 @@ namespace FluxFormula.Core
             _isJit          = isJit;
             _chainFuncs     = null;
             _chainInjectors = null;
+            _chain          = default;
         }
+
+        // ── 链式 JIT 构造器 ──
 
         internal FluxInstance(
             TDef definition,
-            FluxFormula<TData, TDef> formula,
+            FluxFormula<TData, TDef> mergedFormula,
             FluxInjector<TData> mergedInjector,
             FluxJITCompiler<TData, TDef>.CompiledFunc[] chainFuncs,
-            FluxInjector<TData>[] chainInjectors)
+            FluxInjector<TData>[] chainInjectors,
+            FluxChain<TData, TDef> chain)
         {
             _definition     = definition;
-            _formula        = formula;
+            _formula        = mergedFormula;
             _injector       = mergedInjector;
             _jitFunc        = null;
             _isJit          = true;
             _chainFuncs     = chainFuncs;
             _chainInjectors = chainInjectors;
+            _chain          = chain;
+        }
+
+        // ── 链式解释器构造器 ──
+
+        internal FluxInstance(
+            TDef definition,
+            FluxFormula<TData, TDef> mergedFormula,
+            FluxInjector<TData> injector,
+            FluxJITCompiler<TData, TDef>.CompiledFunc jitFunc,
+            bool isJit,
+            FluxChain<TData, TDef> chain)
+        {
+            _definition     = definition;
+            _formula        = mergedFormula;
+            _injector       = injector;
+            _jitFunc        = jitFunc;
+            _isJit          = isJit;
+            _chainFuncs     = null;
+            _chainInjectors = null;
+            _chain          = chain;
         }
 
         // ================= 流式数据注入 =================
@@ -76,7 +106,7 @@ namespace FluxFormula.Core
 
         public readonly TData Run()
         {
-            Debug.Assert(_formula.Type != FluxType.Modifier,
+            Debug.Assert(_chain.Length > 0 || _formula.Type != FluxType.Modifier,
                 "Modifier cannot run standalone. Use ToFormula() to provide a first operand.");
 
             if (_chainFuncs != null)
@@ -87,7 +117,7 @@ namespace FluxFormula.Core
             {
                 return _jitFunc(_injector.GetBuffer());
             }
-            else if (_formula.IsChained)
+            else if (_chain.Length > 0)
             {
                 return RunChainInterpreter();
             }
@@ -101,7 +131,6 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// Per-link JIT 链式求值：逐 link 调用 JIT delegate，通过内部变量注入串联结果。
-        /// Modifier 链路已在 Instantiate 中通过 ToFormula(CHAIN_LINK_INTERNAL_0) 适配。
         /// </summary>
         private readonly TData RunJitChain()
         {
@@ -112,7 +141,6 @@ namespace FluxFormula.Core
                 var injector = _chainInjectors[i];
                 if (i > 0)
                 {
-                    // 将前一个 link 的输出注入到当前 link 的第一个数据槽位
                     injector = injector.SetIndex(0, prevResult);
                 }
                 prevResult = _chainFuncs[i](injector.GetBuffer());
@@ -126,7 +154,7 @@ namespace FluxFormula.Core
         /// </summary>
         private readonly TData RunChainInterpreter()
         {
-            var links  = _formula.GetChainLinks();
+            var links  = _chain.GetLinks();
             var kernel = new FluxEvaluator<TData, TDef>(_definition);
             TData prevResult = default;
 
@@ -157,7 +185,6 @@ namespace FluxFormula.Core
                 {
                     if (_definition.GetKind(buffer[ip].OpCode) == OpType.Immediate)
                     {
-                        // 从 injector 直接按 SlotIndex 读取已注入的值
                         TData value = _injector.GetValue(link.VarSlots[varIdx].SlotIndex);
                         unsafe
                         {

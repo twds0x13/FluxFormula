@@ -214,10 +214,10 @@ public class PersistenceTests
         var fB = runner.Compile(lexer.Lex("3 + 4")).ToModifier();
         var chain = fA.Connect(fB);
 
-        Assert.That(chain.IsChained, Is.True);
-        Assert.That(chain.ChainLength, Is.EqualTo(2));
+        Assert.That(chain.Length > 0);
+        Assert.That(chain.Length, Is.EqualTo(2));
 
-        var links = chain.GetChainLinks();
+        var links = chain.GetLinks();
         Assert.That(links.Length, Is.EqualTo(2));
         Assert.That(links[0].Type, Is.EqualTo(FluxType.Formula));
         Assert.That(links[1].Type, Is.EqualTo(FluxType.Modifier));

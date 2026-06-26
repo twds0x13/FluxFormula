@@ -76,48 +76,19 @@ namespace FluxFormula.Core
         public readonly VariableSlot[] VariableSlots;
 
         /// <summary>
-        /// 该公式使用的最大寄存器索引（0=未分析/链式，回退到全量分配）。
+        /// 该公式使用的最大寄存器索引（0=未分析，回退到全量分配）。
         /// </summary>
         public readonly byte MaxRegister;
-
-        // ── 链式表示（ChainLink[]）──
-        private readonly ChainLink[] _chain;
 
         internal FluxFormula(Instruction[] buffer, int count, FluxType type,
             int immediateCount = 0, VariableSlot[] varSlots = null, byte maxRegister = 0)
         {
             _buffer        = buffer;
-            _chain         = null;
             Count          = count;
             Type           = type;
             ImmediateCount = immediateCount;
             VariableSlots  = varSlots ?? Array.Empty<VariableSlot>();
             MaxRegister    = maxRegister;
-        }
-
-        internal FluxFormula(ChainLink[] chain, FluxType type, int immediateCount,
-            VariableSlot[] varSlots, byte maxRegister = 0)
-        {
-            _chain         = chain;
-            _buffer        = Array.Empty<Instruction>();
-            Count          = chain.Length > 0 ? chain[chain.Length - 1].InstructionCount : 0;
-            Type           = type;
-            ImmediateCount = immediateCount;
-            VariableSlots  = varSlots ?? Array.Empty<VariableSlot>();
-            // 链式公式取所有 link 的最大寄存器号
-            if (maxRegister == 0 && chain != null && chain.Length > 0)
-            {
-                byte mr = Registers.Bus;
-                for (int i = 0; i < chain.Length; i++)
-                {
-                    if (chain[i].MaxRegister > mr) mr = chain[i].MaxRegister;
-                }
-                MaxRegister = mr;
-            }
-            else
-            {
-                MaxRegister = maxRegister;
-            }
         }
 
         /// <summary>空公式（Count=0），主要用于 Connect 边界场景</summary>
@@ -128,28 +99,30 @@ namespace FluxFormula.Core
         internal static FluxFormula<TData, TDef> EmptyModifier =>
             new(Array.Empty<Instruction>(), 0, FluxType.Modifier);
 
-        // ── 链式访问器 ──
-
-        /// <summary>是否为链式公式（vs 原子字节码公式）</summary>
-        public bool IsChained => _chain != null && _chain.Length > 0;
-
-        /// <summary>链式表示的链接数（原子公式返回 0）</summary>
-        public int ChainLength => _chain?.Length ?? 0;
-
-        /// <summary>获取链式链接的只读视图</summary>
-        public ReadOnlySpan<ChainLink> GetChainLinks() =>
-            _chain != null ? _chain.AsSpan() : default;
+        /// <summary>从原子公式创建单个 <see cref="ChainLink"/>，供 Connect 路径使用。</summary>
+        internal ChainLink ToLink()
+        {
+            return new ChainLink
+            {
+                Key              = GetByteHash(),
+                Bytecode         = _buffer,
+                InstructionCount = Count,
+                Type             = Type,
+                ImmediateCount   = ImmediateCount,
+                VarSlots         = VariableSlots,
+                MaxRegister      = MaxRegister,
+            };
+        }
 
         // ── Formula ↔ Modifier 互转 ──
 
         /// <summary>
         /// 转换为 Modifier：移除第一个数据操作数，后续指令中对 dest 寄存器的引用全部重命名为 R1。
-        /// 已为 Modifier（内部 Type==Modifier）则直接包装。链式公式先转为原子再操作。
+        /// 已为 Modifier（内部 Type==Modifier）则直接包装。
         /// </summary>
         public FluxModifier<TData, TDef> ToModifier()
         {
             if (Type == FluxType.Modifier) return new FluxModifier<TData, TDef>(this);
-            if (IsChained) return ToAtomic().ToModifier();
 
             if (Count < 2)
                 throw new InvalidOperationException("Cannot convert formula with fewer than 2 instructions to Modifier.");
@@ -216,7 +189,6 @@ namespace FluxFormula.Core
         public FluxFormula<TData, TDef> ToFormula(string varName)
         {
             if (Type == FluxType.Formula) return this;
-            if (IsChained) return ToAtomic().ToFormula(varName);
 
             int dataSlots = FormulaFormat.DataSlots<TData>();
 
@@ -280,154 +252,32 @@ namespace FluxFormula.Core
         }
 
         /// <summary>
-        /// 将当前公式与一个 Modifier 串联。前者的 R1 输出自动流入后者的首操作数位置。
-        /// 类型系统保证 <paramref name="next"/> 是 Modifier（缺首操作数）——
+        /// 将当前公式与一个 Modifier 串联，返回 <see cref="FluxChain{TData, TDef}"/>。
+        /// 前者的 R1 输出自动流入后者的首操作数位置。
+        /// 类型系统保证 <paramref name="next"/> 是 Modifier（缺首操作数），
         /// 避免 Formula 的首操作数被静默覆盖。
-        /// 传入 Formula 前请先调用 <see cref="ToModifier"/>。
         /// </summary>
-        public FluxFormula<TData, TDef> Connect(FluxModifier<TData, TDef> next)
+        public FluxChain<TData, TDef> Connect(FluxModifier<TData, TDef> next)
         {
-            if (this.Count == 0) return next.Count == 0 ? this : next.ToFormula(ChainReserved.InternalPrefix + "empty");
-            if (next.Count == 0) return this;
+            if (Count == 0)
+                return next.Count == 0
+                    ? FluxChain<TData, TDef>.Empty
+                    : new FluxChain<TData, TDef>(new[] { next.Inner.ToLink() });
+            if (next.Count == 0)
+                return new FluxChain<TData, TDef>(new[] { ToLink() });
+            if (Count == 1)
+                return new FluxChain<TData, TDef>(new[] { next.ToFormula(ChainReserved.InternalPrefix + "single").ToLink() });
 
-            if (this.Count == 1) return next.ToFormula(ChainReserved.InternalPrefix + "single");
-
-            return ChainConnect(GetLinks(), next.Inner.GetLinks());
-        }
-
-        // ── Connect 辅助 ──
-
-        /// <summary>为 Connect 提取链式链接（原子公式自动包装为单链接）</summary>
-        internal ChainLink[] GetLinks()
-            => IsChained ? _chain : new[] { ToChainLink() };
-
-        /// <summary>构建链式 FluxFormula，合并两段链接的变量槽并右移后半段 SlotIndex</summary>
-        internal static FluxFormula<TData, TDef> ChainConnect(
-            ChainLink[] thisLinks, ChainLink[] nextLinks)
-        {
-            int totalLinks = thisLinks.Length + nextLinks.Length;
-            var chain = new ChainLink[totalLinks];
-
-            Array.Copy(thisLinks, 0, chain, 0, thisLinks.Length);
-
-            int prevImmediateCount = 0;
-            for (int i = 0; i < thisLinks.Length; i++)
-                prevImmediateCount += thisLinks[i].ImmediateCount;
-
-            for (int i = 0; i < nextLinks.Length; i++)
-            {
-                var src = nextLinks[i];
-                var shiftedSlots = new VariableSlot[src.VarSlots.Length];
-                for (int j = 0; j < src.VarSlots.Length; j++)
-                    shiftedSlots[j] = new VariableSlot(
-                        src.VarSlots[j].Name,
-                        src.VarSlots[j].SlotIndex + prevImmediateCount);
-                chain[thisLinks.Length + i] = new ChainLink
-                {
-                    Key              = src.Key,
-                    Bytecode         = src.Bytecode,
-                    InstructionCount = src.InstructionCount,
-                    Type             = src.Type,
-                    ImmediateCount   = src.ImmediateCount,
-                    VarSlots         = shiftedSlots,
-                };
-            }
-
-            // 合并所有 VariableSlots
-            int totalSlots = 0;
-            for (int i = 0; i < totalLinks; i++)
-                totalSlots += chain[i].VarSlots.Length;
-            var mergedSlots = new VariableSlot[totalSlots];
-            int sidx = 0;
-            for (int i = 0; i < totalLinks; i++)
-                foreach (var vs in chain[i].VarSlots)
-                    mergedSlots[sidx++] = vs;
-
-            int totalImmediate = 0;
-            for (int i = 0; i < totalLinks; i++)
-                totalImmediate += chain[i].ImmediateCount;
-
-            FluxType newType = (chain[0].Type == FluxType.Formula)
-                ? FluxType.Formula : FluxType.Modifier;
-
-            return new FluxFormula<TData, TDef>(chain, newType, totalImmediate, mergedSlots);
-        }
-
-        /// <summary>从原子公式创建单个 ChainLink</summary>
-        private ChainLink ToChainLink()
-        {
-            return new ChainLink
-            {
-                Key              = GetByteHash(),
-                Bytecode         = _buffer,
-                InstructionCount = Count,
-                Type             = Type,
-                ImmediateCount   = ImmediateCount,
-                VarSlots         = VariableSlots,
-                MaxRegister      = MaxRegister,
-            };
-        }
-
-        // ── 链式 → 原子（.ToAtomic()）──
-
-        /// <summary>
-        /// 将链式公式合并为单个原子公式（完整字节码拼接 + 变量槽合并）。
-        /// 所有 link 的 Instruction[] 原样拼接，中间 Return 由解释器处理为 R1 总线传递。
-        /// 调用时机：JIT 求值前、长链（>8）解释器求值前。
-        /// </summary>
-        internal FluxFormula<TData, TDef> ToAtomic()
-        {
-            if (!IsChained) return this;
-
-            var links = _chain;
-            if (links.Length == 1)
-            {
-                return new FluxFormula<TData, TDef>(
-                    links[0].Bytecode, links[0].InstructionCount,
-                    links[0].Type, links[0].ImmediateCount, links[0].VarSlots,
-                    links[0].MaxRegister);
-            }
-
-            // 完整拼接：不丢弃任何指令。中间 Return 由解释器语义处理（Dest→R1，继续执行）
-            int totalCount = 0;
-            for (int i = 0; i < links.Length; i++)
-                totalCount += links[i].InstructionCount;
-
-            var buffer = new Instruction[totalCount];
-            int dst = 0;
-            for (int i = 0; i < links.Length; i++)
-            {
-                Array.Copy(links[i].Bytecode, 0, buffer, dst, links[i].InstructionCount);
-                dst += links[i].InstructionCount;
-            }
-
-            int totalSlots = 0;
-            foreach (var ls in links) totalSlots += ls.VarSlots.Length;
-            var slots = new VariableSlot[totalSlots];
-            int sIdx = 0;
-            foreach (var ls in links)
-                foreach (var vs in ls.VarSlots)
-                    slots[sIdx++] = vs;
-
-            int totalImm = 0;
-            byte chainMaxReg = Registers.Bus;
-            foreach (var ls in links)
-            {
-                totalImm += ls.ImmediateCount;
-                if (ls.MaxRegister > chainMaxReg) chainMaxReg = ls.MaxRegister;
-            }
-
-            return new FluxFormula<TData, TDef>(buffer, totalCount, links[0].Type,
-                totalImm, slots, chainMaxReg);
+            return new FluxChain<TData, TDef>(
+                FluxChain<TData, TDef>.ChainConnect(new[] { ToLink() }, new[] { next.Inner.ToLink() }));
         }
 
         /// <summary>
-        /// 返回公式的底层指令跨度。链式公式自动合并为原子公式后返回。
+        /// 返回公式的底层指令跨度。始终为 O(1)，零分配。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlySpan<Instruction> Raw()
         {
-            if (IsChained) return ToAtomic().Raw();
             return _buffer.AsSpan(0, Count);
         }
 
@@ -436,26 +286,15 @@ namespace FluxFormula.Core
         // ================================================================
 
         /// <summary>
-        /// 计算公式的 DualHash64 标识。
-        /// 对原子公式：等效于 ToBytes() 的哈希。
-        /// 对链式公式：顺序 Combine 各 link 的 Key。
+        /// 计算公式的 DualHash64 标识。等效于 ToBytes() 的哈希。
         /// </summary>
         /// <remarks>
         /// 对 build-time 公式，此哈希存储在 Source Generator 生成的偏移表中。
         /// 对运行期 Connect 产物，用作 CompileCache/DelegateCache 的 key。
+        /// 链式公式的哈希应通过 <see cref="FluxChain{TData, TDef}.GetByteHash"/> 获取。
         /// </remarks>
         public readonly DualHash64 GetByteHash()
         {
-            if (IsChained)
-            {
-                // 链式公式的哈希 = 所有 link 的顺序 Combine
-                var h = _chain[0].Key;
-                for (int i = 1; i < _chain.Length; i++)
-                    h = DualHash64.Combine(h, _chain[i].Key);
-                return h;
-            }
-
-            // 原子公式：序列化后计算哈希
             var bytes = ToBytes();
             return DualHash64.Compute(bytes);
         }
@@ -467,11 +306,9 @@ namespace FluxFormula.Core
         /// <summary>
         /// 将公式序列化为字节数组。可直接写入磁盘，无需 JSON/XML。
         /// 格式定义见 <see cref="FormulaFormat"/>。
-        /// 链式公式自动合并为原子公式后序列化。
         /// </summary>
         public readonly byte[] ToBytes()
         {
-            if (IsChained) return ToAtomic().ToBytes();
 
             int varSlotCount = VariableSlots.Length;
             int instByteLen = Count * FormulaFormat.InstructionSize;

@@ -85,10 +85,11 @@ public class VffStructsTests
     {
         var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(TestHelper.CreateMathLexer().Lex("42"));
+        var chain = new FluxChain<float, FloatMathDef>(new[] { formula.ToLink() });
         var overrides = new[] { new VffOverride<float>(0, VffOverrideKind.Inject) };
 
-        var result = new VffResolveResult<float, FloatMathDef>(formula, overrides);
-        Assert.That(result.Formula.IsChained, Is.False);
+        var result = new VffResolveResult<float, FloatMathDef>(chain, overrides);
+        Assert.That(result.Chain.Length, Is.EqualTo(1));
         Assert.That(result.Overrides.Length, Is.EqualTo(1));
     }
 
@@ -97,8 +98,9 @@ public class VffStructsTests
     {
         var formula = new FluxAssembler<float, FloatMathDef>(TestHelper.Def)
             .Compile(TestHelper.CreateMathLexer().Lex("1 + 2"));
+        var chain = new FluxChain<float, FloatMathDef>(new[] { formula.ToLink() });
 
-        var result = new VffResolveResult<float, FloatMathDef>(formula, null);
+        var result = new VffResolveResult<float, FloatMathDef>(chain, null);
         Assert.That(result.Overrides, Is.Not.Null);
         Assert.That(result.Overrides.Length, Is.EqualTo(0));
     }
@@ -112,6 +114,6 @@ public class VffStructsTests
         var chain = fA.Connect(fB);
 
         var result = new VffResolveResult<float, FloatMathDef>(chain, Array.Empty<VffOverride<float>>());
-        Assert.That(result.Formula.IsChained, Is.True);
+        Assert.That(result.Chain.Length, Is.EqualTo(2));
     }
 }

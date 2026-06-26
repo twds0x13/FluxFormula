@@ -166,8 +166,8 @@ public unsafe class VffFormatTests
             try
             {
                 var result = VffFormat.Resolve<float, FloatMathDef>(vffHash);
-                Assert.That(result.Formula.IsChained, Is.True);
-                Assert.That(result.Formula.ChainLength, Is.EqualTo(1));
+                Assert.That(result.Chain.Length > 0, Is.True);
+                Assert.That(result.Chain.Length, Is.EqualTo(1));
                 Assert.That(result.Overrides.Length, Is.EqualTo(0));
             }
             finally { vffHandle.Free(); }
@@ -202,7 +202,7 @@ public unsafe class VffFormatTests
             try
             {
                 var result = VffFormat.Resolve<float, FloatMathDef>(vffHash);
-                Assert.That(result.Formula.ChainLength, Is.EqualTo(2));
+                Assert.That(result.Chain.Length, Is.EqualTo(2));
             }
             finally { gcVff.Free(); }
         }
@@ -229,7 +229,7 @@ public unsafe class VffFormatTests
             try
             {
                 var result = VffFormat.Resolve<float, FloatMathDef>(vffHash);
-                Assert.That(result.Formula.ChainLength, Is.EqualTo(1));
+                Assert.That(result.Chain.Length, Is.EqualTo(1));
             }
             finally { gcVff.Free(); }
         }
@@ -266,10 +266,10 @@ public unsafe class VffFormatTests
                 try
                 {
                     var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
-                    Assert.That(result.Formula.ChainLength, Is.EqualTo(1));
+                    Assert.That(result.Chain.Length, Is.EqualTo(1));
 
                     var runner = new FluxAssembler<float, FloatMathDef>(Def);
-                    float r = runner.Instantiate(result.Formula).Run();
+                    float r = runner.Instantiate(result.Chain).Run();
                     Assert.That(r, Is.EqualTo(3f).Within(1e-6f));
                 }
                 finally { gcOuterVff.Free(); }
@@ -304,7 +304,7 @@ public unsafe class VffFormatTests
             {
                 var result = VffFormat.Resolve<float, FloatMathDef>(vffHash);
                 var runner = new FluxAssembler<float, FloatMathDef>(Def);
-                var inst = runner.Instantiate(result.Formula).Set("a", 7f).Set("b", 3f);
+                var inst = runner.Instantiate(result.Chain).Set("a", 7f).Set("b", 3f);
                 Assert.That(inst.Run(), Is.EqualTo(10f).Within(1e-6f));
             }
             finally { gcVff.Free(); }
@@ -542,7 +542,7 @@ public unsafe class VffFormatTests
                 try
                 {
                     var result = VffFormat.Resolve<float, FloatMathDef>(outerVffHash);
-                    var slots = result.Formula.VariableSlots;
+                    var slots = result.Chain.ToAtomic().VariableSlots;
 
                     Assert.That(slots.Length, Is.EqualTo(2));
                     Assert.That(slots[0].Name, Is.EqualTo("a"));
@@ -788,11 +788,11 @@ public unsafe class VffFormatTests
             {
                 // FromBytes 从裸字节解析
                 var fromBytesResult = VffFormat.FromBytes<float, FloatMathDef>(vffBytes);
-                Assert.That(fromBytesResult.Formula.ChainLength, Is.EqualTo(2));
+                Assert.That(fromBytesResult.Chain.Length, Is.EqualTo(2));
 
                 // Resolve 从缓存解析——结果应一致
                 var resolveResult = VffFormat.Resolve<float, FloatMathDef>(vffHash);
-                Assert.That(resolveResult.Formula.ChainLength, Is.EqualTo(2));
+                Assert.That(resolveResult.Chain.Length, Is.EqualTo(2));
             }
             finally { gcVff.Free(); }
         }
@@ -826,12 +826,12 @@ public unsafe class VffFormatTests
                 var fromBytes = VffFormat.FromBytes<float, FloatMathDef>(vffBytes);
                 var fromResolve = VffFormat.Resolve<float, FloatMathDef>(vffHash);
 
-                Assert.That(fromBytes.Formula.ChainLength, Is.EqualTo(fromResolve.Formula.ChainLength));
+                Assert.That(fromBytes.Chain.Length, Is.EqualTo(fromResolve.Chain.Length));
                 Assert.That(fromBytes.Overrides.Length, Is.EqualTo(fromResolve.Overrides.Length));
 
                 var runner = new FluxAssembler<float, FloatMathDef>(Def);
-                float rFromBytes = runner.Instantiate(fromBytes.Formula).Run();
-                float rResolve = runner.Instantiate(fromResolve.Formula).Run();
+                float rFromBytes = runner.Instantiate(fromBytes.Chain).Run();
+                float rResolve = runner.Instantiate(fromResolve.Chain).Run();
                 Assert.That(rFromBytes, Is.EqualTo(rResolve).Within(1e-6f));
             }
             finally { gcVff.Free(); }

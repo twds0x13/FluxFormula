@@ -22,12 +22,11 @@ public unsafe class FormulaCacheAndChainTests
         var fA = Compile(lexer, "10 + 5");
         var fB = Compile(lexer, "2 * 3").ToModifier();
 
-        var result = fA.Connect(fB);
+        var chain = fA.Connect(fB);
 
-        // 短链（2 links ≤ 8）应为链式
-        Assert.That(result.IsChained, Is.True,
+        // 短链（2 links ≤ 8）
+        Assert.That(chain.Length, Is.EqualTo(2),
             "Formula + Modifier Connect 应产生链式公式");
-        Assert.That(result.ChainLength, Is.EqualTo(2));
     }
 
     [Test]
@@ -39,17 +38,16 @@ public unsafe class FormulaCacheAndChainTests
             formulas[i] = Compile(lexer, $"{i} + {i + 1}");
 
         // Connect 始终产链，不再自动合并——合并决策在 Instantiate
-        var current = formulas[0];
-        for (int i = 1; i < formulas.Length; i++)
-            current = current.Connect(formulas[i].ToModifier());
+        var chain = formulas[0].Connect(formulas[1].ToModifier());
+        for (int i = 2; i < formulas.Length; i++)
+            chain = chain.Connect(formulas[i].ToModifier());
 
         // 10 个链接的链
-        Assert.That(current.IsChained, Is.True);
-        Assert.That(current.ChainLength, Is.EqualTo(formulas.Length));
+        Assert.That(chain.Length, Is.EqualTo(formulas.Length));
 
         // Instantiate 时自动合并长链（interpreter 路径 > 8 触发 ToAtomic）
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
-        var inst = runner.Instantiate(current);
+        var inst = runner.Instantiate(chain);
         Assert.That(inst.Run(), Is.Not.EqualTo(0f));
     }
 
@@ -64,8 +62,7 @@ public unsafe class FormulaCacheAndChainTests
         var chain = fA.Connect(fB); // 链长 2
         var longer = chain.Connect(fC); // 链长 3
 
-        Assert.That(longer.IsChained, Is.True);
-        Assert.That(longer.ChainLength, Is.EqualTo(3));
+        Assert.That(longer.Length, Is.EqualTo(3));
     }
 
     [Test]
@@ -97,7 +94,7 @@ public unsafe class FormulaCacheAndChainTests
         var fMod  = Compile(lexer, "2 * 3").ToModifier(); // R1 * 3
 
         var chain = fBase.Connect(fMod);
-        Assert.That(chain.IsChained, Is.True);
+        Assert.That(chain.Length, Is.EqualTo(2));
 
         // JIT per-link: 不合并，逐 link 调用 delegate
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
@@ -117,15 +114,15 @@ public unsafe class FormulaCacheAndChainTests
         FormulaCache.Reset();
 
         var lexer = CreateMathLexer();
-        var current = Compile(lexer, "1 + 2"); // = 3
+        var f = Compile(lexer, "1 + 2"); // = 3
 
         // 串联 2 个 modifier：乘 3、乘 4
-        current = current.Connect(Compile(lexer, "2 * 3").ToModifier());
-        current = current.Connect(Compile(lexer, "5 * 4").ToModifier());
+        var chain = f.Connect(Compile(lexer, "2 * 3").ToModifier());
+        chain = chain.Connect(Compile(lexer, "5 * 4").ToModifier());
         // 语义: ((3 * 3) * 4) = 36
 
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
-        float result = runner.Instantiate(current, jit: true).Run();
+        float result = runner.Instantiate(chain, jit: true).Run();
         Assert.That(result, Is.EqualTo(36f).Within(1e-6f));
     }
 
@@ -163,7 +160,7 @@ public unsafe class FormulaCacheAndChainTests
         var fB = Compile(lexer, "2 * 3").ToModifier();
 
         var chain = fA.Connect(fB);
-        Assert.That(chain.IsChained, Is.True);
+        Assert.That(chain.Length, Is.EqualTo(2));
 
         // 两条路径应产出一致结果
         float atomicResult = EvalFormula(chain.ToAtomic());
@@ -182,7 +179,7 @@ public unsafe class FormulaCacheAndChainTests
 
         // 显式 ToModifier: B 消费 A 的输出
         var chain = fA.Connect(fB.ToModifier());
-        Assert.That(chain.IsChained, Is.True);
+        Assert.That(chain.Length, Is.EqualTo(2));
 
         // 两条路径应产出一致结果：B(A 的输出) = (7+3) * 2 = 20
         float atomicResult = EvalFormula(chain.ToAtomic());
@@ -201,13 +198,13 @@ public unsafe class FormulaCacheAndChainTests
         var fBase = Compile(lexer, "1 + 2"); // = 3
 
         // 构建 5-link 链：每个 link 是乘 3 的 modifier（f="2 * 3"→ToModifier = R1*3）
-        var current = fBase;
-        for (int i = 0; i < 4; i++)
-            current = current.Connect(Compile(lexer, "2 * 3").ToModifier());
+        var chain = fBase.Connect(Compile(lexer, "2 * 3").ToModifier());
+        for (int i = 1; i < 4; i++)
+            chain = chain.Connect(Compile(lexer, "2 * 3").ToModifier());
         // 语义：(((3) * 3) * 3) * 3) * 3 = 3 * 81 = 243
 
-        float perLinkResult = EvalFormula(current);
-        float atomicResult  = EvalFormula(current.ToAtomic());
+        float perLinkResult = EvalFormula(chain);
+        float atomicResult  = EvalFormula(chain.ToAtomic());
 
         Assert.That(perLinkResult, Is.EqualTo(243f).Within(1e-6f));
         Assert.That(atomicResult,  Is.EqualTo(243f).Within(1e-6f));
@@ -227,10 +224,9 @@ public unsafe class FormulaCacheAndChainTests
         var fB = Compile(lexer, "5 * 2").ToModifier();
 
         var chain = fA.Connect(fB);
-        Assert.That(chain.IsChained, Is.True);
+        Assert.That(chain.Length, Is.EqualTo(2));
 
         var atomic = chain.ToAtomic();
-        Assert.That(atomic.IsChained, Is.False);
 
         // 两种表示求值相同
         Assert.That(EvalFormula(atomic), Is.EqualTo(EvalFormula(chain)).Within(1e-6f));
@@ -334,7 +330,7 @@ public unsafe class FormulaCacheAndChainTests
         var fB = Compile(lexer, "3 * 2").ToModifier();
 
         var chain = fA.Connect(fB);
-        Assert.That(chain.IsChained, Is.True);
+        Assert.That(chain.Length, Is.EqualTo(2));
 
         // 链式公式的 JIT Instantiate → ToAtomic + JIT compile + cache
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
@@ -363,7 +359,7 @@ public unsafe class FormulaCacheAndChainTests
 
         // Connect: fA = x+y, fB 消费 fA 输出，变量 [w] 保留
         var chain = fA.Connect(fB);
-        Assert.That(chain.IsChained, Is.True);
+        Assert.That(chain.Length, Is.EqualTo(2));
 
         // 变量槽合并验证：fA 有 [x, y], fB 剥离 [z] 后剩 [w]
         var atomic = chain.ToAtomic();
