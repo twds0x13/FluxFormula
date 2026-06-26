@@ -36,13 +36,15 @@ BenchmarkDotNet on Intel Core Ultra 9 275HX, .NET 9, ShortRun:
 One-time compilation cost: ~30–110 ns + a few hundred bytes. Execution: zero allocation. JIT is ~15× faster than the interpreter.
 ## Package Structure
 
-This is a monorepo containing three independent packages:
+This is a monorepo containing five independent packages:
 
 | Package | Purpose | Dependencies |
 |---------|---------|-------------|
 | `fluxformula.core` | Pure C# formula pipeline (zero Unity dependency) | None |
 | `fluxformula` | Unity integration (ScriptableObject container + editor) | Core |
+| `fluxformula.burst` | Burst/Jobs evaluator: multi-threaded, zero-allocation concurrent execution | Core + Burst + Collections |
 | `fluxformula.addressables` | Optional Addressables loading support | Core + FluxFormula + Addressables |
+| `fluxformula.addressables.unitask` | UniTask async loading extensions (install if your project already uses UniTask) | Addressables |
 
 ## Installation
 
