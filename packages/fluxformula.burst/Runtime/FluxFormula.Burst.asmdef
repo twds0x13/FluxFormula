@@ -1,0 +1,16 @@
+{
+  "name": "FluxFormula.Burst",
+  "rootNamespace": "FluxFormula.Burst",
+  "references": [
+    "FluxFormula.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": true,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
