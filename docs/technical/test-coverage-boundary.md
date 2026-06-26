@@ -67,7 +67,7 @@
 ### FluxModifier：89.1%
 
 剩余 10.9% 包含两个路径：
-- `ToAtomic()` (internal)：链式 Modifier 合并，涉及 `Connect` 多个 Modifier 后序列化的场景
+- `ToAtomic()`：链式公式合并为原子公式，涉及 `Connect` 多个 Modifier 后序列化的场景
 - `FromBytes(ReadOnlySpan<byte>)` 损坏数据分支：涉及接受外部字节码输入的场景
 
 Definition 生态中使用链式 `Connect` 组合的场景可受益于额外 2–3 个序列化往返测试。纯内部 build-time 产物的场景不受影响。
