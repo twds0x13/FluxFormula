@@ -1,7 +1,7 @@
 {
   "name": "com.twds0x13.fluxformula",
   "displayName": "FluxFormula",
-  "version": "3.2.0",
+  "version": "3.4.0",
   "author": {
     "name": "Twds0x13",
     "url": "https://github.com/twds0x13"
@@ -18,7 +18,7 @@
   "license": "MIT",
   "documentationUrl": "https://twds0x13.github.io/FluxFormula/",
   "dependencies": {
-    "com.twds0x13.fluxformula.core": "2.0.0"
+    "com.twds0x13.fluxformula.core": "3.4.0"
   },
   "samples": [
     {
