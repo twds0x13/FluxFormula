@@ -105,7 +105,7 @@ namespace FluxFormula.Burst
         }
 
         /// <summary>ceil(sizeof(TData) / sizeof(Instruction))——Immediate 占用的槽位数</summary>
-        private static int DataSlotCount()
+        private static unsafe int DataSlotCount()
         {
             return (sizeof(TData) + 7) / 8;
         }

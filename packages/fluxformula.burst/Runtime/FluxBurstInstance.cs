@@ -58,7 +58,8 @@ namespace FluxFormula.Burst
             var offsets = new int[immediateCount];
             if (immediateCount == 0) return offsets;
 
-            int count = BinaryFormat.ReadInt32LE(new ReadOnlySpan<byte>(bytecode, 0, 4));
+            int off = 0;
+            int count = BinaryFormat.ReadInt32LE(new ReadOnlySpan<byte>(bytecode, 0, 4), ref off);
             int slotIdx = 0;
 
             fixed (byte* p = bytecode)
