@@ -166,9 +166,18 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 将链式公式激活为流式流水线。
-        /// 短链（≤ MergeThreshold）保留链式结构逐 link 求值；
-        /// 长链自动合并为原子公式后实例化。
         /// </summary>
+        /// <remarks>
+        /// <para><b>合并策略（解释器 vs JIT 不对称）：</b></para>
+        /// <para><b>解释器路径</b>（<c>jit: false</c>）：短链（≤ <see cref="ChainReserved.MergeThreshold"/>，默认 8）
+        /// 保留链式结构，逐 link 通过 R1 总线求值；长链自动调用 <see cref="FluxChain{TData, TDef}.ToAtomic"/>
+        /// 合并为单条 bytecode 后求值。原因是解释器 per-link 的 <c>BuildLinkBuffer</c> 每个 link 分配一次
+        /// <c>Instruction[]</c>，长链分配开销不可忽略。</para>
+        /// <para><b>JIT 路径</b>（<c>jit: true</c>）：始终逐 link 编译，不检查 <c>MergeThreshold</c>。
+        /// 每个 link 的 delegate 独立编译并缓存在 <see cref="FormulaCache"/> 中，热路径零分配——
+        /// 仅 <c>SetIndex(0, prevResult)</c> 写入 + 一次函数指针调用。合并为原子反而失去 link 级缓存复用
+        /// （LEGO 模型：同一 Modifier 跨不同链的 delegate 可共享），且合并后的大公式作为唯一组合需要重新编译。</para>
+        /// </remarks>
         public FluxInstance<TData, TDef> Instantiate(
             FluxChain<TData, TDef> chain,
             bool jit = false

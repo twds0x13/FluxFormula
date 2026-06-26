@@ -16,7 +16,11 @@ namespace FluxFormula.Core
         /// <summary>内部变量前缀</summary>
         public const string InternalPrefix = "CHAIN_LINK_INTERNAL_";
 
-        /// <summary>链式求值中多少 link 后触发合并为原子公式的阈值（从 <see cref="FluxConfig"/> 读取）</summary>
+        /// <summary>
+        /// 链式公式在<b>解释器路径</b>下触发合并的阈值（从 <see cref="FluxConfig"/> 读取）。
+        /// JIT 路径始终逐 link 求值，不受此阈值影响——详见
+        /// <see cref="FluxAssembler{TData, TDef}.Instantiate(FluxChain{TData, TDef}, bool)"/>。
+        /// </summary>
         public static int MergeThreshold => FluxConfig.Current.MergeThreshold;
     }
 

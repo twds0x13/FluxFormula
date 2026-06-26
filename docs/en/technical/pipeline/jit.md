@@ -68,7 +68,7 @@ Same bytecode → same `DualHash64` → cache hit → zero compilation on subseq
 
 ## Per-Link Chained JIT
 
-Chained formulas compile each link independently into a `CompiledFunc[]`:
+Chained formulas **always** compile per-link, regardless of chain length. `MergeThreshold` is not checked on the JIT path. Each link compiles independently into a `CompiledFunc[]`:
 
 ```csharp
 for (int i = 0; i < _chainFuncs.Length; i++)
@@ -78,7 +78,15 @@ for (int i = 0; i < _chainFuncs.Length; i++)
 }
 ```
 
-Each link's delegate is independently cached — `A.Connect(B).Connect(C)` shares `A`, `B`, `C` caches across all combinations.
+### Why JIT never merges long chains
+
+The interpreter path merges chains longer than `MergeThreshold` (default 8) into a single atomic formula, because per-link `BuildLinkBuffer` allocates an `Instruction[]` per link. The JIT path keeps per-link execution for three reasons:
+
+1. **Zero-allocation hot path**: Each link's delegate is pre-compiled. The runtime cost is a `SetIndex` write and a function pointer call — no heap allocation.
+2. **LEGO model**: Each link's delegate is independently cached in `FormulaCache`. `A.Connect(B).Connect(C)` shares `A`, `B`, `C` cached delegates across different chains. Merging to atomic loses this link-level reuse.
+3. **Compile cost amortization**: A merged formula is a unique bytecode combination, requiring a fresh Expression Tree → delegate compilation. Per-link keeps compile costs amortized per link.
+
+This asymmetry is intentional: the interpreter decides by allocation cost, JIT decides by cache reuse.
 
 ## JIT Failure Fallback
 

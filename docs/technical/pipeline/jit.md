@@ -92,7 +92,7 @@ cache.PutDelegate(hash, GCHandle.ToIntPtr(handle));
 
 ## Per-link 链式 JIT
 
-链式公式不走 `ToAtomic` 合并。每个 link 独立编译为委托，通过 `CompiledFunc[]` 数组串联执行：
+链式公式**始终**逐 link 编译，不论链长。不检查 `MergeThreshold`，不走 `ToAtomic` 合并。每个 link 独立编译为委托，通过 `CompiledFunc[]` 数组串联执行：
 
 ```csharp
 for (int i = 0; i < _chainFuncs.Length; i++)
@@ -103,7 +103,15 @@ for (int i = 0; i < _chainFuncs.Length; i++)
 }
 ```
 
-每个 link 的委托独立缓存。`A.Connect(B).Connect(C)` 在 JIT 路径上共享 `A`、`B`、`C` 各自的缓存，组合爆炸得到控制。
+### 为什么 JIT 不合并长链？
+
+解释器路径在链长超过 `MergeThreshold`（默认 8）时会将链合并为原子公式求值，因为解释器 per-link 的 `BuildLinkBuffer` 每次分配 `Instruction[]`，长链分配开销不可忽略。JIT 路径始终保留 per-link：
+
+1. **热路径零分配**：每个 link 的 delegate 已预编译，运行时仅有 `SetIndex` 写入和函数指针调用，无堆分配。
+2. **LEGO 模型**：每个 link 的委托独立缓存在 `FormulaCache` 中。`A.Connect(B).Connect(C)` 共享 `A`、`B`、`C` 各自已缓存的委托，即使它们出现在不同链中。合并为原子公式后将失去这种 link 级复用。
+3. **编译成本前置**：合并后的公式是唯一字节码组合，需要重新走 Expression Tree → delegate 编译。保留 per-link 意味着编译成本已分摊到各个 link 的首次使用中。
+
+两条路径的不对称是有意的：解释器按分配成本决策合并，JIT 按缓存复用保留链式。
 
 ## JIT 失败降级
 
