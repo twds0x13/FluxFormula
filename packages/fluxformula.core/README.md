@@ -19,7 +19,7 @@ string → Lex → Compile → Evaluate → result
 ## Quick start
 
 ```csharp
-// 1. Define your operator system (impl IFluxJITDefinition<TData, TOper>)
+// 1. Define your operator system (impl IFluxJITDefinition<TData>)
 var def = new FloatMathDef();
 var assembler = new FluxAssembler<float, FloatMathDef>(def);
 

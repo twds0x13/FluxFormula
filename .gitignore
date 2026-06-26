@@ -23,5 +23,10 @@ docs/.vitepress/cache/
 # Coverage reports
 coverage.xml
 coverage2.xml
+coverage-latest.xml
 coverage-report/
 coverage-report2/
+coverage-latest-report/
+tests/FluxFormula.Core.Tests/coveragereport/
+tests/FluxFormula.Core.Tests/coveragereport2/
+tests/FluxFormula.Core.Tests/coveragereport3/

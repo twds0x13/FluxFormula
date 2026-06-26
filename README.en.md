@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black?logo=unity)](https://unity.com/)
 [![Docs](https://img.shields.io/badge/docs-vitepress-green)](https://twds0x13.github.io/FluxFormula/)
-[![Coverage](https://img.shields.io/badge/coverage-97.9%25-brightgreen)](./memory/quality/test-coverage-boundary.md)
+[![Coverage](https://img.shields.io/badge/coverage-97.9%25-brightgreen)](./docs/technical/test-coverage-boundary.md)
 
 A high-performance linear formula compilation pipeline for Unity (zero-GC at runtime, one-time allocations at compile time). Define custom operator sets, compile infix expressions to compact bytecode, execute via interpreter or JIT backend
 
@@ -14,7 +14,7 @@ A high-performance linear formula compilation pipeline for Unity (zero-GC at run
 
 - **Zero GC at Runtime**: `ref struct`, `stackalloc`, and unsafe pointer operations eliminate all heap allocations at runtime. A single `Instruction[]` allocation plus literal string parsing at compile time, pure stack thereafter
 - **Dual Backend**: Interpreter for full platform compatibility (including IL2CPP/AOT), JIT via LINQ Expression Tree compilation to delegate, with automatic fallback on platforms that do not support runtime code generation
-- **Custom Instruction Set**: Implement the `IFluxJITDefinition<TData, TOper>` interface to define domain-specific operators. A single implementation yields both interpreter and JIT execution paths
+- **Custom Instruction Set**: Implement the `IFluxJITDefinition<TData>` interface to define domain-specific operators. A single implementation yields both interpreter and JIT execution paths
 - **Compact Bytecode**: `Instruction` is an 8-byte fixed-size struct with explicit memory layout. 256 virtual registers, maximum arity 6, immediate operands inlined into the instruction buffer
 - **Hand-Written Lexer**: A `ReadOnlySpan<char>` based zero-allocation scanner with no regex dependency. Configurable operators, brackets, variable patterns, and implicit operators
 
@@ -88,10 +88,10 @@ public enum FloatOp : byte
     LParen, RParen, Return,
 }
 
-// 2. Implement IFluxJITDefinition<float, FloatOp>
-public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
+// 2. Implement IFluxJITDefinition<float>
+public readonly struct FloatMathDef : IFluxJITDefinition<float>
 {
-    public FloatOp GetReturnOp() => FloatOp.Return;
+    public byte GetReturnOp() => (byte)FloatOp.Return;
 
     public int GetArity(byte op) => ((FloatOp)op) switch
     {
@@ -106,15 +106,15 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float, FloatOp>
         _              => OpType.Instruction,
     };
 
-    public int GetPrecedence(FloatOp op) => op switch
+    public int GetPrecedence(byte op) => ((FloatOp)op) switch
     {
         FloatOp.Add => 1, FloatOp.Sub => 1, FloatOp.Mul => 2,
         FloatOp.Div => 2, FloatOp.Neg => 3, _ => 0,
     };
 
-    public FloatOp ResolveToken(FloatOp op, TokenContext ctx)
-        => op == FloatOp.Sub && ctx == TokenContext.OperandExpected
-            ? FloatOp.Neg : op;
+    public byte ResolveToken(byte oper, TokenContext ctx)
+        => oper == (byte)FloatOp.Sub && ctx == TokenContext.OperandExpected
+            ? (byte)FloatOp.Neg : oper;
 
     public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
         => ((FloatOp)op) switch
