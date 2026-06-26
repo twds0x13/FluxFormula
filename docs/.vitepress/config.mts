@@ -60,6 +60,9 @@ export default withMermaid(
                 { text: "R0 短路错误处理", link: "/examples/error-handling" },
                 { text: "Vector3 运算", link: "/examples/vector3" },
                 { text: "链式 Connect", link: "/examples/chain-connect" },
+                { text: "Burst Jobs 求值", link: "/examples/burst-jobs" },
+                { text: "Addressables 加载", link: "/examples/addressables-load" },
+                { text: "UniTask 加载", link: "/examples/unitask-load" },
               ],
             },
             {
@@ -149,6 +152,9 @@ export default withMermaid(
                 { text: "R0 Error Handling", link: "/en/examples/error-handling" },
                 { text: "Vector3 Operations", link: "/en/examples/vector3" },
                 { text: "Chain Connect", link: "/en/examples/chain-connect" },
+                { text: "Burst Jobs", link: "/en/examples/burst-jobs" },
+                { text: "Addressables Load", link: "/en/examples/addressables-load" },
+                { text: "UniTask Load", link: "/en/examples/unitask-load" },
               ],
             },
             {
