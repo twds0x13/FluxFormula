@@ -46,6 +46,10 @@ namespace FluxFormula.Compiler
                 nameof(IFluxDefinition<TData>.Compute),
                 new[] { typeof(byte), typeof(Instruction), typeof(IntPtr), typeof(int) })!;
 
+        /// <summary>Instruction.Raw 字段（FieldOffset(0) 的 long），用于 type-safe IL 存储</summary>
+        private static readonly FieldInfo RawField =
+            typeof(Instruction).GetField(nameof(Instruction.Raw))!;
+
         /// <summary>
         /// 编译字节码为可执行委托（与 <see cref="FluxJITCompiler{TData, TDef}.Compile"/> 签名一致）。
         /// </summary>
@@ -175,9 +179,12 @@ namespace FluxFormula.Compiler
                     {
                     // ── emit: regs[inst.Dest] = def.Compute(op, inst, regPtr, regCount) ──
 
-                    // Store Instruction raw value to typed local
+                    // Store Instruction raw value via type-safe field write:
+                    // Mono IL verifier rejects ldc.i8 → stloc on a typed struct local.
+                    // Writing to Raw (FieldOffset(0)) instead produces correct 8-byte value.
+                    il.Emit(OpCodes.Ldloca, instLocal);
                     il.Emit(OpCodes.Ldc_I8, inst.Raw);
-                    il.Emit(OpCodes.Stloc, instLocal);
+                    il.Emit(OpCodes.Stfld, RawField);
 
                     // Call IFluxDefinition<TData>.Compute(byte, Instruction, IntPtr, int)
                     il.Emit(OpCodes.Ldloca, defLocal);       // &def (this)

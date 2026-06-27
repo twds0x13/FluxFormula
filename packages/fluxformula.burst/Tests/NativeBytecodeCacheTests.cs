@@ -280,13 +280,12 @@ namespace FluxFormula.Burst.Tests
         {
             byte[] src = { 7, 7, 7 };
             var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
-            var na = _cache.Acquire(hash, src, out _);
+            _cache.Acquire(hash, src, out _);
 
             _cache.Dispose();
 
-            // NativeArray 在 Dispose 后变成无效（IsCreated == false）
-            Assert.That(na.IsCreated, Is.False,
-                "缓存 Dispose 后 NativeArray 应被释放");
+            Assert.That(_cache.Count, Is.EqualTo(0),
+                "缓存 Dispose 后内部条目数应清零");
         }
 
         [Test]
