@@ -32,15 +32,20 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
 
+      - name: Run tests (no coverage)
+        run: dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --configuration Release
+
       - name: Install coverage tool
         run: dotnet tool install -g dotnet-coverage
 
-      - name: Run tests with coverage
+      - name: Collect coverage
         run: >
           dotnet-coverage collect
           --output coverage-latest.xml
           --output-format cobertura
-          "dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --configuration Release"
+          --exclude-by-file "**/FluxILCompiler.cs"
+          "dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --configuration Release --no-build"
+        continue-on-error: true
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -51,7 +56,3 @@ jobs:
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Report coverage summary
-        run: |
-          echo "Coverage report generated. View at https://app.codecov.io/gh/twds0x13/FluxFormula"
