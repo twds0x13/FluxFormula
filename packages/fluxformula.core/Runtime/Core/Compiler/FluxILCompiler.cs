@@ -41,30 +41,12 @@ namespace FluxFormula.Compiler
             typeof(EqualityComparer<TData>).GetProperty(nameof(EqualityComparer<TData>.Default))!;
 
         /// <summary>
-        /// TDef 上 <c>Compute(byte, Instruction, IntPtr, int)</c> 的具体实现方法。
-        /// 通过 <see cref="Type.GetInterfaceMap"/> 解析，消除 <c>constrained.callvirt</c> ——
-        /// Mono 对 DIM 的 constrained 前缀存在 JIT bug（SIGSEGV），直接 call 可绕过。
+        /// IFluxDefinition&lt;TData&gt;.Compute(byte, Instruction, IntPtr, int) —— IL 调用目标
         /// </summary>
-        private static readonly MethodInfo ComputePtrMethod = ResolveComputePtr();
-
-        private static MethodInfo ResolveComputePtr()
-        {
-            var ifaceMethod = typeof(IFluxDefinition<TData>).GetMethod(
+        private static readonly MethodInfo ComputePtrMethod =
+            typeof(IFluxDefinition<TData>).GetMethod(
                 nameof(IFluxDefinition<TData>.Compute),
                 new[] { typeof(byte), typeof(Instruction), typeof(IntPtr), typeof(int) })!;
-
-            var map = typeof(TDef).GetInterfaceMap(typeof(IFluxDefinition<TData>));
-            var ifaceMethods = map.InterfaceMethods;
-            var targetMethods = map.TargetMethods;
-
-            for (int i = 0; i < ifaceMethods.Length; i++)
-            {
-                if (ifaceMethods[i] == ifaceMethod)
-                    return targetMethods[i];  // 可能是 TDef 显式实现 或 DIM 本身
-            }
-
-            return ifaceMethod; // fallback (不应到达)
-        }
 
         /// <summary>Instruction.Raw 字段（FieldOffset(0) 的 long），用于 type-safe IL 存储</summary>
         private static readonly FieldInfo RawField =
@@ -215,7 +197,8 @@ namespace FluxFormula.Compiler
                     il.Emit(OpCodes.Ldelema, typeof(TData));  // &arr[0]
                     il.Emit(OpCodes.Conv_I);                  // → IntPtr
                     il.Emit(OpCodes.Ldc_I4, regCount);       // regCount
-                    il.Emit(OpCodes.Call, ComputePtrMethod);  // direct call — resolved via GetInterfaceMap
+                    il.Emit(OpCodes.Constrained, typeof(TDef));
+                    il.Emit(OpCodes.Callvirt, ComputePtrMethod);
 
                     // Store result: stack has TData value → arr[idx] = value
                     var resultTmp = il.DeclareLocal(typeof(TData));
