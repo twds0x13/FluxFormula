@@ -1,3 +1,61 @@
+## [3.5.0](https://github.com/twds0x13/FluxFormula/compare/v3.4.0...v3.5.0) (2026-06-27)
+
+### Features
+
+* **burst:** add NativeBytecodeCache — shared bytecode cache for Jobs system, shrink FormulaCache to 256
+
+  - Add NativeBytecodeCache: open-addressing hashmap with NativeArray<byte> +
+  reference counting (default 64 slots), eviction skips referenced entries
+- Add FluxBurstInstance(formula, cache) and CreateBurstInstance overload
+- FluxConfig: FormulaCacheCapacity 2048→256, add NativeBytecodeCacheCapacity=64
+- All packages bump to 3.5.0
+### Bug Fixes
+
+* add missing conventional-changelog-conventionalcommits dependency for semantic-release* **burst:** add missing README.md.meta to suppress immutable-folder warning
+### Code Refactoring
+
+* extract TryResolveJitDelegate + comment cleanup across Core
+
+  - Extract TryResolveJitDelegate to eliminate 35-line DRY violation in Instantiate
+  (atomic JIT path and per-link chain loop now share one delegate resolution method)
+- Add cache-line alignment explanation in FluxEvaluator (64-byte stackalloc)
+- Add IsDefault bytewise-comparison rationale
+- Add ChainLink.Type internal-field documentation
+- Remove 破折号 (——) from all Core source comments (~50 occurrences)
+  replaced with ：or ，per documentation standards
+- FormulaCache.cs retained (19 dense algorithmic comments where —— aids brevity)
+
+FluxAssembler: 398 → 375 lines. 348 tests, 0 failures.
+
+[skip test]
+### Documentation
+
+* add token-direct example, final 破折号 cleanup in multilingual-collaboration
+
+  - Add Token 直构 example (zh+en): manual FluxToken[] construction without lexer
+- Register in VitePress sidebar and translation guide status tables
+- Fix last remaining —— in multilingual-collaboration.md
+- Update documentation-review memory: score 9.4 → 9.5
+
+Examples now cover all 10 core paths + 3 opt-in packages.
+
+[skip test]* close all P3 quality gaps — i18n, accuracy, community, pipeline translations
+
+  - Fix CONTRIBUTING.md stale TOper reference
+- Remove stale FEATURE-streaming-injection.md from translation guide
+- Fix old FluxJITCompiler<TData, TOper, TDef> signature in technical-analysis (zh+en)
+- Translate 5 pipeline docs from skeleton to full (lexer, platform, compiler, evaluator, jit)
+- Add test-coverage-boundary English translation + sidebar registration
+- Add full translation status table to en/translation-guide.md
+- Add multilingual-collaboration.md (zh+en) + VFF persistence example (zh+en)
+- Add CODE_OF_CONDUCT.md
+- Add README for fluxformula.burst and fluxformula.addressables.unitask
+- Remove orphan .meta files
+
+All 12 gaps from quality audit closed. Score: 9.3 → 9.4
+
+[skip test]
+
 # Changelog
 
 ## Breaking Changes by Version
