@@ -1,3 +1,24 @@
+## [3.6.0](https://github.com/twds0x13/FluxFormula/compare/v3.5.0...v3.6.0) (2026-06-27)
+
+### Features
+
+* unify caches to 256 slots + graceful overflow for NativeBytecodeCache* **burst:** extract INativeBytecodeCache interface, unify to 256 slots, graceful overflow* **il:** add FluxILCompiler: DynamicMethod + ILGenerator JIT path
+### Bug Fixes
+
+* IL stloc type mismatch on Mono verifier, fix NativeBytecodeCache Dispose test for struct copy semantics* use non-generic CreateDelegate(Type) for Unity CI, fix benchmarks CompiledFunc refs* Unity CI test compatibility: void* cast, missing isCached, Capacity public, Throws syntax* lower burst collections dependency to 1.2.4 + squash fix commits* **il:** revert GetInterfaceMap, keep constrained.callvirt
+
+  GetInterfaceMap in ref struct static initializer crashes on Linux CoreCLR .NET 9; the original constrained.callvirt approach is correct.* **il:** exclude DynamicMethod sites from code coverage instrumentation
+
+  dotnet-coverage IL instrumentation cannot handle DynamicMethod sites statically.* **il:** resolve Compute via GetInterfaceMap, use direct call instead of constrained.callvirt
+
+  Mono JIT has a bug with constrained.callvirt + default interface method in DynamicMethod context.
+### Code Refactoring
+
+* rename FluxJITCompiler→FluxExprCompiler, IFluxJITDefinition→IFluxExprDefinition
+### Documentation
+
+* clarify FluxChain evaluation: prefer Instantiate overload, not ToAtomic roundtrip* remove AI-generated CHANGELOG noise, restore to semantic-release format* add IL inline operators example with verified sample project [skip test]* add IL compiler pipeline page, update platform/jit/overview for three-tier JIT
+
 # Changelog
 
 ## Breaking Changes by Version
