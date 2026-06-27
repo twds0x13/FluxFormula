@@ -20,7 +20,11 @@ namespace FluxFormula
         [Header("Cache")]
         [Tooltip("FormulaCache 哈希表槽位数。增大可减少碰撞，但增加内存占用。")]
         [Min(256)]
-        public int formulaCacheCapacity = 2048;
+        public int formulaCacheCapacity = 256;
+
+        [Tooltip("NativeBytecodeCache 哈希表槽位数。Jobs 路径中唯一公式种类数通常远小于实例数。")]
+        [Min(64)]
+        public int nativeBytecodeCacheCapacity = 64;
 
         [Header("Chain")]
         [Tooltip("链式公式合并阈值——链长超过此值时合并为原子公式。")]
@@ -39,10 +43,11 @@ namespace FluxFormula
         {
             FluxConfig.Set(new FluxConfig
             {
-                FormulaCacheCapacity = formulaCacheCapacity,
-                MergeThreshold       = mergeThreshold,
-                BlobFilePath         = string.IsNullOrEmpty(blobFilePath) ? null : blobFilePath,
-                DiskCacheDirectory   = string.IsNullOrEmpty(diskCacheDirectory) ? null : diskCacheDirectory,
+                FormulaCacheCapacity        = formulaCacheCapacity,
+                NativeBytecodeCacheCapacity = nativeBytecodeCacheCapacity,
+                MergeThreshold              = mergeThreshold,
+                BlobFilePath                = string.IsNullOrEmpty(blobFilePath) ? null : blobFilePath,
+                DiskCacheDirectory          = string.IsNullOrEmpty(diskCacheDirectory) ? null : diskCacheDirectory,
             });
         }
 

@@ -89,7 +89,7 @@ All 12 gaps from quality audit closed. Score: 9.3 → 9.4
 
 ### Features
 
-* **burst:** add NativeBytecodeCache — shared NativeArray\<byte\> cache with reference counting for Jobs system ([86fd6bb](https://github.com/twds0x13/FluxFormula/commit/86fd6bb5c1774d33a34858ee876605ac))
+* **burst:** add NativeBytecodeCache — shared NativeArray\<byte\> cache with reference counting for Jobs system ([d790a2b](https://github.com/twds0x13/FluxFormula/commit/d790a2bc043b5bbc37f86c021b13e363a7e96055))
 * **burst:** add FluxBurstInstance(formula, cache) constructor — same-formula instances share bytecode via cache
 * **burst:** add CreateBurstInstance(assembler, formula, cache) extension overload
 * **config:** shrink FormulaCacheCapacity default from 2048 to 256
