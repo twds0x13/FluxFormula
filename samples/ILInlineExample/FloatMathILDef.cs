@@ -15,7 +15,7 @@ public enum FloatOp : byte
     Const, Add, Sub, Mul, Div, Neg, Return = 255,
 }
 
-public readonly struct FloatMathILDef : IFluxILDefinition<float>, IFluxJITDefinition<float>
+public readonly struct FloatMathILDef : IFluxILDefinition<float>, IFluxExprDefinition<float>
 {
     // ── 基础接口（与普通 Definition 完全相同）──
 

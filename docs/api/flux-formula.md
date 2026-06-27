@@ -8,17 +8,17 @@
 // 完整公式，可独立求值
 public readonly struct FluxFormula<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 
 // 修饰符，缺少第一操作数，不可独立求值
 public readonly struct FluxModifier<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 
 // 链式公式，不可直接求值
 public readonly struct FluxChain<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 ## FluxFormula 属性

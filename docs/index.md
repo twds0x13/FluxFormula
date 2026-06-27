@@ -19,7 +19,7 @@ features:
   - title: 双后端执行
     details: 解释器全平台兼容，JIT 基于 LINQ Expression Tree 编译为委托。AOT 平台自动降级，无需手动切换。
   - title: 自定义指令集
-    details: 实现 IFluxJITDefinition 接口定义领域运算符，一次编写同时获得解释器与 JIT 两条执行路径。
+    details: 实现 IFluxExprDefinition 接口定义领域运算符，一次编写同时获得解释器与 JIT 两条执行路径。
   - title: 紧凑字节码
     details: Instruction 为 8 字节定长结构体，LayoutKind.Explicit 显式内存布局。256 虚拟寄存器，最大 arity 6。
 ---

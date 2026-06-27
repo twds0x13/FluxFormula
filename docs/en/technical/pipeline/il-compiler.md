@@ -4,7 +4,7 @@
 
 ## Why an IL Path
 
-The Expression Tree path (`FluxJITCompiler`) bottlenecks at compile time, not execution. Building the `Expression` node tree followed by `Compile()` is a dual traversal: first constructing the Expression object graph, then `LambdaCompiler` converting it to IL. For high-frequency formula compilation scenarios (e.g., script hot-reload, first-time instantiation of many chained formulas), this intermediate representation cost is avoidable.
+The Expression Tree path (`FluxExprCompiler`) bottlenecks at compile time, not execution. Building the `Expression` node tree followed by `Compile()` is a dual traversal: first constructing the Expression object graph, then `LambdaCompiler` converting it to IL. For high-frequency formula compilation scenarios (e.g., script hot-reload, first-time instantiation of many chained formulas), this intermediate representation cost is avoidable.
 
 IL emission skips the intermediate AST, generating delegate-body IL directly and merging dual traversal into a single pass. The trade-off is platform restriction: `DynamicMethod` depends on `System.Reflection.Emit`, available only on Mono and CoreCLR, not on IL2CPP.
 
@@ -16,7 +16,7 @@ JIT delegate compilation has two paths, selected by priority in `FluxAssembler.C
 CompileDelegate(bytecode, definition)
   ├─ FluxILCompiler.Compile()     ← IL emission (preferred, Mono/CoreCLR)
   │   └─ PlatformNotSupportedException → degrade
-  └─ FluxJITCompiler.Compile()    ← Expression Tree (universal fallback)
+  └─ FluxExprCompiler.Compile()    ← Expression Tree (universal fallback)
       └─ PlatformNotSupportedException → interpreter
 ```
 
@@ -184,7 +184,7 @@ il.Emit(OpCodes.Callvirt, ComputePtrMethod);
 
 The `Constrained` prefix ensures the value-type `TDef` is never boxed. If a Definition does not override the pointer-based `Compute`, the base default bridges to the managed `Compute` via `Span<T>`.
 
-Tier A advantage: zero additional interface implementation cost. Any type implementing `IFluxJITDefinition<TData>` automatically gains IL path support.
+Tier A advantage: zero additional interface implementation cost. Any type implementing `IFluxExprDefinition<TData>` automatically gains IL path support.
 
 ### Tier B: EmitOp Inline Emission (Optional)
 
@@ -253,7 +253,7 @@ private static CompiledFunc<TData> CompileDelegate(
     }
 
     // 2. Expression Tree (IL2CPP fallback)
-    return FluxJITCompiler<TData, TDef>.Compile(
+    return FluxExprCompiler<TData, TDef>.Compile(
         instSpan, definition, out payload, maxRegister: maxRegister);
 }
 ```

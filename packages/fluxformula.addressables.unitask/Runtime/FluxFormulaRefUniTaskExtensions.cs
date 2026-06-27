@@ -16,7 +16,7 @@ namespace FluxFormula.Core
         public static async UniTask<FluxFormula<TData, TDef>> LoadFormulaUniTaskAsync<TData, TDef>(
             this FluxFormulaRef<TData, TDef> reference)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             // await ValueTask → 解包为 T，async UniTask 自动包装为 UniTask<T>
             return await reference.LoadFormulaAsync();
@@ -28,7 +28,7 @@ namespace FluxFormula.Core
         public static async UniTask<FluxAsset> LoadAssetTypedUniTaskAsync<TData, TDef>(
             this FluxFormulaRef<TData, TDef> reference)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             return await reference.LoadAssetTypedAsync();
         }

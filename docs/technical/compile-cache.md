@@ -196,7 +196,7 @@ result = kernel.Compute(link2.字节码, initialR1: result)
 1. 链式公式 → `ToAtomic()` 转为原子
 2. `GetByteHash()` → `FormulaCache.TryGetDelegate(hash)`
 3. 命中：`GCHandle.FromIntPtr` → cast `CompiledFunc` → `CreateJitPayload` 重建紧凑数据 buffer → 返回
-4. 未命中：`FluxJITCompiler.Compile()` → `GCHandle.Alloc(func)` → `PutDelegate(hash, handle)` → 返回
+4. 未命中：`FluxExprCompiler.Compile()` → `GCHandle.Alloc(func)` → `PutDelegate(hash, handle)` → 返回
 
 ### Payload 重建
 

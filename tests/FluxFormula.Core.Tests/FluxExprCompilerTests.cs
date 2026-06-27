@@ -5,10 +5,10 @@ using NUnit.Framework;
 using static TestHelper;
 
 /// <summary>
-/// FluxJITCompiler 直接单元测试。
+/// FluxExprCompiler 直接单元测试。
 /// 目标：覆盖 pruneRegisters 路径和异常抛出路径。
 /// </summary>
-public unsafe class FluxJITCompilerTests
+public unsafe class FluxExprCompilerTests
 {
     // ═══════════════════════════════════════════════════════
     // Compile 基本行为
@@ -24,7 +24,7 @@ public unsafe class FluxJITCompilerTests
         byte[] bytes = formula.ToBytes();
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 
-        var func = FluxJITCompiler<float, FloatMathDef>.Compile(
+        var func = FluxExprCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payload);
 
         Assert.That(payload, Is.Not.Null);
@@ -41,7 +41,7 @@ public unsafe class FluxJITCompilerTests
         byte[] bytes = formula.ToBytes();
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 
-        var func = FluxJITCompiler<float, FloatMathDef>.Compile(
+        var func = FluxExprCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payload);
 
         float result = func(payload);
@@ -59,7 +59,7 @@ public unsafe class FluxJITCompilerTests
         byte[] bytes = mod.ToBytes();
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 
-        var func = FluxJITCompiler<float, FloatMathDef>.Compile(
+        var func = FluxExprCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payload);
 
         Assert.That(payload, Is.Not.Null);
@@ -83,9 +83,9 @@ public unsafe class FluxJITCompilerTests
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 
         // 不裁剪 vs 裁剪
-        var funcNormal = FluxJITCompiler<float, FloatMathDef>.Compile(
+        var funcNormal = FluxExprCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payloadNormal, pruneRegisters: false);
-        var funcPruned = FluxJITCompiler<float, FloatMathDef>.Compile(
+        var funcPruned = FluxExprCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payloadPruned, pruneRegisters: true);
 
         float rNormal = funcNormal(payloadNormal);
@@ -105,7 +105,7 @@ public unsafe class FluxJITCompilerTests
         byte[] bytes = formula.ToBytes();
         var instSpan = FormulaFormat.GetInstructionSpan(bytes);
 
-        var func = FluxJITCompiler<float, FloatMathDef>.Compile(
+        var func = FluxExprCompiler<float, FloatMathDef>.Compile(
             instSpan, Def, out var payload,
             pruneRegisters: true,
             maxRegister: formula.MaxRegister);
@@ -127,7 +127,7 @@ public unsafe class FluxJITCompilerTests
         // ref struct 不能用于 lambda——直接用 try-catch 验证
         try
         {
-            FluxJITCompiler<float, FloatMathDef>.Compile(
+            FluxExprCompiler<float, FloatMathDef>.Compile(
                 instSpan, Def, out _, pruneRegisters: true);
         }
         catch (Exception ex)

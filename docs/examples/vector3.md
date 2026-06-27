@@ -52,7 +52,7 @@ public enum Vector3Op : byte
 ## 定义体
 
 ```csharp
-public readonly struct Vector3Def : IFluxJITDefinition<Vector3f, Vector3Op>
+public readonly struct Vector3Def : IFluxExprDefinition<Vector3f, Vector3Op>
 {
     public Vector3Op GetReturnOp() => Vector3Op.Return;
 

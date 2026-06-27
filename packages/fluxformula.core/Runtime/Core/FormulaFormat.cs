@@ -80,7 +80,7 @@ namespace FluxFormula.Core
         /// </summary>
         public static ulong ComputeTypeFingerprint<TData, TDef>()
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             unsafe
             {
@@ -93,7 +93,7 @@ namespace FluxFormula.Core
         /// <summary>向字节缓冲区末尾写入类型指纹。</summary>
         public static void WriteTypeFingerprint<TData, TDef>(byte[] buf, ref int offset)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             BinaryFormat.WriteInt64LE(buf, ref offset, (long)ComputeTypeFingerprint<TData, TDef>());
         }
@@ -105,7 +105,7 @@ namespace FluxFormula.Core
         /// <returns>true = 通过；false = 指纹不匹配（跨定义注入或数据损坏）。调用方应抛出。</returns>
         public static bool ValidateTypeFingerprint<TData, TDef>(ReadOnlySpan<byte> data, int fingerprintOffset)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             if (fingerprintOffset + FingerprintSize > data.Length)
                 return true; // not enough data for fingerprint — old format, assume valid

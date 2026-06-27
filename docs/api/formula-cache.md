@@ -162,7 +162,7 @@ if (FormulaCache.Instance.TryGet(hash, out IntPtr ptr, out int len))
 }
 
 // — JIT delegate 缓存 —
-var compiledFunc = ...; // 由 FluxJITCompiler 生成
+var compiledFunc = ...; // 由 FluxExprCompiler 生成
 var gcHandle = GCHandle.Alloc(compiledFunc);
 FormulaCache.Instance.PutDelegate(hash, GCHandle.ToIntPtr(gcHandle));
 

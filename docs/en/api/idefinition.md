@@ -1,4 +1,4 @@
-# IFluxDefinition / IFluxJITDefinition
+# IFluxDefinition / IFluxExprDefinition
 
 Core interfaces for operator semantics. v3.0.0 removed the `TOper` generic parameter — all operator-related methods now accept and return `byte`; the operator enum is an internal implementation detail of the definition.
 
@@ -49,10 +49,10 @@ public byte ResolveToken(byte oper, TokenContext ctx)
 
 Returning a value other than `default` causes the executor to write it to R0 and trigger an early exit.
 
-## IFluxJITDefinition
+## IFluxExprDefinition
 
 ```csharp
-public interface IFluxJITDefinition<TData> : IFluxDefinition<TData>
+public interface IFluxExprDefinition<TData> : IFluxDefinition<TData>
     where TData : unmanaged
 ```
 
@@ -75,7 +75,7 @@ public interface IFluxJITDefinition<TData> : IFluxDefinition<TData>
 ```csharp
 enum MathOp : byte { Const = 0, Add, Sub, Mul, Div, Neg, Return = 255 }
 
-readonly struct MathDef : IFluxJITDefinition<float>
+readonly struct MathDef : IFluxExprDefinition<float>
 {
     public byte GetReturnOp() => (byte)MathOp.Return;
     public int GetArity(byte op) => ((MathOp)op) switch
@@ -121,7 +121,7 @@ readonly struct MathDef : IFluxJITDefinition<float>
 ## v3.0.0 Changes
 
 - `IFluxDefinition<TData, TOper>` → `IFluxDefinition<TData>` (2 params → 1 param)
-- `IFluxJITDefinition<TData, TOper>` → `IFluxJITDefinition<TData>`
+- `IFluxExprDefinition<TData, TOper>` → `IFluxExprDefinition<TData>`
 - All `TOper` parameters and return values → `byte`
 - Operator enum is now an `internal`/`private` detail of the definition — no `public enum` required
 - New `GetOperatorName(byte op)` DIM for editor/toolchain opcode name queries

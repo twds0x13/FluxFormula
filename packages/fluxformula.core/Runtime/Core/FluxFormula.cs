@@ -73,7 +73,7 @@ namespace FluxFormula.Core
 
     public readonly struct FluxFormula<TData, TDef>
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         // ── 原子公式表示（Instruction[]）──
         private readonly Instruction[] _buffer;

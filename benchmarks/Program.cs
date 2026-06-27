@@ -164,9 +164,9 @@ namespace FluxFormula.Benchmarks
             var fSimple  = a.Compile(CreateMathLexer().Lex("1 + 2 * 3").Tokens);
             var fComplex = a.Compile(CreateMathLexer().Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3").Tokens);
 
-            _jitSimple  = FluxJITCompiler<float, FloatMathDef>.Compile(
+            _jitSimple  = FluxExprCompiler<float, FloatMathDef>.Compile(
                 fSimple.Raw(), Def, out _simplePayload, pruneRegisters: true);
-            _jitComplex = FluxJITCompiler<float, FloatMathDef>.Compile(
+            _jitComplex = FluxExprCompiler<float, FloatMathDef>.Compile(
                 fComplex.Raw(), Def, out _complexPayload, pruneRegisters: true);
         }
 
@@ -202,7 +202,7 @@ namespace FluxFormula.Benchmarks
             _formula = a.Compile(CreateVarLexer("[", "]").Lex("[a] + [b] * [c]"));
 
             // JIT 编译只发生一次
-            _jitFunc = FluxJITCompiler<float, FloatMathDef>.Compile(
+            _jitFunc = FluxExprCompiler<float, FloatMathDef>.Compile(
                 _formula.Raw(), _def, out _jitPayloadTemplate, pruneRegisters: true);
 
             unsafe { _dataSlots = (sizeof(float) + sizeof(Instruction) - 1) / sizeof(Instruction); }

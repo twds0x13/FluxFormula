@@ -10,9 +10,9 @@ using FluxFormula.Core;
 
 namespace FluxFormula.Compiler
 {
-    internal readonly ref struct FluxJITCompiler<TData, TDef>
+    internal readonly ref struct FluxExprCompiler<TData, TDef>
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
 
         /// <summary>
@@ -20,7 +20,7 @@ namespace FluxFormula.Compiler
         /// 避免 <c>Expression.Equal</c> 对无 <c>op_Equality</c> 的自定义 TData 抛出。
         /// </summary>
         private static readonly System.Reflection.MethodInfo _isDefaultMethod =
-            typeof(FluxJITCompiler<TData, TDef>).GetMethod(
+            typeof(FluxExprCompiler<TData, TDef>).GetMethod(
                 nameof(IsDefault),
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
 
@@ -91,7 +91,7 @@ namespace FluxFormula.Compiler
             var body = new List<Expression>();
             int currentDataIdx = 0;
 
-            var castMethod = typeof(FluxJITCompiler<TData, TDef>).GetMethod(
+            var castMethod = typeof(FluxExprCompiler<TData, TDef>).GetMethod(
                 nameof(SafeCast),
                 BindingFlags.NonPublic | BindingFlags.Static
             );

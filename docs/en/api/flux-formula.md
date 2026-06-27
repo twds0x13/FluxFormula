@@ -8,17 +8,17 @@ Immutable bytecode containers. `FluxFormula<TData, TDef>` is a complete formula 
 // Complete formula — evaluable standalone
 public readonly struct FluxFormula<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 
 // Modifier — missing first operand, not evaluable standalone
 public readonly struct FluxModifier<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 
 // Chain formula — not directly evaluable
 public readonly struct FluxChain<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 ## FluxFormula Properties

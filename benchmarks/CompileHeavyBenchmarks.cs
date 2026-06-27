@@ -58,7 +58,7 @@ namespace FluxFormula.Benchmarks
             var tokens = CreateMathLexer().Lex("1 + 2 * 3").Tokens;
             var a = new FluxAssembler<float, FloatMathDef>(_def);
             var f = a.Compile(tokens);
-            FluxJITCompiler<float, FloatMathDef>.Compile(f.Raw(), _def, out var p);
+            FluxExprCompiler<float, FloatMathDef>.Compile(f.Raw(), _def, out var p);
             var inst = a.Instantiate(f, jit: true);
             return inst.Run();
         }

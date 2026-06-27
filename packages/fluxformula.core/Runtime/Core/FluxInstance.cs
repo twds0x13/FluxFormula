@@ -11,7 +11,7 @@ namespace FluxFormula.Core
     /// </summary>
     public ref struct FluxInstance<TData, TDef>
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         private readonly TDef _definition;
         private readonly FluxFormula<TData, TDef> _formula;

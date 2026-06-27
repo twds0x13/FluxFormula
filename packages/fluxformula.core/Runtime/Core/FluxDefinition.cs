@@ -133,7 +133,7 @@ namespace FluxFormula.Core
         string GetOperatorName(byte op) => null;
     }
 
-    public interface IFluxJITDefinition<TData> : IFluxDefinition<TData>
+    public interface IFluxExprDefinition<TData> : IFluxDefinition<TData>
         where TData : unmanaged
     {
         Expression GetExpression(byte op, Instruction inst, ParameterExpression[] registers);

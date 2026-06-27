@@ -15,10 +15,10 @@ public enum FloatOp : byte
 
 ## 定义体声明
 
-同时实现 `IFluxILDefinition<float>`（EmitOp 内联 内联）和 `IFluxJITDefinition<float>`（Expression 树回退 + 解释器）：
+同时实现 `IFluxILDefinition<float>`（EmitOp 内联 内联）和 `IFluxExprDefinition<float>`（Expression 树回退 + 解释器）：
 
 ```csharp
-public readonly struct FloatMathILDef : IFluxILDefinition<float>, IFluxJITDefinition<float>
+public readonly struct FloatMathILDef : IFluxILDefinition<float>, IFluxExprDefinition<float>
 ```
 
 基础方法（`GetKind`、`GetArity`、`GetPrecedence`、`Compute` 等）与普通 Definition 完全相同。唯一新增的是 `EmitOp` 方法。

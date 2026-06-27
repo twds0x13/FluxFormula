@@ -46,7 +46,7 @@ The current latest version is 3.2.x.
 
 | Change | 2.x Behavior | 3.0 Behavior | Migration |
 |--------|-------------|-------------|-----------|
-| `TOper` removed | `FluxAssembler<TData, TOper, TDef>` (3 params) | `FluxAssembler<TData, TDef>` (2 params) | Delete all `TOper` parameters. `IFluxJITDefinition<TData, TOper>` → `IFluxJITDefinition<TData>`. Operator enums become `byte` with internal casts |
+| `TOper` removed | `FluxAssembler<TData, TOper, TDef>` (3 params) | `FluxAssembler<TData, TDef>` (2 params) | Delete all `TOper` parameters. `IFluxExprDefinition<TData, TOper>` → `IFluxExprDefinition<TData>`. Operator enums become `byte` with internal casts |
 | `FluxModifier` split | Single `FluxFormula` type with `FluxType` enum | Two types: `FluxFormula` + `FluxModifier` | `Connect(FluxFormula)` → `Connect(FluxModifier)`. Call `.ToModifier()` first |
 | `ToMultiplier()` renamed | `ToMultiplier()` returns `FluxFormula` | `ToModifier()` returns `FluxModifier` | Rename calls. Old name retained as `[Obsolete]` |
 | `FluxType` internalized | `FluxType` enum was `public` | `FluxType` is `internal` | Remove direct references to `formula.Type` |

@@ -107,7 +107,7 @@ public static bool IsVff(ReadOnlySpan<byte> bytes)
 public static VffResolveResult<TData, TDef> Resolve<TData, TDef>(
     DualHash64 vffHash)
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 从 `FormulaCache` 读取 VFF 条目，递归解析为链式公式。
@@ -160,7 +160,7 @@ public static byte[] ToBytes<TData>(
 public static VffResolveResult<TData, TDef> FromBytes<TData, TDef>(
     byte[] data)
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 从裸字节数组解析 VFF，产出链式公式。与 `Resolve()` 功能等价，但 VFF 字节直接来自参数而非 `FormulaCache` 查找。

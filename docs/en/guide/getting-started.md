@@ -23,10 +23,10 @@ enum MathOp : byte
 
 ## Step 2: Implement the Definition
 
-Implement `IFluxJITDefinition<float>` (single generic param). All operator-related methods receive/return `byte`:
+Implement `IFluxExprDefinition<float>` (single generic param). All operator-related methods receive/return `byte`:
 
 ```csharp
-readonly struct MathDef : IFluxJITDefinition<float>
+readonly struct MathDef : IFluxExprDefinition<float>
 {
     public byte GetReturnOp() => (byte)MathOp.Return;
 
@@ -188,7 +188,7 @@ float result = runner.Build(tokens, jit: true).Run();
 | v2.x | v3.0.0 |
 |------|--------|
 | `public enum FloatOp : byte` | `enum MathOp : byte` (private) |
-| `IFluxJITDefinition<float, FloatOp>` | `IFluxJITDefinition<float>` |
+| `IFluxExprDefinition<float, FloatOp>` | `IFluxExprDefinition<float>` |
 | `GetPrecedence(FloatOp op)` | `GetPrecedence(byte op)` |
 | `ResolveToken(FloatOp op, ...)` | `ResolveToken(byte oper, ...)` |
 | `OpPair<FloatOp>` | `OpPair` (non-generic) |
@@ -198,5 +198,5 @@ float result = runner.Build(tokens, jit: true).Run();
 ## Next Steps
 
 - [Core Concepts](/en/guide/core-concepts) — Full Token → Formula → Instance pipeline
-- [Writing a Definition](/en/guide/writing-a-definition) — `IFluxJITDefinition` methods in detail
+- [Writing a Definition](/en/guide/writing-a-definition) — `IFluxExprDefinition` methods in detail
 - [Full Example](/en/examples/float-math) — Copy-paste ready MathDef implementation

@@ -72,7 +72,7 @@ FluxAssembler.Instantiate(jit: true)
        └→ CompileDelegate (编译器选择器)
             ├─ (1) FluxILCompiler.Compile()       ← IL 发射 (IsIlSupported 为 true 时)
             │    └→ PlatformNotSupportedException → 降级到 (2)
-            └─ (2) FluxJITCompiler.Compile()      ← Expression 树 (全平台回退)
+            └─ (2) FluxExprCompiler.Compile()      ← Expression 树 (全平台回退)
                  └→ PlatformNotSupportedException → FluxPlatform.DisableJit()
                       └→ (3) 回退到解释器路径
 ```

@@ -23,7 +23,7 @@ graph LR
     JIT --> Result
     Interp --> Result
 
-    Def["IFluxJITDefinition<br/>operator semantics"] -.-> Assembler
+    Def["IFluxExprDefinition<br/>operator semantics"] -.-> Assembler
     Def -.-> Interp
     Def -.-> JIT
 
@@ -66,7 +66,7 @@ graph LR
 | `FluxModifier` | `<TData, TDef>` | Immutable bytecode container (missing left operand, chain-only) |
 | [FluxInstance](./flux-instance) | `<TData, TDef>` | ref struct streaming executor |
 | [IFluxDefinition](./idefinition) | `<TData>` | Operator definition interface (interpreter path) |
-| [IFluxJITDefinition](./idefinition) | `<TData>` | Operator definition interface (with JIT path) |
+| [IFluxExprDefinition](./idefinition) | `<TData>` | Operator definition interface (with JIT path) |
 | [Instruction](./instruction) | — | 8-byte instruction struct |
 | [FluxToken](./flux-token) | `<TData>` | Lexical token (`Oper` is `byte`) |
 | `FluxLexer<TData>` | `<TData>` | Handwritten span lexer |
@@ -94,21 +94,21 @@ The following types are not Public API, listed for reference only:
 - `ChainLink` — chain link struct (public struct, accessed via `FluxChain.GetLinks()`)
 - `FluxEvaluator<TData, TDef>` — interpreter execution engine
 - `FluxCompiler<TData, TDef>` — shunting-yard algorithm compiler
-- `FluxJITCompiler<TData, TDef>` — LINQ Expression Tree JIT
+- `FluxExprCompiler<TData, TDef>` — LINQ Expression Tree JIT
 - `FluxInjector<TData>` — data injector
 - `OpPair` — bracket pairing descriptor (non-generic)
 
 ## Namespaces
 
 - **`FluxFormula.Core`** — all public types and internal runtime types
-- **`FluxFormula.Compiler`** — `FluxCompiler` and `FluxJITCompiler` (internal)
+- **`FluxFormula.Compiler`** — `FluxCompiler` and `FluxExprCompiler` (internal)
 - **`FluxFormula.Editor`** — `FluxAssetEditor`, `FluxAssetInspector`, Dump extensions (Editor-only)
 
 ## Generic Constraints
 
 ```
 TData  : unmanaged               (float, int, custom blittable struct)
-TDef   : unmanaged, IFluxJITDefinition<TData>
+TDef   : unmanaged, IFluxExprDefinition<TData>
 ```
 
 v3.0.0 removed the `TOper` generic parameter — the operator enum is now an internal implementation detail of the definition.

@@ -7,7 +7,7 @@
 ```csharp
 public readonly struct FluxChain<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 ## 获取方式

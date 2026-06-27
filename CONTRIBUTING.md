@@ -39,7 +39,7 @@ FluxFormula/
 │   │       ├── FluxAssembler.cs     # Compilation + Instantiate entry point
 │   │       ├── FluxCompiler.cs      # Shunting-yard algorithm (internal)
 │   │       ├── FluxEvaluator.cs     # Interpreter execution (internal)
-│   │       ├── FluxJITCompiler.cs   # LINQ Expression Tree compiler (internal)
+│   │       ├── FluxExprCompiler.cs   # LINQ Expression Tree compiler (internal)
 │   │       ├── FluxFormula.cs       # Bytecode container + ChainLink + Connect
 │   │       ├── FluxInstance.cs      # ref struct streaming executor
 │   │       ├── FluxLexer.cs         # Hand-written span lexer
@@ -91,7 +91,7 @@ Tests cover compilation, interpreter, JIT, lexer, Connect, and serialization pat
 - Branch from `main`, target `main`.
 - Keep changes focused. One concern per PR.
 - Match the surrounding code style.
-- For changes touching `FluxEvaluator`, `FluxCompiler`, or `FluxJITCompiler`, a note about performance impact in the description is helpful.
+- For changes touching `FluxEvaluator`, `FluxCompiler`, or `FluxExprCompiler`, a note about performance impact in the description is helpful.
 
 I review PRs as time permits. If a PR has been sitting without response for more than a week, feel free to ping the issue or discussion thread.
 

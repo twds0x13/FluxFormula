@@ -2,7 +2,7 @@
 
 A copy-paste-ready floating-point arithmetic definition for v3.0.0.
 
-> **v3.0.0**: The operator enum is now a `private` implementation detail. The definition implements `IFluxJITDefinition<TData>` (1 generic param). All operator-related methods use `byte`.
+> **v3.0.0**: The operator enum is now a `private` implementation detail. The definition implements `IFluxExprDefinition<TData>` (1 generic param). All operator-related methods use `byte`.
 
 ## Operator Enum
 
@@ -17,7 +17,7 @@ enum MathOp : byte
 ## Definition Body
 
 ```csharp
-readonly struct MathDef : IFluxJITDefinition<float>
+readonly struct MathDef : IFluxExprDefinition<float>
 {
     public byte GetReturnOp() => (byte)MathOp.Return;
 
@@ -129,7 +129,7 @@ Assert.That(runner.Build(tokens).Run(), Is.EqualTo(7f).Within(1e-6f));
 
 ### Key v3.0.0 Changes
 
-- `IFluxJITDefinition<float, FloatOp>` → `IFluxJITDefinition<float>` — single generic param
+- `IFluxExprDefinition<float, FloatOp>` → `IFluxExprDefinition<float>` — single generic param
 - Operator enum (`MathOp`) is `private` — no longer needs to be `public`
 - All method signatures use `byte` instead of enum type
 - `OpPair<FloatOp>` → `OpPair` (non-generic)

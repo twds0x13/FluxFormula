@@ -10,7 +10,7 @@ namespace FluxFormula.Core
     {
         public static FormulaLibrary<TData, TDef> Create<TData, TDef>()
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             return new FormulaLibrary<TData, TDef>();
         }
@@ -22,7 +22,7 @@ namespace FluxFormula.Core
     /// </summary>
     public class FormulaLibrary<TData, TDef>
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         private readonly string _typeId;
 

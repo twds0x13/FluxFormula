@@ -164,7 +164,7 @@ Connect 最初内置了阈值判断（>8 links → 合并），将"何时合并"
 | 议题 | 说明 |
 |------|------|
 | Per-link JIT 求值 | `FluxAssembler.InstantiateJitChain()` 为每 link 独立编译 delegate，`FluxInstance.RunJitChain()` 通过 `SetIndex(0, prevResult)` 串联。消除 JIT 路径的 ToAtomic 强制合并。 |
-| MaxRegister 按需分配 | 公式头部第 14 字节存储编译期最高寄存器号。`FluxEvaluator` 和 `FluxJITCompiler` 按需 stackalloc 和创建 ParameterExpression，替代全量 255。 |
+| MaxRegister 按需分配 | 公式头部第 14 字节存储编译期最高寄存器号。`FluxEvaluator` 和 `FluxExprCompiler` 按需 stackalloc 和创建 ParameterExpression，替代全量 255。 |
 | FormulaFormat / BinaryFormat 集中化 | 格式定义和字节级 I/O 各集中为单一源文件，消除此前 9+ 个散落 helper。 |
 | FluxConfig 全局配置 | 替代硬编码常量（缓存容量、合并阈值、缓冲区大小）。Unity 端通过 `FluxConfigAsset` ScriptableObject 自动注入。 |
 

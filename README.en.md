@@ -14,7 +14,7 @@ A high-performance linear formula compilation pipeline for Unity (zero-GC at run
 
 - **Zero GC at Runtime**: `ref struct`, `stackalloc`, and unsafe pointer operations eliminate all heap allocations at runtime. A single `Instruction[]` allocation plus literal string parsing at compile time, pure stack thereafter
 - **Dual Backend**: Interpreter for full platform compatibility (including IL2CPP/AOT), JIT via LINQ Expression Tree compilation to delegate, with automatic fallback on platforms that do not support runtime code generation
-- **Custom Instruction Set**: Implement the `IFluxJITDefinition<TData>` interface to define domain-specific operators. A single implementation yields both interpreter and JIT execution paths
+- **Custom Instruction Set**: Implement the `IFluxExprDefinition<TData>` interface to define domain-specific operators. A single implementation yields both interpreter and JIT execution paths
 - **Compact Bytecode**: `Instruction` is an 8-byte fixed-size struct with explicit memory layout. 256 virtual registers, maximum arity 6, immediate operands inlined into the instruction buffer
 - **Hand-Written Lexer**: A `ReadOnlySpan<char>` based zero-allocation scanner with no regex dependency. Configurable operators, brackets, variable patterns, and implicit operators
 
@@ -90,8 +90,8 @@ public enum FloatOp : byte
     LParen, RParen, Return,
 }
 
-// 2. Implement IFluxJITDefinition<float>
-public readonly struct FloatMathDef : IFluxJITDefinition<float>
+// 2. Implement IFluxExprDefinition<float>
+public readonly struct FloatMathDef : IFluxExprDefinition<float>
 {
     public byte GetReturnOp() => (byte)FloatOp.Return;
 

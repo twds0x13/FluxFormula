@@ -9,9 +9,9 @@
 | Parameter | Constraint | Meaning |
 |-----------|-----------|---------|
 | `TData` | `unmanaged` | Data unit type (float, int, custom blittable struct) |
-| `TDef` | `unmanaged, IFluxJITDefinition<TData>` | Operator semantics definition, value type to eliminate virtual dispatch |
+| `TDef` | `unmanaged, IFluxExprDefinition<TData>` | Operator semantics definition, value type to eliminate virtual dispatch |
 
-v3.0.0 removed the `TOper` generic parameter — the operator enum is now a `private` definition detail; all operator methods use `byte`. `IFluxJITDefinition<TData>` replaces the former `IFluxJITDefinition<TData, TOper>`.
+v3.0.0 removed the `TOper` generic parameter — the operator enum is now a `private` definition detail; all operator methods use `byte`. `IFluxExprDefinition<TData>` replaces the former `IFluxExprDefinition<TData, TOper>`.
 
 ---
 
@@ -126,10 +126,10 @@ interface IFluxDefinition<TData> {
   - R1: Bus / default result register.
   - R2–R254: General-purpose registers.
 
-#### 2.2.6 IFluxJITDefinition\<TData\> (v3.0.0)
+#### 2.2.6 IFluxExprDefinition\<TData\> (v3.0.0)
 
 ```csharp
-interface IFluxJITDefinition<TData> : IFluxDefinition<TData> {
+interface IFluxExprDefinition<TData> : IFluxDefinition<TData> {
     Expression GetExpression(byte op, Instruction inst, ParameterExpression[] registers);
 }
 ```
@@ -314,7 +314,7 @@ if (jit && !FluxPlatform.IsJitDisabled)
 {
     try
     {
-        var func = FluxJITCompiler<TData, TDef>.Compile(...);
+        var func = FluxExprCompiler<TData, TDef>.Compile(...);
         return new FluxInstance(..., func, true);
     }
     catch (Exception ex) when (
@@ -423,7 +423,7 @@ else
 
 ---
 
-### 2.9 FluxJITCompiler.cs
+### 2.9 FluxExprCompiler.cs
 
 **Role**: JIT compiler, converting bytecode to LINQ Expression Trees and then compiling to delegates.
 

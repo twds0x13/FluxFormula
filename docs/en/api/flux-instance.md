@@ -7,7 +7,7 @@ ref struct streaming executor. Stack-allocated, zero GC.
 ```csharp
 public ref struct FluxInstance<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 `ref struct` can only exist on the stack — cannot be boxed, cannot be a class field — ensuring zero heap allocation on the execution path.

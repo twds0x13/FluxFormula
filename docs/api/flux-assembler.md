@@ -7,7 +7,7 @@
 ```csharp
 public readonly unsafe ref struct FluxAssembler<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 两个泛型参数：数据类型 `TData` + 定义体 `TDef`。v3.0.0 移除了 `TOper` 泛型参数：操作符枚举变为定义体的内部实现细节，框架层面仅见 `byte`。

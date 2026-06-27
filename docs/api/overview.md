@@ -23,7 +23,7 @@ graph LR
     JIT --> Result
     Interp --> Result
 
-    Def["IFluxJITDefinition<br/>运算符语义"] -.-> Assembler
+    Def["IFluxExprDefinition<br/>运算符语义"] -.-> Assembler
     Def -.-> Interp
     Def -.-> JIT
 
@@ -66,7 +66,7 @@ graph LR
 | `FluxModifier` | `<TData, TDef>` | 不可变字节码容器（缺左操作数，仅可串联） |
 | [FluxInstance](./flux-instance) | `<TData, TDef>` | ref struct 流式执行器 |
 | [IFluxDefinition](./idefinition) | `<TData>` | 运算符定义接口（解释器路径） |
-| [IFluxJITDefinition](./idefinition) | `<TData>` | 运算符定义接口（含 JIT 路径） |
+| [IFluxExprDefinition](./idefinition) | `<TData>` | 运算符定义接口（含 JIT 路径） |
 | [Instruction](./instruction) | — | 8 字节指令结构体 |
 | [FluxToken](./flux-token) | `<TData>` | 词法 Token（`Oper` 为 `byte`） |
 | `FluxLexer<TData>` | `<TData>` | 手写 Span 词法器 |
@@ -94,21 +94,21 @@ graph LR
 - `ChainLink` — 链式公式环节结构体（public struct，通过 `FluxChain.GetLinks()` 访问）
 - `FluxEvaluator<TData, TDef>` — 解释器执行引擎
 - `FluxCompiler<TData, TDef>` — 调车场算法编译器
-- `FluxJITCompiler<TData, TDef>` — LINQ Expression Tree JIT
+- `FluxExprCompiler<TData, TDef>` — LINQ Expression Tree JIT
 - `FluxInjector<TData>` — 数据注入器
 - `OpPair` — 括号配对描述（非泛型）
 
 ## 命名空间
 
 - **`FluxFormula.Core`** — 所有公共类型与内部运行时类型
-- **`FluxFormula.Compiler`** — `FluxCompiler` 与 `FluxJITCompiler`（内部）
+- **`FluxFormula.Compiler`** — `FluxCompiler` 与 `FluxExprCompiler`（内部）
 - **`FluxFormula.Editor`** — `FluxAssetEditor`、`FluxAssetInspector`、Dump 扩展（Editor-only）
 
 ## 泛型约束
 
 ```
 TData  : unmanaged               (float, int, 自定义 blittable struct)
-TDef   : unmanaged, IFluxJITDefinition<TData>
+TDef   : unmanaged, IFluxExprDefinition<TData>
 ```
 
 v3.0.0 移除了 `TOper` 泛型参数：操作符枚举变为定义体的内部实现细节。

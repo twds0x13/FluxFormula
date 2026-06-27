@@ -14,7 +14,7 @@ namespace FluxFormula.Core
     /// <item><description><c>FluxFormula.ToModifier/ToFormula/FindFreeRegister</c> — 寄存器比较类型同步更新</description></item>
     /// <item><description><c>FluxPlatform.MaxRegisters</c> — 更新为新区间的最大值</description></item>
     /// <item><description><c>FluxEvaluator.cs</c> — <c>stackalloc</c> 尺寸基于 <c>sizeof(TData) * MaxRegisters</c>，自动跟踪</description></item>
-    /// <item><description><c>FluxJITCompiler.cs</c> — <c>ParameterExpression[]</c> 数量基于 <c>MaxRegisters</c>，自动跟踪</description></item>
+    /// <item><description><c>FluxExprCompiler.cs</c> — <c>ParameterExpression[]</c> 数量基于 <c>MaxRegisters</c>，自动跟踪</description></item>
     /// <item><description><c>FormulaFormat.InstructionSize</c> — 自动通过 <c>sizeof(Instruction)</c> 跟踪</description></item>
     /// <item><description>重新生成所有 blob（<c>FluxBlobBuilder.Build()</c>），旧格式字节码与新版不兼容</description></item>
     /// <item><description>运行 152 tests 确认自举完成</description></item>

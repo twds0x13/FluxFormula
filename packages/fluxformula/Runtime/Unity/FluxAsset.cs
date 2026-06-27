@@ -107,7 +107,7 @@ namespace FluxFormula.Core
             string source = null,
             VariablePatternRule[] variablePatterns = null)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             _rawData          = formula.ToBytes();
             _typeId           = typeId;
@@ -121,7 +121,7 @@ namespace FluxFormula.Core
         /// </summary>
         public FluxFormula<TData, TDef> Load<TData, TDef>()
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             if (_rawData == null || _rawData.Length == 0)
                 return FluxFormula<TData, TDef>.Empty;

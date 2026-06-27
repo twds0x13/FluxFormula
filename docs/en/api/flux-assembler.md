@@ -7,7 +7,7 @@ Compilation entry point. Compiles lexical tokens into bytecode and instantiates 
 ```csharp
 public readonly unsafe ref struct FluxAssembler<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 Two generic parameters: data type `TData` + definition `TDef`. v3.0.0 removed the `TOper` generic parameter — the operator enum is now an internal implementation detail of the definition; the framework only sees `byte`.

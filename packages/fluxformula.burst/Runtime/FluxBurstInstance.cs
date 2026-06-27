@@ -25,7 +25,7 @@ namespace FluxFormula.Burst
     /// </remarks>
     public struct FluxBurstInstance<TData, TDef> : IDisposable
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         NativeArray<byte> _bytecode;
         NativeArray<TData> _registers;

@@ -2,7 +2,7 @@
 
 可直接拷贝使用的浮点四则运算定义（v3.0.0）。
 
-> **v3.0.0**：操作符枚举现在是定义体的 `private` 实现细节。定义实现 `IFluxJITDefinition<TData>`（1 个泛型参数）。所有操作符相关方法使用 `byte`。
+> **v3.0.0**：操作符枚举现在是定义体的 `private` 实现细节。定义实现 `IFluxExprDefinition<TData>`（1 个泛型参数）。所有操作符相关方法使用 `byte`。
 
 ## 操作符枚举
 
@@ -17,7 +17,7 @@ enum MathOp : byte
 ## 定义体
 
 ```csharp
-readonly struct MathDef : IFluxJITDefinition<float>
+readonly struct MathDef : IFluxExprDefinition<float>
 {
     public byte GetReturnOp() => (byte)MathOp.Return;
 
@@ -129,7 +129,7 @@ Assert.That(runner.Build(tokens).Run(), Is.EqualTo(7f).Within(1e-6f));
 
 ### v3.0.0 关键变更
 
-- `IFluxJITDefinition<float, FloatOp>` → `IFluxJITDefinition<float>`：单泛型参数
+- `IFluxExprDefinition<float, FloatOp>` → `IFluxExprDefinition<float>`：单泛型参数
 - 操作符枚举（`MathOp`）是 `private`，不再需要 `public`
 - 所有方法签名用 `byte` 替代枚举类型
 - `OpPair<FloatOp>` → `OpPair`（非泛型）

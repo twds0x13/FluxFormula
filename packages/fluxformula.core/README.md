@@ -11,7 +11,7 @@ string → Lex → Compile → Evaluate → result
 - `FluxLexer` — handwritten scanner, configurable variable/operator patterns
 - `FluxAssembler` — entry point: `Compile()` + `Instantiate()` + `Build()`
 - `FluxCompiler` — shunting-yard algorithm, R0 short-circuit support
-- `FluxJITCompiler` — LINQ Expression-tree JIT (`FLUX_FAST_EXPRESSION_COMPILER` for FastExpressionCompiler)
+- `FluxExprCompiler` — LINQ Expression-tree JIT (`FLUX_FAST_EXPRESSION_COMPILER` for FastExpressionCompiler)
 - `FluxEvaluator` — interpreted VM (fallback for IL2CPP/AOT)
 - `FluxInstance` — `ref struct` fluent API: `Set()` → `Run()`
 - `FluxInjector` — unsafe data injection with binary-search slot lookup
@@ -19,7 +19,7 @@ string → Lex → Compile → Evaluate → result
 ## Quick start
 
 ```csharp
-// 1. Define your operator system (impl IFluxJITDefinition<TData>)
+// 1. Define your operator system (impl IFluxExprDefinition<TData>)
 var def = new FloatMathDef();
 var assembler = new FluxAssembler<float, FloatMathDef>(def);
 

@@ -19,7 +19,7 @@ using UnityEngine;
 /// </summary>
 public class FluxAssetEditor<TData, TDef> : EditorWindow
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 {
     // ═══════════════════════════════════════════════
     // 窗口注册（通过 FluxEditorRegistry 非泛型类）

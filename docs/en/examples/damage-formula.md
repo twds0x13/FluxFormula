@@ -23,7 +23,7 @@ public enum DamageOp : byte
 ## Definition
 
 ```csharp
-public readonly struct DamageDef : IFluxJITDefinition<float, DamageOp>
+public readonly struct DamageDef : IFluxExprDefinition<float, DamageOp>
 {
     public DamageOp GetReturnOp() => DamageOp.Return;
 

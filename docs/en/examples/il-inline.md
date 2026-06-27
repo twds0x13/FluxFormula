@@ -15,10 +15,10 @@ public enum FloatOp : byte
 
 ## Definition Declaration
 
-Implements both `IFluxILDefinition<float>` (EmitOp inline inlining) and `IFluxJITDefinition<float>` (Expression Tree fallback + interpreter):
+Implements both `IFluxILDefinition<float>` (EmitOp inline inlining) and `IFluxExprDefinition<float>` (Expression Tree fallback + interpreter):
 
 ```csharp
-public readonly struct FloatMathILDef : IFluxILDefinition<float>, IFluxJITDefinition<float>
+public readonly struct FloatMathILDef : IFluxILDefinition<float>, IFluxExprDefinition<float>
 ```
 
 Base methods (`GetKind`, `GetArity`, `GetPrecedence`, `Compute`, etc.) are identical to a standard Definition. The only addition is the `EmitOp` method.

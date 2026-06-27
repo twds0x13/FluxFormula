@@ -19,7 +19,7 @@ public interface IFluxDefinition<TData>
     string GetOperatorName(byte op);                                  // 显示名称（DIM，可选）
 }
 
-public interface IFluxJITDefinition<TData> : IFluxDefinition<TData>
+public interface IFluxExprDefinition<TData> : IFluxDefinition<TData>
     where TData : unmanaged
 {
     Expression GetExpression(byte op, Instruction inst, ParameterExpression[] registers); // JIT 表达式

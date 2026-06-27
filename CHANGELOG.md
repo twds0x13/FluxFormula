@@ -1,3 +1,47 @@
+## [3.7.0](https://github.com/twds0x13/FluxFormula/compare/v3.6.0...v3.7.0) (2026-06-27)
+
+### Features
+
+* **il:** add FluxILCompiler — DynamicMethod + ILGenerator JIT path
+
+  Phase 1-5 complete:
+
+Interface layer (Tier A):
+- IFluxDefinition<TData>.Compute(byte, Instruction, IntPtr, int) — pointer overload
+  with default span-bridge implementation for zero-migration IL adoption
+- FloatMathDef overrides pointer Compute to eliminate span construction
+
+IL compiler (Tier A core):
+- FluxILCompiler<TData,TDef> — ref struct, DynamicMethod + ILGenerator
+- Three-way dispatch: Immediate/Istruction/Return
+- TData[] array-backed contiguous register storage
+- EqualityComparer<TData>.Default.Equals for R0 error check
+- Shared ReadData helper for payload reinterpretation
+
+Tier B (power-user):
+- IFluxILDefinition<TData>.EmitOp — per-opcode inline IL emission
+- FluxILCompiler checks IsAssignableFrom at compile time, delegates to EmitOp
+- Falls back to Tier A for unrecognized opcodes
+
+Cache decoupling:
+- CompiledFunc<TData> extracted from FluxExprCompiler to shared delegate type
+- CompileDelegate(.. ) selects compiler: IL (if IsIlSupported) → Expression (fallback)
+- TryResolveJitDelegate pure cache lookup — compiler-agnostic
+- FluxPlatform.IsIlSupported: RuntimeFeature.IsDynamicCodeSupported
+
+348 tests, 0 failures.
+### Bug Fixes
+
+* IL stloc type mismatch on Mono verifier, fix NativeBytecodeCache Dispose test for struct copy semantics* use non-generic CreateDelegate(Type) for Unity CI, fix benchmarks CompiledFunc refs* Unity CI test compatibility — void* cast, missing isCached, Capacity public, Throws syntax
+
+  - Cast void* to IntPtr in Assert.That for Unity NUnit compat
+- Add missing out _ to Acquire calls in Acquire_DifferentHashes
+- Change NativeBytecodeCache.Capacity from internal to public
+- Use Throws.InstanceOf<ObjectDisposedException> for Unity NUnit compat
+### Documentation
+
+* add IL compiler pipeline page, update platform/jit/overview for three-tier JIT
+
 ## [3.6.0](https://github.com/twds0x13/FluxFormula/compare/v3.5.0...v3.6.0) (2026-06-28)
 
 ### Features
@@ -50,7 +94,7 @@ Examples now cover all 10 core paths + 3 opt-in packages.
 
   - Fix CONTRIBUTING.md stale TOper reference
 - Remove stale FEATURE-streaming-injection.md from translation guide
-- Fix old FluxJITCompiler<TData, TOper, TDef> signature in technical-analysis (zh+en)
+- Fix old FluxExprCompiler<TData, TOper, TDef> signature in technical-analysis (zh+en)
 - Translate 5 pipeline docs from skeleton to full (lexer, platform, compiler, evaluator, jit)
 - Add test-coverage-boundary English translation + sidebar registration
 - Add full translation status table to en/translation-guide.md
@@ -79,7 +123,7 @@ All 12 gaps from quality audit closed. Score: 9.3 → 9.4
 
 | 变更 | 影响 | 迁移 |
 |------|------|------|
-| `TOper` 泛型参数移除 | 所有类型签名减少一个泛型参数。`FluxAssembler<TData, TOper, TDef>` → `FluxAssembler<TData, TDef>`（三参数→两参数） | 删除所有 `TOper` 参数。`IFluxJITDefinition<TData, TOper>` → `IFluxJITDefinition<TData>`。操作符枚举改为 `byte`，定义体内部强转。旧枚举可保留为 `const byte` 容器 |
+| `TOper` 泛型参数移除 | 所有类型签名减少一个泛型参数。`FluxAssembler<TData, TOper, TDef>` → `FluxAssembler<TData, TDef>`（三参数→两参数） | 删除所有 `TOper` 参数。`IFluxExprDefinition<TData, TOper>` → `IFluxExprDefinition<TData>`。操作符枚举改为 `byte`，定义体内部强转。旧枚举可保留为 `const byte` 容器 |
 | `FluxModifier<TData,TDef>` 独立 struct | Formula/Modifier 分属两个类型。`FluxType` 枚举变为 `internal` | `Connect(FluxFormula)` → `Connect(FluxModifier)`，需先调 `.ToModifier()`。`ToMultiplier()` → `ToModifier()`（旧名保留 `[Obsolete]`）。Modifier 无 `Instantiate()` 方法 |
 
 ### v1.x → v2.0.0
@@ -184,11 +228,11 @@ All 12 gaps from quality audit closed. Score: 9.3 → 9.4
 
 **TOper 泛型参数移除。** 所有类型签名减少一个泛型参数：
 
-* `IFluxJITDefinition<TData, TOper>` → `IFluxJITDefinition<TData>`（所有 TOper 参数改为 `byte`）
+* `IFluxExprDefinition<TData, TOper>` → `IFluxExprDefinition<TData>`（所有 TOper 参数改为 `byte`）
 * `FluxAssembler<TData, TOper, TDef>` → `FluxAssembler<TData, TDef>`（三参数→两参数）
 * `FluxFormula<TData, TOper>` → `FluxFormula<TData, TDef>`
 * `FluxInstance<TData, TOper, TDef>` → `FluxInstance<TData, TDef>`
-* 其他受影响类型：FluxToken、FluxLexer、LexerConfig、LexResult、FluxCompiler、FluxEvaluator、FluxJITCompiler、VffResolveResult、OperatorRule、BracketRule
+* 其他受影响类型：FluxToken、FluxLexer、LexerConfig、LexResult、FluxCompiler、FluxEvaluator、FluxExprCompiler、VffResolveResult、OperatorRule、BracketRule
 
 `FluxFormula<TData, TDef>` 在类型层面阻止跨 Definition Connect。Definition 现在是完整、自包含的插件。
 
@@ -234,7 +278,7 @@ v3.0.0——4 个运行时异常全部转为编译错误。
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| **1.0.0** | 2026-04-16 | Initial release: `IFluxJITDefinition`, shunting-yard compiler, interpreter + JIT backends, `FluxAsset` serialization |
+| **1.0.0** | 2026-04-16 | Initial release: `IFluxExprDefinition`, shunting-yard compiler, interpreter + JIT backends, `FluxAsset` serialization |
 | **1.0.1** | 2026-06-18 | Connect empty guard, JIT AOT fallback, TOper sizeof validation |
 | **1.1.0** | 2026-06-18 | `FluxLexer` — config-driven scanner, zero allocation |
 | **1.2.0** | 2026-06-18 | `TokenContext` disambiguation, implicit operator insertion, C# 12→new[] compat |

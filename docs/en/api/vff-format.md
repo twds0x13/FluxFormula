@@ -107,7 +107,7 @@ Checks whether a byte span is a VFF entry. Compares the first 4 bytes against `"
 public static VffResolveResult<TData, TDef> Resolve<TData, TDef>(
     DualHash64 vffHash)
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 Reads a VFF entry from `FormulaCache` and recursively resolves it into a chain formula.
@@ -160,7 +160,7 @@ The output byte layout matches the "Byte Layout" section above: Header ("VFF\0" 
 public static VffResolveResult<TData, TDef> FromBytes<TData, TDef>(
     byte[] data)
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 Parses a VFF from a raw byte array, producing a chain formula. Functionally equivalent to `Resolve()`, but takes VFF bytes directly as a parameter rather than looking them up from `FormulaCache`.

@@ -20,7 +20,7 @@ namespace FluxFormula.Core
             this FormulaLibrary<TData, TDef> library,
             string key)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             string typeId = typeof(TDef).AssemblyQualifiedName;
 
@@ -44,7 +44,7 @@ namespace FluxFormula.Core
             this FormulaLibrary<TData, TDef> library,
             string key)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             string typeId = typeof(TDef).AssemblyQualifiedName;
 

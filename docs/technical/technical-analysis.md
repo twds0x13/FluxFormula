@@ -9,9 +9,9 @@
 | 参数 | 约束 | 含义 |
 |------|------|------|
 | `TData` | `unmanaged` | 数据单元类型 (float, int, 自定义 blittable struct) |
-| `TDef` | `unmanaged, IFluxJITDefinition<TData>` | 操作符语义定义, 值类型以消除虚调用开销 |
+| `TDef` | `unmanaged, IFluxExprDefinition<TData>` | 操作符语义定义, 值类型以消除虚调用开销 |
 
-v3.0.0 移除了 `TOper` 泛型参数：操作符枚举变为定义体 `private` 细节，所有操作符相关方法使用 `byte`。`IFluxJITDefinition<TData>` 替代了此前的 `IFluxJITDefinition<TData, TOper>`。
+v3.0.0 移除了 `TOper` 泛型参数：操作符枚举变为定义体 `private` 细节，所有操作符相关方法使用 `byte`。`IFluxExprDefinition<TData>` 替代了此前的 `IFluxExprDefinition<TData, TOper>`。
 
 ---
 
@@ -126,10 +126,10 @@ interface IFluxDefinition<TData> {
   - R1: 总线/默认结果寄存器。
   - R2-R254: 通用寄存器。
 
-#### 2.2.6 IFluxJITDefinition\<TData\>（v3.0.0）
+#### 2.2.6 IFluxExprDefinition\<TData\>（v3.0.0）
 
 ```csharp
-interface IFluxJITDefinition<TData> : IFluxDefinition<TData> {
+interface IFluxExprDefinition<TData> : IFluxDefinition<TData> {
     Expression GetExpression(byte op, Instruction inst, ParameterExpression[] registers);
 }
 ```
@@ -312,7 +312,7 @@ if (jit && !FluxPlatform.IsJitDisabled)
 {
     try
     {
-        var func = FluxJITCompiler<TData, TDef>.Compile(...);
+        var func = FluxExprCompiler<TData, TDef>.Compile(...);
         return new FluxInstance(..., func, true);
     }
     catch (Exception ex) when (
@@ -421,7 +421,7 @@ else
 
 ---
 
-### 2.9 FluxJITCompiler.cs
+### 2.9 FluxExprCompiler.cs
 
 **定位**: JIT 编译器, 将字节码转为 LINQ Expression Tree 然后编译为委托。
 

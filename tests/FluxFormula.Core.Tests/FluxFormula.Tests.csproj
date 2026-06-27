@@ -35,7 +35,7 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/VffFormat.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/CompiledFunc.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxJITCompiler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxExprCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxILCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/IFluxILDefinition.cs" />
     <!-- 测试文件 (按模块分类) -->
@@ -48,7 +48,7 @@
     <Compile Include="FluxInjectorTests.cs" />        <!-- FluxInjector -->
     <Compile Include="FluxEvaluatorTests.cs" />       <!-- FluxEvaluator 边界 -->
     <Compile Include="FluxConfigTests.cs" />          <!-- FluxConfig -->
-    <Compile Include="FluxJITCompilerTests.cs" />     <!-- FluxJITCompiler -->
+    <Compile Include="FluxExprCompilerTests.cs" />     <!-- FluxExprCompiler -->
     <Compile Include="LexerTests.cs" />               <!-- FluxLexer 核心 -->
     <Compile Include="LexerConfigTests.cs" />         <!-- LexerConfig -->
     <Compile Include="LexerEdgeTests.cs" />           <!-- FluxLexer 内部方法 -->

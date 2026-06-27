@@ -1,4 +1,4 @@
-# IFluxDefinition / IFluxJITDefinition
+# IFluxDefinition / IFluxExprDefinition
 
 运算符语义的核心接口。v3.0.0 移除了 `TOper` 泛型参数：所有操作符相关方法现在接收和返回 `byte`，操作符枚举变为定义体的内部实现细节。
 
@@ -49,10 +49,10 @@ public byte ResolveToken(byte oper, TokenContext ctx)
 
 返回 `default` 以外的值时，执行器将其写入 R0 并短路返回。
 
-## IFluxJITDefinition
+## IFluxExprDefinition
 
 ```csharp
-public interface IFluxJITDefinition<TData> : IFluxDefinition<TData>
+public interface IFluxExprDefinition<TData> : IFluxDefinition<TData>
     where TData : unmanaged
 ```
 
@@ -75,7 +75,7 @@ public interface IFluxJITDefinition<TData> : IFluxDefinition<TData>
 ```csharp
 enum MathOp : byte { Const = 0, Add, Sub, Mul, Div, Neg, Return = 255 }
 
-readonly struct MathDef : IFluxJITDefinition<float>
+readonly struct MathDef : IFluxExprDefinition<float>
 {
     public byte GetReturnOp() => (byte)MathOp.Return;
     public int GetArity(byte op) => ((MathOp)op) switch
@@ -121,7 +121,7 @@ readonly struct MathDef : IFluxJITDefinition<float>
 ## v3.0.0 变更
 
 - `IFluxDefinition<TData, TOper>` → `IFluxDefinition<TData>`（两参数→一参数）
-- `IFluxJITDefinition<TData, TOper>` → `IFluxJITDefinition<TData>`
+- `IFluxExprDefinition<TData, TOper>` → `IFluxExprDefinition<TData>`
 - 所有 `TOper` 参数和返回值 → `byte`
 - 操作符枚举现在是定义体的 `internal`/`private` 细节，不再需要 `public enum`
 - 新增 `GetOperatorName(byte op)` DIM，供编辑器/工具链查询操作码名称

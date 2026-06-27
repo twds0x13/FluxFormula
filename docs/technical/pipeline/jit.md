@@ -1,10 +1,10 @@
 # JIT 编译：从字节码到委托
 
-FluxFormula 提供两条 JIT 编译路径：**IL 发射**（`FluxILCompiler`，Mono/CoreCLR 优先）和 **Expression 树**（`FluxJITCompiler`，全平台回退）。本文档覆盖 Expression 树路径；IL 路径详见 [IL 发射编译器](./il-compiler.md)。两条路径共享同一委托类型 `CompiledFunc<TData>` 和同一缓存入口 `FormulaCache`，调用方不感知委托来源。
+FluxFormula 提供两条 JIT 编译路径：**IL 发射**（`FluxILCompiler`，Mono/CoreCLR 优先）和 **Expression 树**（`FluxExprCompiler`，全平台回退）。本文档覆盖 Expression 树路径；IL 路径详见 [IL 发射编译器](./il-compiler.md)。两条路径共享同一委托类型 `CompiledFunc<TData>` 和同一缓存入口 `FormulaCache`，调用方不感知委托来源。
 
 ## Expression 树编译流程
 
-`FluxJITCompiler<TData, TDef>` 将 `Instruction[]` 字节码编译为 LINQ Expression Tree，再编译为可执行委托。它的核心设计问题：**如何将动态操作码（Definition 定义的任意 byte 值）编译为静态类型的委托，同时保持 2ns 的执行延迟？**
+`FluxExprCompiler<TData, TDef>` 将 `Instruction[]` 字节码编译为 LINQ Expression Tree，再编译为可执行委托。它的核心设计问题：**如何将动态操作码（Definition 定义的任意 byte 值）编译为静态类型的委托，同时保持 2ns 的执行延迟？**
 
 ```
 Instruction[] → Expression Tree → Delegate → GCHandle → FormulaCache

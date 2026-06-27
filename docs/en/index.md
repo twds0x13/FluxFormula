@@ -19,7 +19,7 @@ features:
   - title: Dual-Backend Execution
     details: Interpreter for full platform compatibility. JIT compiles to delegates via LINQ Expression Trees. AOT platforms auto-degrade without manual switching.
   - title: Custom Instruction Sets
-    details: Implement the IFluxJITDefinition interface to define domain operators. A single implementation yields both interpreter and JIT execution paths.
+    details: Implement the IFluxExprDefinition interface to define domain operators. A single implementation yields both interpreter and JIT execution paths.
   - title: Compact Bytecode
     details: Instruction is an 8-byte fixed-size struct with explicit LayoutKind.Explicit memory layout. 256 virtual registers, max arity of 6.
 ---

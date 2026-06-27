@@ -43,7 +43,7 @@ public enum ExpOp : byte
     Const, Add, Mul, Return,
 }
 
-public readonly struct ExplicitDef : IFluxJITDefinition<ExplicitData>
+public readonly struct ExplicitDef : IFluxExprDefinition<ExplicitData>
 {
     private static readonly ConstructorInfo s_ctor = typeof(ExplicitData)
         .GetConstructor(new[] { typeof(float), typeof(int) });

@@ -27,4 +27,4 @@ public struct Instruction
 
 ## 用途
 
-用户一般不直接操作 `Instruction`。它由 `FluxCompiler` 生成，被 `FluxEvaluator` 与 `FluxJITCompiler` 消费。了解布局有助于调试字节码。
+用户一般不直接操作 `Instruction`。它由 `FluxCompiler` 生成，被 `FluxEvaluator` 与 `FluxExprCompiler` 消费。了解布局有助于调试字节码。

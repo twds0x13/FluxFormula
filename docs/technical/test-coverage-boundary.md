@@ -40,7 +40,7 @@
 
 这些未覆盖路径需要特殊测试环境或组合爆炸级用例，投入与收益不成比例。
 
-### `FluxJITCompiler` 的 Expression Tree 边角：92.9%
+### `FluxExprCompiler` 的 Expression Tree 边角：92.9%
 
 剩余 7.1% 分布在以下路径：
 - 多参数操作符（Select/Lerp/Sum6）的寄存器布局

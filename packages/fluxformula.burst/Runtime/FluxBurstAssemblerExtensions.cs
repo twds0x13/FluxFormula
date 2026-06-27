@@ -23,7 +23,7 @@ namespace FluxFormula.Burst
             this FluxAssembler<TData, TDef> assembler,
             FluxFormula<TData, TDef> formula)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             return new FluxBurstInstance<TData, TDef>(formula);
         }
@@ -53,7 +53,7 @@ namespace FluxFormula.Burst
             FluxFormula<TData, TDef> formula,
             INativeBytecodeCache cache)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             return new FluxBurstInstance<TData, TDef>(formula, cache);
         }

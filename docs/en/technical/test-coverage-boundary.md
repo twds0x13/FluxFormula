@@ -40,7 +40,7 @@ A 9-method stub struct written to trigger the `IFluxDefinition.GetOperatorName` 
 
 These uncovered paths require specialized test environments or combinatorial-explosion-level test cases where the cost/benefit ratio is unfavorable.
 
-### `FluxJITCompiler` Expression Tree Edge Cases: 92.9%
+### `FluxExprCompiler` Expression Tree Edge Cases: 92.9%
 
 The remaining 7.1% is distributed across:
 - Register layout for multi-parameter operators (Select/Lerp/Sum6)

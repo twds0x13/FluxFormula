@@ -81,7 +81,7 @@ Key design: **Compilation products (FluxFormula) are immutable**, cacheable in F
 - Instantiate returns a ref struct with stack-frame-limited lifetime — separation prevents the long-lived Formula from being stack-constrained
 
 **JIT auto-degradation mechanism**
-- JIT delegate compilation has two paths: IL emission (`FluxILCompiler`, preferred on Mono/CoreCLR) and Expression Tree (`FluxJITCompiler`, universal fallback)
+- JIT delegate compilation has two paths: IL emission (`FluxILCompiler`, preferred on Mono/CoreCLR) and Expression Tree (`FluxExprCompiler`, universal fallback)
 - IL2CPP / AOT platforms support neither `Expression.Compile()` nor `DynamicMethod`
 - `CompileDelegate` degrades in three tiers: IL → Expression → interpreter
 - After first failure, `FluxPlatform.DisableJit()` is set; subsequent calls in the same process skip JIT entirely

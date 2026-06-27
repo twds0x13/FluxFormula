@@ -7,7 +7,7 @@ A chain formula that cannot be evaluated directly. Produced by `FluxFormula.Conn
 ```csharp
 public readonly struct FluxChain<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 ## Acquisition

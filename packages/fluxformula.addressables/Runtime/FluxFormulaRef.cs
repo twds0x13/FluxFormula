@@ -26,7 +26,7 @@ namespace FluxFormula.Core
     [Serializable]
     public class FluxFormulaRef<TData, TDef> : AssetReferenceT<FluxAsset>
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         public FluxFormulaRef(string guid) : base(guid) { }
 

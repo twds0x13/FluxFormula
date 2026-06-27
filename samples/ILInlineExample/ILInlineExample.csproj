@@ -30,7 +30,7 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/CompiledFunc.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxILCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/IFluxILDefinition.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxJITCompiler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxExprCompiler.cs" />
   </ItemGroup>
 
 </Project>

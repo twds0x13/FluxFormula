@@ -6,7 +6,7 @@ namespace FluxFormula.Core
 {
     public readonly unsafe ref struct FluxAssembler<TData, TDef>
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         private readonly TDef _definition;
 
@@ -219,7 +219,7 @@ namespace FluxFormula.Core
         }
 
         /// <summary>
-        /// 从公式重建紧凑数据 payload（与 FluxJITCompiler.Compile 产生的格式一致）。
+        /// 从公式重建紧凑数据 payload（与 FluxExprCompiler.Compile 产生的格式一致）。
         /// </summary>
         private Instruction[] CreateJitPayload(FluxFormula<TData, TDef> formula)
         {
@@ -272,7 +272,7 @@ namespace FluxFormula.Core
             }
 
             // 2. Expression 树（已有，IL2CPP 回退）
-            return FluxJITCompiler<TData, TDef>.Compile(
+            return FluxExprCompiler<TData, TDef>.Compile(
                 instSpan, definition, out payload, maxRegister: maxRegister);
         }
 

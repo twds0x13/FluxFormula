@@ -7,7 +7,7 @@ ref struct 流式执行器。栈分配，零 GC。
 ```csharp
 public ref struct FluxInstance<TData, TDef>
     where TData : unmanaged
-    where TDef : unmanaged, IFluxJITDefinition<TData>
+    where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
 
 `ref struct` 只能存在于栈上，不可装箱，不可作为类字段，确保执行路径零堆分配。

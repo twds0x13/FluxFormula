@@ -52,7 +52,7 @@ The formula `P0 + V0 * t` treats `*` as scalar multiplication. `V0 * t` compiles
 ## Definition
 
 ```csharp
-public readonly struct Vector3Def : IFluxJITDefinition<Vector3f, Vector3Op>
+public readonly struct Vector3Def : IFluxExprDefinition<Vector3f, Vector3Op>
 {
     public Vector3Op GetReturnOp() => Vector3Op.Return;
 

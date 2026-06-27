@@ -12,7 +12,7 @@ public enum FloatOp : byte
     Const, Add, Sub, Mul, Div, Neg, Select, Lerp, Sum6, Question, Colon, Comma, LParen, RParen, Return,
 }
 
-public readonly struct FloatMathDef : IFluxJITDefinition<float>
+public readonly struct FloatMathDef : IFluxExprDefinition<float>
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public byte GetReturnOp() => (byte)FloatOp.Return;

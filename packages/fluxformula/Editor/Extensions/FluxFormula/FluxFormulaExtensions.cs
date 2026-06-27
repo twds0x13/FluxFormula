@@ -6,7 +6,7 @@ public static class FluxFormulaExtensions
 {
     public static void Dump<TData, TDef>(this FluxFormula<TData, TDef> formula)
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         var insts = formula.Raw();
         UnityEngine.Debug.Log($"--- Formula Dump ({formula.Count} instructions) ---");

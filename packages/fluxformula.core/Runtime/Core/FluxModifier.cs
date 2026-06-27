@@ -12,7 +12,7 @@ namespace FluxFormula.Core
     /// <typeparam name="TDef">定义体（操作符语义实现）</typeparam>
     public readonly struct FluxModifier<TData, TDef>
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         internal readonly FluxFormula<TData, TDef> Inner;
 

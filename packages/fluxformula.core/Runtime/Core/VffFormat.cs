@@ -148,7 +148,7 @@ namespace FluxFormula.Core
     /// <summary>VFF 解析结果：包含构建好的链式公式和参数覆写元数据。</summary>
     public readonly struct VffResolveResult<TData, TDef>
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         /// <summary>解析产出的链式公式（可传入 <see cref="FluxAssembler{TData, TDef}.Instantiate(FluxChain{TData, TDef}, bool)"/>）</summary>
         public readonly FluxChain<TData, TDef> Chain;
@@ -199,7 +199,7 @@ namespace FluxFormula.Core
         public static unsafe VffResolveResult<TData, TDef> Resolve<TData, TDef>(
             DualHash64 vffHash)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             if (!FormulaCache.Instance.TryGet(vffHash, out IntPtr vffPtr, out int vffLen))
                 throw new InvalidOperationException(
@@ -222,7 +222,7 @@ namespace FluxFormula.Core
         /// </exception>
         public static VffResolveResult<TData, TDef> FromBytes<TData, TDef>(byte[] data)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             var vffBytes = new ReadOnlySpan<byte>(data);
             // FromBytes 没有顶层哈希：VFF 字节来自外部，不在缓存中，因此无法被其他 VFF 引用形成循环。
@@ -339,7 +339,7 @@ namespace FluxFormula.Core
             ReadOnlySpan<byte> vffBytes,
             System.Collections.Generic.HashSet<DualHash64> visited)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             // ── 解析头部 ──
             if (!IsVff(vffBytes))
@@ -381,7 +381,7 @@ namespace FluxFormula.Core
                 ReadOnlySpan<byte> vffBytes,
                 System.Collections.Generic.HashSet<DualHash64> visited)
             where TData : unmanaged
-            where TDef : unmanaged, IFluxJITDefinition<TData>
+            where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             byte linkCount     = vffBytes[5];
             byte overrideCount = vffBytes[6];

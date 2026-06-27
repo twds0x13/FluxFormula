@@ -164,7 +164,7 @@ Connect originally contained the threshold check (>8 links → merge), coupling 
 | Topic | Notes |
 |-------|-------|
 | Per-link JIT evaluation | `FluxAssembler.InstantiateJitChain()` compiles each link into an independent delegate; `FluxInstance.RunJitChain()` chains them via `SetIndex(0, prevResult)`. Eliminates forced ToAtomic merging on the JIT path. |
-| MaxRegister on-demand allocation | Formula header stores compile-time maximum register number. `FluxEvaluator` and `FluxJITCompiler` allocate registers on demand instead of full 255. |
+| MaxRegister on-demand allocation | Formula header stores compile-time maximum register number. `FluxEvaluator` and `FluxExprCompiler` allocate registers on demand instead of full 255. |
 | FormulaFormat / BinaryFormat centralization | Format definition and byte-level I/O each centralized into a single source file, eliminating 9+ scattered helpers. |
 | FluxConfig global configuration | Replaces hardcoded constants (cache capacity, merge threshold, buffer size). Unity integration via `FluxConfigAsset` ScriptableObject auto-injection. |
 

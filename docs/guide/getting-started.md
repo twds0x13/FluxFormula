@@ -23,10 +23,10 @@ enum MathOp : byte
 
 ## 第 2 步：实现定义
 
-实现 `IFluxJITDefinition<float>`（单泛型参数），所有操作符相关方法接收/返回 `byte`：
+实现 `IFluxExprDefinition<float>`（单泛型参数），所有操作符相关方法接收/返回 `byte`：
 
 ```csharp
-readonly struct MathDef : IFluxJITDefinition<float>
+readonly struct MathDef : IFluxExprDefinition<float>
 {
     public byte GetReturnOp() => (byte)MathOp.Return;
 
@@ -188,7 +188,7 @@ float result = runner.Build(tokens, jit: true).Run();
 | v2.x | v3.0.0 |
 |------|--------|
 | `public enum FloatOp : byte` | `enum MathOp : byte`（private） |
-| `IFluxJITDefinition<float, FloatOp>` | `IFluxJITDefinition<float>` |
+| `IFluxExprDefinition<float, FloatOp>` | `IFluxExprDefinition<float>` |
 | `GetPrecedence(FloatOp op)` | `GetPrecedence(byte op)` |
 | `ResolveToken(FloatOp op, ...)` | `ResolveToken(byte oper, ...)` |
 | `OpPair<FloatOp>` | `OpPair`（非泛型） |
@@ -198,5 +198,5 @@ float result = runner.Build(tokens, jit: true).Run();
 ## 下一步
 
 - [核心概念](/guide/core-concepts) — Token → Formula → Instance 完整流水线
-- [自定义运算符](/guide/writing-a-definition) — `IFluxJITDefinition` 各方法详解
+- [自定义运算符](/guide/writing-a-definition) — `IFluxExprDefinition` 各方法详解
 - [完整示例](/examples/float-math) — 可直接拷贝的 MathDef 完整实现

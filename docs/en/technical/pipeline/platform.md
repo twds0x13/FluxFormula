@@ -72,7 +72,7 @@ FluxAssembler.Instantiate(jit: true)
        └→ CompileDelegate (compiler selector)
             ├─ (1) FluxILCompiler.Compile()       ← IL emission (when IsIlSupported is true)
             │    └→ PlatformNotSupportedException → degrade to (2)
-            └─ (2) FluxJITCompiler.Compile()      ← Expression Tree (universal fallback)
+            └─ (2) FluxExprCompiler.Compile()      ← Expression Tree (universal fallback)
                  └→ PlatformNotSupportedException → FluxPlatform.DisableJit()
                       └→ (3) fall back to interpreter path
 ```

@@ -11,15 +11,15 @@ namespace FluxFormula.Compiler
     /// 直接将字节码编译为委托，跳过 Expression 树的构建开销。
     /// </summary>
     /// <remarks>
-    /// <para>与 <see cref="FluxJITCompiler{TData, TDef}"/> 共享同一个委托类型
-    /// <see cref="FluxJITCompiler{TData, TDef}.CompiledFunc"/> 和缓存入口。</para>
+    /// <para>与 <see cref="FluxExprCompiler{TData, TDef}"/> 共享同一个委托类型
+    /// <see cref="FluxExprCompiler{TData, TDef}.CompiledFunc"/> 和缓存入口。</para>
     ///
     /// <para>IL 路径仅在 <see cref="System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported"/>
     /// 为 true 时可用（Mono / CoreCLR）；IL2CPP 平台自动降级到 Expression 树路径。</para>
     /// </remarks>
     internal readonly ref struct FluxILCompiler<TData, TDef>
         where TData : unmanaged
-        where TDef : unmanaged, IFluxJITDefinition<TData>
+        where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         /// <summary>sizeof(TData) 向上取整到 8 字节（Instruction 大小）</summary>
         private static readonly int DataSlots = FormulaFormat.DataSlots<TData>();
@@ -51,7 +51,7 @@ namespace FluxFormula.Compiler
             typeof(Instruction).GetField(nameof(Instruction.Raw))!;
 
         /// <summary>
-        /// 编译字节码为可执行委托（与 <see cref="FluxJITCompiler{TData, TDef}.Compile"/> 签名一致）。
+        /// 编译字节码为可执行委托（与 <see cref="FluxExprCompiler{TData, TDef}.Compile"/> 签名一致）。
         /// </summary>
         public static CompiledFunc<TData> Compile(
             ReadOnlySpan<Instruction> raw,
