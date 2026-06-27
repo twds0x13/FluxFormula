@@ -54,8 +54,8 @@ namespace FluxFormula.Burst.Tests
 
             unsafe
             {
-                var p1 = na1.GetUnsafePtr();
-                var p2 = na2.GetUnsafePtr();
+                var p1 = (IntPtr)na1.GetUnsafePtr();
+                var p2 = (IntPtr)na2.GetUnsafePtr();
                 Assert.That(p1, Is.EqualTo(p2),
                     "同 hash 的两次 Acquire 应返回同一块 NativeArray 内存");
             }
@@ -86,14 +86,14 @@ namespace FluxFormula.Burst.Tests
             var hash1 = DualHash64.Compute(new ReadOnlySpan<byte>(src1));
             var hash2 = DualHash64.Compute(new ReadOnlySpan<byte>(src2));
 
-            var na1 = _cache.Acquire(hash1, src1);
-            var na2 = _cache.Acquire(hash2, src2);
+            var na1 = _cache.Acquire(hash1, src1, out _);
+            var na2 = _cache.Acquire(hash2, src2, out _);
 
             Assert.That(_cache.Count, Is.EqualTo(2));
 
             unsafe
             {
-                Assert.That(na1.GetUnsafePtr(), Is.Not.EqualTo(na2.GetUnsafePtr()),
+                Assert.That((IntPtr)na1.GetUnsafePtr(), Is.Not.EqualTo((IntPtr)na2.GetUnsafePtr()),
                     "不同 hash 应返回不同的 NativeArray");
             }
 
@@ -226,7 +226,7 @@ namespace FluxFormula.Burst.Tests
             var reacquired = smallCache.Acquire(pinnedHash, pinnedSrc, out _);
             unsafe
             {
-                Assert.That(reacquired.GetUnsafePtr(), Is.EqualTo(pinnedNa.GetUnsafePtr()),
+                Assert.That((IntPtr)reacquired.GetUnsafePtr(), Is.EqualTo((IntPtr)pinnedNa.GetUnsafePtr()),
                     "被引用的条目不应被驱逐——指针应不变");
             }
 
@@ -307,7 +307,7 @@ namespace FluxFormula.Burst.Tests
 
             Assert.That(
                 () => _cache.Acquire(hash, src, out _),
-                Throws.ObjectDisposedException,
+                Throws.InstanceOf<ObjectDisposedException>(),
                 "Dispose 后 Acquire 应抛出 ObjectDisposedException");
         }
 

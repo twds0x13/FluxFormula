@@ -40,7 +40,7 @@ namespace FluxFormula.Burst
         // ═══════════════════════════════════════════════════════
 
         /// <summary>当前槽位数（构造时从 <see cref="FluxConfig"/> 读取）</summary>
-        internal readonly int Capacity;
+        public readonly int Capacity;
 
         /// <summary>DualHash64.XxHash64 分量</summary>
         private readonly ulong[] _xxHashKeys;
