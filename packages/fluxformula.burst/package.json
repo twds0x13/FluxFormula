@@ -1,11 +1,11 @@
 {
   "name": "com.twds0x13.fluxformula.burst",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "displayName": "FluxFormula Burst",
   "description": "Unity Jobs + Burst evaluator for FluxFormula — concurrent, allocation-free formula evaluation in worker threads.",
   "unity": "2021.3",
   "dependencies": {
-    "com.twds0x13.fluxformula.core": "3.4.0",
+    "com.twds0x13.fluxformula.core": "3.5.0",
     "com.unity.burst": "1.8.0",
     "com.unity.collections": "2.1.0"
   },

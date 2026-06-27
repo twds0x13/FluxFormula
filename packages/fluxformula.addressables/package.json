@@ -1,7 +1,7 @@
 {
   "name": "com.twds0x13.fluxformula.addressables",
   "displayName": "FluxFormula Addressables",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "author": {
     "name": "Twds0x13",
     "url": "https://github.com/twds0x13"
@@ -17,8 +17,8 @@
   "license": "MIT",
   "documentationUrl": "https://twds0x13.github.io/FluxFormula/",
   "dependencies": {
-    "com.twds0x13.fluxformula.core": "3.4.0",
-    "com.twds0x13.fluxformula": "3.4.0"
+    "com.twds0x13.fluxformula.core": "3.5.0",
+    "com.twds0x13.fluxformula": "3.5.0"
   },
   "samples": [
     {

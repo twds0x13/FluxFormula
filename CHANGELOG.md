@@ -27,6 +27,16 @@
 
 ---
 
+# [3.5.0](https://github.com/twds0x13/FluxFormula/compare/v3.4.0...v3.5.0) (2026-06-27)
+
+### Features
+
+* **burst:** add NativeBytecodeCache — shared NativeArray\<byte\> cache with reference counting for Jobs system ([86fd6bb](https://github.com/twds0x13/FluxFormula/commit/86fd6bb5c1774d33a34858ee876605ac))
+* **burst:** add FluxBurstInstance(formula, cache) constructor — same-formula instances share bytecode via cache
+* **burst:** add CreateBurstInstance(assembler, formula, cache) extension overload
+* **config:** shrink FormulaCacheCapacity default from 2048 to 256
+* **config:** add NativeBytecodeCacheCapacity (default 64) to FluxConfig
+
 # [3.4.0](https://github.com/twds0x13/FluxFormula/compare/v3.3.0...v3.4.0) (2026-06-26)
 
 ### Features

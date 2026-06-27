@@ -8,7 +8,7 @@ namespace FluxFormula.Burst
     public static class FluxBurstAssemblerExtensions
     {
         /// <summary>
-        /// 为公式创建 Burst 兼容的求值器。
+        /// 为公式创建 Burst 兼容的求值器（独立字节码）。
         /// </summary>
         /// <example>
         /// <code>
@@ -26,6 +26,36 @@ namespace FluxFormula.Burst
             where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             return new FluxBurstInstance<TData, TDef>(formula);
+        }
+
+        /// <summary>
+        /// 为公式创建 Burst 兼容的求值器（共享字节码缓存）。
+        /// 同公式的多个实例复用 <paramref name="cache"/> 中的同一块 <see cref="NativeArray{Byte}"/>。
+        /// </summary>
+        /// <param name="assembler">汇编器（扩展目标）</param>
+        /// <param name="formula">公式</param>
+        /// <param name="cache">共享字节码缓存</param>
+        /// <example>
+        /// <code>
+        /// var cache = new NativeBytecodeCache();
+        /// for (int i = 0; i &lt; 100; i++)
+        /// {
+        ///     var job = assembler.CreateBurstInstance(formula, cache)
+        ///         .SetIndex(0, inputs[i]);
+        ///     handle = job.Schedule(handle);
+        ///     // ... job.Dispose() 自动调 cache.Release()
+        /// }
+        /// cache.Dispose(); // 应用退出时
+        /// </code>
+        /// </example>
+        public static FluxBurstInstance<TData, TDef> CreateBurstInstance<TData, TDef>(
+            this FluxAssembler<TData, TDef> assembler,
+            FluxFormula<TData, TDef> formula,
+            NativeBytecodeCache cache)
+            where TData : unmanaged
+            where TDef : unmanaged, IFluxJITDefinition<TData>
+        {
+            return new FluxBurstInstance<TData, TDef>(formula, cache);
         }
     }
 }

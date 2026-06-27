@@ -17,6 +17,9 @@ namespace FluxFormula.Burst
     ///
     /// <para>使用完毕后必须调用 <see cref="Dispose"/> 释放 NativeArray。</para>
     ///
+    /// <para>大批量同公式实例推荐使用 <see cref="NativeBytecodeCache"/> 共享字节码，
+    /// 通过 <see cref="FluxBurstInstance(FluxFormula{TData, TDef}, NativeBytecodeCache)"/> 构造。</para>
+    ///
     /// <para>线程安全：<see cref="SetIndex"/> 和 <see cref="Set"/> 应在主线程调用。
     /// <see cref="Run()"/> 同步执行。多 Job 并发执行需每个 Job 持有自己的实例。</para>
     /// </remarks>
@@ -30,17 +33,48 @@ namespace FluxFormula.Burst
         int[] _slotOffsets;
         byte _maxRegister;
         bool _disposed;
+        NativeBytecodeCache _cache;
+        DualHash64 _bytecodeHash;
+        bool _ownsBytecode;
 
         // ── 构造 ──
 
         /// <summary>
-        /// 从 <see cref="FluxFormula{TData, TDef}"/> 构造 Burst 求值器。
+        /// 从 <see cref="FluxFormula{TData, TDef}"/> 构造 Burst 求值器（独立字节码）。
         /// 将字节码拷贝到 NativeArray，预计算 Immediate 槽位偏移量。
+        /// 每个实例持有自己的字节码副本——适合少量独立实例。
+        /// 大批量同公式实例推荐使用 <see cref="FluxBurstInstance(FluxFormula{TData, TDef}, NativeBytecodeCache)"/>。
         /// </summary>
         public FluxBurstInstance(FluxFormula<TData, TDef> formula)
         {
             byte[] raw = formula.ToBytes();
             _bytecode = new NativeArray<byte>(raw, Allocator.Persistent);
+            _registers = new NativeArray<TData>(256, Allocator.Persistent);
+            _varSlots = formula.VariableSlots;
+            _maxRegister = formula.MaxRegister;
+            _disposed = false;
+            _cache = null;
+            _bytecodeHash = default;
+            _ownsBytecode = true;
+
+            // 预计算每个 Immediate 槽位的字节偏移量
+            _slotOffsets = ComputeSlotOffsets(raw, formula.ImmediateCount);
+        }
+
+        /// <summary>
+        /// 从 <see cref="FluxFormula{TData, TDef}"/> 构造 Burst 求值器（共享字节码缓存）。
+        /// 字节码通过 <see cref="NativeBytecodeCache"/> 共享——同公式的多个实例复用同一块
+        /// <see cref="NativeArray{Byte}"/>，通过引用计数管理生命周期。
+        /// </summary>
+        /// <param name="formula">公式</param>
+        /// <param name="cache">共享字节码缓存。实例 Dispose 时自动调用 <see cref="NativeBytecodeCache.Release"/>。</param>
+        public FluxBurstInstance(FluxFormula<TData, TDef> formula, NativeBytecodeCache cache)
+        {
+            byte[] raw = formula.ToBytes();
+            _bytecodeHash = DualHash64.Compute(new ReadOnlySpan<byte>(raw));
+            _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+            _ownsBytecode = false;
+            _bytecode = cache.Acquire(_bytecodeHash, raw);
             _registers = new NativeArray<TData>(256, Allocator.Persistent);
             _varSlots = formula.VariableSlots;
             _maxRegister = formula.MaxRegister;
@@ -170,8 +204,18 @@ namespace FluxFormula.Burst
         public void Dispose()
         {
             if (_disposed) return;
-            if (_bytecode  .IsCreated) _bytecode  .Dispose();
-            if (_registers .IsCreated) _registers .Dispose();
+
+            if (_ownsBytecode)
+            {
+                if (_bytecode.IsCreated)
+                    _bytecode.Dispose();
+            }
+            else
+            {
+                _cache?.Release(_bytecodeHash);
+            }
+
+            if (_registers.IsCreated) _registers.Dispose();
             _disposed = true;
         }
 
