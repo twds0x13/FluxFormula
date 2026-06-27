@@ -80,6 +80,7 @@ npx vitepress dev
 | `api/vff-format.md` | `en/api/vff-format.md` | ✅ |
 | `api/dualhash64.md` | `en/api/dualhash64.md` | ✅ |
 | `examples/float-math.md` | `en/examples/float-math.md` | ✅ |
+| `examples/token-direct.md` | `en/examples/token-direct.md` | ✅ |
 | `examples/damage-formula.md` | `en/examples/damage-formula.md` | ✅ |
 | `examples/error-handling.md` | `en/examples/error-handling.md` | ✅ |
 | `examples/vector3.md` | `en/examples/vector3.md` | ✅ |

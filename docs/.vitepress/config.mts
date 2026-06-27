@@ -56,6 +56,7 @@ export default withMermaid(
               text: "示例",
               items: [
                 { text: "浮点四则运算", link: "/examples/float-math" },
+                { text: "Token 直构", link: "/examples/token-direct" },
                 { text: "游戏伤害公式", link: "/examples/damage-formula" },
                 { text: "R0 短路错误处理", link: "/examples/error-handling" },
                 { text: "Vector3 运算", link: "/examples/vector3" },
@@ -151,6 +152,7 @@ export default withMermaid(
               text: "Examples",
               items: [
                 { text: "Float Arithmetic", link: "/en/examples/float-math" },
+                { text: "Direct Tokens", link: "/en/examples/token-direct" },
                 { text: "Damage Formula", link: "/en/examples/damage-formula" },
                 { text: "R0 Error Handling", link: "/en/examples/error-handling" },
                 { text: "Vector3 Operations", link: "/en/examples/vector3" },
