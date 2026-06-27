@@ -32,7 +32,7 @@ namespace FluxFormula.Burst.Tests
             byte[] src = { 1, 2, 3, 4 };
             var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
 
-            var na = _cache.Acquire(hash, src);
+            var na = _cache.Acquire(hash, src, out _);
             Assert.That(na.IsCreated, Is.True);
             Assert.That(na.Length, Is.EqualTo(4));
             Assert.That(na[0], Is.EqualTo(1));
@@ -49,8 +49,8 @@ namespace FluxFormula.Burst.Tests
             byte[] src = { 10, 20, 30 };
             var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
 
-            var na1 = _cache.Acquire(hash, src);
-            var na2 = _cache.Acquire(hash, src);
+            var na1 = _cache.Acquire(hash, src, out _);
+            var na2 = _cache.Acquire(hash, src, out _);
 
             unsafe
             {
@@ -70,8 +70,8 @@ namespace FluxFormula.Burst.Tests
             byte[] src = { 0xFF };
             var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
 
-            _cache.Acquire(hash, src);  // refCount = 1
-            _cache.Acquire(hash, src);  // refCount = 2
+            _cache.Acquire(hash, src, out _);  // refCount = 1
+            _cache.Acquire(hash, src, out _);  // refCount = 2
             // 不抛异常即通过——第二次 Acquire 应命中缓存
 
             _cache.Release(hash);
@@ -118,7 +118,7 @@ namespace FluxFormula.Burst.Tests
         {
             byte[] src = { 1 };
             var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
-            _cache.Acquire(hash, src);
+            _cache.Acquire(hash, src, out _);
             _cache.Dispose();
 
             Assert.That(() => _cache.Release(hash), Throws.Nothing,
@@ -140,7 +140,7 @@ namespace FluxFormula.Burst.Tests
             {
                 byte[] src = BitConverter.GetBytes(i);
                 hashes[i] = DualHash64.Compute(new ReadOnlySpan<byte>(src));
-                arrays[i] = _cache.Acquire(hashes[i], src);
+                arrays[i] = _cache.Acquire(hashes[i], src, out _);
 
                 Assert.That(arrays[i].IsCreated, Is.True);
                 unsafe
@@ -171,7 +171,7 @@ namespace FluxFormula.Burst.Tests
             {
                 byte[] src = BitConverter.GetBytes(i * 13);
                 hashes[i] = DualHash64.Compute(new ReadOnlySpan<byte>(src));
-                _cache.Acquire(hashes[i], src);
+                _cache.Acquire(hashes[i], src, out _);
                 _cache.Release(hashes[i]);  // refCount → 0，变为可驱逐
             }
 
@@ -180,7 +180,7 @@ namespace FluxFormula.Burst.Tests
             // 再写一个——触发驱逐
             byte[] extraSrc = BitConverter.GetBytes(99999);
             var extraHash = DualHash64.Compute(new ReadOnlySpan<byte>(extraSrc));
-            var extraNa = _cache.Acquire(extraHash, extraSrc);
+            var extraNa = _cache.Acquire(extraHash, extraSrc, out _);
 
             Assert.That(extraNa.IsCreated, Is.True);
             Assert.That(extraNa[0], Is.EqualTo(extraSrc[0]));
@@ -199,14 +199,14 @@ namespace FluxFormula.Burst.Tests
             // 填满缓存（7 个 refCount=0 + 1 个 refCount=1）
             var pinnedSrc = new byte[] { 42 };
             var pinnedHash = DualHash64.Compute(new ReadOnlySpan<byte>(pinnedSrc));
-            var pinnedNa = smallCache.Acquire(pinnedHash, pinnedSrc);
+            var pinnedNa = smallCache.Acquire(pinnedHash, pinnedSrc, out _);
             // pinnedNa refCount = 1 —— 不可驱逐
 
             for (int i = 0; i < 7; i++)
             {
                 byte[] src = BitConverter.GetBytes(i);
                 var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
-                smallCache.Acquire(hash, src);
+                smallCache.Acquire(hash, src, out _);
                 smallCache.Release(hash); // refCount → 0
             }
 
@@ -218,12 +218,12 @@ namespace FluxFormula.Burst.Tests
             {
                 byte[] src = BitConverter.GetBytes(i + 100);
                 var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
-                smallCache.Acquire(hash, src);
+                smallCache.Acquire(hash, src, out _);
                 smallCache.Release(hash);
             }
 
             // pinned 条目应仍然可检索
-            var reacquired = smallCache.Acquire(pinnedHash, pinnedSrc);
+            var reacquired = smallCache.Acquire(pinnedHash, pinnedSrc, out _);
             unsafe
             {
                 Assert.That(reacquired.GetUnsafePtr(), Is.EqualTo(pinnedNa.GetUnsafePtr()),
@@ -235,11 +235,11 @@ namespace FluxFormula.Burst.Tests
         }
 
         // ═══════════════════════════════════════════════════════
-        // 驱逐：全表被引用时抛异常
+        // 优雅溢出
         // ═══════════════════════════════════════════════════════
 
         [Test]
-        public void Overflow_AllReferenced_Throws()
+        public void Overflow_AllReferenced_GracefulFallback()
         {
             using var tinyCache = new NativeBytecodeCache(capacity: 4);
 
@@ -248,18 +248,27 @@ namespace FluxFormula.Burst.Tests
             {
                 byte[] src = BitConverter.GetBytes(i);
                 var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
-                tinyCache.Acquire(hash, src);
+                tinyCache.Acquire(hash, src, out _);
                 // 不 Release —— refCount 全为 1
             }
 
-            // 第 5 个写入应抛异常
+            // 第 5 个写入：全表被引用，优雅溢出返回独立 NativeArray
             byte[] overflowSrc = BitConverter.GetBytes(999);
             var overflowHash = DualHash64.Compute(new ReadOnlySpan<byte>(overflowSrc));
 
-            Assert.That(
-                () => tinyCache.Acquire(overflowHash, overflowSrc),
-                Throws.InvalidOperationException,
-                "全表被引用且无空槽位时应抛出 InvalidOperationException");
+            var na = tinyCache.Acquire(overflowHash, overflowSrc, out bool isCached);
+
+            Assert.That(na.IsCreated, Is.True,
+                "即使缓存溢出，仍应返回有效的 NativeArray");
+            Assert.That(na[0], Is.EqualTo(overflowSrc[0]),
+                "返回的 NativeArray 应包含正确的数据");
+            Assert.That(isCached, Is.False,
+                "溢出时应标记 isCached = false——调用方自行管理生命周期");
+            Assert.That(tinyCache.Count, Is.EqualTo(4),
+                "溢出不影响已缓存的条目数");
+
+            // 调用方负责释放独立 NativeArray
+            na.Dispose();
         }
 
         // ═══════════════════════════════════════════════════════
@@ -271,7 +280,7 @@ namespace FluxFormula.Burst.Tests
         {
             byte[] src = { 7, 7, 7 };
             var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
-            var na = _cache.Acquire(hash, src);
+            var na = _cache.Acquire(hash, src, out _);
 
             _cache.Dispose();
 
@@ -297,7 +306,7 @@ namespace FluxFormula.Burst.Tests
             var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
 
             Assert.That(
-                () => _cache.Acquire(hash, src),
+                () => _cache.Acquire(hash, src, out _),
                 Throws.ObjectDisposedException,
                 "Dispose 后 Acquire 应抛出 ObjectDisposedException");
         }
@@ -311,8 +320,8 @@ namespace FluxFormula.Burst.Tests
         {
             Assert.That(_cache.Count, Is.EqualTo(0));
             Assert.That(_cache.TombstoneCount, Is.EqualTo(0));
-            Assert.That(_cache.Capacity, Is.EqualTo(64),
-                "默认容量应为 FluxConfig 的 64");
+            Assert.That(_cache.Capacity, Is.EqualTo(256),
+                "默认容量应为 FluxConfig 的 256");
         }
 
         [Test]
@@ -321,7 +330,7 @@ namespace FluxFormula.Burst.Tests
             byte[] src = { 0xAA };
             var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
 
-            var na = _cache.Acquire(hash, src);
+            var na = _cache.Acquire(hash, src, out _);
             Assert.That(na.IsCreated, Is.True);
             Assert.That(_cache.Count, Is.EqualTo(1));
 
@@ -342,8 +351,8 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void Capacity_UsesFluxConfig_WhenZero()
         {
-            // 默认构造使用 FluxConfig.Current.NativeBytecodeCacheCapacity (64)
-            Assert.That(_cache.Capacity, Is.EqualTo(64));
+            // 默认构造使用 FluxConfig.Current.NativeBytecodeCacheCapacity (256)
+            Assert.That(_cache.Capacity, Is.EqualTo(256));
         }
 
         // ═══════════════════════════════════════════════════════
@@ -357,8 +366,8 @@ namespace FluxFormula.Burst.Tests
             var k1 = new DualHash64(0xABCDEF0123456789UL, 0x1111111111111111UL);
             var k2 = new DualHash64(0xABCDEF0123456789UL, 0x2222222222222222UL);
 
-            _cache.Acquire(k1, src);
-            _cache.Acquire(k2, src);
+            _cache.Acquire(k1, src, out _);
+            _cache.Acquire(k2, src, out _);
 
             Assert.That(_cache.Count, Is.EqualTo(2),
                 "xxHash 相同但 FNV 不同的两个 key 应占不同槽位");
@@ -382,7 +391,7 @@ namespace FluxFormula.Burst.Tests
             {
                 byte[] src = BitConverter.GetBytes(i);
                 hashes[i] = DualHash64.Compute(new ReadOnlySpan<byte>(src));
-                smallCache.Acquire(hashes[i], src);
+                smallCache.Acquire(hashes[i], src, out _);
                 smallCache.Release(hashes[i]); // refCount → 0
             }
 
@@ -391,7 +400,7 @@ namespace FluxFormula.Burst.Tests
             {
                 byte[] src = BitConverter.GetBytes(i + 100);
                 var hash = DualHash64.Compute(new ReadOnlySpan<byte>(src));
-                smallCache.Acquire(hash, src);
+                smallCache.Acquire(hash, src, out _);
                 smallCache.Release(hash);
             }
 

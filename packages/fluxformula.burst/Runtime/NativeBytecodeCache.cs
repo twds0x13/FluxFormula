@@ -133,8 +133,11 @@ namespace FluxFormula.Burst
         /// <param name="hash">公式字节码的 DualHash64</param>
         /// <param name="source">字节码源数据（来自 <c>formula.ToBytes()</c>）。
         /// 缓存命中时此参数被忽略（调用方可依赖 GC 回收）；未命中时拷贝到 NativeArray。</param>
-        /// <returns>共享的 NativeArray 副本。调用方通过 <see cref="Release"/> 归还引用。</returns>
-        public NativeArray<byte> Acquire(DualHash64 hash, byte[] source)
+        /// <param name="isCached">true 表示返回的 NativeArray 由缓存管理——调用方 Dispose 时必须调用
+        /// <see cref="Release"/>；false 表示全表被引用无法驱逐，返回独立 NativeArray——调用方须自行调用
+        /// <c>NativeArray.Dispose()</c>。</param>
+        /// <returns>NativeArray 副本。</returns>
+        public NativeArray<byte> Acquire(DualHash64 hash, byte[] source, out bool isCached)
         {
             ThrowIfDisposed();
 
@@ -146,12 +149,13 @@ namespace FluxFormula.Burst
                 {
                     // ── 命中：引用计数 +1，返回已有 NativeArray ──
                     Interlocked.Increment(ref _refCounts[slot]);
+                    isCached = true;
                     return _bytecodes[slot];
                 }
 
-                // ── 未命中：分配 NativeArray 并写入 ──
+                // ── 未命中：分配 NativeArray 并尝试写入缓存 ──
                 var nativeArray = new NativeArray<byte>(source, Allocator.Persistent);
-                InsertEntry(hash, nativeArray, source.Length);
+                isCached = InsertEntry(hash, nativeArray, source.Length);
                 return nativeArray;
             }
         }
@@ -255,9 +259,11 @@ namespace FluxFormula.Burst
         }
 
         /// <summary>
-        /// 将新条目插入表中。优先空槽位/墓碑；全表满时驱逐一个 refCount==0 的条目。
+        /// 将新条目插入表中。优先空槽位/墓碑；全表满时尝试驱逐。
         /// </summary>
-        private void InsertEntry(DualHash64 key, NativeArray<byte> nativeArray, int length)
+        /// <returns>true 表示成功缓存；false 表示全表被引用且无法驱逐——
+        /// 调用方应自行管理返回的 NativeArray 生命周期。</returns>
+        private bool InsertEntry(DualHash64 key, NativeArray<byte> nativeArray, int length)
         {
             int insertSlot = FindInsertSlot(key.XxHash64);
 
@@ -268,24 +274,29 @@ namespace FluxFormula.Burst
                 _refCounts[insertSlot] = 1;
                 if (!wasTombstone) _count++;
                 else               _tombstoneCount--;
-            }
-            else
-            {
-                EvictAndWrite(key, nativeArray, length);
+
+                if (_tombstoneCount > Capacity / 4)
+                    Compact();
+
+                return true;
             }
 
-            // 墓碑过多时全量压缩
+            // 全表满——尝试驱逐
+            bool cached = EvictAndWrite(key, nativeArray, length);
+
             if (_tombstoneCount > Capacity / 4)
                 Compact();
+
+            return cached;
         }
 
         /// <summary>
         /// 环形驱逐写入：从 <see cref="_ringHead"/> 开始寻找 refCount==0 的可驱逐槽位，
-        /// 释放其 NativeArray 后写入新值。若完整环形扫描未找到可驱逐槽位（全表被引用），
-        /// 抛出 <see cref="InvalidOperationException"/>——应通过
-        /// <see cref="FluxConfig.NativeBytecodeCacheCapacity"/> 增大容量。
+        /// 释放其 NativeArray 后写入新值。
         /// </summary>
-        private void EvictAndWrite(DualHash64 key, NativeArray<byte> nativeArray, int length)
+        /// <returns>true 表示成功驱逐并缓存；false 表示全表被引用且无空槽/墓碑——
+        /// 返回的 NativeArray 不由缓存管理，调用方应自行负责其生命周期。</returns>
+        private bool EvictAndWrite(DualHash64 key, NativeArray<byte> nativeArray, int length)
         {
             int startRing = _ringHead;
 
@@ -302,12 +313,9 @@ namespace FluxFormula.Burst
 
                 if (_ringHead == startRing)
                 {
-                    // 全表扫描：所有活跃条目均有引用——无法驱逐
-                    // 释放本次未命中分配的 NativeArray 避免泄漏
-                    nativeArray.Dispose();
-                    throw new InvalidOperationException(
-                        $"NativeBytecodeCache (capacity={Capacity}) is full and all entries are actively referenced. " +
-                        "Increase FluxConfig.NativeBytecodeCacheCapacity or ensure Release() is called before eviction.");
+                    // 全表扫描：所有活跃条目均有引用——优雅溢出
+                    // 不释放 nativeArray：由调用方自行管理生命周期
+                    return false;
                 }
             }
 
@@ -328,6 +336,7 @@ namespace FluxFormula.Burst
             WriteSlot(victim, key, nativeArray, length);
             _refCounts[victim] = 1;
             _count++;
+            return true;
         }
 
         /// <summary>

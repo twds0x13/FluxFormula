@@ -22,9 +22,9 @@ namespace FluxFormula
         [Min(256)]
         public int formulaCacheCapacity = 256;
 
-        [Tooltip("NativeBytecodeCache 哈希表槽位数。Jobs 路径中唯一公式种类数通常远小于实例数。")]
+        [Tooltip("NativeBytecodeCache 哈希表槽位数。默认 256，与 FormulaCache 统一。")]
         [Min(64)]
-        public int nativeBytecodeCacheCapacity = 64;
+        public int nativeBytecodeCacheCapacity = 256;
 
         [Header("Chain")]
         [Tooltip("链式公式合并阈值——链长超过此值时合并为原子公式。")]

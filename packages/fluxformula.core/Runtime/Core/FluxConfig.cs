@@ -17,7 +17,7 @@ namespace FluxFormula.Core
         public static readonly FluxConfig Default = new()
         {
             FormulaCacheCapacity          = 256,
-            NativeBytecodeCacheCapacity   = 64,
+            NativeBytecodeCacheCapacity   = 256,
             MergeThreshold                = 8,
             BlobFilePath                  = null,
             DiskCacheDirectory            = null,
@@ -43,7 +43,7 @@ namespace FluxFormula.Core
         /// <summary><see cref="FormulaCache"/> 哈希表槽位数。默认 256。</summary>
         public int FormulaCacheCapacity { get; init; }
 
-        /// <summary><see cref="NativeBytecodeCache"/> 哈希表槽位数。默认 64。</summary>
+        /// <summary><see cref="NativeBytecodeCache"/> 哈希表槽位数。默认 256。</summary>
         /// <remarks>
         /// Jobs 路径中唯一公式种类数通常远小于实例数（~10 种公式 × N 实例）。
         /// 64 槽位覆盖绝大多数使用场景；极端情况可通过 <see cref="Set"/> 调整。
