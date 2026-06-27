@@ -4,9 +4,8 @@ namespace FluxFormula.Core
 {
     /// <summary>
     /// 链式公式：由多次 <see cref="Connect"/> 串联而成的多段字节码序列。
-    /// 不可直接求值；需显式调用 <see cref="ToAtomic"/> 合并为 <see cref="FluxFormula{TData, TDef}"/>
-    /// 后通过 <see cref="FluxAssembler{TData, TDef}"/> 实例化，或直接传入
-    /// <see cref="FluxAssembler{TData, TDef}.Instantiate(FluxChain{TData, TDef}, bool)"/>。
+    /// 需通过 <see cref="FluxAssembler{TData, TDef}.Instantiate(FluxChain{TData, TDef}, bool)"/>
+    /// 实例化后求值，或显式调用 <see cref="ToAtomic"/> 合并为 <see cref="FluxFormula{TData, TDef}"/>。
     /// </summary>
     public readonly struct FluxChain<TData, TDef>
         where TData : unmanaged
