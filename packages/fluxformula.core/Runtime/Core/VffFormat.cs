@@ -12,7 +12,7 @@ namespace FluxFormula.Core
     /// VFF (Virtual FluxFormula) 字节格式定义与解析器。
     /// </summary>
     /// <remarks>
-    /// <para>VFF 不是独立资产类型——它是 blob 中的一种条目，通过 <c>"VFF\0"</c> magic 与公式条目区分。
+    /// <para>VFF 不是独立资产类型：它是 blob 中的一种条目，通过 <c>"VFF\0"</c> magic 与公式条目区分。
     /// VFF 条目和公式条目共存于同一个 blob，使用同一套 <see cref="FluxBlob.Entry"/> 偏移表。</para>
     ///
     /// <para>字节布局：</para>
@@ -21,7 +21,7 @@ namespace FluxFormula.Core
     /// LinkTable:       LinkCount × 22B — Hash(16) + ImmCount(1) + InstCount(2) + Type(1) + VarSlotCount(2)
     /// OverrideTable:   OverrideCount × variable — GlobalSlot(2) + Kind(1) + [DataLen(1) + Data(var)]
     /// </code>
-    /// <para>变量名不存储在 VFF 内——resolve 时通过 <see cref="FormulaFormat.ReadVariableSlots"/>
+    /// <para>变量名不存储在 VFF 内：resolve 时通过 <see cref="FormulaFormat.ReadVariableSlots"/>
     /// 从被引用公式的字节码中直接读取。</para>
     /// </remarks>
     public static partial class VffFormat
@@ -145,7 +145,7 @@ namespace FluxFormula.Core
     // Resolve result
     // ═══════════════════════════════════════════════════════
 
-    /// <summary>VFF 解析结果——包含构建好的链式公式和参数覆写元数据。</summary>
+    /// <summary>VFF 解析结果：包含构建好的链式公式和参数覆写元数据。</summary>
     public readonly struct VffResolveResult<TData, TDef>
         where TData : unmanaged
         where TDef : unmanaged, IFluxJITDefinition<TData>
@@ -184,7 +184,7 @@ namespace FluxFormula.Core
         /// 从 <see cref="FormulaCache"/> 读取 VFF 条目，解析为链式公式。
         /// </summary>
         /// <param name="vffHash">VFF 条目自身的 DualHash64（偏移表中存储的键）</param>
-        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TDef}"/> + 覆写元数据</returns>
+        /// <returns>解析结果：链式 <see cref="FluxFormula{TData, TDef}"/> + 覆写元数据</returns>
         /// <exception cref="InvalidOperationException">
         /// 缓存未命中、条目不是 VFF、版本不支持、或引用的公式不在缓存中。
         /// </exception>
@@ -192,7 +192,7 @@ namespace FluxFormula.Core
         /// 从 <see cref="FormulaCache"/> 读取 VFF 条目，解析为链式公式。
         /// </summary>
         /// <param name="vffHash">VFF 条目自身的 DualHash64（偏移表中存储的键）</param>
-        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TDef}"/> + 覆写元数据</returns>
+        /// <returns>解析结果：链式 <see cref="FluxFormula{TData, TDef}"/> + 覆写元数据</returns>
         /// <exception cref="InvalidOperationException">
         /// 缓存未命中、条目不是 VFF、版本不支持、或引用的公式不在缓存中。
         /// </exception>
@@ -213,10 +213,10 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 从裸字节数组解析 VFF，产出链式公式。
-        /// 被引用的公式仍通过 <see cref="FormulaCache"/> 查找——调用前须将依赖公式注入缓存。
+        /// 被引用的公式仍通过 <see cref="FormulaCache"/> 查找：调用前须将依赖公式注入缓存。
         /// </summary>
         /// <param name="data">VFF 格式的字节数组（以 "VFF\0" magic 开头）</param>
-        /// <returns>解析结果——链式 <see cref="FluxFormula{TData, TDef}"/> + 覆写元数据</returns>
+        /// <returns>解析结果：链式 <see cref="FluxFormula{TData, TDef}"/> + 覆写元数据</returns>
         /// <exception cref="InvalidOperationException">
         /// 字节不是 VFF、版本不支持、或引用的公式不在缓存中。
         /// </exception>
@@ -225,14 +225,14 @@ namespace FluxFormula.Core
             where TDef : unmanaged, IFluxJITDefinition<TData>
         {
             var vffBytes = new ReadOnlySpan<byte>(data);
-            // FromBytes 没有顶层哈希——VFF 字节来自外部，不在缓存中，因此无法被其他 VFF 引用形成循环。
+            // FromBytes 没有顶层哈希：VFF 字节来自外部，不在缓存中，因此无法被其他 VFF 引用形成循环。
             var visited = new System.Collections.Generic.HashSet<DualHash64>();
             return ParseAndResolve<TData, TDef>(vffBytes, visited);
         }
 
         /// <summary>
         /// 将链式公式引用序列化为 VFF 字节数组。
-        /// 与 <see cref="FromBytes{TData, TDef}"/> 配对使用——往返保证链路等价。
+        /// 与 <see cref="FromBytes{TData, TDef}"/> 配对使用，往返保证链路等价。
         /// </summary>
         /// <param name="links">链式链接数组（如来自 <see cref="FluxFormula{TData, TDef}.GetChainLinks"/>）</param>
         /// <param name="overrides">参数覆写列表（无覆写传空数组）</param>
@@ -415,7 +415,7 @@ namespace FluxFormula.Core
                     var (nestedLinks, nestedOverrides, nestedImm) =
                         ResolveLinks<TData, TDef>(fBytes, visited);
 
-                    // 展平嵌套 links——SlotIndex 偏移 cumImm
+                    // 展平嵌套 links：SlotIndex 偏移 cumImm
                     for (int ni = 0; ni < nestedLinks.Length; ni++)
                     {
                         var nl = nestedLinks[ni];
@@ -431,7 +431,7 @@ namespace FluxFormula.Core
                         links.Add(nl);
                     }
 
-                    // 展平嵌套 overrides——GlobalSlot 偏移 cumImm
+                    // 展平嵌套 overrides：GlobalSlot 偏移 cumImm
                     for (int no = 0; no < nestedOverrides.Length; no++)
                     {
                         var nov = nestedOverrides[no];

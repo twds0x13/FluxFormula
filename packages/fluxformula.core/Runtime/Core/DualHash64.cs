@@ -6,7 +6,7 @@ namespace FluxFormula.Core
     /// <summary>
     /// 128 位双重哈希：xxHash64（高 64 位）|| FNV-1a 64（低 64 位）。
     /// 两个内部结构正交的非密码学哈希组合，用于预防结构性碰撞注入。
-    /// 单独攻破任一哈希的已知方法无法同时作用于另一个——攻击者需要求解联立碰撞方程。
+    /// 单独攻破任一哈希的已知方法无法同时作用于另一个：攻击者需要求解联立碰撞方程。
     /// </summary>
     /// <remarks>
     /// 在 FluxFormula 中，此类型是公式字节码完整性验证的核心。
@@ -181,7 +181,7 @@ namespace FluxFormula.Core
                 p++;
             }
 
-            // 最终雪崩混合——确保输入中的每个位都影响输出的每个位
+            // 最终雪崩混合：确保输入中的每个位都影响输出的每个位
             h ^= h >> 33;
             h *= XXH_PRIME_2;
             h ^= h >> 29;
@@ -296,7 +296,7 @@ namespace FluxFormula.Core
         // ═══════════════════════════════════════════════════════
 
         /// <summary>
-        /// 累进组合 hash——为 Connect 链路 key 计算设计。
+        /// 累进组合 hash：为 Connect 链路 key 计算设计。
         /// 用法：key = seed; key = DualHash64.Combine(key, hashA); key = DualHash64.Combine(key, hashB); ...
         /// 顺序敏感：Combine(a, Combine(b, c)) ≠ Combine(b, Combine(a, c))。
         /// </summary>
@@ -308,7 +308,7 @@ namespace FluxFormula.Core
         public static DualHash64 Combine(DualHash64 accumulated, DualHash64 next)
         {
             // 利用 xxHash 的种子机制：将累积哈希的下一个片段"喂入"下一次哈希流
-            // 对 FNV 做逐分量混合——FNV 不具备种子语义，用代数混合模拟
+            // 对 FNV 做逐分量混合：FNV 不具备种子语义，用代数混合模拟
             return new DualHash64(
                 xxHashCombine(accumulated.XxHash64, next.XxHash64),
                 fnvCombine(accumulated.FnvHash64, next.FnvHash64)

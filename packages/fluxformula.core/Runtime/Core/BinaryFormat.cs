@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace FluxFormula.Core
 {
     /// <summary>
-    /// 小端序二进制读写原语——项目中所有字节级 I/O 的唯一实现点。
+    /// 小端序二进制读写原语：项目中所有字节级 I/O 的唯一实现点。
     /// </summary>
     /// <remarks>
     /// <para>替代此前散落在 <see cref="FluxFormula{TData, TDef}"/>、<see cref="DualHash64"/>、

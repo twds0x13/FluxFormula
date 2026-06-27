@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 namespace FluxFormula.Core
 {
     /// <summary>
-    /// 公式字节码压缩原语——blob 传输时减小体积，运行时不参与热路径。
+    /// 公式字节码压缩原语：blob 传输时减小体积，运行时不参与热路径。
     /// </summary>
     /// <remarks>
     /// <para>格式（6 字节头部 + 载荷）：</para>
@@ -21,11 +21,11 @@ namespace FluxFormula.Core
     ///   <item>加载时：<see cref="Decompress"/> 在 <c>FluxBlob.Initialize</c> 中调用</item>
     /// </list>
     ///
-    /// <para>设计参考：<see cref="BinaryFormat"/>——静态方法、零状态、AggressiveInlining。</para>
+    /// <para>设计参考：<see cref="BinaryFormat"/>（静态方法、零状态、AggressiveInlining）</para>
     /// </remarks>
     public static class FluxCompression
     {
-        /// <summary>压缩魔数——用于区分压缩与未压缩字节码（0xBF = "Binary Flux"）</summary>
+        /// <summary>压缩魔数：用于区分压缩与未压缩字节码（0xBF = "Binary Flux"）</summary>
         public const byte Magic = 0xBF;
 
         /// <summary>头部总字节数：Magic(1) + Algorithm(1) + UncompressedLen(4)</summary>

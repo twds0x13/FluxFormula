@@ -38,7 +38,7 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 重置 JIT 禁用标志（仅测试用）。
-        /// 生产环境中不应调用——一旦探测到平台不支持 JIT，应保持禁用。
+        /// 生产环境中不应调用：一旦探测到平台不支持 JIT，应保持禁用。
         /// </summary>
         public static void ResetJit()
         {
@@ -65,7 +65,7 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 链式求值入口：R1 从 initialR1 开始而非 default(TData)。
-        /// 用于链式公式的 per-link 解释器求值——前一个 link 的输出通过 R1 总线传入下一个 link。
+        /// 用于链式公式的 per-link 解释器求值：前一个 link 的输出通过 R1 总线传入下一个 link。
         /// </summary>
         public TData Compute(ReadOnlySpan<Instruction> raw, TData initialR1, byte maxRegister = 0)
         {
@@ -88,6 +88,9 @@ namespace FluxFormula.Core
                 if (inst.Arg5 > actualMax) actualMax = inst.Arg5;
             }
             int regCount = actualMax + 1;
+            // 栈上分配寄存器文件，手工对齐到 64 字节（cache line）边界。
+            // +63 将指针推入下一 cache line 对齐窗口，& ~63 向下取整到 64 字节边界。
+            // 避免寄存器数组跨越 cache line 导致 Burst / CPU 访问两次 L1。
             byte* rawPtr = stackalloc byte[sizeof(TData) * regCount + 63];
             long addr = (long)rawPtr;
             TData* regsPtr = (TData*)((addr + 63) & ~63);
@@ -122,7 +125,7 @@ namespace FluxFormula.Core
                     {
                         returnReg = inst->Dest;
                         // 链式合并的字节码中，Return 之后可能还有后续 link 的指令。
-                        // 此时不退出——将输出复制到 R1 总线供下一个 link 消费。
+                        // 此时不退出：将输出复制到 R1 总线供下一个 link 消费。
                         if (ip + 1 < raw.Length)
                         {
                             regsPtr[Registers.Bus] = regsPtr[inst->Dest];
@@ -144,6 +147,11 @@ namespace FluxFormula.Core
             return IsDefault(&regsPtr[Registers.Error]) ? regsPtr[returnReg] : regsPtr[Registers.Error];
         }
 
+        /// <summary>
+        /// 判断 <typeparamref name="TData"/> 值是否等于 default。
+        /// 不走 <c>== default</c>（unmanaged 约束不保证相等运算符），
+        /// 改用 <c>ReadOnlySpan&lt;byte&gt;.SequenceEqual</c> 做逐字节比较。
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsDefault(TData* ptr)
         {

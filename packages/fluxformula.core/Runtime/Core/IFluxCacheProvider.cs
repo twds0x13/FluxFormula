@@ -11,8 +11,8 @@ namespace FluxFormula.Core
     /// 也可直接使用内置的 <see cref="FormulaCache"/> 作为最简实现。</para>
     /// <para>设计约束：</para>
     /// <list type="bullet">
-    ///   <item>接口方法不使用指针类型（<c>byte*</c>），改用 <see cref="IntPtr"/>——实现者不需要 unsafe 上下文</item>
-    ///   <item>Delegate 通过 <see cref="System.Runtime.InteropServices.GCHandle"/> 转 IntPtr 存储——调用方负责创建/释放 GCHandle</item>
+    ///   <item>接口方法不使用指针类型（<c>byte*</c>），改用 <see cref="IntPtr"/>：实现者不需要 unsafe 上下文</item>
+    ///   <item>Delegate 通过 <see cref="System.Runtime.InteropServices.GCHandle"/> 转 IntPtr 存储：调用方负责创建/释放 GCHandle</item>
     ///   <item>缓存的生命周期管理（指针有效期、GCHandle 存活期）由实现者负责</item>
     /// </list>
     /// </remarks>

@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace FluxFormula.Core
 {
     // ═══════════════════════════════════════════════════════
-    // 链式求值内部变量名——用户不应使用此前缀
+    // 链式求值内部变量名：用户不应使用此前缀
     // ═══════════════════════════════════════════════════════
 
     /// <summary>
@@ -18,7 +18,7 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 链式公式在<b>解释器路径</b>下触发合并的阈值（从 <see cref="FluxConfig"/> 读取）。
-        /// JIT 路径始终逐 link 求值，不受此阈值影响——详见
+        /// JIT 路径始终逐 link 求值，不受此阈值影响，详见
         /// <see cref="FluxAssembler{TData, TDef}.Instantiate(FluxChain{TData, TDef}, bool)"/>。
         /// </summary>
         public static int MergeThreshold => FluxConfig.Current.MergeThreshold;
@@ -46,7 +46,7 @@ namespace FluxFormula.Core
     /// </summary>
     public struct ChainLink
     {
-        /// <summary>字节码哈希——在缓存中查找 delegate 的键</summary>
+        /// <summary>字节码哈希：在缓存中查找 delegate 的键</summary>
         public DualHash64 Key;
 
         /// <summary>字节码引用（指向原始公式的 Instruction[]，不复制）</summary>
@@ -55,7 +55,10 @@ namespace FluxFormula.Core
         /// <summary>Instruction 数量</summary>
         public int InstructionCount;
 
-        /// <summary>Formula 或 Modifier</summary>
+        /// <summary>
+        /// Formula 或 Modifier。用户无需手动设置：通过 <see cref="FluxChain{TData, TDef}"/>
+        /// 的 Connect 自动获得正确类型，<see cref="VffFormat"/> 序列化时内部读取。
+        /// </summary>
         internal FluxType Type;
 
         /// <summary>该片段的 Immediate 数（用于 SetIndex 偏移计算）</summary>
@@ -163,7 +166,7 @@ namespace FluxFormula.Core
             VariableSlot[] newSlots;
             if (VariableSlots.Length > 0 && VariableSlots[0].SlotIndex == 0)
             {
-                // 第一个变量槽属于被移除的操作数——移除它，其余 SlotIndex 减 1
+                // 第一个变量槽属于被移除的操作数：移除它，其余 SlotIndex 减 1
                 newSlots = new VariableSlot[VariableSlots.Length - 1];
                 for (int i = 1; i < VariableSlots.Length; i++)
                     newSlots[i - 1] = new VariableSlot(
@@ -286,7 +289,7 @@ namespace FluxFormula.Core
         }
 
         // ================================================================
-        // 哈希——公式字节码的内容寻址键
+        // 哈希：公式字节码的内容寻址键
         // ================================================================
 
         /// <summary>
@@ -371,7 +374,7 @@ namespace FluxFormula.Core
         /// <summary>
         /// 从只读字节跨度反序列化公式。
         /// 与 <see cref="FromBytes(byte[])"/> 相同逻辑，但接受 <see cref="ReadOnlySpan{T}"/>
-        /// ——避免从 native 指针重建时需要临时 byte[] 分配。
+        /// 避免从 native 指针重建时需要临时 byte[] 分配。
         /// </summary>
         public static FluxFormula<TData, TDef> FromBytes(ReadOnlySpan<byte> data)
         {

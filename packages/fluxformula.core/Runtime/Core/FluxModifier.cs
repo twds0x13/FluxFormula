@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace FluxFormula.Core
 {
     /// <summary>
-    /// 修饰符公式——缺少第一操作数的半成品，只能被 <see cref="Connect"/> 串联
+    /// 修饰符公式：缺少第一操作数的半成品，只能被 <see cref="Connect"/> 串联
     /// 或通过 <see cref="ToFormula"/> 转为完整公式。
     /// 无法独立求值（没有 Instantiate / Run）。
     /// </summary>
@@ -50,7 +50,7 @@ namespace FluxFormula.Core
         /// <summary>
         /// 将两个 Modifier 串联，返回 <see cref="FluxChain{TData, TDef}"/>。
         /// 前者的 R1 输出流入后者的首操作数位置。
-        /// 结果仍为 Modifier 链——仍然缺少第一操作数，
+        /// 结果仍为 Modifier 链，仍然缺少第一操作数，
         /// 需通过 <see cref="FluxChain{TData, TDef}.ToAtomic"/> 或连接至 Formula 后才能求值。
         /// </summary>
         public FluxChain<TData, TDef> Connect(FluxModifier<TData, TDef> next)

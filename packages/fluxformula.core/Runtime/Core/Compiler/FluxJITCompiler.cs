@@ -17,7 +17,7 @@ namespace FluxFormula.Compiler
         public delegate TData CompiledFunc(Instruction[] dataBuffer);
 
         /// <summary>
-        /// <see cref="IsDefault"/> 的 MethodInfo 缓存——在 Expression 树中调用，
+        /// <see cref="IsDefault"/> 的 MethodInfo 缓存：在 Expression 树中调用，
         /// 避免 <c>Expression.Equal</c> 对无 <c>op_Equality</c> 的自定义 TData 抛出。
         /// </summary>
         private static readonly System.Reflection.MethodInfo _isDefaultMethod =

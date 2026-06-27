@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace FluxFormula.Core
 {
     /// <summary>
-    /// 数据注入器——支持按位置 (SetIndex) 和按变量名 (Set) 注入，同时维护值数组支持回读。
+    /// 数据注入器：支持按位置 (SetIndex) 和按变量名 (Set) 注入，同时维护值数组支持回读。
     /// </summary>
     internal readonly struct FluxInjector<TData>
         where TData : unmanaged

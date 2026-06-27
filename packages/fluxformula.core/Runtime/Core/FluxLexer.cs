@@ -77,14 +77,14 @@ namespace FluxFormula.Core
 
     /// <summary>
     /// 纯配置驱动的词法规则表。
-    /// 用户不需要理解内部实现 —— 填表即可。
+    /// 用户不需要理解内部实现，填表即可。
     /// </summary>
     public class LexerConfig<TData>
         where TData : unmanaged
     {
         /// <summary>字面量（数字/标识符）匹配正则，如 @"\d+(\.\d+)?f?"</summary>
         /// <remarks>
-        /// 此字段仅为文档参考。实际扫描行为由 <see cref="LiteralScanner"/> 控制——
+        /// 此字段仅为文档参考。实际扫描行为由 <see cref="LiteralScanner"/> 控制；
         /// 未设置时使用内置的默认数字扫描器（等价于 <c>\d+(\.\d+)?[fF]?</c> + <see cref="LiteralParser"/>）。
         /// </remarks>
         public string LiteralPattern = @"\d+(\.\d+)?f?";
@@ -177,7 +177,7 @@ namespace FluxFormula.Core
     // ================================================================
 
     /// <summary>
-    /// 词法分析完整结果 —— Token 数组 + 变量名并行数组。
+    /// 词法分析完整结果：Token 数组 + 变量名并行数组。
     /// 变量名数组与 Token 数组等长：非变量位置为 null，变量位置为捕获的名称。
     /// </summary>
     public readonly struct LexResult<TData>
@@ -198,7 +198,7 @@ namespace FluxFormula.Core
     // ================================================================
 
     /// <summary>
-    /// 词法分析器 —— 将字符串转换为 FluxToken 流。
+    /// 词法分析器：将字符串转换为 FluxToken 流。
     /// </summary>
     public class FluxLexer<TData>
         where TData : unmanaged

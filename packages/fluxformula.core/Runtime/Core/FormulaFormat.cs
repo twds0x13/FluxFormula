@@ -22,7 +22,7 @@ namespace FluxFormula.Core
     /// <list type="number">
     /// <item><description><c>Instruction.cs</c> — 调整 <c>FieldOffset</c> 和 <c>Raw</c> 字段以覆盖新宽度。</description></item>
     /// <item><description><c>FluxFormula.ToBytes()</c> / <c>FromBytes()</c> — 序列化读/写新宽度的 Raw 字段。</description></item>
-    /// <item><description>重新生成所有 blob（<c>FluxBlobBuilder.Build()</c>）——旧格式字节码与新版不兼容。</description></item>
+    /// <item><description>重新生成所有 blob（<c>FluxBlobBuilder.Build()</c>），旧格式字节码与新版不兼容。</description></item>
     /// <item><description>运行 152 tests 确认自举完成。</description></item>
     /// </list>
     /// <para><see cref="InstructionSize"/> 和 <see cref="DataSlots{TData}"/> 自动通过 <c>sizeof</c> 跟踪，
@@ -38,7 +38,7 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 每条 Instruction 的字节数 = sizeof(Instruction)。
-        /// 非 const——当 Instruction 结构体大小变化时自动跟踪。
+        /// 非 const：当 Instruction 结构体大小变化时自动跟踪。
         /// </summary>
         public static int InstructionSize
         {
@@ -119,7 +119,7 @@ namespace FluxFormula.Core
         }
     }
 
-    /// <summary>公式字节码头——不包含 magic byte（非 VFF 即为公式）。</summary>
+    /// <summary>公式字节码头：不包含 magic byte（非 VFF 即为公式）。</summary>
     public readonly struct FormulaHeader
     {
         /// <summary>Instruction 条数</summary>
@@ -136,7 +136,7 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 该公式使用的最大寄存器索引（0=未分析，回退到 <see cref="FluxPlatform.MaxRegisters"/>）。
-        /// 不含 R0/R1 保留寄存器——R0 和 R1 始终存在，实际分配量为 MaxRegister+1。
+        /// 不含 R0/R1 保留寄存器：R0 和 R1 始终存在，实际分配量为 MaxRegister+1。
         /// </summary>
         public readonly byte MaxRegister;
 
@@ -154,7 +154,7 @@ namespace FluxFormula.Core
     {
         /// <summary>
         /// 判断一段字节码是否为公式条目（非 VFF 且头部可解析）。
-        /// 当前公式条目无 magic——通过排除 VFF + 基本合理性检查实现。
+        /// 当前公式条目无 magic：通过排除 VFF + 基本合理性检查实现。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsFormula(ReadOnlySpan<byte> bytes)
@@ -193,7 +193,7 @@ namespace FluxFormula.Core
         }
 
         /// <summary>
-        /// 从字节码提取 Instruction 跨度——零拷贝 MemoryMarshal.Cast。
+        /// 从字节码提取 Instruction 跨度：零拷贝 MemoryMarshal.Cast。
         /// 调用方负责确保 bytes 是从 <see cref="FormulaCache"/> 获取的有效公式字节码。
         /// </summary>
         public static ReadOnlySpan<Instruction> GetInstructionSpan(ReadOnlySpan<byte> bytes)

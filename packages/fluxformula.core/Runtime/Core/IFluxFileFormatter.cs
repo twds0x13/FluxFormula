@@ -3,7 +3,7 @@ using System;
 namespace FluxFormula.Core
 {
     /// <summary>
-    /// 最小文件持久化契约。Core 提供读写方法——消费者注入外部实现
+    /// 最小文件持久化契约。Core 提供读写方法，消费者注入外部实现
     /// （如 <c>System.IO.File</c> 或 Unity <c>AssetDatabase</c>），
     /// 或直接使用内置的 <see cref="FileFluxFileFormatter"/>。
     /// </summary>
@@ -17,7 +17,7 @@ namespace FluxFormula.Core
     /// var loaded = formatter.Load("path/to/chain", out var kind);  // kind = Virtual
     /// var result = VffFormat.FromBytes&lt;float, FloatOp&gt;(loaded);  // 解析
     /// </code>
-    /// <para>接口故意非泛型——调用方在传 <c>byte[]</c> 之前已完成序列化（或收到 <c>byte[]</c> 后自行反序列化），
+    /// <para>接口故意非泛型：调用方在传 <c>byte[]</c> 之前已完成序列化（或收到 <c>byte[]</c> 后自行反序列化），
     /// 接口只需关心"把字节存到哪"和"从哪读字节"。</para>
     /// </remarks>
     public interface IFluxFileFormatter

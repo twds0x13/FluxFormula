@@ -89,7 +89,7 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 将原子公式激活为流式流水线。
-        /// 优先从 <see cref="FormulaCache"/> 获取字节码——命中时直接从 blob fixed 指针重建指令序列，
+        /// 优先从 <see cref="FormulaCache"/> 获取字节码：命中时直接从 blob fixed 指针重建指令序列，
         /// 避免 ToBytes()/FromBytes() 的分配开销。未命中则回退到 formula.Raw()。
         /// </summary>
         public FluxInstance<TData, TDef> Instantiate(
@@ -100,52 +100,11 @@ namespace FluxFormula.Core
             if (jit && !FluxPlatform.IsJitDisabled)
             {
                 // ── JIT 原子路径 ──
-                var hash = formula.GetByteHash();
-                var cache = FormulaCache.Instance;
-
-                if (cache.TryGetDelegate(hash, out IntPtr cachedHandle))
+                if (TryResolveJitDelegate(formula, out var func, out var payload))
                 {
-                    var handle = System.Runtime.InteropServices.GCHandle.FromIntPtr(cachedHandle);
-                    var func = (FluxJITCompiler<TData, TDef>.CompiledFunc)handle.Target;
-                    var cachedPayload = CreateJitPayload(formula);
-                    var cachedInjector = new FluxInjector<TData>(cachedPayload, null, formula.VariableSlots);
-                    return new FluxInstance<TData, TDef>(
-                        _definition,
-                        formula,
-                        cachedInjector,
-                        func,
-                        true
-                    );
-                }
-
-                try
-                {
-                    var instSpan = ResolveBytecodeSpan(hash, formula);
-                    var func = FluxJITCompiler<TData, TDef>.Compile(
-                        instSpan,
-                        _definition,
-                        out var payload,
-                        maxRegister: formula.MaxRegister
-                    );
-                    var delegateHandle = System.Runtime.InteropServices.GCHandle.Alloc(func);
-                    cache.PutDelegate(hash, System.Runtime.InteropServices.GCHandle.ToIntPtr(delegateHandle));
-                    cache.PutBytes(hash, formula.ToBytes());
-
                     var injector = new FluxInjector<TData>(payload, null, formula.VariableSlots);
                     return new FluxInstance<TData, TDef>(
-                        _definition,
-                        formula,
-                        injector,
-                        func,
-                        true
-                    );
-                }
-                catch (Exception ex) when (
-                    ex is PlatformNotSupportedException
-                    || ex is NotSupportedException
-                    || ex is InvalidOperationException)
-                {
-                    FluxPlatform.DisableJit(ex.Message);
+                        _definition, formula, injector, func, true);
                 }
             }
 
@@ -174,7 +133,7 @@ namespace FluxFormula.Core
         /// 合并为单条 bytecode 后求值。原因是解释器 per-link 的 <c>BuildLinkBuffer</c> 每个 link 分配一次
         /// <c>Instruction[]</c>，长链分配开销不可忽略。</para>
         /// <para><b>JIT 路径</b>（<c>jit: true</c>）：始终逐 link 编译，不检查 <c>MergeThreshold</c>。
-        /// 每个 link 的 delegate 独立编译并缓存在 <see cref="FormulaCache"/> 中，热路径零分配——
+        /// 每个 link 的 delegate 独立编译并缓存在 <see cref="FormulaCache"/> 中，热路径零分配：
         /// 仅 <c>SetIndex(0, prevResult)</c> 写入 + 一次函数指针调用。合并为原子反而失去 link 级缓存复用
         /// （LEGO 模型：同一 Modifier 跨不同链的 delegate 可共享），且合并后的大公式作为唯一组合需要重新编译。</para>
         /// </remarks>
@@ -289,6 +248,51 @@ namespace FluxFormula.Core
             return payload;
         }
 
+        // ── JIT delegate 解析（原子 + 链式复用）──
+
+        /// <summary>
+        /// 尝试从 <see cref="FormulaCache"/> 解析 JIT delegate，未命中则编译。
+        /// </summary>
+        /// <returns>true 表示成功获取 delegate 和 payload；false 表示 JIT 编译失败（已调用 <see cref="FluxPlatform.DisableJit"/>），调用方应降级到解释器路径。</returns>
+        private bool TryResolveJitDelegate(
+            FluxFormula<TData, TDef> formula,
+            out FluxJITCompiler<TData, TDef>.CompiledFunc func,
+            out Instruction[] payload)
+        {
+            var hash = formula.GetByteHash();
+            var cache = FormulaCache.Instance;
+
+            if (cache.TryGetDelegate(hash, out IntPtr cachedHandle))
+            {
+                var handle = System.Runtime.InteropServices.GCHandle.FromIntPtr(cachedHandle);
+                func = (FluxJITCompiler<TData, TDef>.CompiledFunc)handle.Target;
+                payload = CreateJitPayload(formula);
+                return true;
+            }
+
+            try
+            {
+                var instSpan = ResolveBytecodeSpan(hash, formula);
+                func = FluxJITCompiler<TData, TDef>.Compile(
+                    instSpan, _definition, out payload,
+                    maxRegister: formula.MaxRegister);
+                var delegateHandle = System.Runtime.InteropServices.GCHandle.Alloc(func);
+                cache.PutDelegate(hash, System.Runtime.InteropServices.GCHandle.ToIntPtr(delegateHandle));
+                cache.PutBytes(hash, formula.ToBytes());
+                return true;
+            }
+            catch (Exception ex) when (
+                ex is PlatformNotSupportedException
+                || ex is NotSupportedException
+                || ex is InvalidOperationException)
+            {
+                FluxPlatform.DisableJit(ex.Message);
+                func = null;
+                payload = null;
+                return false;
+            }
+        }
+
         // ── Per-link JIT 链式实例化 ──
 
         /// <summary>
@@ -302,46 +306,19 @@ namespace FluxFormula.Core
             var links = chain.GetLinks();
             var funcs = new FluxJITCompiler<TData, TDef>.CompiledFunc[links.Length];
             var injectors = new FluxInjector<TData>[links.Length];
-            var cache = FormulaCache.Instance;
 
             for (int i = 0; i < links.Length; i++)
             {
                 var linkFormula = LinkToFormula(links[i], i > 0 || links[i].Type == FluxType.Modifier);
-                var hash = linkFormula.GetByteHash();
 
-                if (cache.TryGetDelegate(hash, out IntPtr cachedHandle))
-                {
-                    var handle = System.Runtime.InteropServices.GCHandle.FromIntPtr(cachedHandle);
-                    funcs[i] = (FluxJITCompiler<TData, TDef>.CompiledFunc)handle.Target;
-                    var payload = CreateJitPayload(linkFormula);
-                    injectors[i] = new FluxInjector<TData>(payload, null, linkFormula.VariableSlots);
-                }
-                else
-                {
-                    try
-                    {
-                        var instSpan = ResolveBytecodeSpan(hash, linkFormula);
-                        var func = FluxJITCompiler<TData, TDef>.Compile(
-                            instSpan, _definition, out var payload,
-                            maxRegister: linkFormula.MaxRegister);
-                        var handle = System.Runtime.InteropServices.GCHandle.Alloc(func);
-                        cache.PutDelegate(hash, System.Runtime.InteropServices.GCHandle.ToIntPtr(handle));
-                        cache.PutBytes(hash, linkFormula.ToBytes());
-                        funcs[i] = func;
-                        injectors[i] = new FluxInjector<TData>(payload, null, linkFormula.VariableSlots);
-                    }
-                    catch (Exception ex) when (
-                        ex is PlatformNotSupportedException
-                        || ex is NotSupportedException
-                        || ex is InvalidOperationException)
-                    {
-                        FluxPlatform.DisableJit(ex.Message);
-                        return Instantiate(chain.ToAtomic(), jit: false);
-                    }
-                }
+                if (!TryResolveJitDelegate(linkFormula, out var func, out var payload))
+                    return Instantiate(chain.ToAtomic(), jit: false);
+
+                funcs[i] = func;
+                injectors[i] = new FluxInjector<TData>(payload, null, linkFormula.VariableSlots);
             }
 
-            // per-link injector 用于 Set/SetIndex 场景——基于合并后的原子公式
+            // per-link injector 用于 Set/SetIndex 场景：基于合并后的原子公式
             var mergedFormula = chain.ToAtomic();
             var mergedInjector = CreateInjector(mergedFormula);
 
