@@ -97,6 +97,29 @@ public readonly struct FloatMathDef : IFluxJITDefinition<float>
         };
     }
 
+    // Tier A optimization: pointer-based Compute (eliminates span construction in IL path)
+    float IFluxDefinition<float>.Compute(byte op, Instruction inst, IntPtr rp, int _)
+    {
+        unsafe
+        {
+            float* r = (float*)rp;
+            return (FloatOp)op switch
+            {
+                FloatOp.Add    => r[inst.Arg0] + r[inst.Arg1],
+                FloatOp.Sub    => r[inst.Arg0] - r[inst.Arg1],
+                FloatOp.Mul    => r[inst.Arg0] * r[inst.Arg1],
+                FloatOp.Div    => Math.Abs(r[inst.Arg1]) < float.Epsilon
+                                   ? float.NaN : r[inst.Arg0] / r[inst.Arg1],
+                FloatOp.Neg    => -r[inst.Arg0],
+                FloatOp.Select => r[inst.Arg0] != 0f ? r[inst.Arg1] : r[inst.Arg2],
+                FloatOp.Lerp   => r[inst.Arg0] + (r[inst.Arg1] - r[inst.Arg0]) * r[inst.Arg2],
+                FloatOp.Sum6   => r[inst.Arg0] + r[inst.Arg1] + r[inst.Arg2]
+                                + r[inst.Arg3] + r[inst.Arg4] + r[inst.Arg5],
+                _ => 0f,
+            };
+        }
+    }
+
     public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
     {
         var zero = Expression.Constant(0f);

@@ -15,13 +15,13 @@ namespace FluxFormula.Core
     {
         private readonly TDef _definition;
         private readonly FluxFormula<TData, TDef> _formula;
-        private readonly FluxJITCompiler<TData, TDef>.CompiledFunc _jitFunc;
+        private readonly CompiledFunc<TData> _jitFunc;
         private readonly bool _isJit;
 
         private FluxInjector<TData> _injector;
 
         // ── 链式 JIT ──
-        private readonly FluxJITCompiler<TData, TDef>.CompiledFunc[] _chainFuncs;
+        private readonly CompiledFunc<TData>[] _chainFuncs;
         private readonly FluxInjector<TData>[] _chainInjectors;
 
         // ── 链式表示（解释器链式路径或 JIT 降级）──
@@ -33,7 +33,7 @@ namespace FluxFormula.Core
             TDef definition,
             FluxFormula<TData, TDef> formula,
             FluxInjector<TData> injector,
-            FluxJITCompiler<TData, TDef>.CompiledFunc jitFunc,
+            CompiledFunc<TData> jitFunc,
             bool isJit)
         {
             _definition     = definition;
@@ -52,7 +52,7 @@ namespace FluxFormula.Core
             TDef definition,
             FluxFormula<TData, TDef> mergedFormula,
             FluxInjector<TData> mergedInjector,
-            FluxJITCompiler<TData, TDef>.CompiledFunc[] chainFuncs,
+            CompiledFunc<TData>[] chainFuncs,
             FluxInjector<TData>[] chainInjectors,
             FluxChain<TData, TDef> chain)
         {
@@ -72,7 +72,7 @@ namespace FluxFormula.Core
             TDef definition,
             FluxFormula<TData, TDef> mergedFormula,
             FluxInjector<TData> injector,
-            FluxJITCompiler<TData, TDef>.CompiledFunc jitFunc,
+            CompiledFunc<TData> jitFunc,
             bool isJit,
             FluxChain<TData, TDef> chain)
         {

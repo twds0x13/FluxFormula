@@ -248,15 +248,44 @@ namespace FluxFormula.Core
             return payload;
         }
 
+        // ── 委托编译提供方（编译器选择）──
+
+        /// <summary>
+        /// 按优先级尝试所有可用的委托提供方，返回 <see cref="CompiledFunc{TData}"/>。
+        /// 不碰 <see cref="FormulaCache"/>——缓存逻辑由 <see cref="TryResolveJitDelegate"/> 负责。
+        /// </summary>
+        private static CompiledFunc<TData> CompileDelegate(
+            ReadOnlySpan<Instruction> instSpan,
+            TDef definition,
+            out Instruction[] payload,
+            byte maxRegister)
+        {
+            // 1. IL 发射（仅 Mono / CoreCLR——IL2CPP 不支持 DynamicMethod）
+            if (FluxPlatform.IsIlSupported)
+            {
+                try
+                {
+                    return FluxILCompiler<TData, TDef>.Compile(
+                        instSpan, definition, out payload, maxRegister: maxRegister);
+                }
+                catch (PlatformNotSupportedException) { /* 降级到 Expression 树 */ }
+            }
+
+            // 2. Expression 树（已有，IL2CPP 回退）
+            return FluxJITCompiler<TData, TDef>.Compile(
+                instSpan, definition, out payload, maxRegister: maxRegister);
+        }
+
         // ── JIT delegate 解析（原子 + 链式复用）──
 
         /// <summary>
-        /// 尝试从 <see cref="FormulaCache"/> 解析 JIT delegate，未命中则编译。
+        /// 尝试从 <see cref="FormulaCache"/> 解析 JIT delegate，未命中则通过
+        /// <see cref="CompileDelegate"/> 编译并缓存。
         /// </summary>
-        /// <returns>true 表示成功获取 delegate 和 payload；false 表示 JIT 编译失败（已调用 <see cref="FluxPlatform.DisableJit"/>），调用方应降级到解释器路径。</returns>
+        /// <returns>true 表示成功获取 delegate 和 payload；false 表示所有编译路径均失败（已调用 <see cref="FluxPlatform.DisableJit"/>），调用方应降级到解释器路径。</returns>
         private bool TryResolveJitDelegate(
             FluxFormula<TData, TDef> formula,
-            out FluxJITCompiler<TData, TDef>.CompiledFunc func,
+            out CompiledFunc<TData> func,
             out Instruction[] payload)
         {
             var hash = formula.GetByteHash();
@@ -265,7 +294,7 @@ namespace FluxFormula.Core
             if (cache.TryGetDelegate(hash, out IntPtr cachedHandle))
             {
                 var handle = System.Runtime.InteropServices.GCHandle.FromIntPtr(cachedHandle);
-                func = (FluxJITCompiler<TData, TDef>.CompiledFunc)handle.Target;
+                func = (CompiledFunc<TData>)handle.Target;
                 payload = CreateJitPayload(formula);
                 return true;
             }
@@ -273,8 +302,7 @@ namespace FluxFormula.Core
             try
             {
                 var instSpan = ResolveBytecodeSpan(hash, formula);
-                func = FluxJITCompiler<TData, TDef>.Compile(
-                    instSpan, _definition, out payload,
+                func = CompileDelegate(instSpan, _definition, out payload,
                     maxRegister: formula.MaxRegister);
                 var delegateHandle = System.Runtime.InteropServices.GCHandle.Alloc(func);
                 cache.PutDelegate(hash, System.Runtime.InteropServices.GCHandle.ToIntPtr(delegateHandle));
@@ -304,7 +332,7 @@ namespace FluxFormula.Core
             FluxChain<TData, TDef> chain)
         {
             var links = chain.GetLinks();
-            var funcs = new FluxJITCompiler<TData, TDef>.CompiledFunc[links.Length];
+            var funcs = new CompiledFunc<TData>[links.Length];
             var injectors = new FluxInjector<TData>[links.Length];
 
             for (int i = 0; i < links.Length; i++)

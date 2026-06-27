@@ -14,7 +14,6 @@ namespace FluxFormula.Compiler
         where TData : unmanaged
         where TDef : unmanaged, IFluxJITDefinition<TData>
     {
-        public delegate TData CompiledFunc(Instruction[] dataBuffer);
 
         /// <summary>
         /// <see cref="IsDefault"/> 的 MethodInfo 缓存：在 Expression 树中调用，
@@ -34,7 +33,7 @@ namespace FluxFormula.Compiler
             return System.Collections.Generic.EqualityComparer<TData>.Default.Equals(value, default);
         }
 
-        public static CompiledFunc Compile(
+        public static CompiledFunc<TData> Compile(
             ReadOnlySpan<Instruction> raw,
             TDef definition,
             out Instruction[] payload,
@@ -159,7 +158,7 @@ namespace FluxFormula.Compiler
 
             var block = Expression.Block(regs, body);
 
-            return Expression.Lambda<CompiledFunc>(block, bufferParam)
+            return Expression.Lambda<CompiledFunc<TData>>(block, bufferParam)
 #if FLUX_FAST_EXPRESSION_COMPILER
                 .CompileFast();
 #else

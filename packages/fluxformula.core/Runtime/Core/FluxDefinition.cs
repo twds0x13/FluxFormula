@@ -105,6 +105,20 @@ namespace FluxFormula.Core
         TData Compute(byte op, Instruction inst, ReadOnlySpan<TData> registers);
 
         /// <summary>
+        /// 通过内存指针执行操作符——IL 发射路径的调用目标。
+        /// 默认实现桥接到 <see cref="Compute(byte, Instruction, ReadOnlySpan{TData})"/>；
+        /// 覆写此方法可消除 span 构造开销。
+        /// </summary>
+        /// <param name="op">操作码</param>
+        /// <param name="inst">当前指令（含 Dest / Arg0..5 寄存器索引）</param>
+        /// <param name="registers">指向至少 <c>regCount</c> 个 TData 槽位的指针（<c>ldloca reg0</c> 产生）</param>
+        /// <param name="regCount">寄存器总数（<c>maxRegister + 1</c>）</param>
+        TData Compute(byte op, Instruction inst, IntPtr registers, int regCount)
+        {
+            unsafe { return Compute(op, inst, new ReadOnlySpan<TData>((void*)registers, regCount)); }
+        }
+
+        /// <summary>
         /// 根据位置上下文消歧 Token。
         /// Lexer 产出的符号（如 '-' → Sub）在 OperandExpected 位置应被重新解释。
         /// 返回 0 表示不消歧、保持原 Oper。

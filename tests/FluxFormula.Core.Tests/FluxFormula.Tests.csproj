@@ -34,7 +34,10 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxCompression.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/VffFormat.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/CompiledFunc.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxJITCompiler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxILCompiler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/IFluxILDefinition.cs" />
     <!-- 测试文件 (按模块分类) -->
     <Compile Include="TestDefinition.cs" />            <!-- 基础定义 -->
     <Compile Include="SmokeTest.cs" />                <!-- 冒烟测试 -->
@@ -72,6 +75,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
     <PackageReference Include="FastExpressionCompiler" Version="5.4.1" />
     <PackageReference Include="System.IO.Hashing" Version="10.0.9" />
+    <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
   </ItemGroup>
 
 </Project>

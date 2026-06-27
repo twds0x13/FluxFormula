@@ -19,6 +19,13 @@ namespace FluxFormula.Core
         public static bool IsJitDisabled => _jitDisabled;
 
         /// <summary>
+        /// 当前平台是否支持 IL 发射（<see cref="System.Reflection.Emit.DynamicMethod"/>）。
+        /// IL2CPP / NativeAOT 返回 false——此时 IL 编译器不可用，自动降级到 Expression 树路径。
+        /// </summary>
+        public static bool IsIlSupported =>
+            System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported;
+
+        /// <summary>
         /// JIT 降级时触发。参数为异常消息。Unity 端可订阅以输出 <c>Debug.LogWarning</c>。
         /// Core 包无 UnityEngine 引用，故此事件保持纯 System.Action。
         /// </summary>
