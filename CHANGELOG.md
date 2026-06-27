@@ -1,3 +1,10 @@
+## [3.6.0](https://github.com/twds0x13/FluxFormula/compare/v3.5.0...v3.6.0) (2026-06-28)
+
+### Features
+
+* **burst:** extract INativeBytecodeCache interface — mirrors IFluxCacheProvider symmetry for Jobs cache
+* **burst:** unify NativeBytecodeCache to 256 slots (was 64), add graceful overflow (uncached fallback instead of throw)
+
 ## [3.5.0](https://github.com/twds0x13/FluxFormula/compare/v3.4.0...v3.5.0) (2026-06-27)
 
 ### Features

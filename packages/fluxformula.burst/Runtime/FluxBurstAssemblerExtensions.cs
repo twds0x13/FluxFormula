@@ -51,7 +51,7 @@ namespace FluxFormula.Burst
         public static FluxBurstInstance<TData, TDef> CreateBurstInstance<TData, TDef>(
             this FluxAssembler<TData, TDef> assembler,
             FluxFormula<TData, TDef> formula,
-            NativeBytecodeCache cache)
+            INativeBytecodeCache cache)
             where TData : unmanaged
             where TDef : unmanaged, IFluxJITDefinition<TData>
         {

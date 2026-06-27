@@ -23,7 +23,7 @@ namespace FluxFormula.Burst
     /// <para>使用方式：创建单一 <see cref="NativeBytecodeCache"/> 实例，传给所有
     /// <see cref="FluxBurstInstance{TData, TDef}"/> 构造函数。应用退出时调用 <see cref="Dispose"/>。</para>
     /// </remarks>
-    public class NativeBytecodeCache : IDisposable
+    public class NativeBytecodeCache : INativeBytecodeCache, IDisposable
     {
         // ═══════════════════════════════════════════════════════
         // 常量

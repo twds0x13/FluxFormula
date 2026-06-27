@@ -33,7 +33,7 @@ namespace FluxFormula.Burst
         int[] _slotOffsets;
         byte _maxRegister;
         bool _disposed;
-        NativeBytecodeCache _cache;
+        INativeBytecodeCache _cache;
         DualHash64 _bytecodeHash;
         bool _ownsBytecode;
 
@@ -73,7 +73,7 @@ namespace FluxFormula.Burst
         /// <param name="formula">公式</param>
         /// <param name="cache">共享字节码缓存。实例 Dispose 时自动调用 <see cref="NativeBytecodeCache.Release"/>
         /// （或独立释放 NativeArray——取决于缓存是否成功获取共享条目）。</param>
-        public FluxBurstInstance(FluxFormula<TData, TDef> formula, NativeBytecodeCache cache)
+        public FluxBurstInstance(FluxFormula<TData, TDef> formula, INativeBytecodeCache cache)
         {
             byte[] raw = formula.ToBytes();
             _bytecodeHash = DualHash64.Compute(new ReadOnlySpan<byte>(raw));
