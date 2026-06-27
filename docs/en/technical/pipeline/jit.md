@@ -1,8 +1,10 @@
 # JIT Compilation: From Bytecode to Delegate
 
-`FluxJITCompiler<TData, TDef>` compiles `Instruction[]` bytecode to LINQ Expression Trees, then to executable delegates. Core design question: **how to compile dynamic opcodes (arbitrary `byte` values from Definition) into statically-typed delegates at 2ns execution latency?**
+FluxFormula provides two JIT compilation paths: **IL emission** (`FluxILCompiler`, preferred on Mono/CoreCLR) and **Expression Tree** (`FluxJITCompiler`, universal fallback). This document covers the Expression Tree path; the IL path is documented in [IL Compiler](./il-compiler.md). Both paths share the same delegate type `CompiledFunc<TData>` and the same cache entry `FormulaCache`; callers are unaware of which path produced the delegate.
 
-## Compilation Pipeline
+## Expression Tree Compilation Pipeline
+
+`FluxJITCompiler<TData, TDef>` compiles `Instruction[]` bytecode to LINQ Expression Trees, then to executable delegates. Core design question: **how to compile dynamic opcodes (arbitrary `byte` values from Definition) into statically-typed delegates at 2ns execution latency?**
 
 ```
 Instruction[] → Expression Tree → Delegate → GCHandle → FormulaCache
@@ -76,11 +78,13 @@ var handle = GCHandle.Alloc(func);
 cache.PutDelegate(hash, GCHandle.ToIntPtr(handle));
 ```
 
-Same bytecode → same `DualHash64` → cache hit → zero compilation on subsequent `Instantiate` calls. Cache capacity is controlled by `FluxConfig.FormulaCacheCapacity` (default 2048). This is why JIT path achieves 2ns latency — compilation happens once.
+Same bytecode → same `DualHash64` → cache hit → zero compilation on subsequent `Instantiate` calls. Cache capacity is controlled by `FluxConfig.FormulaCacheCapacity` (default 256). This is why the JIT path achieves 2ns latency — compilation happens once.
+
+The `CompiledFunc<TData>` delegate type and `FormulaCache` are shared between the IL emission path and the Expression Tree path. Identical bytecode takes the chosen path only on first compilation; subsequent cache hits reuse the pre-compiled delegate regardless of origin.
 
 ## Per-Link Chained JIT
 
-Chained formulas **always** compile per-link, regardless of chain length. `MergeThreshold` is not checked on the JIT path. Each link compiles independently into a `CompiledFunc[]`:
+Chained formulas **always** compile per-link, regardless of chain length. `MergeThreshold` is not checked on the JIT path. Each link compiles independently into a `CompiledFunc[]`. This behavior is independent of the compilation path (applies to both IL and Expression):
 
 ```csharp
 for (int i = 0; i < _chainFuncs.Length; i++)
@@ -100,11 +104,6 @@ The interpreter path merges chains longer than `MergeThreshold` (default 8) into
 
 This asymmetry is intentional: the interpreter decides by allocation cost, JIT decides by cache reuse.
 
-## JIT Failure Fallback
+## JIT Degradation
 
-When the platform does not support `Expression.Compile()` (IL2CPP/AOT), compilation throws `PlatformNotSupportedException`. `FluxAssembler.Instantiate` catches this exception and:
-
-1. Calls `FluxPlatform.DisableJit()`, preventing further JIT attempts within the same process
-2. Falls back to the interpreter path (`jit: false`)
-
-Fallback is automatic and transparent to the caller. The only difference is performance (2ns → 27ns), not correctness.
+Platform degradation logic is unified in `FluxPlatform` and `CompileDelegate`; see [Platform](./platform.md). On IL2CPP/AOT platforms, the Expression Tree path throws `PlatformNotSupportedException`. `CompileDelegate` attempts the IL path first (if the platform supports it); Expression is the second line of defense. After both fail, the caller degrades to the interpreter.

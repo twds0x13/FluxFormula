@@ -25,7 +25,7 @@ String / Token[]
   │
   ├─ 3. Instantiate ────────────────────────────────────
   │   FluxAssembler.Instantiate(FluxFormula) → FluxInstance<TData, TDef, TDef>
-  │   Internal: build FluxInjector + optional JIT delegate compilation
+  │   Internal: build FluxInjector + JIT delegate compilation (IL first → Expression fallback → interpreter)
   │   Output: FluxInstance (ref struct, stack-allocated)
   │   Allocation: JIT delegate compilation (cacheable), Injector metadata (stack)
   │
@@ -81,10 +81,10 @@ Key design: **Compilation products (FluxFormula) are immutable**, cacheable in F
 - Instantiate returns a ref struct with stack-frame-limited lifetime — separation prevents the long-lived Formula from being stack-constrained
 
 **JIT auto-degradation mechanism**
-- IL2CPP / AOT platforms do not support `Expression.Compile()`
-- `Instantiate(jit: true)` calls JIT compilation inside try-catch
-- On catching `PlatformNotSupportedException`, calls `FluxPlatform.DisableJit()`
-- Subsequent calls in the same process go directly to the interpreter, skipping try-catch
+- JIT delegate compilation has two paths: IL emission (`FluxILCompiler`, preferred on Mono/CoreCLR) and Expression Tree (`FluxJITCompiler`, universal fallback)
+- IL2CPP / AOT platforms support neither `Expression.Compile()` nor `DynamicMethod`
+- `CompileDelegate` degrades in three tiers: IL → Expression → interpreter
+- After first failure, `FluxPlatform.DisableJit()` is set; subsequent calls in the same process skip JIT entirely
 
 ### 4. Run — Dual-Backend Execution
 
@@ -94,12 +94,12 @@ Key design: **Compilation products (FluxFormula) are immutable**, cacheable in F
 - Instruction-by-instruction loop; short-circuit on R0 non-default
 
 **JIT path**:
-- Delegate is pre-compiled (or retrieved from cache)
+- Delegate is pre-compiled (via IL emission or Expression Tree, retrieved from cache)
 - Injected payload array is passed in
 - No loop, no branch misprediction — a single delegate invocation
 
 **Why does the interpreter still need to exist?**
-- AOT platforms (IL2CPP, iOS, WebGL) do not support `Expression.Compile()`
+- AOT platforms (IL2CPP, iOS, WebGL) do not support JIT compilation
 - The interpreter is the universal fallback, zero platform dependencies
 - Cold-start scenarios: first JIT compilation has latency; the interpreter executes immediately
 

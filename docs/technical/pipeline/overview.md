@@ -25,7 +25,7 @@ FluxFormula 的编译与执行管线分为四个阶段：**Lex（词法分析）
   │
   ├─ 3. Instantiate ────────────────────────────────────
   │   FluxAssembler.Instantiate(FluxFormula) → FluxInstance<TData, TDef, TDef>
-  │   内部: 构建 FluxInjector + 可选的 JIT 委托编译
+  │   内部: 构建 FluxInjector + JIT 委托编译（IL 优先 → Expression 回退 → 解释器兜底）
   │   产出: FluxInstance (ref struct, 栈分配)
   │   分配: JIT 模式下编译委托（可缓存）, Injector 元数据（栈）
   │
@@ -81,10 +81,10 @@ FluxFormula 的编译与执行管线分为四个阶段：**Lex（词法分析）
 - Instantiate 返回 ref struct，生命周期受限于栈帧。分离避免了长生命周期的 Formula 被栈约束
 
 **JIT 自动降级机制**
-- IL2CPP / AOT 平台不支持 `Expression.Compile()`
-- `Instantiate(jit: true)` 在 try-catch 中调用 JIT 编译
-- 捕获 `PlatformNotSupportedException` 后调用 `FluxPlatform.DisableJit()`
-- 同进程后续调用直接走解释器，跳过 try-catch
+- JIT 委托编译包含两条路径：IL 发射（`FluxILCompiler`，Mono/CoreCLR 优先）和 Expression 树（`FluxJITCompiler`，全平台回退）
+- IL2CPP / AOT 平台不支持 `Expression.Compile()` 和 `DynamicMethod`
+- `CompileDelegate` 按 IL → Expression → 解释器三阶降级
+- 首次失败后 `FluxPlatform.DisableJit()` 置位，同进程后续调用跳过 JIT
 
 ### 4. Run：双后端执行
 
@@ -94,12 +94,12 @@ FluxFormula 的编译与执行管线分为四个阶段：**Lex（词法分析）
 - 逐条指令循环，R0 非 default 时短路返回
 
 **JIT 路径**：
-- 委托已预编译（或从缓存获取）
+- 委托已预编译（IL 发射或 Expression 树，从缓存获取）
 - 传入注入后的 payload 数组
 - 无循环、无分支预测失败，仅一次委托调用
 
 **为什么解释器还需要存在？**
-- AOT 平台（IL2CPP, iOS, WebGL）不支持 `Expression.Compile()`
+- AOT 平台（IL2CPP, iOS, WebGL）不支持 JIT 编译
 - 解释器是通用兜底方案，零平台依赖
 - 冷启动场景：首次 JIT 编译有延迟，解释器可立即执行
 

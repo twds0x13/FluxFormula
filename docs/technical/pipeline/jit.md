@@ -1,8 +1,10 @@
 # JIT 编译：从字节码到委托
 
-`FluxJITCompiler<TData, TDef>` 将 `Instruction[]` 字节码编译为 LINQ Expression Tree，再编译为可执行委托。它的核心设计问题：**如何将动态操作码（Definition 定义的任意 byte 值）编译为静态类型的委托，同时保持 2ns 的执行延迟？**
+FluxFormula 提供两条 JIT 编译路径：**IL 发射**（`FluxILCompiler`，Mono/CoreCLR 优先）和 **Expression 树**（`FluxJITCompiler`，全平台回退）。本文档覆盖 Expression 树路径；IL 路径详见 [IL 发射编译器](./il-compiler.md)。两条路径共享同一委托类型 `CompiledFunc<TData>` 和同一缓存入口 `FormulaCache`，调用方不感知委托来源。
 
-## 编译流程
+## Expression 树编译流程
+
+`FluxJITCompiler<TData, TDef>` 将 `Instruction[]` 字节码编译为 LINQ Expression Tree，再编译为可执行委托。它的核心设计问题：**如何将动态操作码（Definition 定义的任意 byte 值）编译为静态类型的委托，同时保持 2ns 的执行延迟？**
 
 ```
 Instruction[] → Expression Tree → Delegate → GCHandle → FormulaCache
@@ -88,11 +90,13 @@ var handle = GCHandle.Alloc(func);
 cache.PutDelegate(hash, GCHandle.ToIntPtr(handle));
 ```
 
-`DualHash64` 作为缓存键。相同字节码的后续 `Instantiate` 调用直接从缓存获取委托，跳过编译。缓存容量由 `FluxConfig.FormulaCacheCapacity` 控制（默认 2048）。这是 JIT 路径能达到 2ns 执行延迟的关键：编译只发生一次，后续都是委托调用。
+`DualHash64` 作为缓存键。相同字节码的后续 `Instantiate` 调用直接从缓存获取委托，跳过编译。缓存容量由 `FluxConfig.FormulaCacheCapacity` 控制（默认 256）。这是 JIT 路径能达到 2ns 执行延迟的关键：编译只发生一次，后续都是委托调用。
+
+`CompiledFunc<TData>` 委托类型和 `FormulaCache` 被 IL 发射路径和 Expression 树路径共享。同一字节码仅首次编译时取所选路径；后续命中缓存直接复用已编译委托，不关心来源。
 
 ## Per-link 链式 JIT
 
-链式公式**始终**逐 link 编译，不论链长。不检查 `MergeThreshold`，不走 `ToAtomic` 合并。每个 link 独立编译为委托，通过 `CompiledFunc[]` 数组串联执行：
+链式公式**始终**逐 link 编译，不论链长。不检查 `MergeThreshold`，不走 `ToAtomic` 合并。每个 link 独立编译为委托，通过 `CompiledFunc[]` 数组串联执行。此行为与编译路径无关（IL 和 Expression 均适用）。
 
 ```csharp
 for (int i = 0; i < _chainFuncs.Length; i++)
@@ -113,11 +117,6 @@ for (int i = 0; i < _chainFuncs.Length; i++)
 
 两条路径的不对称是有意的：解释器按分配成本决策合并，JIT 按缓存复用保留链式。
 
-## JIT 失败降级
+## JIT 降级
 
-当平台不支持 `Expression.Compile()`（IL2CPP/AOT）时，编译抛出 `PlatformNotSupportedException`。`FluxAssembler.Instantiate` 捕获此异常并：
-
-1. 调用 `FluxPlatform.DisableJit()`，同进程内后续不再尝试 JIT
-2. 回退到解释器路径（`jit: false`）
-
-降级是自动的，调用方无需感知。唯一的差异在性能（2ns → 27ns），不在正确性。
+平台降级逻辑统一由 `FluxPlatform` 和 `CompileDelegate` 管理，详见 [平台适配](./platform.md)。Expression 树路径在 IL2CPP/AOT 平台抛出 `PlatformNotSupportedException` 后，`CompileDelegate` 内部已先行尝试 IL 路径（如平台支持），Expression 是第二条防线；两次均失败后最终降级到解释器。
