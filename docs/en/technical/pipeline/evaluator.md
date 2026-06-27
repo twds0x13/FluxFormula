@@ -33,22 +33,46 @@ R1 initializes to `default(TData)`. The `Return` instruction writes its Dest reg
 for (int ip = 0; ip < program.Length; )
 {
     var inst = program[ip];
-    if (opCode == ReturnOp) { regs[Bus] = regs[inst.Dest]; ip++; }
-    else if (kind == Immediate) { regs[inst.Dest] = *(TData*)(pBase + ip + 1); ip += 1 + dataSlots; }
-    else { regs[inst.Dest] = _definition.Compute(opCode, inst, registers); ip++; }
+    byte opCode = inst.OpCode;
+
+    if (opCode == ReturnOp)
+    {
+        regs[Registers.Bus] = regs[inst.Dest];
+        ip++;
+    }
+    else if (kind == OpType.Immediate)
+    {
+        regs[inst.Dest] = *(TData*)(pBase + ip + 1);
+        ip += 1 + dataSlots;
+    }
+    else  // Instruction
+    {
+        regs[inst.Dest] = _definition.Compute(opCode, inst, new ReadOnlySpan<TData>(regs, regCount));
+        ip++;
+    }
 }
 ```
 
-- **Immediate**: pointer-reinterpretation read from instruction stream; PC skips header + data slots.
-- **Instruction**: delegates to `_definition.Compute()` for operator semantics.
-- **Return**: writes Dest to R1 (Bus) for chain consumption.
+- **Immediate**: pointer reinterpretation reads `TData` directly from the instruction stream, writing to the destination register. PC skips the instruction header + data slots.
+- **Instruction**: delegates to `_definition.Compute()`, where the Definition implements the actual arithmetic logic.
+- **Return**: writes the Dest register value to R1 (Bus), awaiting consumption by the next link.
 
-## Return Semantics: Interpreter vs JIT
+## Interpreter vs. JIT Trap: Return Semantics
 
-- **Interpreter**: `Return` writes Dest to R1, then falls through to the next instruction. Chained links follow directly in the instruction stream, reading from R1.
-- **JIT**: Each instruction compiles to an independent Expression Tree. `Return` produces an Expression returning the Dest value; the caller (`RunJitChain`) injects it into the next link's injector.
+The `Return` instruction behaves differently in the interpreter and JIT:
 
-The bytecode is semantically identical across both paths — only execution differs. This is what `JitConsistencyTests` verifies.
+- **Interpreter**: `Return` writes Dest to R1, then continues to the next instruction. During chained evaluation, the next link's code follows immediately after `Return`, reading from R1. This is "fall-through" semantics.
+- **JIT**: each instruction compiles to an independent Expression Tree. The Expression corresponding to `Return` returns its Dest value; the JIT delegate caller (`RunJitChain`) handles injecting it into the next link's R1 position.
+
+This difference means **the bytecode is semantically equivalent across interpreter and JIT paths — only the execution mechanism differs**. This is the core of JIT consistency testing.
+
+## Why Not Switch Dispatch?
+
+Traditional bytecode interpreters use `switch(opCode)` dispatch. FluxFormula uses a three-way branch (Immediate / Instruction / Return) because:
+
+1. **Unknown opcode count**: opcodes are defined by the Definition. The framework does not know how many operators exist. A `switch` cannot exhaustively enumerate them at the framework level.
+2. **Delegated semantics**: the `Compute()` delegate hands operator semantics entirely to the Definition. The framework does not interpret opcode meanings.
+3. **Branch-predictor-friendly**: the three-category pattern (Immediate / Instruction / Return) is highly predictable. Immediate and Instruction alternate in bytecode, making the branch pattern regular.
 
 ## Two `Compute` Overloads
 

@@ -10,13 +10,15 @@ Instruction[] → Expression Tree → Delegate → GCHandle → FormulaCache
 
 ### 1. Registers → ParameterExpression
 
-Each instruction's destination register maps to a `ParameterExpression`:
+Each instruction's destination register (`inst.Dest`) maps to a `ParameterExpression`:
 
 ```csharp
 ParameterExpression[] registers = new ParameterExpression[regCount];
 for (int i = 0; i < regCount; i++)
     registers[i] = Expression.Parameter(typeof(TData), $"r{i}");
 ```
+
+The register file is represented as a parameter array in the Expression Tree. At runtime, registers are stack-local variables. Once the JIT delegate is further compiled to machine code by the CLR JIT, register parameters map to CPU registers or stack slots.
 
 ### 2. Instructions → Expressions
 
@@ -53,7 +55,17 @@ var compiled = lambda.Compile();  // or CompileFast()
 
 ## FastExpressionCompiler
 
-Under `FLUX_FAST_EXPRESSION_COMPILER`, uses [FastExpressionCompiler](https://github.com/dadhi/FastExpressionCompiler) instead of standard `Expression.Compile()`. Benefits: avoids internal `System.Reflection.Emit` overhead; faster compilation for complex expressions.
+Under `FLUX_FAST_EXPRESSION_COMPILER`, uses [FastExpressionCompiler](https://github.com/dadhi/FastExpressionCompiler) instead of standard `Expression.Compile()`:
+
+```csharp
+#if FLUX_FAST_EXPRESSION_COMPILER
+    var compiled = Expression.Lambda<CompiledFunc>(body, injectorParam).CompileFast();
+#else
+    var compiled = Expression.Lambda<CompiledFunc>(body, injectorParam).Compile();
+#endif
+```
+
+FastExpressionCompiler's advantage: avoids certain internal `System.Reflection.Emit` overhead in `Expression.Compile()`. For simple expressions the difference is small; for complex chained formulas it is significant.
 
 ## Delegate Caching
 
@@ -90,8 +102,9 @@ This asymmetry is intentional: the interpreter decides by allocation cost, JIT d
 
 ## JIT Failure Fallback
 
-When `Expression.Compile()` throws `PlatformNotSupportedException`:
-1. `FluxPlatform.DisableJit()` — process-wide, one-time
-2. Fallback to interpreter path — transparent to caller
+When the platform does not support `Expression.Compile()` (IL2CPP/AOT), compilation throws `PlatformNotSupportedException`. `FluxAssembler.Instantiate` catches this exception and:
 
-The only difference is performance (2ns → 27ns), not correctness.
+1. Calls `FluxPlatform.DisableJit()`, preventing further JIT attempts within the same process
+2. Falls back to the interpreter path (`jit: false`)
+
+Fallback is automatic and transparent to the caller. The only difference is performance (2ns → 27ns), not correctness.

@@ -312,7 +312,7 @@ if (jit && !FluxPlatform.IsJitDisabled)
 {
     try
     {
-        var func = FluxJITCompiler<TData, TOper, TDef>.Compile(...);
+        var func = FluxJITCompiler<TData, TDef>.Compile(...);
         return new FluxInstance(..., func, true);
     }
     catch (Exception ex) when (

@@ -67,7 +67,7 @@ When contributing code, keep these in mind:
 
 - **Zero GC on the hot path**: `FluxEvaluator`, `FluxInstance.Set`/`Run`, and `FluxInjector` use `stackalloc` and `fixed` pointers — no `new`, no LINQ, no boxing.
 - **ref struct**: `FluxAssembler` and `FluxInstance` are ref structs. They cannot be boxed, captured in lambdas, or stored as class fields. This is intentional.
-- **unmanaged generics**: `TData`, `TOper`, `TDef` all satisfy the `unmanaged` constraint. Do not introduce managed-type parameters on public hot-path types.
+- **unmanaged generics**: `TData` and `TDef` satisfy the `unmanaged` constraint. Do not introduce managed-type parameters on public hot-path types.
 - **Enum `: byte`**: The framework reads the opcode via `*(byte*)&oper`. Operator enums must use `: byte` as the underlying type.
 
 ## Testing

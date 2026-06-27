@@ -38,6 +38,24 @@ for each Token:
 
 Associativity handling: left-associative (`+`, `-`, `*`, `/`) pops at equal precedence; right-associative (`^`) keeps the stack top.
 
+The critical detail is in the precedence comparison:
+
+```csharp
+while (opStack.Count > 0)
+{
+    var top = opStack.Peek();
+    int topPrec = _definition.GetPrecedence(topOper);
+    int curPrec = _definition.GetPrecedence(currentOper);
+
+    if (topPrec > curPrec || (topPrec == curPrec && leftAssociative))
+        Emit(opStack.Pop());
+    else
+        break;
+}
+```
+
+Left-associative operators (`+`, `-`, `*`, `/`) pop the stack top at equal precedence; right-associative (`^`) preserves the stack top at equal precedence.
+
 ## Operator Pair System
 
 FluxFormula's key extension to standard shunting-yard. Operators can declare pairing relationships:

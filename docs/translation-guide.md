@@ -25,6 +25,8 @@ docs/
 
 中文源文件为原文，`docs/en/` 下的同名文件为英文翻译。翻译工作是对照中文源文件逐段翻译为英文，更新到 `docs/en/` 对应位置。
 
+非中英母语者的参与路径见[多语言协作](/multilingual-collaboration)。
+
 ## 约定
 
 ### 翻译原则
@@ -85,11 +87,13 @@ npx vitepress dev
 | `examples/error-handling.md` | `en/examples/error-handling.md` | ✅ |
 | `examples/vector3.md` | `en/examples/vector3.md` | ✅ |
 | `examples/chain-connect.md` | `en/examples/chain-connect.md` | ✅ |
+| `examples/vff-persistence.md` | `en/examples/vff-persistence.md` | ✅ |
 | `technical/internals.md` | `en/technical/internals.md` | ✅ |
 | `technical/compile-cache.md` | `en/technical/compile-cache.md` | ✅ |
 | `technical/chainlink-deep-dive.md` | `en/technical/chainlink-deep-dive.md` | ✅ |
 | `technical/architecture-decisions.md` | `en/technical/architecture-decisions.md` | ✅ |
 | `technical/technical-analysis.md` | `en/technical/technical-analysis.md` | ✅ |
+| `technical/test-coverage-boundary.md` | `en/technical/test-coverage-boundary.md` | ✅ |
 | `technical/pipeline/overview.md` | `en/technical/pipeline/overview.md` | ✅ |
 | `technical/pipeline/injector.md` | `en/technical/pipeline/injector.md` | ✅ |
 | `technical/pipeline/compiler.md` | `en/technical/pipeline/compiler.md` | ✅ |
@@ -98,9 +102,9 @@ npx vitepress dev
 | `technical/pipeline/jit.md` | `en/technical/pipeline/jit.md` | ✅ |
 | `technical/pipeline/lexer.md` | `en/technical/pipeline/lexer.md` | ✅ |
 | `technical/pipeline/platform.md` | `en/technical/pipeline/platform.md` | ✅ |
-| `FEATURE-streaming-injection.md` | `en/FEATURE-streaming-injection.md` | ✅ |
 | `migration-guide.md` | `en/migration-guide.md` | ✅ |
 | `translation-guide.md` | `en/translation-guide.md` | ✅ |
+| `multilingual-collaboration.md` | `en/multilingual-collaboration.md` | ✅ |
 
 ## 技术支持
 

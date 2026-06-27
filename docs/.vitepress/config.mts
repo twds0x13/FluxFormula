@@ -63,6 +63,7 @@ export default withMermaid(
                 { text: "Burst Jobs 求值", link: "/examples/burst-jobs" },
                 { text: "Addressables 加载", link: "/examples/addressables-load" },
                 { text: "UniTask 加载", link: "/examples/unitask-load" },
+                { text: "VFF 持久化与参数覆写", link: "/examples/vff-persistence" },
               ],
             },
             {
@@ -73,6 +74,7 @@ export default withMermaid(
                 { text: "ChainLink 深度解析", link: "/technical/chainlink-deep-dive" },
                 { text: "架构决策记录", link: "/technical/architecture-decisions" },
                 { text: "源码技术分析", link: "/technical/technical-analysis" },
+                { text: "测试覆盖边界", link: "/technical/test-coverage-boundary" },
                 { text: "管线全景", link: "/technical/pipeline/overview" },
                 { text: "词法分析器", link: "/technical/pipeline/lexer" },
                 { text: "调车场编译器", link: "/technical/pipeline/compiler" },
@@ -87,6 +89,7 @@ export default withMermaid(
               text: "更多",
               items: [
                 { text: "常见问题", link: "/faq" },
+                { text: "多语言协作", link: "/multilingual-collaboration" },
               ],
             },
           ],
@@ -155,6 +158,7 @@ export default withMermaid(
                 { text: "Burst Jobs", link: "/en/examples/burst-jobs" },
                 { text: "Addressables Load", link: "/en/examples/addressables-load" },
                 { text: "UniTask Load", link: "/en/examples/unitask-load" },
+                { text: "VFF Persistence & Overrides", link: "/en/examples/vff-persistence" },
               ],
             },
             {
@@ -165,6 +169,7 @@ export default withMermaid(
                 { text: "ChainLink Deep Dive", link: "/en/technical/chainlink-deep-dive" },
                 { text: "Architecture Decisions", link: "/en/technical/architecture-decisions" },
                 { text: "Source Technical Analysis", link: "/en/technical/technical-analysis" },
+                { text: "Test Coverage Boundary", link: "/en/technical/test-coverage-boundary" },
                 { text: "Pipeline Overview", link: "/en/technical/pipeline/overview" },
                 { text: "Lexer", link: "/en/technical/pipeline/lexer" },
                 { text: "Compiler", link: "/en/technical/pipeline/compiler" },
@@ -179,6 +184,7 @@ export default withMermaid(
               text: "More",
               items: [
                 { text: "FAQ", link: "/en/faq" },
+                { text: "Multilingual Collaboration", link: "/en/multilingual-collaboration" },
               ],
             },
           ],
