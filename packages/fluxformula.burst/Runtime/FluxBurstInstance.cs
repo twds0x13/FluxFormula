@@ -58,6 +58,8 @@ namespace FluxFormula.Burst
             _cache = null;
             _bytecodeHash = default;
             _ownsBytecode = true;
+            _scheduledHandle = default;
+            _scheduled = false;
 
             // 预计算每个 Immediate 槽位的字节偏移量
             _slotOffsets = ComputeSlotOffsets(raw, formula.ImmediateCount);
@@ -86,6 +88,8 @@ namespace FluxFormula.Burst
             _varSlots = formula.VariableSlots;
             _maxRegister = formula.MaxRegister;
             _disposed = false;
+            _scheduledHandle = default;
+            _scheduled = false;
 
             // 预计算每个 Immediate 槽位的字节偏移量
             _slotOffsets = ComputeSlotOffsets(raw, formula.ImmediateCount);

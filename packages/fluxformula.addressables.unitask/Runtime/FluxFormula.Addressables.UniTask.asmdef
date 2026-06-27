@@ -3,6 +3,7 @@
     "rootNamespace": "",
     "references": [
         "FluxFormula.Core",
+        "FluxFormula",
         "FluxFormula.Addressables",
         "UniTask"
     ],
