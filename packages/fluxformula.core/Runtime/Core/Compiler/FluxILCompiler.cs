@@ -239,7 +239,7 @@ namespace FluxFormula.Compiler
                 }
             }
 
-            return dm.CreateDelegate<CompiledFunc<TData>>();
+            return (CompiledFunc<TData>)dm.CreateDelegate(typeof(CompiledFunc<TData>));
         }
 
         /// <summary>

@@ -151,8 +151,8 @@ namespace FluxFormula.Benchmarks
     [MemoryDiagnoser]
     public class JitBenchmarks
     {
-        private FluxJITCompiler<float, FloatMathDef>.CompiledFunc _jitSimple;
-        private FluxJITCompiler<float, FloatMathDef>.CompiledFunc _jitComplex;
+        private CompiledFunc<float> _jitSimple;
+        private CompiledFunc<float> _jitComplex;
         private Instruction[] _simplePayload;
         private Instruction[] _complexPayload;
 
@@ -190,7 +190,7 @@ namespace FluxFormula.Benchmarks
         private FluxFormula<float, FloatMathDef> _formula;
 
         // JIT 预编译缓存
-        private FluxJITCompiler<float, FloatMathDef>.CompiledFunc _jitFunc;
+        private CompiledFunc<float> _jitFunc;
         private Instruction[] _jitPayloadTemplate;
         private int _dataSlots;
 

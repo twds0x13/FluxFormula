@@ -31,6 +31,9 @@
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxConfig.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/VffFormat.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/Compiler/CompiledFunc.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/Compiler/FluxILCompiler.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/Compiler/IFluxILDefinition.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/Compiler/FluxJITCompiler.cs" />
     <!-- 测试定义 -->
     <Compile Include="../packages/fluxformula/Tests/TestDefinition.cs" />
