@@ -1,0 +1,29 @@
+{
+    "name": "FluxFormula.Addressables.UniTask.Tests",
+    "rootNamespace": "",
+    "references": [
+        "FluxFormula.Core",
+        "FluxFormula",
+        "FluxFormula.Tests",
+        "FluxFormula.Addressables",
+        "FluxFormula.Addressables.UniTask",
+        "UniTask"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "FLUX_ADDRESSABLES",
+        "FLUX_UNITASK"
+    ],
+    "versionDefines": [],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "noEngineReferences": false
+}

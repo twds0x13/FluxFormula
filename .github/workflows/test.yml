@@ -44,7 +44,7 @@ jobs:
 
       - name: Compute package hash for cache invalidation
         run: |
-          find packages/fluxformula.core packages/fluxformula packages/fluxformula.addressables -type f \
+          find packages/fluxformula.core packages/fluxformula packages/fluxformula.burst packages/fluxformula.addressables packages/fluxformula.addressables.unitask -type f \
             \( -name '*.cs' -o -name '*.asmdef' -o -name '*.meta' \) \
             -exec sha256sum {} \; | sort | sha256sum | cut -c1-16 \
             > .ci/Assets/package-cache-key.txt

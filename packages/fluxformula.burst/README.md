@@ -5,7 +5,7 @@ Burst-compiled evaluator for FluxFormula. Opt-in — add `Unity.Burst` and `Flux
 ## What's in this package
 
 - `FluxBurstEvaluator<TData, TDef>` — Burst-compatible formula interpreter. Takes raw `byte*` instruction stream instead of `ReadOnlySpan<Instruction>`, registers passed via `TData*` from caller. Zero managed allocation, fully compatible with Unity Jobs and Burst.
-- `FluxBurstAssemblerExtensions` — extension methods on `FluxAssembler<TData, TDef>`: `CreateBurstInstance()` for synchronous evaluation and `ScheduleBurst()` for jobified parallel execution.
+- `FluxBurstAssemblerExtensions` — extension methods on `FluxAssembler<TData, TDef>`: `CreateBurstInstance()` for manual control (sync/async) and `ScheduleBurst()` for one-shot jobified execution with variable injection.
 
 ## Usage
 
@@ -18,14 +18,14 @@ using Unity.Jobs;
 // Synchronous
 var assembler = new FluxAssembler<float, FloatMathDef>(default);
 var formula = assembler.Compile(new FluxLexer<float>(config).Lex("[atk] * 2 + [bonus]"));
-using var instance = assembler.CreateBurstInstance(formula);
-instance.Set("atk", 100f).Set("bonus", 50f);
-float result = instance.Run();
+using var job = assembler.CreateBurstInstance(formula);
+job.Set("atk", 100f).Set("bonus", 50f);
+float result = job.Run();
 
 // Asynchronous (jobified)
-var job = assembler.ScheduleBurst(formula, new[] { ("atk", 100f), ("bonus", 50f) });
-job.Complete();
-float result2 = job.Result;
+using var instance = assembler.ScheduleBurst(formula, ("atk", 100f), ("bonus", 50f));
+instance.Complete();
+float result2 = instance.Result;
 ```
 
 ## Constraints

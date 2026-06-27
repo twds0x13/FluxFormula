@@ -1,6 +1,9 @@
 using System;
 using Cysharp.Threading.Tasks;
 
+// 此文件物理位于 fluxformula.addressables.unitask 包，namespace 声明为 FluxFormula.Core。
+// C# 扩展方法发现依赖 using 指令: 目标类型在 Core 命名空间，同 namespace 保证自动可发现。
+// 程序集引用由 asmdef (autoReferenced: false) 控制。
 namespace FluxFormula.Core
 {
     /// <summary>

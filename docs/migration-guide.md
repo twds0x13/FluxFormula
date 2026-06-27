@@ -2,7 +2,7 @@
 
 本文档记录 FluxFormula 各主版本之间的 breaking changes 及迁移步骤。
 
-当前最新版本为 3.2.x。
+当前最新版本为 3.6.x。
 
 ---
 

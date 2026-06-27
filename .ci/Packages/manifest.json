@@ -4,11 +4,15 @@
     "com.twds0x13.fluxformula": "file:../../packages/fluxformula",
     "com.twds0x13.fluxformula.burst": "file:../../packages/fluxformula.burst",
     "com.twds0x13.fluxformula.addressables": "file:../../packages/fluxformula.addressables",
+    "com.twds0x13.fluxformula.addressables.unitask": "file:../../packages/fluxformula.addressables.unitask",
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
     "com.unity.addressables": "1.22.3",
     "com.unity.test-framework": "1.1.31"
   },
   "testables": [
     "com.twds0x13.fluxformula",
-    "com.twds0x13.fluxformula.burst"
+    "com.twds0x13.fluxformula.burst",
+    "com.twds0x13.fluxformula.addressables",
+    "com.twds0x13.fluxformula.addressables.unitask"
   ]
 }

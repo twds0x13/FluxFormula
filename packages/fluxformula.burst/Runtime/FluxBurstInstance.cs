@@ -36,6 +36,8 @@ namespace FluxFormula.Burst
         INativeBytecodeCache _cache;
         DualHash64 _bytecodeHash;
         bool _ownsBytecode;
+        JobHandle _scheduledHandle;
+        bool _scheduled;
 
         // ── 构造 ──
 
@@ -189,7 +191,22 @@ namespace FluxFormula.Burst
                 Registers = _registers,
                 MaxRegister = _maxRegister,
             };
-            return job.Schedule(dependency);
+            _scheduledHandle = job.Schedule(dependency);
+            _scheduled = true;
+            return _scheduledHandle;
+        }
+
+        /// <summary>
+        /// 等待上一次 <see cref="Schedule"/> 提交的 Job 完成。
+        /// 未调用过 Schedule 时是空操作。
+        /// </summary>
+        public void Complete()
+        {
+            if (_scheduled)
+            {
+                _scheduledHandle.Complete();
+                _scheduled = false;
+            }
         }
 
         /// <summary>

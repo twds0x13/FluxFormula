@@ -1,4 +1,5 @@
 using FluxFormula.Core;
+using Unity.Jobs;
 
 namespace FluxFormula.Burst
 {
@@ -56,6 +57,38 @@ namespace FluxFormula.Burst
             where TDef : unmanaged, IFluxExprDefinition<TData>
         {
             return new FluxBurstInstance<TData, TDef>(formula, cache);
+        }
+
+        /// <summary>
+        /// 一步完成：创建 Burst 实例 → 设置变量 → 调度到 Job 系统。
+        /// 返回的实例可通过 <see cref="FluxBurstInstance{TData, TDef}.Complete()"/> 等待完成，
+        /// 通过 <see cref="FluxBurstInstance{TData, TDef}.Result"/> 读取结果。
+        /// </summary>
+        /// <param name="assembler">汇编器（扩展目标）</param>
+        /// <param name="formula">公式</param>
+        /// <param name="variables">变量名-值对（可选）</param>
+        /// <example>
+        /// <code>
+        /// using var instance = assembler.ScheduleBurst(formula, ("atk", 100f), ("bonus", 50f));
+        /// instance.Complete();
+        /// float result = instance.Result;
+        /// </code>
+        /// </example>
+        public static FluxBurstInstance<TData, TDef> ScheduleBurst<TData, TDef>(
+            this FluxAssembler<TData, TDef> assembler,
+            FluxFormula<TData, TDef> formula,
+            params (string name, TData value)[] variables)
+            where TData : unmanaged
+            where TDef : unmanaged, IFluxExprDefinition<TData>
+        {
+            var instance = new FluxBurstInstance<TData, TDef>(formula);
+            if (variables != null)
+            {
+                foreach (var (name, value) in variables)
+                    instance.Set(name, value);
+            }
+            instance.Schedule();
+            return instance;
         }
     }
 }

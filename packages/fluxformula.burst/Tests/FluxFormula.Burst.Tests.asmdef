@@ -3,6 +3,8 @@
     "rootNamespace": "",
     "references": [
         "FluxFormula.Core",
+        "FluxFormula",
+        "FluxFormula.Tests",
         "FluxFormula.Burst"
     ],
     "includePlatforms": [],
