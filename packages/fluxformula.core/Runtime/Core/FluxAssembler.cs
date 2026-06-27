@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using FluxFormula.Compiler;
 
@@ -254,6 +255,7 @@ namespace FluxFormula.Core
         /// 按优先级尝试所有可用的委托提供方，返回 <see cref="CompiledFunc{TData}"/>。
         /// 不碰 <see cref="FormulaCache"/>——缓存逻辑由 <see cref="TryResolveJitDelegate"/> 负责。
         /// </summary>
+        [ExcludeFromCodeCoverage]  // DynamicMethod.CreateDelegate 与覆盖率插桩不兼容
         private static CompiledFunc<TData> CompileDelegate(
             ReadOnlySpan<Instruction> instSpan,
             TDef definition,

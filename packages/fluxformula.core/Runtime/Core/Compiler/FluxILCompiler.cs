@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Reflection.Emit;
 using FluxFormula.Core;
@@ -17,6 +18,7 @@ namespace FluxFormula.Compiler
     /// <para>IL 路径仅在 <see cref="System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported"/>
     /// 为 true 时可用（Mono / CoreCLR）；IL2CPP 平台自动降级到 Expression 树路径。</para>
     /// </remarks>
+    [ExcludeFromCodeCoverage]  // DynamicMethod 生成的代码无法被静态覆盖率工具插桩；排除以避免兼容性崩溃
     internal readonly ref struct FluxILCompiler<TData, TDef>
         where TData : unmanaged
         where TDef : unmanaged, IFluxExprDefinition<TData>
