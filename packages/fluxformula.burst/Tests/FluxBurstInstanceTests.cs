@@ -13,20 +13,19 @@ namespace FluxFormula.Burst.Tests
     /// </summary>
     public class FluxBurstInstanceTests
     {
-        private FluxAssembler<float, FloatMathDef> _assembler;
-        private FluxFormula<float, FloatMathDef> _simpleFormula;
-        private FluxFormula<float, FloatMathDef> _varFormula;
+        private static FluxAssembler<float, FloatMathDef> CreateAssembler() =>
+            new FluxAssembler<float, FloatMathDef>(default);
 
-        [SetUp]
-        public void SetUp()
+        private static FluxFormula<float, FloatMathDef> CompileSimple()
         {
-            _assembler = new FluxAssembler<float, FloatMathDef>(default);
-            _simpleFormula = _assembler.Compile(
+            return CreateAssembler().Compile(
                 TestHelper.CreateMathLexer().Lex("10 + 20"));
+        }
 
-            var varLexer = TestHelper.CreateVarLexer("[", "]");
-            _varFormula = _assembler.Compile(
-                varLexer.Lex("[atk] * 2 + [bonus]"));
+        private static FluxFormula<float, FloatMathDef> CompileVar()
+        {
+            return CreateAssembler().Compile(
+                TestHelper.CreateVarLexer("[", "]").Lex("[atk] * 2 + [bonus]"));
         }
 
         // ═══════════════════════════════════════════════════════
@@ -36,7 +35,8 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void CreateBurstInstance_Run_SimpleFormula()
         {
-            using var instance = _assembler.CreateBurstInstance(_simpleFormula);
+            var assembler = CreateAssembler();
+            using var instance = assembler.CreateBurstInstance(CompileSimple());
             float result = instance.Run();
             Assert.That(result, Is.EqualTo(30f));
         }
@@ -44,22 +44,24 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void CreateBurstInstance_Run_WithVariables()
         {
-            using var instance = _assembler.CreateBurstInstance(_varFormula);
+            var assembler = CreateAssembler();
+            using var instance = assembler.CreateBurstInstance(CompileVar());
             instance.Set("atk", 100f).Set("bonus", 50f);
             float result = instance.Run();
-            Assert.That(result, Is.EqualTo(250f)); // 100*2 + 50
+            Assert.That(result, Is.EqualTo(250f));
         }
 
         [Test]
         public void CreateBurstInstance_Run_MultipleTimes_SameResult()
         {
-            using var instance = _assembler.CreateBurstInstance(_simpleFormula);
+            var assembler = CreateAssembler();
+            using var instance = assembler.CreateBurstInstance(CompileSimple());
 
             for (int i = 0; i < 5; i++)
             {
                 float result = instance.Run();
                 Assert.That(result, Is.EqualTo(30f),
-                    $"第 {i} 次 Run 应返回相同结果");
+                    $"iteration {i} should return the same result");
             }
         }
 
@@ -70,29 +72,26 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void Set_ByIndex_AppliesValue()
         {
-            using var instance = _assembler.CreateBurstInstance(_varFormula);
-            // 按槽位索引注入（不使用变量名）
+            var assembler = CreateAssembler();
+            using var instance = assembler.CreateBurstInstance(CompileVar());
             instance.SetIndex(0, 10f).SetIndex(1, 20f);
             float result = instance.Run();
-            Assert.That(result, Is.EqualTo(40f)); // 10*2 + 20
+            Assert.That(result, Is.EqualTo(40f));
         }
 
         [Test]
         public void Set_ByName_UnknownVariable_NoOp()
         {
-            using var instance = _assembler.CreateBurstInstance(_varFormula);
-            // 不存在的变量名——不抛异常，静默无操作
+            var assembler = CreateAssembler();
+            using var instance = assembler.CreateBurstInstance(CompileVar());
             Assert.That(() => instance.Set("nonexistent", 999f), Throws.Nothing);
-            float result = instance.Run();
-            // 变量未注入则用 Immediate 默认值（来源于编译时的占位值）
-            Assert.That(result, Is.Not.EqualTo(0f).Or.EqualTo(0f));
-            // 仅验证不崩溃
         }
 
         [Test]
         public void SetIndex_OutOfRange_NoOp()
         {
-            using var instance = _assembler.CreateBurstInstance(_varFormula);
+            var assembler = CreateAssembler();
+            using var instance = assembler.CreateBurstInstance(CompileVar());
             Assert.That(() => instance.SetIndex(999, 123f), Throws.Nothing);
         }
 
@@ -103,7 +102,8 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void Schedule_Complete_ReturnsCorrectResult()
         {
-            using var instance = _assembler.CreateBurstInstance(_simpleFormula);
+            var assembler = CreateAssembler();
+            using var instance = assembler.CreateBurstInstance(CompileSimple());
             instance.Schedule();
             instance.Complete();
             Assert.That(instance.Result, Is.EqualTo(30f));
@@ -112,9 +112,10 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void Schedule_WithDependency_CompletesCorrectly()
         {
-            using var instance = _assembler.CreateBurstInstance(_simpleFormula);
+            var assembler = CreateAssembler();
+            using var instance = assembler.CreateBurstInstance(CompileSimple());
             var handle = instance.Schedule();
-            var handle2 = instance.Schedule(handle); // 依赖前一个 handle
+            var handle2 = instance.Schedule(handle);
             handle2.Complete();
             Assert.That(instance.Result, Is.EqualTo(30f));
         }
@@ -122,19 +123,20 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void Complete_WithoutSchedule_NoOp()
         {
-            using var instance = _assembler.CreateBurstInstance(_simpleFormula);
-            // 未调 Schedule 先调 Complete——不抛异常
+            var assembler = CreateAssembler();
+            using var instance = assembler.CreateBurstInstance(CompileSimple());
             Assert.That(() => instance.Complete(), Throws.Nothing);
         }
 
         [Test]
         public void Schedule_WithVariables_ResultUsesInjectedValues()
         {
-            using var instance = _assembler.CreateBurstInstance(_varFormula);
+            var assembler = CreateAssembler();
+            using var instance = assembler.CreateBurstInstance(CompileVar());
             instance.Set("atk", 10f).Set("bonus", 5f);
             instance.Schedule();
             instance.Complete();
-            Assert.That(instance.Result, Is.EqualTo(25f)); // 10*2 + 5
+            Assert.That(instance.Result, Is.EqualTo(25f));
         }
 
         // ═══════════════════════════════════════════════════════
@@ -144,16 +146,18 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void ScheduleBurst_Complete_Result()
         {
-            using var instance = _assembler.ScheduleBurst(
-                _varFormula, ("atk", 50f), ("bonus", 30f));
+            var assembler = CreateAssembler();
+            using var instance = assembler.ScheduleBurst(
+                CompileVar(), ("atk", 50f), ("bonus", 30f));
             instance.Complete();
-            Assert.That(instance.Result, Is.EqualTo(130f)); // 50*2 + 30
+            Assert.That(instance.Result, Is.EqualTo(130f));
         }
 
         [Test]
         public void ScheduleBurst_NoVariables_Runs()
         {
-            using var instance = _assembler.ScheduleBurst(_simpleFormula);
+            var assembler = CreateAssembler();
+            using var instance = assembler.ScheduleBurst(CompileSimple());
             instance.Complete();
             Assert.That(instance.Result, Is.EqualTo(30f));
         }
@@ -161,9 +165,8 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void ScheduleBurst_NullVariables_Runs()
         {
-            // params 数组为 null——应等价于无变量
-            using var instance = _assembler.ScheduleBurst(
-                _simpleFormula, null);
+            var assembler = CreateAssembler();
+            using var instance = assembler.ScheduleBurst(CompileSimple(), null);
             instance.Complete();
             Assert.That(instance.Result, Is.EqualTo(30f));
         }
@@ -175,16 +178,17 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void Dispose_ReleasesResources()
         {
-            var instance = _assembler.CreateBurstInstance(_simpleFormula);
+            var assembler = CreateAssembler();
+            var instance = assembler.CreateBurstInstance(CompileSimple());
             instance.Dispose();
-            // 二次 Dispose 不抛异常
             Assert.That(() => instance.Dispose(), Throws.Nothing);
         }
 
         [Test]
         public void Run_AfterDispose_Throws()
         {
-            var instance = _assembler.CreateBurstInstance(_simpleFormula);
+            var assembler = CreateAssembler();
+            var instance = assembler.CreateBurstInstance(CompileSimple());
             instance.Dispose();
 
             Assert.That(() => instance.Run(),
@@ -194,7 +198,8 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void Schedule_AfterDispose_Throws()
         {
-            var instance = _assembler.CreateBurstInstance(_simpleFormula);
+            var assembler = CreateAssembler();
+            var instance = assembler.CreateBurstInstance(CompileSimple());
             instance.Dispose();
 
             Assert.That(() => instance.Schedule(),
@@ -204,7 +209,8 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void Set_AfterDispose_Throws()
         {
-            var instance = _assembler.CreateBurstInstance(_varFormula);
+            var assembler = CreateAssembler();
+            var instance = assembler.CreateBurstInstance(CompileVar());
             instance.Dispose();
 
             Assert.That(() => instance.Set("atk", 1f),
@@ -214,7 +220,8 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void Result_AfterDispose_Throws()
         {
-            var instance = _assembler.CreateBurstInstance(_simpleFormula);
+            var assembler = CreateAssembler();
+            var instance = assembler.CreateBurstInstance(CompileSimple());
             instance.Dispose();
 
             Assert.That(() => { var _ = instance.Result; },
@@ -228,36 +235,37 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void CreateBurstInstance_WithCache_SharesBytecode()
         {
+            var assembler = CreateAssembler();
             using var cache = new NativeBytecodeCache(capacity: 16);
-            using var instance = _assembler.CreateBurstInstance(
-                _simpleFormula, cache);
+            using var instance = assembler.CreateBurstInstance(
+                CompileSimple(), cache);
 
             float result = instance.Run();
             Assert.That(result, Is.EqualTo(30f));
-            Assert.That(cache.Count, Is.EqualTo(1),
-                "缓存中应有 1 条活跃条目");
+            Assert.That(cache.Count, Is.EqualTo(1));
         }
 
         [Test]
         public void CreateBurstInstance_WithCache_MultipleInstances_ShareSameEntry()
         {
+            var assembler = CreateAssembler();
             using var cache = new NativeBytecodeCache(capacity: 16);
+            var formula = CompileSimple();
 
-            using var inst1 = _assembler.CreateBurstInstance(_simpleFormula, cache);
-            using var inst2 = _assembler.CreateBurstInstance(_simpleFormula, cache);
+            using var inst1 = assembler.CreateBurstInstance(formula, cache);
+            using var inst2 = assembler.CreateBurstInstance(formula, cache);
 
             Assert.That(inst1.Run(), Is.EqualTo(30f));
             Assert.That(inst2.Run(), Is.EqualTo(30f));
-
-            // 两个实例共享同一公式 → 缓存中应只有 1 条条目
             Assert.That(cache.Count, Is.EqualTo(1));
         }
 
         [Test]
         public void CreateBurstInstance_WithCache_NullCache_Throws()
         {
+            var assembler = CreateAssembler();
             Assert.That(
-                () => _assembler.CreateBurstInstance(_simpleFormula, (INativeBytecodeCache)null),
+                () => assembler.CreateBurstInstance(CompileSimple(), (INativeBytecodeCache)null),
                 Throws.ArgumentNullException);
         }
     }

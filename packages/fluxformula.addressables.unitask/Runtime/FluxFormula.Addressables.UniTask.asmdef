@@ -5,6 +5,8 @@
         "FluxFormula.Core",
         "FluxFormula",
         "FluxFormula.Addressables",
+        "Unity.Addressables",
+        "Unity.ResourceManager",
         "UniTask"
     ],
     "includePlatforms": [],
