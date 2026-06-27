@@ -18,6 +18,7 @@ docs/.vitepress/dist/
 docs/.vitepress/cache/
 
 # ===== AI / Claude (local only) =====
+CLAUDE.md
 .claude/settings.local.json
 
 # Coverage reports

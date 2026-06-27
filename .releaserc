@@ -7,25 +7,7 @@
     [
       "@semantic-release/release-notes-generator",
       {
-        "preset": "conventionalcommits",
-        "presetConfig": {
-          "types": [
-            { "type": "feat",     "section": "Features",          "hidden": false },
-            { "type": "fix",      "section": "Bug Fixes",          "hidden": false },
-            { "type": "perf",     "section": "Performance",        "hidden": false },
-            { "type": "refactor", "section": "Code Refactoring",   "hidden": false },
-            { "type": "docs",     "section": "Documentation",      "hidden": false },
-            { "type": "chore",    "section": "Chores",             "hidden": true },
-            { "type": "style",    "section": "Styling",            "hidden": true },
-            { "type": "test",     "section": "Tests",              "hidden": true },
-            { "type": "ci",       "section": "Continuous Integration", "hidden": true },
-            { "type": "build",    "section": "Build System",       "hidden": true }
-          ]
-        },
-        "writerOpts": {
-          "commitsSort": ["type", "scope"],
-          "commitPartial": "* {{#if scope}}**{{scope}}:** {{/if}}{{subject}}{{#if body}}\n\n  {{body}}{{/if}}"
-        }
+        "preset": "conventionalcommits"
       }
     ],
     [
@@ -50,7 +32,7 @@
           "packages/fluxformula.addressables.unitask/package.json",
           "CHANGELOG.md"
         ],
-        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+        "message": "chore(release): ${nextRelease.version} [skip ci]"
       }
     ],
     "@semantic-release/github"
