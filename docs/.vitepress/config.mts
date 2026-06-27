@@ -65,6 +65,7 @@ export default withMermaid(
                 { text: "Addressables 加载", link: "/examples/addressables-load" },
                 { text: "UniTask 加载", link: "/examples/unitask-load" },
                 { text: "VFF 持久化与参数覆写", link: "/examples/vff-persistence" },
+                { text: "IL 内联运算符", link: "/examples/il-inline" },
               ],
             },
             {
@@ -162,6 +163,7 @@ export default withMermaid(
                 { text: "Addressables Load", link: "/en/examples/addressables-load" },
                 { text: "UniTask Load", link: "/en/examples/unitask-load" },
                 { text: "VFF Persistence & Overrides", link: "/en/examples/vff-persistence" },
+                { text: "IL Inline Operators", link: "/en/examples/il-inline" },
               ],
             },
             {
