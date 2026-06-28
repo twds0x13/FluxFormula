@@ -263,10 +263,12 @@ namespace FluxFormula.Burst.Tests
         [Test]
         public void CreateBurstInstance_WithCache_NullCache_Throws()
         {
-            var assembler = CreateAssembler();
-            Assert.That(
-                () => assembler.CreateBurstInstance(CompileSimple(), (INativeBytecodeCache)null),
-                Throws.ArgumentNullException);
+            try
+            {
+                CreateAssembler().CreateBurstInstance(CompileSimple(), (INativeBytecodeCache)null);
+                Assert.Fail("Expected ArgumentNullException");
+            }
+            catch (ArgumentNullException) { }
         }
     }
 }

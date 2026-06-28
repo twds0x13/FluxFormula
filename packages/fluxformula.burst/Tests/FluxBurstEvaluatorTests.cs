@@ -2,6 +2,7 @@ using FluxFormula.Core;
 using FluxFormula.Burst;
 using NUnit.Framework;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 
 namespace FluxFormula.Burst.Tests
 {
