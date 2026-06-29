@@ -66,6 +66,15 @@ namespace FluxFormula.Burst
                 {
                     registers[inst->Dest] = default(TDef).Compute(operByte, *inst, regSpan);
 
+                    // NaN → R0 错误传播（除零等操作）。
+                    // typeof 检查在 Burst 编译时被常量折叠，非 float 特化零开销。
+                    if (typeof(TData) == typeof(float))
+                    {
+                        var result = registers[inst->Dest];
+                        if (float.IsNaN(*(float*)&result))
+                            registers[Registers.Error] = result;
+                    }
+
                     // R0 短路检查
                     if (!IsDefault(&registers[Registers.Error]))
                         return registers[Registers.Error];

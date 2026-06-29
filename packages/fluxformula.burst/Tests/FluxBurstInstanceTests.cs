@@ -74,7 +74,7 @@ namespace FluxFormula.Burst.Tests
         {
             var assembler = CreateAssembler();
             using var instance = assembler.CreateBurstInstance(CompileVar());
-            instance.SetIndex(0, 10f).SetIndex(1, 20f);
+            instance.SetIndex(0, 10f).SetIndex(2, 20f);
             float result = instance.Run();
             Assert.That(result, Is.EqualTo(40f));
         }

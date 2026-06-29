@@ -81,7 +81,7 @@ namespace FluxFormula.Burst.Tests
         public void Execute_ReturnReg_IsR1Bus()
         {
             var formula = CreateAssembler().Compile(
-                TestHelper.CreateMathLexer().Lex("99"));
+                TestHelper.CreateMathLexer().Lex("50 + 49"));
             byte[] raw = formula.ToBytes();
             var regs = new NativeArray<float>(256, Allocator.Temp);
 
