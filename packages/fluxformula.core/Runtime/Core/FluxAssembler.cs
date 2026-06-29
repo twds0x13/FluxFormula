@@ -31,7 +31,7 @@ namespace FluxFormula.Core
         /// <summary>
         /// 将 Token 编译为可缓存的公式数据图纸
         /// </summary>
-        public FluxFormula<TData, TDef> Compile(
+        internal FluxFormula<TData, TDef> Compile(
             ReadOnlySpan<FluxToken<TData>> tokens,
             string[] varNames = null)
         {
@@ -166,7 +166,7 @@ namespace FluxFormula.Core
         /// <summary>
         /// 将词法 Token 直接编译为可执行的流式流水线
         /// </summary>
-        public FluxInstance<TData, TDef> Build(
+        internal FluxInstance<TData, TDef> Build(
             ReadOnlySpan<FluxToken<TData>> tokens,
             bool jit = false
         )

@@ -28,7 +28,7 @@ namespace FluxFormula.Core
     /// <para><see cref="InstructionSize"/> 和 <see cref="DataSlots{TData}"/> 自动通过 <c>sizeof</c> 跟踪，
     /// 修改者无需手动更新这两处。</para>
     /// </remarks>
-    public static partial class FormulaFormat
+    internal static partial class FormulaFormat
     {
         /// <summary>头部大小（字节）</summary>
         public const int HeaderSize = 14;
@@ -120,7 +120,7 @@ namespace FluxFormula.Core
     }
 
     /// <summary>公式字节码头：不包含 magic byte（非 VFF 即为公式）。</summary>
-    public readonly struct FormulaHeader
+    internal readonly struct FormulaHeader
     {
         /// <summary>Instruction 条数</summary>
         public readonly int Count;
@@ -150,7 +150,7 @@ namespace FluxFormula.Core
         }
     }
 
-    public static partial class FormulaFormat
+    internal static partial class FormulaFormat
     {
         /// <summary>
         /// 判断一段字节码是否为公式条目（非 VFF 且头部可解析）。

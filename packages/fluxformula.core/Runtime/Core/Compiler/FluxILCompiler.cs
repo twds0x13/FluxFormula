@@ -55,7 +55,7 @@ namespace FluxFormula.Compiler
         /// <summary>
         /// 编译字节码为可执行委托（与 <see cref="FluxExprCompiler{TData, TDef}.Compile"/> 签名一致）。
         /// </summary>
-        public static CompiledFunc<TData> Compile(
+        internal static CompiledFunc<TData> Compile(
             ReadOnlySpan<Instruction> raw,
             TDef definition,
             out Instruction[] payload,

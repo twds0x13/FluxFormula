@@ -11,9 +11,9 @@ namespace FluxFormula.Compiler
         private readonly TDef _provider;
         private const int MaxStackDepth = 64;
 
-        public FluxCompiler(TDef provider) => _provider = provider;
+        internal FluxCompiler(TDef provider) => _provider = provider;
 
-        public int Compile(
+        internal int Compile(
             ReadOnlySpan<FluxToken<TData>> infix,
             Span<Instruction> instructions,
             out int immediateCount,

@@ -29,12 +29,12 @@ namespace FluxFormula.Core
         public const byte Bus = 1;
 
         /// <summary>R2：首个可分配的通用寄存器。</summary>
-        public const byte FirstAlloc = 2;
+        internal const byte FirstAlloc = 2;
 
         /// <summary>
         /// 最大寄存器索引 = byte.MaxValue (255)。
         /// 与 <see cref="FluxPlatform.MaxRegisters"/> 保持一致。
         /// </summary>
-        public const byte Max = 255;
+        internal const byte Max = 255;
     }
 }

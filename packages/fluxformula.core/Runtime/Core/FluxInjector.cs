@@ -23,7 +23,7 @@ namespace FluxFormula.Core
 
         // ── 构造 ──
 
-        public FluxInjector(Instruction[] buffer)
+        internal FluxInjector(Instruction[] buffer)
         {
             _buffer    = buffer;
             _offsets   = null;
@@ -100,7 +100,7 @@ namespace FluxFormula.Core
         // ── 注入 ──
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly FluxInjector<TData> SetIndex(int paramIndex, TData value)
+        internal readonly FluxInjector<TData> SetIndex(int paramIndex, TData value)
         {
             // 值回读
             if (_values != null && paramIndex < _values.Length)
@@ -132,7 +132,7 @@ namespace FluxFormula.Core
 
         /// <summary>按变量名安全注入。同名变量全部槽位一起写入。</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly FluxInjector<TData> Set(string name, TData value)
+        internal readonly FluxInjector<TData> Set(string name, TData value)
         {
             int lo = 0, hi = _varCount - 1;
             while (lo <= hi)
@@ -175,7 +175,7 @@ namespace FluxFormula.Core
         /// 按 SlotIndex 读取已注入的值。仅用于链式求值的 per-link buffer 构建。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly TData GetValue(int slotIndex)
+        internal readonly TData GetValue(int slotIndex)
         {
             if (_values != null && (uint)slotIndex < (uint)_values.Length)
                 return _values[slotIndex];
@@ -185,7 +185,7 @@ namespace FluxFormula.Core
         // ── 其他 ──
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly Instruction[] GetBuffer() => _buffer;
+        internal readonly Instruction[] GetBuffer() => _buffer;
 
         public override readonly string ToString() =>
             $"FluxInjector<{typeof(TData).Name}>";

@@ -10,7 +10,7 @@ namespace FluxFormula.Core
     /// <para>替代此前散落在 <see cref="FluxFormula{TData, TDef}"/>、<see cref="DualHash64"/>、
     /// <see cref="FormulaFormat"/>、<see cref="VffFormat"/> 中的各套独立读写方法。</para>
     /// </remarks>
-    public static class BinaryFormat
+    internal static class BinaryFormat
     {
         // ═══════════════════════════════════════════════════════
         // Read — ReadOnlySpan<byte> + ref offset

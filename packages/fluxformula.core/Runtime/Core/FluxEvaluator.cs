@@ -16,26 +16,26 @@ namespace FluxFormula.Core
         /// <summary>
         /// 当前平台是否不支持 JIT (IL2CPP/AOT 导致 Expression.Compile 失败)
         /// </summary>
-        public static bool IsJitDisabled => _jitDisabled;
+        internal static bool IsJitDisabled => _jitDisabled;
 
         /// <summary>
         /// 当前平台是否支持 IL 发射（<see cref="System.Reflection.Emit.DynamicMethod"/>）。
         /// IL2CPP / NativeAOT 返回 false——此时 IL 编译器不可用，自动降级到 Expression 树路径。
         /// </summary>
-        public static bool IsIlSupported =>
+        internal static bool IsIlSupported =>
             System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported;
 
         /// <summary>
         /// JIT 降级时触发。参数为异常消息。Unity 端可订阅以输出 <c>Debug.LogWarning</c>。
         /// Core 包无 UnityEngine 引用，故此事件保持纯 System.Action。
         /// </summary>
-        public static event Action<string> OnJitDisabled;
+        internal static event Action<string> OnJitDisabled;
 
         /// <summary>
         /// 标记 JIT 不可用，之后同进程内不再尝试。
         /// 调用前会触发 <see cref="OnJitDisabled"/> 事件携带原因。
         /// </summary>
-        public static void DisableJit(string reason = null)
+        internal static void DisableJit(string reason = null)
         {
             if (_jitDisabled) return;
             _jitDisabled = true;
@@ -47,7 +47,7 @@ namespace FluxFormula.Core
         /// 重置 JIT 禁用标志（仅测试用）。
         /// 生产环境中不应调用：一旦探测到平台不支持 JIT，应保持禁用。
         /// </summary>
-        public static void ResetJit()
+        internal static void ResetJit()
         {
             _jitDisabled = false;
         }
@@ -59,13 +59,13 @@ namespace FluxFormula.Core
     {
         private readonly TDef _definition;
 
-        public FluxEvaluator(TDef definition)
+        internal FluxEvaluator(TDef definition)
         {
             _definition = definition;
         }
 
         /// <summary>标准求值，R1 从 default(TData) 开始</summary>
-        public TData Compute(ReadOnlySpan<Instruction> raw, byte maxRegister = 0)
+        internal TData Compute(ReadOnlySpan<Instruction> raw, byte maxRegister = 0)
         {
             return ComputeCore(raw, default, maxRegister);
         }
@@ -74,7 +74,7 @@ namespace FluxFormula.Core
         /// 链式求值入口：R1 从 initialR1 开始而非 default(TData)。
         /// 用于链式公式的 per-link 解释器求值：前一个 link 的输出通过 R1 总线传入下一个 link。
         /// </summary>
-        public TData Compute(ReadOnlySpan<Instruction> raw, TData initialR1, byte maxRegister = 0)
+        internal TData Compute(ReadOnlySpan<Instruction> raw, TData initialR1, byte maxRegister = 0)
         {
             return ComputeCore(raw, initialR1, maxRegister);
         }

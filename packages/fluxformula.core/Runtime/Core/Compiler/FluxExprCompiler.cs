@@ -33,7 +33,7 @@ namespace FluxFormula.Compiler
             return System.Collections.Generic.EqualityComparer<TData>.Default.Equals(value, default);
         }
 
-        public static CompiledFunc<TData> Compile(
+        internal static CompiledFunc<TData> Compile(
             ReadOnlySpan<Instruction> raw,
             TDef definition,
             out Instruction[] payload,

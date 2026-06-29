@@ -204,6 +204,6 @@ namespace FluxFormula.Core
             return buffer;
         }
 
-        public readonly Instruction[] GetBuffer() => _injector.GetBuffer();
+        internal readonly Instruction[] GetBuffer() => _injector.GetBuffer();
     }
 }

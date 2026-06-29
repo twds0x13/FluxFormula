@@ -23,7 +23,7 @@ namespace FluxFormula.Core
     ///
     /// <para>设计参考：<see cref="BinaryFormat"/>（静态方法、零状态、AggressiveInlining）</para>
     /// </remarks>
-    public static class FluxCompression
+    internal static class FluxCompression
     {
         /// <summary>压缩魔数：用于区分压缩与未压缩字节码（0xBF = "Binary Flux"）</summary>
         public const byte Magic = 0xBF;

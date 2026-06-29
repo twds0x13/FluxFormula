@@ -7,6 +7,6 @@ namespace FluxFormula.Compiler
     /// 由 <see cref="FluxExprCompiler{TData, TDef}"/> 和 <see cref="FluxILCompiler{TData, TDef}"/>
     /// 共享，通过 <see cref="FluxFormula.Core.FormulaCache"/> 缓存。
     /// </summary>
-    public delegate TData CompiledFunc<TData>(Instruction[] dataBuffer)
+    internal delegate TData CompiledFunc<TData>(Instruction[] dataBuffer)
         where TData : unmanaged;
 }

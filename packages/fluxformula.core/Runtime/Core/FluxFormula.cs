@@ -11,7 +11,7 @@ namespace FluxFormula.Core
     /// 链式 JIT 求值使用的内部变量名前缀。
     /// 用户不得声明以此前缀开头的变量名，否则链式求值会发生变量冲突。
     /// </summary>
-    public static class ChainReserved
+    internal static class ChainReserved
     {
         /// <summary>内部变量前缀</summary>
         public const string InternalPrefix = "CHAIN_LINK_INTERNAL_";
