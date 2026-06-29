@@ -1,3 +1,14 @@
+## [3.6.1](https://github.com/twds0x13/FluxFormula/compare/v3.6.0...v3.6.1) (2026-06-29)
+
+### Bug Fixes
+
+* add missing LowLevel.Unsafe using, avoid ref struct in lambda ([5ccd7eb](https://github.com/twds0x13/FluxFormula/commit/5ccd7ebee1f0ff2ed544a2a9391d0229f61b2638))
+* assign struct fields in constructors, add missing asmdef reference ([1c7f2ac](https://github.com/twds0x13/FluxFormula/commit/1c7f2ac7785b9528b99232343b962589f2357703))
+* **burst:** propagate NaN to R0 error register on division-by-zero ([822e79c](https://github.com/twds0x13/FluxFormula/commit/822e79cd1cfa9d7fea0c4453e04b00ee02e5d429))
+* **core:** remove stray com.unity.collections dependency from package.json ([250ef39](https://github.com/twds0x13/FluxFormula/commit/250ef39e5965c4d399d944d32a06a1add834ed7a))
+* implement ScheduleBurst, add 45 tests across plugin packages ([dde38bf](https://github.com/twds0x13/FluxFormula/commit/dde38bf7e47853d2c9708429632f44b8a4cf31a8))
+* ref struct cannot be class field, add Unity.Addressables ref to asmdef ([22063ac](https://github.com/twds0x13/FluxFormula/commit/22063ac8d986396d8ad9bac3c2d81410751277db))
+
 ## [3.6.0](https://github.com/twds0x13/FluxFormula/compare/v3.5.0...v3.6.0) (2026-06-27)
 
 ### Features
