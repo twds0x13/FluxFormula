@@ -75,6 +75,17 @@ This is a monorepo containing five independent packages:
 "com.twds0x13.fluxformula.addressables": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.addressables"
 ```
 
+## Compatibility
+
+CI runs the full test suite on:
+
+| Environment | Tested Versions |
+|-------------|----------------|
+| Unity | 2021.3 LTS · 2022.3 LTS · 6000.0 |
+| .NET SDK | 8.0 · 9.0 |
+
+The Core package (`fluxformula.core`) targets netstandard2.1, compatible with .NET Core 3.0+ and all modern .NET runtimes. Unity supports both Mono and IL2CPP scripting backends.
+
 Minimum Unity version: 2021.3
 
 ## Quick Start

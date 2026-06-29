@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dotnet-version: ["9.0.x"]
+        dotnet-version: ["8.0", "9.0"]
 
     steps:
       - name: Checkout
@@ -30,10 +30,10 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ matrix.dotnet-version }}
+          dotnet-version: ${{ matrix.dotnet-version }}.x
 
       - name: Run tests (no coverage)
-        run: dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --configuration Release
+        run: dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --configuration Release --framework net${{ matrix.dotnet-version }}
 
       - name: Install coverage tool
         run: dotnet tool install -g dotnet-coverage
@@ -44,7 +44,7 @@ jobs:
           --output coverage-latest.xml
           --output-format cobertura
           --exclude-by-file "**/FluxILCompiler.cs"
-          "dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --configuration Release --no-build"
+          "dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --configuration Release --no-build --framework net${{ matrix.dotnet-version }}"
         continue-on-error: true
 
       - name: Upload coverage to Codecov
