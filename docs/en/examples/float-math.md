@@ -112,15 +112,9 @@ var def    = new MathDef();
 var runner = new FluxAssembler<float, MathDef>(def);
 
 // 1 + 2 * 3 = 7
-var tokens = new FluxToken<float>[]
-{
-    new() { Oper = (byte)MathOp.Const, Data = 1f },
-    new() { Oper = (byte)MathOp.Add },
-    new() { Oper = (byte)MathOp.Const, Data = 2f },
-    new() { Oper = (byte)MathOp.Mul },
-    new() { Oper = (byte)MathOp.Const, Data = 3f },
-};
-Assert.That(runner.Build(tokens).Run(), Is.EqualTo(7f).Within(1e-6f));
+var lexResult = lexer.Lex("1 + 2 * 3");
+var formula   = runner.Compile(lexResult);
+Assert.That(runner.Instantiate(formula).Run(), Is.EqualTo(7f).Within(1e-6f));
 
 // (1 + 2) * 3 = 9
 // -5

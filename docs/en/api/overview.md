@@ -77,7 +77,6 @@ graph LR
 | [FluxConfig](./flux-config) | — | Project-level global configuration |
 | [FormulaCache](./formula-cache) | — | 2048-slot open-addressing hashmap cache |
 | [IFluxCacheProvider](./iflux-cache-provider) | — | Replaceable cache backend interface |
-| [FormulaFormat](./formula-format) | — | `.ff` formula bytecode format definition (HeaderSize=14) |
 | [VffFormat](./vff-format) | — | `.vff` virtual formula format definition, encoding & parsing |
 | [FluxArtifactKind](./flux-artifact-kind) | — | Binary artifact type enum (`.ff` / `.vff`) |
 | [IFluxFileFormatter](./iflux-file-formatter) | — | Minimal persistence contract interface (with `FileFluxFileFormatter` built-in impl) |
@@ -91,11 +90,18 @@ The following types are not Public API, listed for reference only:
 
 - `FluxType` — internal enum (Formula / Modifier), made `internal` in v3.0.0
 - `FluxPlatform` — JIT degradation state control
+- `ChainReserved` — chain evaluation internal variable prefix (made `internal` in v3.7)
 - `ChainLink` — chain link struct (public struct, accessed via `FluxChain.GetLinks()`)
 - `FluxEvaluator<TData, TDef>` — interpreter execution engine
 - `FluxCompiler<TData, TDef>` — shunting-yard algorithm compiler
 - `FluxExprCompiler<TData, TDef>` — LINQ Expression Tree JIT
+- `FluxILCompiler<TData, TDef>` — IL emission compiler (DynamicMethod path)
 - `FluxInjector<TData>` — data injector
+- `CompiledFunc<TData>` — JIT compilation delegate type (made `internal` in v3.7)
+- `BinaryFormat` — little-endian binary I/O primitives (made `internal` in v3.7)
+- `FormulaFormat` — `.ff` bytecode format definition (made `internal` in v3.7)
+- `FormulaHeader` — formula bytecode header struct (made `internal` in v3.7)
+- `FluxCompression` — Brotli compression primitives (made `internal` in v3.7)
 - `OpPair` — bracket pairing descriptor (non-generic)
 
 ## Namespaces

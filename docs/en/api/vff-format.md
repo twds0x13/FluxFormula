@@ -238,4 +238,3 @@ float value = instance.Run();
 
 - [FluxFormula](./flux-formula) — Chain formulas and the Connect mechanism
 - [FormulaCache](./formula-cache) — Bytecode cache (data source for VFF resolution)
-- [FormulaFormat](./formula-format) — Formula bytecode format (`ReadVariableSlots`, `ReadHeader`)

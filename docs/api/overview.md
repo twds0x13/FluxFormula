@@ -77,7 +77,6 @@ graph LR
 | [FluxConfig](./flux-config) | — | 项目级全局配置 |
 | [FormulaCache](./formula-cache) | — | 2048 槽开放寻址哈希表缓存 |
 | [IFluxCacheProvider](./iflux-cache-provider) | — | 可替换缓存后端接口 |
-| [FormulaFormat](./formula-format) | — | `.ff` 公式字节码格式定义（HeaderSize=14） |
 | [VffFormat](./vff-format) | — | `.vff` 虚拟公式格式定义、编码与解析 |
 | [FluxArtifactKind](./flux-artifact-kind) | — | 二进制产物类型枚举（`.ff` / `.vff`） |
 | [IFluxFileFormatter](./iflux-file-formatter) | — | 最小持久化契约接口（含 `FileFluxFileFormatter` 内置实现） |
@@ -91,11 +90,18 @@ graph LR
 
 - `FluxType` — 内部枚举（Formula / Modifier），v3.0.0 改为 `internal`
 - `FluxPlatform` — JIT 降级状态控制
+- `ChainReserved` — 链式求值内部变量前缀（v3.7 改为 `internal`）
 - `ChainLink` — 链式公式环节结构体（public struct，通过 `FluxChain.GetLinks()` 访问）
 - `FluxEvaluator<TData, TDef>` — 解释器执行引擎
 - `FluxCompiler<TData, TDef>` — 调车场算法编译器
 - `FluxExprCompiler<TData, TDef>` — LINQ Expression Tree JIT
+- `FluxILCompiler<TData, TDef>` — IL 发射编译器（DynamicMethod 路径）
 - `FluxInjector<TData>` — 数据注入器
+- `CompiledFunc<TData>` — JIT 编译产出委托类型（v3.7 改为 `internal`）
+- `BinaryFormat` — 小端序二进制读写原语（v3.7 改为 `internal`）
+- `FormulaFormat` — `.ff` 字节码格式定义（v3.7 改为 `internal`）
+- `FormulaHeader` — 公式字节码头结构体（v3.7 改为 `internal`）
+- `FluxCompression` — Brotli 压缩原语（v3.7 改为 `internal`）
 - `OpPair` — 括号配对描述（非泛型）
 
 ## 命名空间

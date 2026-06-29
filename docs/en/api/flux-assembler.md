@@ -30,16 +30,6 @@ public FluxFormula<TData, TDef> Compile(LexResult<TData> lexResult)
 
 Accepts the `LexResult` returned by `FluxLexer.Lex()` and compiles it directly to bytecode. LexResult carries the token array and variable name information; Compile writes variable names into `FluxFormula.VariableSlots`.
 
-### Compile (Token Path)
-
-```csharp
-public FluxFormula<TData, TDef> Compile(
-    ReadOnlySpan<FluxToken<TData>> tokens,
-    string[] varNames = null)
-```
-
-Compiles an infix token sequence into bytecode `Formula`. Internally executes the shunting-yard algorithm, allocates and populates an `Instruction[]` buffer. The Formula can be cached and reused.
-
 ### Instantiate
 
 ```csharp
@@ -52,21 +42,6 @@ Activates an existing Formula as an executable Instance.
 
 - `jit: false` (default): Uses the interpreter path, stack-allocated registers
 - `jit: true`: Attempts JIT first (Expression Tree compiled to delegate); auto-degrades if the platform does not support it (AOT)
-
-### Build
-
-```csharp
-public FluxInstance<TData, TDef> Build(
-    ReadOnlySpan<FluxToken<TData>> tokens,
-    bool jit = false)
-```
-
-Combined `Compile()` + `Instantiate()` call. Suitable for one-shot formulas that don't need caching.
-
-```csharp
-var runner = new FluxAssembler<float, MathDef>(def);
-float r = runner.Build(tokens, jit: true).Run();
-```
 
 ## Formula Type Classification
 

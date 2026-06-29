@@ -98,4 +98,3 @@ var parsed = DualHash64.Parse(hex);     // hash == parsed
 ## See Also
 
 - [FormulaCache](./formula-cache) — Cache keyed by DualHash64
-- [FormulaFormat](./formula-format) — Bytecode serialization format

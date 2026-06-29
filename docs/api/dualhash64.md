@@ -98,4 +98,3 @@ var parsed = DualHash64.Parse(hex);     // hash == parsed
 ## 参见
 
 - [FormulaCache](./formula-cache) — 以 DualHash64 为键的缓存
-- [FormulaFormat](./formula-format) — 字节码序列化格式

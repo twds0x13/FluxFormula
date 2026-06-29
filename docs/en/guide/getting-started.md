@@ -166,20 +166,10 @@ float r = inst.Set("atk", 100f).Set("bonus", 20f).Run();
 
 ## Direct Token Construction (Without Lexer)
 
-When string parsing is not needed, construct token arrays directly:
-
 ```csharp
-var tokens = new FluxToken<float>[]
-{
-    new() { Oper = (byte)MathOp.Const, Data = 1f },
-    new() { Oper = (byte)MathOp.Add },
-    new() { Oper = (byte)MathOp.Const, Data = 2f },
-    new() { Oper = (byte)MathOp.Mul },
-    new() { Oper = (byte)MathOp.Const, Data = 3f },
-};
-// Expression: 1 + 2 * 3
-
-float result = runner.Build(tokens, jit: true).Run();
+var lexResult = lexer.Lex("1 + 2 * 3");
+var formula   = runner.Compile(lexResult);
+float result  = runner.Instantiate(formula, jit: true).Run();
 // result = 7.0
 ```
 

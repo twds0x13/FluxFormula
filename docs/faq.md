@@ -6,12 +6,11 @@
 
 ```csharp
 // 编译错误：以 Add 开头 → 产出 FluxModifier，没有 Instantiate()
-var tokens = new[] { Op((byte)MathOp.Add), C(5f) };
-// var inst = runner.Compile(tokens).Instantiate(...);  // CS1061: FluxModifier has no Instantiate
+// var inst = runner.Compile(lexer.Lex("+ 5")).Instantiate(...);  // CS1061
 
 // 正确：拼接到完整公式
-var f1   = runner.Compile(new[] { C(10f) });
-var mod  = runner.Compile(new[] { Op((byte)MathOp.Add), C(5f) });
+var f1   = runner.Compile(lexer.Lex("10"));
+var mod  = runner.Compile(lexer.Lex("+ 5"));
 var combined = f1.Connect(mod); // 10 + 5（Connect 接受 FluxModifier）
 ```
 
@@ -44,7 +43,7 @@ var combined = f1.Connect(mod); // 10 + 5（Connect 接受 FluxModifier）
 **1. 查看字节码：**
 
 ```csharp
-var formula = runner.Compile(tokens);
+var formula = runner.Compile(lexer.Lex("1 + 2 * 3"));
 #if UNITY_EDITOR
 formula.Dump(); // 需要 using FluxFormula.Editor 扩展
 #endif
@@ -53,8 +52,9 @@ formula.Dump(); // 需要 using FluxFormula.Editor 扩展
 **2. 对比 JIT 和解释器结果：**
 
 ```csharp
-float interp = runner.Build(tokens, jit: false).Run();
-float jit    = runner.Build(tokens, jit: true).Run();
+var lexResult = lexer.Lex("1 + 2 * 3");
+float interp = runner.Instantiate(runner.Compile(lexResult), jit: false).Run();
+float jit    = runner.Instantiate(runner.Compile(lexResult), jit: true).Run();
 // 如果结果不一致 → IFluxDefinition.Compute 和 GetExpression 语义不同步
 ```
 

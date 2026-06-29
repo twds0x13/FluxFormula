@@ -6,12 +6,11 @@ This occurs when compiling a token sequence that starts with a binary operator (
 
 ```csharp
 // Compile error: starts with Add → produces FluxModifier, no Instantiate()
-var tokens = new[] { Op((byte)MathOp.Add), C(5f) };
-// var inst = runner.Compile(tokens).Instantiate(...);  // CS1061: FluxModifier has no Instantiate
+// var inst = runner.Compile(lexer.Lex("+ 5")).Instantiate(...);  // CS1061
 
 // Correct: connect to a complete formula
-var f1   = runner.Compile(new[] { C(10f) });
-var mod  = runner.Compile(new[] { Op((byte)MathOp.Add), C(5f) });
+var f1   = runner.Compile(lexer.Lex("10"));
+var mod  = runner.Compile(lexer.Lex("+ 5"));
 var combined = f1.Connect(mod); // 10 + 5 (Connect accepts FluxModifier)
 ```
 
@@ -44,7 +43,7 @@ The interpreter path is available on all platforms. `Expression.Compile()` is no
 **1. Inspect bytecode:**
 
 ```csharp
-var formula = runner.Compile(tokens);
+var formula = runner.Compile(lexer.Lex("1 + 2 * 3"));
 #if UNITY_EDITOR
 formula.Dump(); // Requires using FluxFormula.Editor extension
 #endif
@@ -53,8 +52,9 @@ formula.Dump(); // Requires using FluxFormula.Editor extension
 **2. Compare JIT and interpreter results:**
 
 ```csharp
-float interp = runner.Build(tokens, jit: false).Run();
-float jit    = runner.Build(tokens, jit: true).Run();
+var lexResult = lexer.Lex("1 + 2 * 3");
+float interp = runner.Instantiate(runner.Compile(lexResult), jit: false).Run();
+float jit    = runner.Instantiate(runner.Compile(lexResult), jit: true).Run();
 // If results differ → IFluxDefinition.Compute and GetExpression semantics are out of sync
 ```
 

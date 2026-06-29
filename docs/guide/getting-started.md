@@ -166,20 +166,10 @@ float r = inst.Set("atk", 100f).Set("bonus", 20f).Run();
 
 ## 直接构造 Token（无 Lexer）
 
-当不需要字符串解析时，可直接构造 Token 数组：
-
 ```csharp
-var tokens = new FluxToken<float>[]
-{
-    new() { Oper = (byte)MathOp.Const, Data = 1f },
-    new() { Oper = (byte)MathOp.Add },
-    new() { Oper = (byte)MathOp.Const, Data = 2f },
-    new() { Oper = (byte)MathOp.Mul },
-    new() { Oper = (byte)MathOp.Const, Data = 3f },
-};
-// 表达式: 1 + 2 * 3
-
-float result = runner.Build(tokens, jit: true).Run();
+var lexResult = lexer.Lex("1 + 2 * 3");
+var formula   = runner.Compile(lexResult);
+float result  = runner.Instantiate(formula, jit: true).Run();
 // result = 7.0
 ```
 

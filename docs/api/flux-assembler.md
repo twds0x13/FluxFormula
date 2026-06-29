@@ -30,16 +30,6 @@ public FluxFormula<TData, TDef> Compile(LexResult<TData> lexResult)
 
 接受 `FluxLexer.Lex()` 返回的 `LexResult`，直接编译为字节码。LexResult 携带 Token 数组和变量名信息，Compile 将变量名写入 `FluxFormula.VariableSlots`。
 
-### Compile（Token 路径）
-
-```csharp
-public FluxFormula<TData, TDef> Compile(
-    ReadOnlySpan<FluxToken<TData>> tokens,
-    string[] varNames = null)
-```
-
-将中缀 Token 序列编译为字节码 `Formula`。内部执行调车场算法，分配 `Instruction[]` 缓冲并填充。Formula 可缓存复用。
-
 ### Instantiate
 
 ```csharp
@@ -52,21 +42,6 @@ public FluxInstance<TData, TDef> Instantiate(
 
 - `jit: false`（默认）：使用解释器路径，栈分配寄存器
 - `jit: true`：先尝试 JIT（Expression Tree 编译为委托），若平台不支持（AOT）则自动降级
-
-### Build
-
-```csharp
-public FluxInstance<TData, TDef> Build(
-    ReadOnlySpan<FluxToken<TData>> tokens,
-    bool jit = false)
-```
-
-`Compile()` + `Instantiate()` 合并调用。适用于一次性公式，无需缓存。
-
-```csharp
-var runner = new FluxAssembler<float, MathDef>(def);
-float r = runner.Build(tokens, jit: true).Run();
-```
 
 ## 公式类型判定
 

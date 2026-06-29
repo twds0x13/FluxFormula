@@ -43,7 +43,6 @@ export default withMermaid(
                 { text: "Instruction", link: "/api/instruction" },
                 { text: "FluxToken", link: "/api/flux-token" },
                 { text: "VffFormat", link: "/api/vff-format" },
-                { text: "FormulaFormat", link: "/api/formula-format" },
                 { text: "FormulaCache", link: "/api/formula-cache" },
                 { text: "DualHash64", link: "/api/dualhash64" },
                 { text: "FluxConfig", link: "/api/flux-config" },
@@ -56,7 +55,7 @@ export default withMermaid(
               text: "示例",
               items: [
                 { text: "浮点四则运算", link: "/examples/float-math" },
-                { text: "Token 直构", link: "/examples/token-direct" },
+
                 { text: "游戏伤害公式", link: "/examples/damage-formula" },
                 { text: "R0 短路错误处理", link: "/examples/error-handling" },
                 { text: "Vector3 运算", link: "/examples/vector3" },
@@ -141,7 +140,6 @@ export default withMermaid(
                 { text: "Instruction", link: "/en/api/instruction" },
                 { text: "FluxToken", link: "/en/api/flux-token" },
                 { text: "VffFormat", link: "/en/api/vff-format" },
-                { text: "FormulaFormat", link: "/en/api/formula-format" },
                 { text: "FormulaCache", link: "/en/api/formula-cache" },
                 { text: "DualHash64", link: "/en/api/dualhash64" },
                 { text: "FluxConfig", link: "/en/api/flux-config" },
@@ -154,7 +152,7 @@ export default withMermaid(
               text: "Examples",
               items: [
                 { text: "Float Arithmetic", link: "/en/examples/float-math" },
-                { text: "Direct Tokens", link: "/en/examples/token-direct" },
+
                 { text: "Damage Formula", link: "/en/examples/damage-formula" },
                 { text: "R0 Error Handling", link: "/en/examples/error-handling" },
                 { text: "Vector3 Operations", link: "/en/examples/vector3" },

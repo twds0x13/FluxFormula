@@ -61,8 +61,9 @@ Returns the underlying `Instruction[]` buffer. Intended for debugging and benchm
 ## Usage
 
 ```csharp
-// Single evaluation
-float r = runner.Build(tokens).Run();
+var lexResult = lexer.Lex("1 + 2 * 3");
+var formula   = runner.Compile(lexResult);
+float r = runner.Instantiate(formula).Run();
 
 // Named variable injection
 float r = runner.Instantiate(formula)

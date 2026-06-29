@@ -238,4 +238,3 @@ float value = instance.Run();
 
 - [FluxFormula](./flux-formula) — 链式公式与 Connect 机制
 - [FormulaCache](./formula-cache) — 字节码缓存（VFF resolve 的数据源）
-- [FormulaFormat](./formula-format) — 公式字节码格式（`ReadVariableSlots`、`ReadHeader`）

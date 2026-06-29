@@ -61,8 +61,9 @@ public readonly Instruction[] GetBuffer()
 ## 使用示例
 
 ```csharp
-// 单次求值
-float r = runner.Build(tokens).Run();
+var lexResult = lexer.Lex("1 + 2 * 3");
+var formula   = runner.Compile(lexResult);
+float r = runner.Instantiate(formula).Run();
 
 // 命名变量注入
 float r = runner.Instantiate(formula)
