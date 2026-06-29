@@ -1,3 +1,13 @@
+## [3.7.0](https://github.com/twds0x13/FluxFormula/compare/v3.6.1...v3.7.0) (2026-06-29)
+
+### Features
+
+* **samples:** add FloatMath sample to fluxformula package ([297bafd](https://github.com/twds0x13/FluxFormula/commit/297bafd1bc198d0b22d84858aa4337e943443d15))
+
+### Bug Fixes
+
+* **ci:** flatten dotnet-coverage run to single line ([9206e69](https://github.com/twds0x13/FluxFormula/commit/9206e691e22455d9bc036f74942ce27e14cc591a))
+
 ## [3.6.1](https://github.com/twds0x13/FluxFormula/compare/v3.6.0...v3.6.1) (2026-06-29)
 
 ### Bug Fixes
