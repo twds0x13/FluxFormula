@@ -1,10 +1,16 @@
-# Example: Card Draw Stack
+# Example: Spell Context
 
-A dual-field immediate syntax and chain pass-through model — each spell card carries both a damage value and a draw cost, chained via Connect into a draw queue.
+A dual-field immediate syntax and chain modification model — the `float` field is a damage modifier (positive = increase, negative = decrease), the `int` field is remaining draws. Correction spells are chained via Connect into a cast queue.
 
 ## Scenario
 
-Noita-style spell drawing: each card has a damage value and a draw cost. `5.5|-1` means 5.5 damage and consume 1 draw. Multiple cards are chained into a queue; the chain naturally terminates when draws run out. An external loop reads the remaining draws from the return value to decide whether to keep drawing.
+Noita-style spell correction system. Each spell card has two attributes:
+- **Damage modifier**: float, positive = increase final damage, negative = decrease final damage
+- **Draw modifier**: int, positive = grant extra draws (multi-cast), negative = consume draws
+
+`10.5|0` is a pure damage correction spell. `0|2` is a multi-cast: no damage change, grants 2 extra draws. `-5|3` is a tradeoff draw spell: decreases damage by 5, grants 3 draws. `28.5|-1` is a burst correction: adds 28.5 damage, consumes 1 draw.
+
+Multiple cards are chained into a queue; the chain naturally terminates when draws run out. An external loop reads the remaining draws from the return value to decide whether to keep casting.
 
 ## TData Struct
 
@@ -133,10 +139,32 @@ public readonly struct DrawDef : IFluxExprDefinition<DrawState>
             _ => default,
         };
     }
+
+    public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
+    {
+        var argA = regs[inst.Arg0];
+        var argB = regs[inst.Arg1];
+        var dmgA = Expression.Field(argA, nameof(DrawState.Damage));
+        var dmgB = Expression.Field(argB, nameof(DrawState.Damage));
+        var drawA = Expression.Field(argA, nameof(DrawState.DrawsLeft));
+        var drawB = Expression.Field(argB, nameof(DrawState.DrawsLeft));
+        var ctor = typeof(DrawState).GetConstructor(new[] { typeof(float), typeof(int) });
+
+        return ((DrawOp)op) switch
+        {
+            DrawOp.Add => Expression.MemberInit(
+                Expression.New(ctor),
+                Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.Damage)),
+                    Expression.Add(dmgA, dmgB)),
+                Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.DrawsLeft)),
+                    Expression.Add(drawA, drawB))),
+            _ => Expression.Constant(default(DrawState)),
+        };
+    }
 }
 ```
 
-`Add` accumulates both damage and draws. Negative literals encode all decrement semantics: `-5|2` means 5 penalty and 2 draw bonus, `10.5|-1` means 10.5 damage consuming 1 draw.
+`Add` acts on both the damage modifier and the draw modifier simultaneously. Negative floats decrease final damage; negative integers consume draws.
 
 ## Lexer Configuration
 
@@ -194,7 +222,8 @@ foreach (var card in cards)
 
 ## Key Points
 
-- `float|int` dual-field immediates are another application of LiteralScanner: `|` as a field separator replaces the `:tag` label pattern
-- `Add` acts on both Damage and DrawsLeft simultaneously; negative literals replace all other operations
-- When DrawsLeft reaches 0, subsequent cards in the chain still evaluate, but the external loop stops by checking `state.DrawsLeft <= 0`
-- `DrawState` carries two dimensions of information; Connect passes the full state through the R1 bus
+- `float|int` dual-field immediates are another application of LiteralScanner: `|` as field separator
+- `Add` acts on both the damage modifier and draw modifier simultaneously; negative values encode decrement semantics
+- Multi-cast (`0|N`) and tradeoff (`-X|N`) are natural consequences of the same `float|int` format
+- When DrawsLeft reaches 0, subsequent cards still evaluate, but the external loop stops by checking `state.DrawsLeft <= 0`
+- The spell context flows through the R1 bus across the Connect chain

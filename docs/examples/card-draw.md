@@ -1,10 +1,16 @@
-# 示例：抽牌堆模型
+# 示例：法术上下文
 
-演示双字段立即数语法和链式透传：每张法术卡同时携带伤害值和抽数消耗，通过 Connect 串联为抽牌队列。
+演示双字段立即数语法和链式修正：`float` 字段为伤害修正值（正数增伤、负数减伤），`int` 字段为剩余抽数。通过 Connect 串联修正法术形成施法队列。
 
 ## 场景
 
-Noita 式抽牌法术：每张卡有伤害值和抽数消耗。`5.5|-1` 表示造成 5.5 伤害并消耗 1 抽。多张卡串联为队列，抽数耗尽后链自然终止。外部循环读取返回值的剩余抽数，决定是否继续抽牌。
+Noita 式法术修正系统。每张法术卡有两个属性：
+- **伤害修正**：浮点数，正值 = 增加最终伤害，负值 = 降低最终伤害
+- **抽数修正**：整数，正数 = 提供额外抽牌（多重施法），负数 = 消耗抽数
+
+`10.5|0` 是纯伤害修正法术。`0|2` 是多重施法：不改变伤害，提供 2 次额外抽牌。`-5|3` 是含 tradeoff 的抽牌法术：降低 5 点伤害，换取 3 次抽牌。`28.5|-1` 是一次性爆发修正：造成 28.5 伤害，消耗 1 抽。
+
+多张卡串联为队列，抽数耗尽后链自然终止。外部循环读取返回值的剩余抽数，决定是否继续抽牌。
 
 ## TData 结构体
 
@@ -133,10 +139,32 @@ public readonly struct DrawDef : IFluxExprDefinition<DrawState>
             _ => default,
         };
     }
+
+    public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
+    {
+        var argA = regs[inst.Arg0];
+        var argB = regs[inst.Arg1];
+        var dmgA = Expression.Field(argA, nameof(DrawState.Damage));
+        var dmgB = Expression.Field(argB, nameof(DrawState.Damage));
+        var drawA = Expression.Field(argA, nameof(DrawState.DrawsLeft));
+        var drawB = Expression.Field(argB, nameof(DrawState.DrawsLeft));
+        var ctor = typeof(DrawState).GetConstructor(new[] { typeof(float), typeof(int) });
+
+        return ((DrawOp)op) switch
+        {
+            DrawOp.Add => Expression.MemberInit(
+                Expression.New(ctor),
+                Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.Damage)),
+                    Expression.Add(dmgA, dmgB)),
+                Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.DrawsLeft)),
+                    Expression.Add(drawA, drawB))),
+            _ => Expression.Constant(default(DrawState)),
+        };
+    }
 }
 ```
 
-`Add` 同时累加伤害和抽数。负数字面量编码递减语义：`-5|2` 表示 5 点惩罚和 2 抽奖励，`10.5|-1` 表示 10.5 伤害消耗 1 抽。
+`Add` 同时作用于伤害修正和抽数修正。负浮点数降低最终伤害，负整数消耗抽数。
 
 ## Lexer 配置
 
@@ -194,7 +222,8 @@ foreach (var card in cards)
 
 ## 要点
 
-- `float|int` 双字段立即数是 LiteralScanner 的另一种应用：`|` 作为字段分隔符，替代 `:tag` 标签模式
-- `Add` 同时作用于 Damage 和 DrawsLeft，负数字面量替代所有其他运算
-- DrawsLeft 降到 0 后，链中后续卡片仍在求值，但外部循环读取 `state.DrawsLeft <= 0` 后停止
-- `DrawState` 同时携带伤害和抽数两个信息维度，Connect 串联时通过 R1 总线传递完整状态
+- `float|int` 双字段立即数是 LiteralScanner 的另一种应用：`|` 作为字段分隔符
+- `Add` 同时作用于伤害修正和抽数修正两个字段，负数值覆盖递减语义
+- 多重施法（`0|N`）和 tradeoff（`-X|N`）是同一 `float|int` 格式的自然推论
+- DrawsLeft 降到 0 后，链中后续卡片仍在求值，外部循环读取 `state.DrawsLeft <= 0` 后停止
+- 法术上下文通过 R1 总线在 Connect 链中传递完整状态

@@ -63,7 +63,7 @@ export default withMermaid(
                     { text: "自定义立即数语法", link: "/examples/custom-literal" },
                     { text: "Vector3 运算", link: "/examples/vector3" },
 
-                    { text: "抽牌堆模型", link: "/examples/card-draw" },
+                    { text: "法术上下文", link: "/examples/card-draw" },
                     { text: "链式 Connect", link: "/examples/chain-connect" },
                   ],
                 },
@@ -185,7 +185,7 @@ export default withMermaid(
                     { text: "Custom Literal Syntax", link: "/en/examples/custom-literal" },
                     { text: "Vector3 Operations", link: "/en/examples/vector3" },
 
-                    { text: "Card Draw Stack", link: "/en/examples/card-draw" },
+                    { text: "Spell Context", link: "/en/examples/card-draw" },
                     { text: "Chain Connect", link: "/en/examples/chain-connect" },
                   ],
                 },
