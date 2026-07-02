@@ -83,9 +83,9 @@ handle2.Complete();
 
 ## Notes
 
-- Always call `Dispose()` after use to release `NativeArray`. Prefer `using` declarations.
+- Always call `Dispose()` after use to release `NativeArray`. Use `using` declarations.
 - JIT is unavailable inside Jobs. `FluxBurstEvaluator` is a pure interpreter compiled by Burst to near-JIT performance.
-- `Set(string)` resolves variable names on the managed heap. Prefer `SetIndex` by slot index in hot paths.
+- `Set(string)` resolves variable names on the managed heap. Use `SetIndex` by slot index in hot paths to eliminate hash lookups.
 - Use Burst Inspector to verify zero managed escapes in the `Execute` method.
 
 ## See Also

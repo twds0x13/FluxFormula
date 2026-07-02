@@ -62,8 +62,8 @@ export default withMermaid(
                     { text: "浮点四则运算", link: "/examples/float-math" },
                     { text: "自定义立即数语法", link: "/examples/custom-literal" },
                     { text: "Vector3 运算", link: "/examples/vector3" },
-                    { text: "游戏伤害公式", link: "/examples/damage-formula" },
-                    { text: "R0 短路错误处理", link: "/examples/error-handling" },
+
+                    { text: "抽牌堆模型", link: "/examples/card-draw" },
                     { text: "链式 Connect", link: "/examples/chain-connect" },
                   ],
                 },
@@ -184,8 +184,8 @@ export default withMermaid(
                     { text: "Float Arithmetic", link: "/en/examples/float-math" },
                     { text: "Custom Literal Syntax", link: "/en/examples/custom-literal" },
                     { text: "Vector3 Operations", link: "/en/examples/vector3" },
-                    { text: "Damage Formula", link: "/en/examples/damage-formula" },
-                    { text: "R0 Error Handling", link: "/en/examples/error-handling" },
+
+                    { text: "Card Draw Stack", link: "/en/examples/card-draw" },
                     { text: "Chain Connect", link: "/en/examples/chain-connect" },
                   ],
                 },

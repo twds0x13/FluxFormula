@@ -27,17 +27,6 @@ var inst = runner.Instantiate(formula);
 float r = inst.Set("atk", 150f).Set("def", 50f).Run();
 ```
 
-### SetIndex
-
-```csharp
-public FluxInstance<TData, TDef> SetIndex(int index, TData value)
-```
-
-按位置索引注入值（第 `index` 个 Immediate 数据槽位）。无变量名校验。
-
-- JIT 路径：写入紧凑的 payload 数组（线性索引）
-- 解释器路径：按预扫描的 offsets 写入公式缓冲
-
 ### Run
 
 ```csharp
@@ -71,11 +60,6 @@ float r = runner.Instantiate(formula)
     .Set("def", 50f)
     .Run();
 
-// 按索引注入
-float r = runner.Instantiate(formula)
-    .SetIndex(0, 3f)
-    .SetIndex(1, 4f)
-    .Run();
 ```
 
 ## v3.0.0 变更

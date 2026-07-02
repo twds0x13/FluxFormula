@@ -61,19 +61,6 @@ float r1 = inst.Set("atk", 150f).Set("bonus", 25f).Run();  // 325
 float r2 = inst.Set("atk", 100f).Set("bonus", 50f).Run();  // 250
 ```
 
-### SetIndex：按位置注入
-
-无变量名时按 Immediate 槽位索引注入：
-
-```csharp
-var formula = runner.Compile(new[] {
-    C(0f), Op((byte)MathOp.Add), C(0f)  // 0 + 0 模板
-});
-
-var inst = runner.Instantiate(formula);
-float r = inst.SetIndex(0, 10f).SetIndex(1, 20f).Run();  // = 30
-```
-
 ## JIT vs 解释器：选择策略
 
 ```mermaid

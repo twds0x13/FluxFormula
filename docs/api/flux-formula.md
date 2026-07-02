@@ -26,7 +26,7 @@ public readonly struct FluxChain<TData, TDef>
 | 属性 | 类型 | 说明 |
 |------|------|------|
 | `Count` | `int` | 指令数量（含末尾 Return） |
-| `ImmediateCount` | `int` | Immediate 指令数量，即 `SetIndex()` 的有效索引上限 |
+| `ImmediateCount` | `int` | Immediate 指令数量 |
 | `VariableSlots` | `VariableSlot[]` | 变量名到槽位索引的映射表，由 Lexer 路径填充 |
 | `MaxRegister` | `byte` | 编译期分析的最高寄存器索引（0=未分析，回退到全量 255） |
 
@@ -151,7 +151,7 @@ Modifier→Formula：插入命名变量替代 R1 输入。这是 `FluxModifier` 
 | `Key` | `DualHash64` | 字节码哈希，缓存中查找 delegate 的键 |
 | `Bytecode` | `Instruction[]` | 字节码引用（指向原始公式的 Instruction[]，不复制） |
 | `InstructionCount` | `int` | Instruction 数量 |
-| `ImmediateCount` | `int` | 该片段的 Immediate 数（用于 SetIndex 偏移计算） |
+| `ImmediateCount` | `int` | 该片段的 Immediate 数 |
 | `VarSlots` | `VariableSlot[]` | 该片段的变量槽 |
 | `MaxRegister` | `byte` | 该片段的最大寄存器索引（0=未分析） |
 

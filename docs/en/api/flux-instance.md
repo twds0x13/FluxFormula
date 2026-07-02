@@ -27,17 +27,6 @@ var inst = runner.Instantiate(formula);
 float r = inst.Set("atk", 150f).Set("def", 50f).Run();
 ```
 
-### SetIndex
-
-```csharp
-public FluxInstance<TData, TDef> SetIndex(int index, TData value)
-```
-
-Injects a value by positional index (the `index`-th Immediate data slot). No variable name validation.
-
-- JIT path: writes to a compact payload array (linear index)
-- Interpreter path: writes into the formula buffer at pre-scanned offsets
-
 ### Run
 
 ```csharp
@@ -71,11 +60,6 @@ float r = runner.Instantiate(formula)
     .Set("def", 50f)
     .Run();
 
-// Index-based injection
-float r = runner.Instantiate(formula)
-    .SetIndex(0, 3f)
-    .SetIndex(1, 4f)
-    .Run();
 ```
 
 ## v3.0.0 Changes

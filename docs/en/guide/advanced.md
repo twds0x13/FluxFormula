@@ -61,19 +61,6 @@ float r1 = inst.Set("atk", 150f).Set("bonus", 25f).Run();  // 325
 float r2 = inst.Set("atk", 100f).Set("bonus", 50f).Run();  // 250
 ```
 
-### SetIndex: Injection by Position
-
-Inject values by Immediate slot index when variable names are not used:
-
-```csharp
-var formula = runner.Compile(new[] {
-    C(0f), Op((byte)MathOp.Add), C(0f)  // 0 + 0 template
-});
-
-var inst = runner.Instantiate(formula);
-float r = inst.SetIndex(0, 10f).SetIndex(1, 20f).Run();  // = 30
-```
-
 ## JIT vs Interpreter: Selection Strategy
 
 ```mermaid

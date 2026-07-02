@@ -83,9 +83,9 @@ handle2.Complete();
 
 ## 注意事项
 
-- 使用完毕后必须调用 `Dispose()` 释放 `NativeArray`。推荐 `using` 声明。
+- 使用完毕后必须调用 `Dispose()` 释放 `NativeArray`。建议使用 `using` 声明。
 - Job 内不能使用 JIT 路径。`FluxBurstEvaluator` 是纯解释器，由 Burst 编译到接近 JIT 水平。
-- `Set(string)` 在托管堆上解析变量名。热路径中优先用 `SetIndex` 按槽位索引注入。
+- `Set(string)` 在托管堆上解析变量名。热路径可用 `SetIndex` 按槽位索引注入，消除哈希查找开销。
 - Burst Inspector 可验证 `Execute` 方法零托管逃逸。
 
 ## 参见

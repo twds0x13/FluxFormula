@@ -26,7 +26,7 @@ public readonly struct FluxChain<TData, TDef>
 | Property | Type | Description |
 |------|------|------|
 | `Count` | `int` | Number of instructions (including trailing Return) |
-| `ImmediateCount` | `int` | Number of Immediate instructions; upper bound for `SetIndex()` |
+| `ImmediateCount` | `int` | Number of Immediate instructions |
 | `VariableSlots` | `VariableSlot[]` | Variable name to slot index mapping, populated by the Lexer path |
 | `MaxRegister` | `byte` | Compile-time max register index (0 = unanalyzed, fallback to full 255) |
 
@@ -153,7 +153,7 @@ A single link in a chain formula. Stores bytecode reference and metadata, with t
 | `Key` | `DualHash64` | Bytecode hash — cache key for delegate lookup |
 | `Bytecode` | `Instruction[]` | Bytecode reference (points to original formula's Instruction[], non-copying) |
 | `InstructionCount` | `int` | Number of Instructions |
-| `ImmediateCount` | `int` | Immediate count for this fragment (used for SetIndex offset calculation) |
+| `ImmediateCount` | `int` | Immediate count for this fragment |
 | `VarSlots` | `VariableSlot[]` | Variable slots for this fragment |
 | `MaxRegister` | `byte` | Max register index for this fragment (0 = unanalyzed) |
 
