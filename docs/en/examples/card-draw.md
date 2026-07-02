@@ -1,16 +1,16 @@
 # Example: Spell Context
 
-A dual-field immediate syntax and chain modification model — the `float` field is a damage modifier (positive = increase, negative = decrease), the `int` field is remaining draws. Correction spells are chained via Connect into a cast queue.
+A dual-field immediate syntax and chain modification model. The `float` field is a damage modifier (positive = increase, negative = decrease), the `int` field is draw provision. Each card automatically costs 1 draw to cast; cards are chained via Connect into a cast queue.
 
 ## Scenario
 
 Noita-style spell correction system. Each spell card has two attributes:
 - **Damage modifier**: float, positive = increase final damage, negative = decrease final damage
-- **Draw modifier**: int, positive = grant extra draws (multi-cast), negative = consume draws
+- **Draw provision**: int, how many draws this card provides. Casting automatically consumes 1 draw; net change = provision − 1
 
-`10.5|0` is a pure damage correction spell. `0|2` is a multi-cast: no damage change, grants 2 extra draws. `-5|3` is a tradeoff draw spell: decreases damage by 5, grants 3 draws. `28.5|-1` is a burst correction: adds 28.5 damage, consumes 1 draw.
+`10.5|0` is a pure damage correction spell: provides 0 draws, net −1 draw. `0|2` is a double cast: `1 + 2 - 1 = 2`, the next two casts are free. `-5|2` is a tradeoff draw spell: `1 + 2 - 1 = 2`, paying 5 damage for 2 free casts. `20|1` is a self-paying spell: `1 + 1 - 1 = 1`, providing exactly enough draws to offset its own cost.
 
-Multiple cards are chained into a queue; the chain naturally terminates when draws run out. An external loop reads the remaining draws from the return value to decide whether to keep casting.
+**Spell wrapping** (Noita machine-gun wand): when the chain ends with DrawsLeft > 0, a while loop re-injects the output back to the chain head. The chain pass-through kicks in automatically when DrawsLeft reaches zero mid-execution.
 
 ## TData Struct
 
@@ -43,7 +43,7 @@ public enum DrawOp : byte
 }
 ```
 
-`Add` operates on both Damage and DrawsLeft simultaneously. Negative literals (e.g., `-5|2`) encode all card face semantics.
+`Add` operates on both Damage and DrawsLeft simultaneously. DrawsLeft automatically deducts the 1-draw casting cost.
 
 ## LiteralScanner: `float|int` Dual-Field Format
 
@@ -68,7 +68,7 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out DrawState value) =
     if (pos >= src.Length || src[pos] != '|') { value = new DrawState(damage, 0); return pos; }
     pos++;
 
-    // Scan integer (DrawsLeft)
+    // Scan integer (draw provision)
     int draws = 0;
     bool neg = false;
     if (pos < src.Length && src[pos] == '-') { neg = true; pos++; }
@@ -85,10 +85,10 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out DrawState value) =
 ```
 
 Format rules:
-- `10.5|-1` — full format: 10.5 damage, consume 1 draw
-- `10.5` — omit `|draws`, DrawsLeft defaults to 0
-- `-5|2` — negative damage, gain 2 draws
-- Missing digits after `|` → DrawsLeft = 0
+- `10.5|0` — 10.5 damage, 0 draw provision (implicit −1 cost → net −1)
+- `0|2` — no damage change, 2 draw provision: `1 + 2 - 1 = 2`
+- `-5|2` — decrease 5 damage, 2 draw provision: `1 + 2 - 1 = 2`
+- Omitting `|draws` defaults to 0
 
 ## Definition
 
@@ -135,7 +135,9 @@ public readonly struct DrawDef : IFluxExprDefinition<DrawState>
         DrawState b = regs[inst.Arg1];
         return ((DrawOp)op) switch
         {
-            DrawOp.Add => new DrawState(a.Damage + b.Damage, a.DrawsLeft + b.DrawsLeft),
+            DrawOp.Add => a.DrawsLeft <= 0
+                ? a
+                : new DrawState(a.Damage + b.Damage, a.DrawsLeft + b.DrawsLeft - 1),
             _ => default,
         };
     }
@@ -148,23 +150,28 @@ public readonly struct DrawDef : IFluxExprDefinition<DrawState>
         var dmgB = Expression.Field(argB, nameof(DrawState.Damage));
         var drawA = Expression.Field(argA, nameof(DrawState.DrawsLeft));
         var drawB = Expression.Field(argB, nameof(DrawState.DrawsLeft));
+        var drawZero = Expression.LessThanOrEqual(drawA, Expression.Constant(0));
+        var one = Expression.Constant(1);
         var ctor = typeof(DrawState).GetConstructor(new[] { typeof(float), typeof(int) });
 
         return ((DrawOp)op) switch
         {
-            DrawOp.Add => Expression.MemberInit(
-                Expression.New(ctor),
-                Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.Damage)),
-                    Expression.Add(dmgA, dmgB)),
-                Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.DrawsLeft)),
-                    Expression.Add(drawA, drawB))),
+            DrawOp.Add => Expression.Condition(
+                drawZero,
+                argA,
+                Expression.MemberInit(
+                    Expression.New(ctor),
+                    Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.Damage)),
+                        Expression.Add(dmgA, dmgB)),
+                    Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.DrawsLeft)),
+                        Expression.Subtract(Expression.Add(drawA, drawB), one)))),
             _ => Expression.Constant(default(DrawState)),
         };
     }
 }
 ```
 
-`Add` acts on both the damage modifier and the draw modifier simultaneously. Negative floats decrease final damage; negative integers consume draws.
+The `- 1` in `Add` is the implicit casting cost. `b.DrawsLeft` is the card's draw provision; net change = provision − 1. Damage modifiers accumulate directly, unaffected by the cost.
 
 ## Lexer Configuration
 
@@ -192,38 +199,71 @@ var def    = new DrawDef();
 var runner = new FluxAssembler<DrawState, DrawDef>(def);
 var lexer  = new FluxLexer<DrawState>(config);
 
-// Build deck: each card is a Modifier of "[prev] + face_value - face_cost"
-// Card 1: +10 dmg, -1 draw
-// Card 2: +7 dmg,  -1 draw
-// Card 3: +5 dmg,  -1 draw
-var mod1 = runner.Compile(lexer.Lex("[prev] + 10|-1"));
-var mod2 = runner.Compile(lexer.Lex("[prev] + 7|-1"));
-var mod3 = runner.Compile(lexer.Lex("[prev] + 5|-1"));
+// Build spell cards: Modifier form is "[prev] + card_face_value"
+// Card 1: +10 damage modifier, 0 draws (only the casting cost)
+// Card 2: +7 damage modifier,  0 draws
+// Card 3: +5 damage modifier,  0 draws
+var mod1 = runner.Compile(lexer.Lex("[prev] + 10|0"));
+var mod2 = runner.Compile(lexer.Lex("[prev] + 7|0"));
+var mod3 = runner.Compile(lexer.Lex("[prev] + 5|0"));
 
-// Initial state: 0 damage, 3 draws
-var deck = runner.Compile(lexer.Lex("0|3"));
-var chain = deck.ToModifier().Connect(mod1.ToModifier())
-               .Connect(mod2.ToModifier()).Connect(mod3.ToModifier());
+// Chain all cards together
+var chain = mod1.ToModifier().Connect(mod2.ToModifier()).Connect(mod3.ToModifier());
 
-// Draw all cards at once
-DrawState result = runner.Instantiate(chain).Run();
-// → (22.0 dmg, 0 draws) = 10 + 7 + 5 = 22 damage, 3 - 1 - 1 - 1 = 0 draws
+// 7-draw initial state: triggers spell wrapping (Noita machine-gun wand)
+DrawState state = runner.Instantiate(chain)
+    .Set("prev", new DrawState(0, 7))
+    .Run();
+// → (22.5 dmg, 4 draws)  4 draws remain after chain
 
-// External loop for one-by-one drawing
-DrawState state = new(0, 3);
-var cards = new[] { mod1, mod2, mod3 };
-foreach (var card in cards)
+// Spell wrapping: re-inject output back to chain head while draws > 0
+while (state.DrawsLeft > 0)
 {
-    if (state.DrawsLeft <= 0) break;
-    state = runner.Instantiate(card).Set("prev", state).Run();
+    state = runner.Instantiate(chain).Set("prev", state).Run();
 }
-// → Each card runs independently; stops when draws are exhausted
+// Wrap 1: (22.5, 4) → (45.0, 1)  second pass draws all 3 cards
+// Wrap 2: (45.0, 1) → (55.5, 0)  mid-chain draw exhaustion, card 1 only
+// → (55.5 dmg, 0 draws)
 ```
+
+## How It Works
+
+### Connect Preserves Per-Card Independence
+
+`Connect()` stores each card as an independent `Modifier` with its own `Instruction[]` in a `ChainLink[]` array. Physical bytecode merging is deferred to evaluation time and only triggered when the chain exceeds `MergeThreshold` (default: 8 links).
+
+### Per-Link JIT Caching
+
+Each `ChainLink`'s delegate is independently cached in `FormulaCache` by `DualHash64`. The first `Instantiate(chain)` compiles all links; subsequent instantiations hit the cache. When the same card appears in multiple decks, its delegate is reused across chains.
+
+### Zero Recompilation on Spell Wrapping
+
+`runner.Instantiate(chain).Set("prev", state).Run()` inside the wrap loop performs zero compilation. `Instantiate` is a `ref struct` stack allocation plus a cache-hit delegate lookup. Each wrap costs N function pointer calls (N = cards in chain), fully decoupled from the one-time compilation.
+
+```csharp
+// Compilation: exactly once, during the first Instantiate(chain)
+var chain = mod1.ToModifier().Connect(mod2.ToModifier()).Connect(mod3.ToModifier());
+
+// Wrapping: all delegate calls, zero compilation
+while (state.DrawsLeft > 0)
+{
+    state = runner.Instantiate(chain).Set("prev", state).Run();
+}
+```
+
+### R1 Bus Carries the Context
+
+Each card's `[prev] + card_face_value` reads the previous card's output through the R1 register. `Set("prev", state)` injects the current context into the chain head's first Immediate slot; after evaluation, R1 carries the final `DrawState` back. The entire chain's context flow is R1 read-write chaining with zero heap allocation.
+
+### Implicit Casting Cost
+
+Each card automatically costs 1 draw. `10.5|0` reads as "provides 0 draws"; the net −1 is implicit. `0|2`: 1 remaining + 2 provision − 1 cost = 2 draws. Card face values stay as card face values — the casting cost is a constant, not part of the card data.
 
 ## Key Points
 
 - `float|int` dual-field immediates are another application of LiteralScanner: `|` as field separator
-- `Add` acts on both the damage modifier and draw modifier simultaneously; negative values encode decrement semantics
-- Multi-cast (`0|N`) and tradeoff (`-X|N`) are natural consequences of the same `float|int` format
-- When DrawsLeft reaches 0, subsequent cards still evaluate, but the external loop stops by checking `state.DrawsLeft <= 0`
-- The spell context flows through the R1 bus across the Connect chain
+- `Add` acts on both the damage modifier and draw provision simultaneously, with an implicit −1 casting cost
+- Double cast (`0|2`) and tradeoff (`-5|2`) are natural consequences of the same `float|int` format
+- Spell wrapping: a while loop re-injects chain output back to the chain head; pass-through engages when DrawsLeft reaches zero mid-execution
+- Connect keeps each card independent; per-link delegates are cached in FormulaCache and reused across chains
+- Wrapping 100 times = 100 delegate calls, not 100 compilations
