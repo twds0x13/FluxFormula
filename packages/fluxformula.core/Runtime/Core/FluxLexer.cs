@@ -82,22 +82,12 @@ namespace FluxFormula.Core
     public class LexerConfig<TData>
         where TData : unmanaged
     {
-        /// <summary>字面量（数字/标识符）匹配正则，如 @"\d+(\.\d+)?f?"</summary>
-        /// <remarks>
-        /// 此字段仅为文档参考。实际扫描行为由 <see cref="LiteralScanner"/> 控制；
-        /// 未设置时使用内置的默认数字扫描器（等价于 <c>\d+(\.\d+)?[fF]?</c> + <see cref="LiteralParser"/>）。
-        /// </remarks>
-        public string LiteralPattern = @"\d+(\.\d+)?f?";
-
         /// <summary>字面量对应的操作码（如 FloatOp.Const）</summary>
         public byte LiteralOper;
 
-        /// <summary>字面量字符串 → TData 转换函数</summary>
-        public Func<string, TData> LiteralParser = _ => default;
-
         /// <summary>
-        /// 自定义字面量扫描器。设置后替代内置的数字扫描器。
-        /// 未设置（null）时回退到 <see cref="CreateDefaultNumberScanner"/>。
+        /// 字面量扫描器。必须设置。简单数字格式使用 <see cref="CreateDefaultNumberScanner"/>，
+        /// 自定义格式提供自己的 <see cref="LiteralScanner{TData}"/> 委托。
         /// </summary>
         /// <example>
         /// <code>
@@ -216,13 +206,11 @@ namespace FluxFormula.Core
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
 
-            if (config.LiteralParser == null)
-                throw new ArgumentException(
-                    "LexerConfig.LiteralParser must be set.");
-
-            // 用户自定义扫描器优先，否则回退到内置数字扫描器
             _literalScanner = config.LiteralScanner
-                ?? LexerConfig<TData>.CreateDefaultNumberScanner(config.LiteralParser);
+                ?? throw new ArgumentException(
+                    "LexerConfig.LiteralScanner must be set. " +
+                    "Use CreateDefaultNumberScanner(parser) for standard number formats, " +
+                    "or provide a custom LiteralScanner delegate.");
 
             // ── 变量模式 ──
             _varRules = config.VariablePatterns.ToArray();
