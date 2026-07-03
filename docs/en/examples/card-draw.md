@@ -262,7 +262,7 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
     public SpellTracker Compute(byte op, Instruction inst, ReadOnlySpan<SpellTracker> regs)
     {
         SpellTracker t = regs[inst.Arg0];
-        if (t.ConsumedMask == t.RequiredMask)
+        if ((t.ConsumedMask & t.RequiredMask) == t.RequiredMask)
             return t;  // All cards consumed — terminate
 
         byte consumed = t.Context.ConsumedThisRound;
@@ -357,7 +357,7 @@ do
         .Run();
     state = tracked.Context;
     mask  = tracked.ConsumedMask;
-} while (mask != requiredMask);
+} while ((mask & requiredMask) != requiredMask);
 
 // First shot: mask=0 → chain runs 3 cards (cards 0/1/2 consumed), mask = 0b111
 // Equals requiredMask → terminate
@@ -403,7 +403,7 @@ do
         .Run();
     state = tracked.Context;
     mask  = tracked.ConsumedMask;
-} while (mask != requiredMask);
+} while ((mask & requiredMask) != requiredMask);
 ```
 
 ### R1 Bus Carries the Context

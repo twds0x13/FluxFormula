@@ -262,7 +262,7 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
     public SpellTracker Compute(byte op, Instruction inst, ReadOnlySpan<SpellTracker> regs)
     {
         SpellTracker t = regs[inst.Arg0];
-        if (t.ConsumedMask == t.RequiredMask)
+        if ((t.ConsumedMask & t.RequiredMask) == t.RequiredMask)
             return t;  // 所有卡已消费，终止
 
         byte consumed = t.Context.ConsumedThisRound;
@@ -357,7 +357,7 @@ do
         .Run();
     state = tracked.Context;
     mask  = tracked.ConsumedMask;
-} while (mask != requiredMask);
+} while ((mask & requiredMask) != requiredMask);
 
 // 第一枪：mask=0 → 链跑完 3 张卡（已消费卡 0/1/2），掩码 = 0b111
 // 等于 requiredMask → 终止
@@ -405,7 +405,7 @@ do
         .Run();
     state = tracked.Context;
     mask  = tracked.ConsumedMask;
-} while (mask != requiredMask);
+} while ((mask & requiredMask) != requiredMask);
 ```
 
 ### R1 总线传递上下文
