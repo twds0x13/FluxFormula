@@ -79,7 +79,7 @@ public readonly struct FloatMathDef : IFluxExprDefinition<float>
     }; }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
+    public float Compute(byte op, Instruction inst, Span<float> regs)
     {
         return (FloatOp)op switch
         {

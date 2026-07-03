@@ -91,7 +91,7 @@ public readonly struct FloatMathILDef : IFluxILDefinition<float>, IFluxExprDefin
     // ── Span 版 Compute（解释器路径）──
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
+    public float Compute(byte op, Instruction inst, Span<float> regs)
     {
         return (FloatOp)op switch
         {

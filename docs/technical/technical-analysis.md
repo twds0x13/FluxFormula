@@ -111,7 +111,7 @@ interface IFluxDefinition<TData> {
     OpPair GetPair(byte op);                      // 括号配对信息
     Associativity GetAssociativity(byte op);      // Left/Right 结合
     byte ResolveToken(byte oper, TokenContext ctx); // Token 消歧
-    TData Compute(byte op, Instruction inst, ReadOnlySpan<TData> registers); // 执行
+    TData Compute(byte op, Instruction inst, Span<TData> registers); // 执行
     string GetOperatorName(byte op);              // 操作码显示名称 (DIM)
 }
 ```

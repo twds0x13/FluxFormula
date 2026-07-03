@@ -108,7 +108,7 @@ Trade-off: `FluxInstance` cannot be used in lambda captures (e.g., `Assert.Throw
 Write the error value to R0. A non-default return value from `Compute()` triggers an early exit:
 
 ```csharp
-public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
+public float Compute(byte op, Instruction inst, Span<float> regs)
 {
     if (op == MyOp.Div && Math.Abs(regs[inst.Arg1]) < 1e-6f)
         return float.NaN; // Write to R0, trigger early exit

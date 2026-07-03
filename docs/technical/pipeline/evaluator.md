@@ -51,7 +51,7 @@ for (int ip = 0; ip < program.Length; )
     }
     else  // Instruction
     {
-        regs[inst.Dest] = _definition.Compute(opCode, inst, new ReadOnlySpan<TData>(regs, regCount));
+        regs[inst.Dest] = _definition.Compute(opCode, inst, new Span<TData>((void*)regs, regCount));
         ip++;
     }
 }

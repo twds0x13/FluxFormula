@@ -15,7 +15,7 @@ public interface IFluxDefinition<TData>
     OpPair GetPair(byte op);                                          // 括号配对
     Associativity GetAssociativity(byte op);                          // 结合方向
     byte ResolveToken(byte oper, TokenContext ctx);                   // Token 消歧
-    TData Compute(byte op, Instruction inst, ReadOnlySpan<TData> registers); // 解释器计算
+    TData Compute(byte op, Instruction inst, Span<TData> registers); // 解释器计算
     string GetOperatorName(byte op);                                  // 显示名称（DIM，可选）
 }
 
@@ -165,7 +165,7 @@ public byte ResolveToken(byte oper, TokenContext ctx)
 ### Compute（解释器路径）
 
 ```csharp
-public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
+public float Compute(byte op, Instruction inst, Span<float> regs)
 {
     return ((MathOp)op) switch
     {
@@ -215,7 +215,21 @@ public string GetOperatorName(byte op) => ((MathOp)op).ToString();
 
 ## 错误处理：R0 短路
 
-`Compute()` 或 `GetExpression()` 若返回非 default 值，该值被写入 R0（错误寄存器）。执行器在每条指令后检查 R0，一旦非 default 立即终止并返回错误值。
+`Compute` 接收 `Span<TData>`，可直接写入 `registers[Registers.Error]` 触发短路。执行器在每条指令后检查 R0：一旦非 default，立即终止求值并返回 R0 的值。后续指令不会执行。
+
+```csharp
+public float Compute(byte op, Instruction inst, Span<float> regs)
+{
+    if (/* 错误条件 */)
+    {
+        regs[Registers.Error] = float.NaN;  // 写入非 default → 立即短路
+        return default;
+    }
+    // ... 正常计算
+}
+```
+
+JIT 路径同样支持：`GetExpression` 编写的 R0 写入逻辑在编译后的委托中同样生效。
 
 ## 性能建议
 

@@ -156,7 +156,7 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
 
     public byte ResolveToken(byte op, TokenContext ctx) => op;
 
-    public SpellContext Compute(byte op, Instruction inst, ReadOnlySpan<SpellContext> regs)
+    public SpellContext Compute(byte op, Instruction inst, Span<SpellContext> regs)
     {
         SpellContext a = regs[inst.Arg0];
         SpellContext b = regs[inst.Arg1];
@@ -259,7 +259,7 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
 
     public byte ResolveToken(byte op, TokenContext ctx) => op;
 
-    public SpellTracker Compute(byte op, Instruction inst, ReadOnlySpan<SpellTracker> regs)
+    public SpellTracker Compute(byte op, Instruction inst, Span<SpellTracker> regs)
     {
         SpellTracker t = regs[inst.Arg0];
         if ((t.ConsumedMask & t.RequiredMask) == t.RequiredMask)

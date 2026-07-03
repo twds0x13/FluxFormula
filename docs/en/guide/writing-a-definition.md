@@ -15,7 +15,7 @@ public interface IFluxDefinition<TData>
     OpPair GetPair(byte op);                                          // Bracket pairing
     Associativity GetAssociativity(byte op);                          // Binding direction
     byte ResolveToken(byte oper, TokenContext ctx);                   // Token disambiguation
-    TData Compute(byte op, Instruction inst, ReadOnlySpan<TData> registers); // Interpreter computation
+    TData Compute(byte op, Instruction inst, Span<TData> registers); // Interpreter computation
     string GetOperatorName(byte op);                                  // Display name (DIM, optional)
 }
 
@@ -165,7 +165,7 @@ public byte ResolveToken(byte oper, TokenContext ctx)
 ### Compute (Interpreter Path)
 
 ```csharp
-public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
+public float Compute(byte op, Instruction inst, Span<float> regs)
 {
     return ((MathOp)op) switch
     {

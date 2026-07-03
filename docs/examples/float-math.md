@@ -69,7 +69,7 @@ readonly struct MathDef : IFluxExprDefinition<float>
     public string GetOperatorName(byte op) => ((MathOp)op).ToString();
 
     // 解释器
-    public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
+    public float Compute(byte op, Instruction inst, Span<float> regs)
     {
         return ((MathOp)op) switch
         {

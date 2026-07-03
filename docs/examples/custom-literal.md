@@ -128,7 +128,7 @@ public readonly struct ElemDef : IFluxExprDefinition<ElemValue>
         => op == (byte)ElemOp.Sub && ctx == TokenContext.OperandExpected
             ? (byte)ElemOp.Neg : op;
 
-    public ElemValue Compute(byte op, Instruction inst, ReadOnlySpan<ElemValue> regs)
+    public ElemValue Compute(byte op, Instruction inst, Span<ElemValue> regs)
     {
         ElemValue a = regs[inst.Arg0];
         ElemValue b = regs[inst.Arg1];

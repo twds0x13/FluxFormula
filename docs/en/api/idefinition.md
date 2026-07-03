@@ -20,7 +20,7 @@ public interface IFluxDefinition<TData>
 | `GetPair(byte op)` | `OpPair` | Bracket pairing information |
 | `GetAssociativity(byte op)` | `Associativity` | Left / Right |
 | `ResolveToken(byte oper, TokenContext ctx)` | `byte` | Token disambiguation: maps the same symbol to different semantics based on context. Returns 0 to skip |
-| `Compute(byte op, Instruction inst, ReadOnlySpan<TData> registers)` | `TData` | Interpreter path: performs the computation |
+| `Compute(byte op, Instruction inst, Span<TData> registers)` | `TData` | Interpreter path: performs the computation |
 | `GetOperatorName(byte op)` | `string` | Display name for the opcode (DIM, returns null by default). Editor/toolchain query point |
 
 ### ResolveToken
@@ -94,7 +94,7 @@ readonly struct MathDef : IFluxExprDefinition<float>
     public byte ResolveToken(byte oper, TokenContext ctx) => oper;
     public string GetOperatorName(byte op) => ((MathOp)op).ToString();
 
-    public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
+    public float Compute(byte op, Instruction inst, Span<float> regs)
         => ((MathOp)op) switch
         {
             MathOp.Add => regs[inst.Arg0] + regs[inst.Arg1],

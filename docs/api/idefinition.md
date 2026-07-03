@@ -20,7 +20,7 @@ public interface IFluxDefinition<TData>
 | `GetPair(byte op)` | `OpPair` | 括号配对信息 |
 | `GetAssociativity(byte op)` | `Associativity` | Left / Right |
 | `ResolveToken(byte oper, TokenContext ctx)` | `byte` | Token 消歧：根据上下文将同一符号映射为不同语义。返回 0 表示不消歧 |
-| `Compute(byte op, Instruction inst, ReadOnlySpan<TData> registers)` | `TData` | 解释器路径：执行运算 |
+| `Compute(byte op, Instruction inst, Span<TData> registers)` | `TData` | 解释器路径：执行运算 |
 | `GetOperatorName(byte op)` | `string` | 操作码的显示名称（DIM，默认返回 null）。编辑器/工具链查询点 |
 
 ### ResolveToken
@@ -94,7 +94,7 @@ readonly struct MathDef : IFluxExprDefinition<float>
     public byte ResolveToken(byte oper, TokenContext ctx) => oper;
     public string GetOperatorName(byte op) => ((MathOp)op).ToString();
 
-    public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
+    public float Compute(byte op, Instruction inst, Span<float> regs)
         => ((MathOp)op) switch
         {
             MathOp.Add => regs[inst.Arg0] + regs[inst.Arg1],

@@ -47,7 +47,7 @@ namespace FluxFormula.Burst
             Instruction* pBase = (Instruction*)(bytecode + FormulaFormat.HeaderSize);
             byte returnReg = Registers.Bus;
             int dataSlots = DataSlotCount();
-            var regSpan = new ReadOnlySpan<TData>((void*)registers, regCount);
+            var regSpan = new Span<TData>((void*)registers, regCount);
 
             for (int ip = 0; ip < count; ip++)
             {

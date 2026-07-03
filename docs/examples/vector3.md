@@ -94,7 +94,7 @@ public readonly struct Vector3Def : IFluxExprDefinition<Vector3f>
 
     public byte ResolveToken(byte op, TokenContext ctx) => op;
 
-    public Vector3f Compute(byte op, Instruction inst, ReadOnlySpan<Vector3f> regs)
+    public Vector3f Compute(byte op, Instruction inst, Span<Vector3f> regs)
     {
         return ((Vector3Op)op) switch
         {

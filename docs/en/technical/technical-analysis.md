@@ -111,7 +111,7 @@ interface IFluxDefinition<TData> {
     OpPair GetPair(byte op);                       // bracket pair info
     Associativity GetAssociativity(byte op);       // Left/Right
     byte ResolveToken(byte oper, TokenContext ctx); // token disambiguation
-    TData Compute(byte op, Instruction inst, ReadOnlySpan<TData> registers); // execution
+    TData Compute(byte op, Instruction inst, Span<TData> registers); // execution
     string GetOperatorName(byte op);               // display name (DIM)
 }
 ```

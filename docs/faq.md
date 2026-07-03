@@ -108,7 +108,7 @@ public struct MyData  { public string Name; }     // 含引用类型，不可用
 将错误值写入 R0 寄存器。`Compute()` 中返回非 default 值即可触发短路：
 
 ```csharp
-public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
+public float Compute(byte op, Instruction inst, Span<float> regs)
 {
     if (op == MyOp.Div && Math.Abs(regs[inst.Arg1]) < 1e-6f)
         return float.NaN; // 写入 R0，触发短路

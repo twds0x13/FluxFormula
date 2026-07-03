@@ -75,7 +75,7 @@ public readonly struct ExplicitDef : IFluxExprDefinition<ExplicitData>
     public Associativity GetAssociativity(byte op) => Associativity.Left;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ExplicitData Compute(byte op, Instruction inst, ReadOnlySpan<ExplicitData> regs)
+    public ExplicitData Compute(byte op, Instruction inst, Span<ExplicitData> regs)
     {
         return (ExpOp)op switch
         {
