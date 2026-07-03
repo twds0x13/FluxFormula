@@ -203,17 +203,19 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
 ```csharp
 public struct SpellTracker : IEquatable<SpellTracker>
 {
-    public SpellContext Context;    // Chain formula output
-    public ulong ConsumedMask;      // Consumed bitmask
+    public SpellContext Context;      // Chain formula output
+    public ulong ConsumedMask;        // Consumed bitmask
+    public ulong RequiredMask;        // Termination mask = (1 << (maxIndex + 1)) - 1
 
-    public SpellTracker(SpellContext context, ulong mask)
-        => (Context, ConsumedMask) = (context, mask);
+    public SpellTracker(SpellContext context, ulong mask, ulong requiredMask)
+        => (Context, ConsumedMask, RequiredMask) = (context, mask, requiredMask);
 
     public readonly bool Equals(SpellTracker other)
-        => Context.Equals(other.Context) && ConsumedMask == other.ConsumedMask;
+        => Context.Equals(other.Context) && ConsumedMask == other.ConsumedMask
+                                         && RequiredMask == other.RequiredMask;
 
     public override readonly string ToString()
-        => $"(mask: 0x{ConsumedMask:X}, {Context})";
+        => $"(mask: 0x{ConsumedMask:X}, req: 0x{RequiredMask:X}, {Context})";
 }
 ```
 
@@ -260,8 +262,8 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
     public SpellTracker Compute(byte op, Instruction inst, ReadOnlySpan<SpellTracker> regs)
     {
         SpellTracker t = regs[inst.Arg0];
-        if (t.ConsumedMask == ulong.MaxValue)
-            return t;  // Full — terminate
+        if (t.ConsumedMask == t.RequiredMask)
+            return t;  // All cards consumed — terminate
 
         byte consumed = t.Context.ConsumedThisRound;
         if (consumed <= 0)
@@ -286,11 +288,11 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
 
 `Track` logic:
 
-1. **Mask full** → pass through (while loop terminates naturally)
+1. **Mask equals RequiredMask** → pass through (while loop terminates)
 2. **No consumption** → pass through (`ConsumedThisRound == 0`)
 3. **Normal execution**: `tzcnt(~mask)` locates the first zero bit as the round's starting position, then sets `consumed` consecutive bits from that position. `ConsumedThisRound` resets to zero, `StartIndex` is set to `pos + consumed` so the next round resumes from there.
 
-The chain formula runs all cards first, then the tracker formula batch-updates the mask. If draws suffice, the while loop wraps the chain for another full pass — the mask fills monotonically until termination, achieving up to double utilization.
+`RequiredMask = (1 << (maxIndex + 1)) - 1`, computed by the C# layer from the chain's maximum card index and passed through `SpellTracker` across rounds. The chain formula runs all cards first, then the tracker formula batch-updates the mask. If draws suffice, the while loop wraps the chain for another full pass — the mask fills monotonically until termination, achieving up to double utilization.
 
 ## Lexer Configuration
 
@@ -341,26 +343,25 @@ var trackerLexer = new FluxLexer<SpellTracker>(trackerConfig);
 var tracker      = new FluxAssembler<SpellTracker, TrackerDef>(trackerDef);
 var trackFormula = tracker.Compile(trackerLexer.Lex("Track [prev]"));
 
-// Initial state: 7 draws + empty mask
+// Initial state: 7 draws + empty mask + termination mask (3 cards → 0b111)
 SpellContext state = new SpellContext(0, 7, startIndex: 0);
 ulong mask = 0;
+ulong requiredMask = (1ul << 3) - 1;  // Cards at indices 0/1/2 → low 3 bits all 1
 
 // Noita spell wrapping: chain → tracker, alternating
 do
 {
     state = runner.Instantiate(chain).Set("prev", state).Run();
     var tracked = tracker.Instantiate(trackFormula)
-        .Set("prev", new SpellTracker(state, mask))
+        .Set("prev", new SpellTracker(state, mask, requiredMask))
         .Run();
     state = tracked.Context;
     mask  = tracked.ConsumedMask;
-} while (mask != ulong.MaxValue);
+} while (mask != requiredMask);
 
 // First shot: mask=0 → chain runs 3 cards (cards 0/1/2 consumed), mask = 0b111
-// Mask not full → wrap
-// Second shot: chain runs 3 cards again (cards 0/1/2 consumed), mask unchanged (full)
-// Mask full → terminate
-// → Each card executed twice, double utilization
+// Equals requiredMask → terminate
+// → Each card executed twice (Noita double utilization): chain runs first, mask updates after
 ```
 
 ## How It Works
@@ -381,7 +382,7 @@ The chain formula's `Compute(Add)` increments `ConsumedThisRound` per card. Afte
 2. **Sequential bit-set**: sets `consumed` consecutive bits from that position
 3. **Reset + update**: `ConsumedThisRound = 0`, `StartIndex = pos + consumed`, ready for the next round
 
-The mask fills monotonically. `ulong.MaxValue` terminates the loop — 64 cards max.
+The mask fills monotonically. Reaching `RequiredMask` terminates the loop.
 
 If draws are insufficient to complete the chain in one round (e.g. 5 cards, 1 draw), only card 0 executes and `StartIndex` is set to `0 + 1 = 1`. When the wand recharges with fresh draws next round, the chain resumes from card 1: `Add` hits `b.StartIndex < a.StartIndex` and passes through cards 0 and 1, skipping the already-consumed card 0.
 
@@ -402,7 +403,7 @@ do
         .Run();
     state = tracked.Context;
     mask  = tracked.ConsumedMask;
-} while (mask != ulong.MaxValue);
+} while (mask != requiredMask);
 ```
 
 ### R1 Bus Carries the Context
@@ -420,7 +421,8 @@ Each card automatically costs 1 draw. `10.5|idx:0` provides 0 draws; the net −
 - `ConsumedThisRound` increments inside the chain, consumed in batch by the tracker formula then reset
 - `StartIndex` is updated by the tracker to `pos + consumed`, so the next round resumes from the unconsumed position
 - Double cast (`0|draw 2`) and tradeoff (`-5|draw 2`) are natural consequences of the same format
-- Spell wrapping: chain → tracker alternation; mask fills monotonically until termination
+- Spell wrapping: chain → tracker alternation; mask fills monotonically until reaching RequiredMask
 - `SpellTracker` is separated from `SpellContext` — hot path never touches the `ulong` mask
 - Connect keeps each card independent; per-link delegates are cached in FormulaCache and reused across chains
+- `RequiredMask = (1 << (maxIndex + 1)) - 1`: computed from the chain's max card index, passed through to the tracker as the termination condition
 - Wrapping 100 times = 200 delegate calls (chain + tracker), not 100 compilations

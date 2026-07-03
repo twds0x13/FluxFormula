@@ -203,17 +203,19 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
 ```csharp
 public struct SpellTracker : IEquatable<SpellTracker>
 {
-    public SpellContext Context;    // 链公式输出
-    public ulong ConsumedMask;      // 已消费位掩码
+    public SpellContext Context;      // 链公式输出
+    public ulong ConsumedMask;        // 已消费位掩码
+    public ulong RequiredMask;        // 终止掩码 = (1 << (maxIndex + 1)) - 1
 
-    public SpellTracker(SpellContext context, ulong mask)
-        => (Context, ConsumedMask) = (context, mask);
+    public SpellTracker(SpellContext context, ulong mask, ulong requiredMask)
+        => (Context, ConsumedMask, RequiredMask) = (context, mask, requiredMask);
 
     public readonly bool Equals(SpellTracker other)
-        => Context.Equals(other.Context) && ConsumedMask == other.ConsumedMask;
+        => Context.Equals(other.Context) && ConsumedMask == other.ConsumedMask
+                                         && RequiredMask == other.RequiredMask;
 
     public override readonly string ToString()
-        => $"(mask: 0x{ConsumedMask:X}, {Context})";
+        => $"(mask: 0x{ConsumedMask:X}, req: 0x{RequiredMask:X}, {Context})";
 }
 ```
 
@@ -260,8 +262,8 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
     public SpellTracker Compute(byte op, Instruction inst, ReadOnlySpan<SpellTracker> regs)
     {
         SpellTracker t = regs[inst.Arg0];
-        if (t.ConsumedMask == ulong.MaxValue)
-            return t;  // 全满，终止
+        if (t.ConsumedMask == t.RequiredMask)
+            return t;  // 所有卡已消费，终止
 
         byte consumed = t.Context.ConsumedThisRound;
         if (consumed <= 0)
@@ -286,11 +288,11 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
 
 `Track` 的逻辑分三步：
 
-1. **掩码全满** → 透传（while 循环自然终止）
+1. **掩码达到 RequiredMask** → 透传（while 循环终止）
 2. **本轮无消费** → 透传（`ConsumedThisRound == 0`）
 3. **正常执行**：`tzcnt(~mask)` 定位第一个未消费位作为本轮起始位置，按 `consumed` 数量从该位置起连续置位，`ConsumedThisRound` 归零，`StartIndex` 更新为 `pos + consumed`（下一轮从此位置继续）
 
-链公式跑完整条链后，追踪公式批量更新掩码。若抽数充足，while 循环回绕使链再跑一轮，掩码单调递增填满后自然终止，最高双倍利用率。
+`RequiredMask = (1 << (maxIndex + 1)) - 1`，由 C# 层根据链中卡的最大索引计算，在 `SpellTracker` 中跨轮透传。链公式跑完整条链后，追踪公式批量更新掩码。若抽数充足，while 循环回绕使链再跑一轮，掩码单调递增填满后自然终止，最高双倍利用率。
 
 ## Lexer 配置
 
@@ -341,26 +343,25 @@ var trackerLexer = new FluxLexer<SpellTracker>(trackerConfig);
 var tracker      = new FluxAssembler<SpellTracker, TrackerDef>(trackerDef);
 var trackFormula = tracker.Compile(trackerLexer.Lex("Track [prev]"));
 
-// 初始状态：7 抽 + 空掩码
+// 初始状态：7 抽 + 空掩码 + 终止掩码（3 张卡 → 0b111）
 SpellContext state = new SpellContext(0, 7, startIndex: 0);
 ulong mask = 0;
+ulong requiredMask = (1ul << 3) - 1;  // 卡索引 0/1/2 → 低 3 位全 1
 
 // Noita 法术回绕：链公式 → 追踪公式，交替执行
 do
 {
     state = runner.Instantiate(chain).Set("prev", state).Run();
     var tracked = tracker.Instantiate(trackFormula)
-        .Set("prev", new SpellTracker(state, mask))
+        .Set("prev", new SpellTracker(state, mask, requiredMask))
         .Run();
     state = tracked.Context;
     mask  = tracked.ConsumedMask;
-} while (mask != ulong.MaxValue);
+} while (mask != requiredMask);
 
 // 第一枪：mask=0 → 链跑完 3 张卡（已消费卡 0/1/2），掩码 = 0b111
-// 掩码不全满 → 回绕
-// 第二枪：链再跑 3 张卡（已消费卡 0/1/2），掩码不变（全满）
-// 掩码全满 → 终止
-// → 每张卡被执行 2 次，双倍利用率
+// 等于 requiredMask → 终止
+// → 每张卡被执行 2 次（Noita 双倍利用率），因链先跑完一轮、掩码才更新
 ```
 
 ## 原理
@@ -381,11 +382,11 @@ do
 2. **连续置位**：从起始位起置 `consumed` 位
 3. **归零 + 更新**：`ConsumedThisRound = 0`，`StartIndex = pos + consumed`，等待下一轮
 
-掩码单调递增填充。`ulong.MaxValue` 时终止，64 张卡上限。
+掩码单调递增填充。达到 `RequiredMask` 时终止。
 
 若本轮抽数不足以跑完整条链（如 5 张卡、初始 1 抽），只执行卡 0，`StartIndex` 更新为 `0 + 1 = 1`。下一轮 wand 充能注入新抽数后，链从卡 1 开始：`Add` 中 `b.StartIndex < a.StartIndex` 触发透传，跳过已消费的卡 0。
 
-先执行链公式再执行追踪公式（Noita 原始行为：先施法再结算）。链完整跑一遍后掩码才更新，每张卡在掩码全满前最多被执行 2 次。
+先执行链公式再执行追踪公式（Noita 原始行为：先施法再结算）。链完整跑一遍后掩码才更新，每张卡在掩码达到 RequiredMask 前最多被执行 2 次。
 
 ### while 回绕零重编译
 
@@ -404,7 +405,7 @@ do
         .Run();
     state = tracked.Context;
     mask  = tracked.ConsumedMask;
-} while (mask != ulong.MaxValue);
+} while (mask != requiredMask);
 ```
 
 ### R1 总线传递上下文
@@ -422,7 +423,8 @@ do
 - `ConsumedThisRound` 在链内递增，由追踪公式批量消费后归零
 - `StartIndex` 由追踪公式更新为 `pos + consumed`，确保下一轮从未消费位置继续
 - 二重施法（`0|draw 2`）和 tradeoff（`-5|draw 2`）是同一格式的自然推论
-- 法术回绕：链公式 → 追踪公式交替执行，掩码单调递增填满后终止
+- 法术回绕：链公式 → 追踪公式交替执行，掩码单调递增达到 RequiredMask 后终止
 - `SpellTracker` 与 `SpellContext` 分离，链公式热路径不触碰 `ulong` 掩码
 - Connect 保持每张卡独立，per-link delegate 缓存在 FormulaCache 中跨链复用
+- `RequiredMask = (1 << (maxIndex + 1)) - 1`：由 C# 层根据链中最大卡索引计算，透传至追踪公式作为终止条件
 - 回绕 100 次是 200 次 delegate 调用（链 + 追踪），不是 100 次编译
