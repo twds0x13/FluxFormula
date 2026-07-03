@@ -26,7 +26,7 @@ internal unsafe ref struct FluxEvaluator<TData, TDef>
 
 | 寄存器 | 索引 | 语义 |
 |--------|------|------|
-| R0（Error） | 0 | 错误标志（未使用，保留） |
+| R0（Error） | 0 | 错误哨兵：Compute 写入非 default 值时求值器立即短路返回 |
 | R1（Bus） | 1 | 链式串联总线：前一个 link 的输出流入下一个 link 的首操作数 |
 
 R1 的初始值为 `default(TData)`（对于 `float` 为 `0.0f`）。`Return` 指令将其 Dest 寄存器的值写入 R1（覆盖），供下一个 link 读取。

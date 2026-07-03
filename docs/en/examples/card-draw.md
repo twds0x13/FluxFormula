@@ -162,7 +162,7 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
         SpellContext b = regs[inst.Arg1];
         return ((SpellOp)op) switch
         {
-            SpellOp.Add => AddImpl(a, b),
+            SpellOp.Add => EvaluateAdd(a, b, regs),
             _ => default,
         };
     }
@@ -172,31 +172,55 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
         return ((SpellOp)op) switch
         {
             SpellOp.Add => Expression.Call(
-                typeof(SpellDef).GetMethod(nameof(AddImpl),
+                typeof(SpellDef).GetMethod(nameof(EvaluateAddJit),
                     System.Reflection.BindingFlags.Static
                     | System.Reflection.BindingFlags.NonPublic)!,
-                regs[inst.Arg0], regs[inst.Arg1]),
+                regs[inst.Arg0], regs[inst.Arg1], regs[Registers.Error]),
             _ => Expression.Constant(default(SpellContext)),
         };
     }
 
+    // Interpreter path: writes R0 when draws exhausted → framework short-circuits
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static SpellContext AddImpl(SpellContext a, SpellContext b)
+    static SpellContext EvaluateAdd(SpellContext a, SpellContext b, Span<SpellContext> regs)
     {
-        return b.StartIndex < a.StartIndex || a.DrawsProvide <= 0
-            ? a
-            : new SpellContext(
-                a.Damage + b.Damage,
-                a.DrawsProvide + b.DrawsProvide - 1,
-                a.ConsumedThisRound + 1,
-                a.StartIndex);
+        if (b.StartIndex < a.StartIndex)
+            return a;
+        if (a.DrawsProvide <= 0)
+        {
+            regs[Registers.Error] = a;
+            return default;
+        }
+        return new SpellContext(
+            a.Damage + b.Damage,
+            a.DrawsProvide + b.DrawsProvide - 1,
+            a.ConsumedThisRound + 1,
+            a.StartIndex);
+    }
+
+    // JIT path: writes R0 via ref parameter — Expression tree compiler maps to register write
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static SpellContext EvaluateAddJit(SpellContext a, SpellContext b, ref SpellContext r0)
+    {
+        if (b.StartIndex < a.StartIndex)
+            return a;
+        if (a.DrawsProvide <= 0)
+        {
+            r0 = a;
+            return default;
+        }
+        return new SpellContext(
+            a.Damage + b.Damage,
+            a.DrawsProvide + b.DrawsProvide - 1,
+            a.ConsumedThisRound + 1,
+            a.StartIndex);
     }
 }
 ```
 
-`AddImpl` is the shared implementation for both `Compute` and the JIT path. The more fields a struct has, the more verbose hand-written expression trees become: `Expression.Field`, `Expression.Bind`, and `MemberInit` enumerate every field, scaling linearly with field count. Extracting into a static method reduces `GetExpression` to a single `Expression.Call`, keeping both paths in sync. [`AggressiveInlining`](https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.methodimploptions) ensures the JIT compiler inlines this method, eliminating call overhead.
+`EvaluateAdd` and `EvaluateAddJit` implement the Add semantic for the interpreter and JIT paths respectively. Both share the same branching logic (positional skip, draw exhaustion, normal accumulation); they differ only in the R0 write mechanism. The interpreter writes `regs[Registers.Error]` directly via `Span<SpellContext>`, while the JIT path writes through a `ref SpellContext r0` parameter bound to `regs[Registers.Error]` in the expression tree. After the compiled delegate writes R0, the evaluator framework detects a non-default R0 and returns immediately — equivalent to the interpreter's `IsDefault(&regsPtr[Error])` check.
 
-`Add` has two pass-through conditions: `b.StartIndex < a.StartIndex` (card already consumed in a previous shot) or `a.DrawsProvide <= 0` (draws exhausted). On normal execution `ConsumedThisRound` increments per card while `StartIndex` passes through unchanged. Damage modifiers accumulate directly.
+`Add` has two branches: `b.StartIndex < a.StartIndex` (card already consumed in a previous round) → pass-through skip, execution continues to the next card; `a.DrawsProvide <= 0` (draws exhausted) → writes R0 error register, the evaluator framework immediately interrupts the entire chain, subsequent cards do not execute. On normal execution `ConsumedThisRound` increments per card, `StartIndex` passes through unchanged, damage modifiers accumulate directly.
 
 ## Tracker Struct: SpellTracker
 
@@ -269,30 +293,26 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
         if (consumed <= 0)
             return t;  // No consumption this round — pass through
 
-        // tzcnt: find first zero bit = this round's starting card position
-        ulong inverted = ~t.ConsumedMask;
-        int pos = 0;
-        while ((inverted & 1) == 0) { inverted >>= 1; pos++; }
+        // Find first zero bit = this round's starting card position
+        int pos = BitOperations.TrailingZeroCount(~t.ConsumedMask);
 
-        ulong mask = t.ConsumedMask;
-        for (int i = 0; i < consumed; i++)
-            mask |= 1ul << (pos + i);
+        ulong mask = t.ConsumedMask | (((1ul << consumed) - 1) << pos);
 
         var ctx = t.Context;
         ctx.ConsumedThisRound = 0;
         ctx.StartIndex = (byte)(pos + consumed);  // Next round resumes here
-        return new SpellTracker(ctx, mask);
+        return new SpellTracker(ctx, mask, t.RequiredMask);
     }
 }
 ```
 
 `Track` logic:
 
-1. **Mask equals RequiredMask** → pass through (while loop terminates)
-2. **No consumption** → pass through (`ConsumedThisRound == 0`)
-3. **Normal execution**: `tzcnt(~mask)` locates the first zero bit as the round's starting position, then sets `consumed` consecutive bits from that position. `ConsumedThisRound` resets to zero, `StartIndex` is set to `pos + consumed` so the next round resumes from there.
+1. **Mask equals RequiredMask** → return current value (while loop terminates)
+2. **No consumption** → return current value (`ConsumedThisRound == 0`)
+3. **Normal execution**: locates the first zero bit as the round's starting position, then sets `consumed` consecutive bits from that position. `ConsumedThisRound` resets to zero, `StartIndex` is set to `pos + consumed` so the next round resumes from there.
 
-`RequiredMask = (1 << (maxIndex + 1)) - 1`, computed by the C# layer from the chain's maximum card index and passed through `SpellTracker` across rounds. The chain formula runs all cards first, then the tracker formula batch-updates the mask. If draws suffice, the while loop wraps the chain for another full pass — the mask fills monotonically until termination, achieving up to double utilization.
+`RequiredMask = (1 << (maxIndex + 1)) - 1`, computed by the C# layer from the chain's maximum card index and carried across rounds in `SpellTracker`. The chain formula executes all cards, then the tracker formula batch-updates the mask.
 
 ## Lexer Configuration
 
@@ -378,15 +398,15 @@ Each `ChainLink`'s delegate is independently cached in `FormulaCache` by `DualHa
 
 The chain formula's `Compute(Add)` increments `ConsumedThisRound` per card. After the chain runs, the tracker formula's `Track` operator reads that value and updates the mask in three steps:
 
-1. **tzcnt locates starting bit**: first 1-bit of `~ConsumedMask` = this round's starting card position
+1. **Locate starting bit**: first 1-bit of `~ConsumedMask` = this round's starting card position
 2. **Sequential bit-set**: sets `consumed` consecutive bits from that position
 3. **Reset + update**: `ConsumedThisRound = 0`, `StartIndex = pos + consumed`, ready for the next round
 
 The mask fills monotonically. Reaching `RequiredMask` terminates the loop.
 
-If draws are insufficient to complete the chain in one round (e.g. 5 cards, 1 draw), only card 0 executes and `StartIndex` is set to `0 + 1 = 1`. When the wand recharges with fresh draws next round, the chain resumes from card 1: `Add` hits `b.StartIndex < a.StartIndex` and passes through cards 0 and 1, skipping the already-consumed card 0.
+If draws are insufficient to complete the chain in one round (e.g. 5 cards, 1 draw), only card 0 executes before `EvaluateAdd` detects `DrawsProvide <= 0` on card 1 and writes R0, causing the evaluator to immediately interrupt the chain. The tracker reads `ConsumedThisRound = 1`, updates the mask, and sets `StartIndex = 0 + 1 = 1`. When the wand recharges with fresh draws next round, the chain resumes from card 1: card 0 hits `b.StartIndex < a.StartIndex` and passes through, card 1 executes normally.
 
-### Zero Recompilation on Spell Wrapping
+### No Compilation Inside the Wrap Loop
 
 Both `Run()` calls inside the wrap loop use precompiled delegates. `Instantiate` is a lightweight `ref struct` stack allocation plus a cache-hit delegate lookup. The chain formula and tracker formula each compile once; the loop contains no compilation.
 
@@ -412,17 +432,17 @@ Each card's `[prev] + card_face_value` reads the previous card's output through 
 
 ### Implicit Casting Cost
 
-Each card automatically costs 1 draw. `10.5|idx:0` provides 0 draws; the net −1 is implicit. `0|draw 2|idx:1`: 1 remaining + 2 provision − 1 cost = 2 draws. The casting cost is a constant, not embedded in card data.
+Each card automatically costs 1 draw. `10.5|idx:0` provides 0 draws; the net −1 is implicit. `0|draw 2|idx:1`: 1 remaining + 2 provision − 1 cost = 2 draws. The 1-draw deduction is handled uniformly by the `Add` operator; card data only declares the damage modifier and draw provision.
 
 ## Key Points
 
 - `damage|draw N|idx:N` named-field format: `draw` is optional (defaults to 0), `idx:` is required
-- `Add` acts on both the damage modifier and draw provision; `b.StartIndex < a.StartIndex` triggers pass-through to skip consumed cards
+- `Add` acts on both the damage modifier and draw provision; `a.DrawsProvide <= 0` writes R0 to interrupt the chain, `b.StartIndex < a.StartIndex` passes through to skip consumed cards
 - `ConsumedThisRound` increments inside the chain, consumed in batch by the tracker formula then reset
 - `StartIndex` is updated by the tracker to `pos + consumed`, so the next round resumes from the unconsumed position
 - Double cast (`0|draw 2`) and tradeoff (`-5|draw 2`) are natural consequences of the same format
 - Spell wrapping: chain → tracker alternation; mask fills monotonically until reaching RequiredMask
 - `SpellTracker` is separated from `SpellContext` — hot path never touches the `ulong` mask
 - Connect keeps each card independent; per-link delegates are cached in FormulaCache and reused across chains
-- `RequiredMask = (1 << (maxIndex + 1)) - 1`: computed from the chain's max card index, passed through to the tracker as the termination condition
+- `RequiredMask = (1 << (maxIndex + 1)) - 1`: computed from the chain's max card index, carried across rounds in `SpellTracker` as the termination condition
 - Wrapping 100 times = 200 delegate calls (chain + tracker), not 100 compilations

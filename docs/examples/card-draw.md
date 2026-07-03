@@ -10,7 +10,7 @@ Noita 式法术修正系统。每张法术卡有两个属性：
 
 `10.5|idx:0` 是纯伤害修正法术：提供 0 抽，卡索引 0。`0|draw 2|idx:1` 是二重施法：`1 + 2 - 1 = 2`，后续两次施法免费，卡索引 1。`-5|draw 2|idx:2` 是含 tradeoff 的抽牌法术：`1 + 2 - 1 = 2`，以降低 5 点伤害为代价换取 2 次免费施法，卡索引 2。`20|draw 1|idx:3` 是自偿法术：`1 + 1 - 1 = 1`，提供 1 抽恰好抵消自身成本。
 
-**法术回绕**（Noita 机枪法杖）：链公式跑完整条链后，追踪公式用 `ConsumedThisRound` 更新位掩码。掩码未全满时 while 循环回绕链首；掩码全满后终止。链中 `DrawsProvide` 归零后自动透传，每张卡最多被执行 2 次（Noita 双倍利用率）。
+**法术回绕**（Noita 机枪法杖）：链公式执行完整条链后，追踪公式用 `ConsumedThisRound` 更新位掩码。掩码未全满时 while 循环回绕链首；掩码全满后终止。链中 `DrawsProvide` 归零后自动透传，每张卡最多被执行 2 次（Noita 双倍利用率）。
 
 ## TData 结构体
 
@@ -162,7 +162,7 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
         SpellContext b = regs[inst.Arg1];
         return ((SpellOp)op) switch
         {
-            SpellOp.Add => AddImpl(a, b),
+            SpellOp.Add => EvaluateAdd(a, b, regs),
             _ => default,
         };
     }
@@ -172,31 +172,55 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
         return ((SpellOp)op) switch
         {
             SpellOp.Add => Expression.Call(
-                typeof(SpellDef).GetMethod(nameof(AddImpl),
+                typeof(SpellDef).GetMethod(nameof(EvaluateAddJit),
                     System.Reflection.BindingFlags.Static
                     | System.Reflection.BindingFlags.NonPublic)!,
-                regs[inst.Arg0], regs[inst.Arg1]),
+                regs[inst.Arg0], regs[inst.Arg1], regs[Registers.Error]),
             _ => Expression.Constant(default(SpellContext)),
         };
     }
 
+    // 解释器路径：抽数耗尽时写 R0 触发框架短路
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static SpellContext AddImpl(SpellContext a, SpellContext b)
+    static SpellContext EvaluateAdd(SpellContext a, SpellContext b, Span<SpellContext> regs)
     {
-        return b.StartIndex < a.StartIndex || a.DrawsProvide <= 0
-            ? a
-            : new SpellContext(
-                a.Damage + b.Damage,
-                a.DrawsProvide + b.DrawsProvide - 1,
-                a.ConsumedThisRound + 1,
-                a.StartIndex);
+        if (b.StartIndex < a.StartIndex)
+            return a;
+        if (a.DrawsProvide <= 0)
+        {
+            regs[Registers.Error] = a;
+            return default;
+        }
+        return new SpellContext(
+            a.Damage + b.Damage,
+            a.DrawsProvide + b.DrawsProvide - 1,
+            a.ConsumedThisRound + 1,
+            a.StartIndex);
+    }
+
+    // JIT 路径：通过 ref 参数写入 R0，Expression 树编译器映射为寄存器写入
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static SpellContext EvaluateAddJit(SpellContext a, SpellContext b, ref SpellContext r0)
+    {
+        if (b.StartIndex < a.StartIndex)
+            return a;
+        if (a.DrawsProvide <= 0)
+        {
+            r0 = a;
+            return default;
+        }
+        return new SpellContext(
+            a.Damage + b.Damage,
+            a.DrawsProvide + b.DrawsProvide - 1,
+            a.ConsumedThisRound + 1,
+            a.StartIndex);
     }
 }
 ```
 
-`AddImpl` 是 `Compute` 和 JIT 路径的共享实现。Struct 字段越多，表达式树的手写开销越大：`Expression.Field`、`Expression.Bind`、`MemberInit` 需逐个字段展开，代码量随字段数线性增长。将逻辑提取为静态方法后，`GetExpression` 退化为一行 `Expression.Call`，两个路径保持行为一致。[`AggressiveInlining`](https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.methodimploptions) 确保 JIT 编译时内联此方法，消除调用开销。
+`EvaluateAdd` 和 `EvaluateAddJit` 分别为解释器和 JIT 路径实现 Add 语义。两条路径共享相同的判断逻辑（位置跳过、抽数耗尽检测、正常累加），差异仅在于 R0 写入方式：解释器通过 `Span<SpellContext>` 直接写 `regs[Registers.Error]`，JIT 通过 `ref SpellContext r0` 参数写 `regs[Registers.Error]`。表达式树的 `Expression.Call` 将 `regs[Registers.Error]` 按引用传递，编译后的委托在 R0 写入后由求值器框架检测到非 default 并立即返回——与解释器路径的 `IsDefault(&regsPtr[Error])` 检查等效。
 
-`Add` 的两个透传条件：`b.StartIndex < a.StartIndex`（卡已在前一射击中消费）或 `a.DrawsProvide <= 0`（抽数耗尽）。正常执行时 `ConsumedThisRound` 每卡递增，`StartIndex` 透传不变。伤害修正直接累加。
+`Add` 的两个分支：`b.StartIndex < a.StartIndex`（卡已在前一回合中消费）→ 透传跳过，正常继续执行下一条卡；`a.DrawsProvide <= 0`（抽数耗尽）→ 写入 R0 错误寄存器，求值器框架立即中断整条链，后续卡不执行。正常执行时 `ConsumedThisRound` 每卡递增，`StartIndex` 透传不变，伤害修正直接累加。
 
 ## 追踪结构体：SpellTracker
 
@@ -269,30 +293,26 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
         if (consumed <= 0)
             return t;  // 本轮无消费，透传
 
-        // tzcnt：找第一个未消费位 = 本轮起始卡位置
-        ulong inverted = ~t.ConsumedMask;
-        int pos = 0;
-        while ((inverted & 1) == 0) { inverted >>= 1; pos++; }
+        // 找第一个未消费位 = 本轮起始卡位置
+        int pos = BitOperations.TrailingZeroCount(~t.ConsumedMask);
 
-        ulong mask = t.ConsumedMask;
-        for (int i = 0; i < consumed; i++)
-            mask |= 1ul << (pos + i);
+        ulong mask = t.ConsumedMask | (((1ul << consumed) - 1) << pos);
 
         var ctx = t.Context;
         ctx.ConsumedThisRound = 0;
         ctx.StartIndex = (byte)(pos + consumed);  // 下一轮从此位置继续
-        return new SpellTracker(ctx, mask);
+        return new SpellTracker(ctx, mask, t.RequiredMask);
     }
 }
 ```
 
 `Track` 的逻辑分三步：
 
-1. **掩码达到 RequiredMask** → 透传（while 循环终止）
-2. **本轮无消费** → 透传（`ConsumedThisRound == 0`）
-3. **正常执行**：`tzcnt(~mask)` 定位第一个未消费位作为本轮起始位置，按 `consumed` 数量从该位置起连续置位，`ConsumedThisRound` 归零，`StartIndex` 更新为 `pos + consumed`（下一轮从此位置继续）
+1. **掩码达到 RequiredMask** → 返回当前值（while 循环终止）
+2. **本轮无消费** → 返回当前值（`ConsumedThisRound == 0`）
+3. **正常执行**：定位第一个未消费位作为本轮起始位置，按 `consumed` 数量从该位置起连续置位，`ConsumedThisRound` 归零，`StartIndex` 更新为 `pos + consumed`（下一轮从此位置继续）
 
-`RequiredMask = (1 << (maxIndex + 1)) - 1`，由 C# 层根据链中卡的最大索引计算，在 `SpellTracker` 中跨轮透传。链公式跑完整条链后，追踪公式批量更新掩码。若抽数充足，while 循环回绕使链再跑一轮，掩码单调递增填满后自然终止，最高双倍利用率。
+`RequiredMask = (1 << (maxIndex + 1)) - 1`，由 C# 层根据链中卡的最大索引计算，在 `SpellTracker` 中跨轮保持。链公式执行完整条链后，追踪公式批量更新掩码。
 
 ## Lexer 配置
 
@@ -366,9 +386,9 @@ do
 
 ## 原理
 
-### Connect 不合并字节码
+### Connect 保持每张卡独立
 
-`Connect()` 不在链创建时合并 `Instruction[]`。每张卡作为独立的 `Modifier` 保留自己的字节码片段，存储在 `ChainLink[]` 数组中。物理拼接推迟到求值时刻，且仅当链长超过 `MergeThreshold`（默认 8）时才会合并为原子公式。
+`Connect()` 将每张卡作为独立的 `Modifier` 保留其字节码片段，存储在 `ChainLink[]` 数组中。物理拼接推迟到求值时刻，且仅当链长超过 `MergeThreshold`（默认 8）时才会合并为原子公式。
 
 ### Per-link JIT 缓存复用
 
@@ -378,17 +398,17 @@ do
 
 链公式的 `Compute(Add)` 在每张卡执行时递增 `ConsumedThisRound`。链跑完后，追踪公式的 `Track` 操作符读取该值，三步完成掩码更新：
 
-1. **tzcnt 定位起始位**：`~ConsumedMask` 的第一个 1 位 = 本轮起始卡位置
+1. **定位起始位**：`~ConsumedMask` 的第一个 1 位 = 本轮起始卡位置
 2. **连续置位**：从起始位起置 `consumed` 位
 3. **归零 + 更新**：`ConsumedThisRound = 0`，`StartIndex = pos + consumed`，等待下一轮
 
 掩码单调递增填充。达到 `RequiredMask` 时终止。
 
-若本轮抽数不足以跑完整条链（如 5 张卡、初始 1 抽），只执行卡 0，`StartIndex` 更新为 `0 + 1 = 1`。下一轮 wand 充能注入新抽数后，链从卡 1 开始：`Add` 中 `b.StartIndex < a.StartIndex` 触发透传，跳过已消费的卡 0。
+若本轮抽数不足以执行整条链（如 5 张卡、初始 1 抽），只执行卡 0，`Add` 在卡 1 的 `EvaluateAdd` 中检测到 `DrawsProvide <= 0` 后写入 R0，求值器立即中断链，不再执行后续卡。追踪公式读取 `ConsumedThisRound = 1`，更新掩码并设 `StartIndex = 0 + 1 = 1`。下一轮 wand 充能注入新抽数后，链从卡 1 开始：卡 0 的 `b.StartIndex < a.StartIndex` 触发透传跳过，卡 1 正常执行。
 
-先执行链公式再执行追踪公式（Noita 原始行为：先施法再结算）。链完整跑一遍后掩码才更新，每张卡在掩码达到 RequiredMask 前最多被执行 2 次。
+先执行链公式再执行追踪公式（Noita 原始行为：先施法再结算）。链完整执行一遍后掩码才更新，每张卡在掩码达到 RequiredMask 前最多被执行 2 次。
 
-### while 回绕零重编译
+### 回绕循环内无编译
 
 回绕循环中的两条 `Run()` 均走已编译 delegate。`Instantiate` 是轻量操作：`ref struct` 栈分配 + 缓存命中的 delegate 查找。链公式和追踪公式各自编译一次，while 循环内无任何编译行为。
 
@@ -414,17 +434,17 @@ do
 
 ### 隐式施法成本
 
-每张卡自动消耗 1 抽。`10.5|idx:0` 不提供额外抽牌，净消耗 1 抽。`0|draw 2|idx:1`：剩余 1 抽 + 提供 2 抽 - 成本 1 抽 = 2 抽。施法成本是常数，不嵌入卡面数据。
+每张卡自动消耗 1 抽。`10.5|idx:0` 不提供额外抽牌，净消耗 1 抽。`0|draw 2|idx:1`：剩余 1 抽 + 提供 2 抽 - 成本 1 抽 = 2 抽。扣除 1 抽的逻辑由 `Add` 操作符统一处理，卡面数据只需声明伤害修正和抽牌提供量。
 
 ## 要点
 
 - `damage|draw N|idx:N` 命名字段格式：`draw` 可省略（默认 0），`idx:` 必填
-- `Add` 同时作用于伤害修正和抽数修正，隐式扣除 1 抽施法成本；`b.StartIndex < a.StartIndex` 时透传跳过已消费卡
+- `Add` 同时作用于伤害修正和抽数修正，隐式扣除 1 抽施法成本；`a.DrawsProvide <= 0` 时写入 R0 中断链，`b.StartIndex < a.StartIndex` 时透传跳过已消费卡
 - `ConsumedThisRound` 在链内递增，由追踪公式批量消费后归零
 - `StartIndex` 由追踪公式更新为 `pos + consumed`，确保下一轮从未消费位置继续
 - 二重施法（`0|draw 2`）和 tradeoff（`-5|draw 2`）是同一格式的自然推论
 - 法术回绕：链公式 → 追踪公式交替执行，掩码单调递增达到 RequiredMask 后终止
 - `SpellTracker` 与 `SpellContext` 分离，链公式热路径不触碰 `ulong` 掩码
 - Connect 保持每张卡独立，per-link delegate 缓存在 FormulaCache 中跨链复用
-- `RequiredMask = (1 << (maxIndex + 1)) - 1`：由 C# 层根据链中最大卡索引计算，透传至追踪公式作为终止条件
+- `RequiredMask = (1 << (maxIndex + 1)) - 1`：由 C# 层根据链中最大卡索引计算，在 `SpellTracker` 中跨轮保持作为终止条件
 - 回绕 100 次是 200 次 delegate 调用（链 + 追踪），不是 100 次编译

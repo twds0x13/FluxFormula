@@ -22,7 +22,7 @@ internal unsafe ref struct FluxEvaluator<TData, TDef>
 
 | Register | Index | Semantic |
 |----------|-------|----------|
-| R0 (Error) | 0 | Error flag (reserved, unused) |
+| R0 (Error) | 0 | Error sentinel: Compute writes a non-default value → evaluator short-circuits immediately |
 | R1 (Bus) | 1 | Chain serial bus: previous link output → next link input |
 
 R1 initializes to `default(TData)`. The `Return` instruction writes its Dest register value to R1 for consumption by the next chain link.
