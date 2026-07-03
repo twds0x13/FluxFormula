@@ -49,7 +49,7 @@ public enum SpellOp : byte
 }
 ```
 
-`Add` operates on both Damage and DrawsProvide simultaneously. DrawsProvide automatically deducts the 1-draw casting cost.
+`Add` operates on both Damage and DrawsProvide, implicitly deducting the 1-draw casting cost.
 
 ## LiteralScanner: `damage|draw N|idx:N` Named-Field Format
 
@@ -162,57 +162,41 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
         SpellContext b = regs[inst.Arg1];
         return ((SpellOp)op) switch
         {
-            SpellOp.Add => b.StartIndex < a.StartIndex || a.DrawsProvide <= 0
-                ? a
-                : new SpellContext(
-                    a.Damage + b.Damage,
-                    a.DrawsProvide + b.DrawsProvide - 1,
-                    a.ConsumedThisRound + 1,
-                    a.StartIndex),
+            SpellOp.Add => AddImpl(a, b),
             _ => default,
         };
     }
 
     public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
     {
-        var argA = regs[inst.Arg0];
-        var argB = regs[inst.Arg1];
-        var dmgA = Expression.Field(argA, nameof(SpellContext.Damage));
-        var dmgB = Expression.Field(argB, nameof(SpellContext.Damage));
-        var drawA = Expression.Field(argA, nameof(SpellContext.DrawsProvide));
-        var drawB = Expression.Field(argB, nameof(SpellContext.DrawsProvide));
-        var consumedA = Expression.Field(argA, nameof(SpellContext.ConsumedThisRound));
-        var startA = Expression.Field(argA, nameof(SpellContext.StartIndex));
-        var startB = Expression.Field(argB, nameof(SpellContext.StartIndex));
-        var drawZero = Expression.LessThanOrEqual(drawA, Expression.Constant((byte)0));
-        var indexLow = Expression.LessThan(startB, startA);
-        var skip = Expression.OrElse(indexLow, drawZero);
-        var one = Expression.Constant((byte)1);
-        var ctor = typeof(SpellContext).GetConstructor(
-            new[] { typeof(float), typeof(int), typeof(int), typeof(int) });
-
         return ((SpellOp)op) switch
         {
-            SpellOp.Add => Expression.Condition(
-                skip,
-                argA,
-                Expression.MemberInit(
-                    Expression.New(ctor),
-                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.Damage)),
-                        Expression.Add(dmgA, dmgB)),
-                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.DrawsProvide)),
-                        Expression.Subtract(Expression.Add(drawA, drawB), one)),
-                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.ConsumedThisRound)),
-                        Expression.Add(consumedA, one)),
-                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.StartIndex)),
-                        startA))),
+            SpellOp.Add => Expression.Call(
+                typeof(SpellDef).GetMethod(nameof(AddImpl),
+                    System.Reflection.BindingFlags.Static
+                    | System.Reflection.BindingFlags.NonPublic)!,
+                regs[inst.Arg0], regs[inst.Arg1]),
             _ => Expression.Constant(default(SpellContext)),
         };
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static SpellContext AddImpl(SpellContext a, SpellContext b)
+    {
+        return b.StartIndex < a.StartIndex || a.DrawsProvide <= 0
+            ? a
+            : new SpellContext(
+                a.Damage + b.Damage,
+                a.DrawsProvide + b.DrawsProvide - 1,
+                a.ConsumedThisRound + 1,
+                a.StartIndex);
     }
 }
 ```
 
-`Add` has two pass-through conditions: `b.StartIndex < a.StartIndex` (card already consumed in a previous shot) or `a.DrawsProvide <= 0` (draws exhausted). On normal execution `ConsumedThisRound` increments per card while `StartIndex` passes through unchanged. `b.DrawsProvide` is the card's draw provision; net change = provision − 1. Damage modifiers accumulate directly, unaffected by the cost.
+`AddImpl` is the shared implementation for both `Compute` and the JIT path. The more fields a struct has, the more verbose hand-written expression trees become: `Expression.Field`, `Expression.Bind`, and `MemberInit` enumerate every field, scaling linearly with field count. Extracting into a static method reduces `GetExpression` to a single `Expression.Call`, keeping both paths in sync. [`AggressiveInlining`](https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.methodimploptions) ensures the JIT compiler inlines this method, eliminating call overhead.
+
+`Add` has two pass-through conditions: `b.StartIndex < a.StartIndex` (card already consumed in a previous shot) or `a.DrawsProvide <= 0` (draws exhausted). On normal execution `ConsumedThisRound` increments per card while `StartIndex` passes through unchanged. Damage modifiers accumulate directly.
 
 ## Tracker Struct: SpellTracker
 
@@ -233,7 +217,7 @@ public struct SpellTracker : IEquatable<SpellTracker>
 }
 ```
 
-`SpellTracker` is separated from `SpellContext` so the chain formula's hot path is unaffected by mask management. The mask lives exclusively in the tracker formula.
+`SpellTracker` is separated from `SpellContext` — the chain formula's hot path never touches the mask.
 
 ## Tracker Operators
 
@@ -306,7 +290,7 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
 2. **No consumption** → pass through (`ConsumedThisRound == 0`)
 3. **Normal execution**: `tzcnt(~mask)` locates the first zero bit as the round's starting position, then sets `consumed` consecutive bits from that position. `ConsumedThisRound` resets to zero, `StartIndex` is set to `pos + consumed` so the next round resumes from there.
 
-Order of execution: the chain formula runs all cards sequentially first, then the tracker formula batch-updates the mask. If draws suffice, the while loop wraps the chain for another full pass — the mask fills monotonically until termination, achieving up to double utilization (full Noita machine-gun wand simulation).
+The chain formula runs all cards first, then the tracker formula batch-updates the mask. If draws suffice, the while loop wraps the chain for another full pass — the mask fills monotonically until termination, achieving up to double utilization.
 
 ## Lexer Configuration
 
@@ -427,7 +411,7 @@ Each card's `[prev] + card_face_value` reads the previous card's output through 
 
 ### Implicit Casting Cost
 
-Each card automatically costs 1 draw. `10.5|idx:0` provides 0 draws; the net −1 is implicit. `0|draw 2|idx:1`: 1 remaining + 2 provision − 1 cost = 2 draws. Card face values stay as card face values — the casting cost is a constant, not part of the card data.
+Each card automatically costs 1 draw. `10.5|idx:0` provides 0 draws; the net −1 is implicit. `0|draw 2|idx:1`: 1 remaining + 2 provision − 1 cost = 2 draws. The casting cost is a constant, not embedded in card data.
 
 ## Key Points
 
@@ -435,7 +419,7 @@ Each card automatically costs 1 draw. `10.5|idx:0` provides 0 draws; the net −
 - `Add` acts on both the damage modifier and draw provision; `b.StartIndex < a.StartIndex` triggers pass-through to skip consumed cards
 - `ConsumedThisRound` increments inside the chain, consumed in batch by the tracker formula then reset
 - `StartIndex` is updated by the tracker to `pos + consumed`, so the next round resumes from the unconsumed position
-- Double cast (`0|2`) and tradeoff (`-5|2`) are natural consequences of the same format
+- Double cast (`0|draw 2`) and tradeoff (`-5|draw 2`) are natural consequences of the same format
 - Spell wrapping: chain → tracker alternation; mask fills monotonically until termination
 - `SpellTracker` is separated from `SpellContext` — hot path never touches the `ulong` mask
 - Connect keeps each card independent; per-link delegates are cached in FormulaCache and reused across chains

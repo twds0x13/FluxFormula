@@ -49,7 +49,7 @@ public enum SpellOp : byte
 }
 ```
 
-`Add` 同时作用于 Damage 和 DrawsProvide 两个字段。DrawsProvide 计算自动扣除 1 抽施法成本。
+`Add` 同时作用于 Damage 和 DrawsProvide，隐式扣除 1 抽施法成本。
 
 ## LiteralScanner：`damage|draw N|idx:N` 命名字段格式
 
@@ -162,57 +162,41 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
         SpellContext b = regs[inst.Arg1];
         return ((SpellOp)op) switch
         {
-            SpellOp.Add => b.StartIndex < a.StartIndex || a.DrawsProvide <= 0
-                ? a
-                : new SpellContext(
-                    a.Damage + b.Damage,
-                    a.DrawsProvide + b.DrawsProvide - 1,
-                    a.ConsumedThisRound + 1,
-                    a.StartIndex),
+            SpellOp.Add => AddImpl(a, b),
             _ => default,
         };
     }
 
     public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
     {
-        var argA = regs[inst.Arg0];
-        var argB = regs[inst.Arg1];
-        var dmgA = Expression.Field(argA, nameof(SpellContext.Damage));
-        var dmgB = Expression.Field(argB, nameof(SpellContext.Damage));
-        var drawA = Expression.Field(argA, nameof(SpellContext.DrawsProvide));
-        var drawB = Expression.Field(argB, nameof(SpellContext.DrawsProvide));
-        var consumedA = Expression.Field(argA, nameof(SpellContext.ConsumedThisRound));
-        var startA = Expression.Field(argA, nameof(SpellContext.StartIndex));
-        var startB = Expression.Field(argB, nameof(SpellContext.StartIndex));
-        var drawZero = Expression.LessThanOrEqual(drawA, Expression.Constant((byte)0));
-        var indexLow = Expression.LessThan(startB, startA);
-        var skip = Expression.OrElse(indexLow, drawZero);
-        var one = Expression.Constant((byte)1);
-        var ctor = typeof(SpellContext).GetConstructor(
-            new[] { typeof(float), typeof(int), typeof(int), typeof(int) });
-
         return ((SpellOp)op) switch
         {
-            SpellOp.Add => Expression.Condition(
-                skip,
-                argA,
-                Expression.MemberInit(
-                    Expression.New(ctor),
-                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.Damage)),
-                        Expression.Add(dmgA, dmgB)),
-                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.DrawsProvide)),
-                        Expression.Subtract(Expression.Add(drawA, drawB), one)),
-                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.ConsumedThisRound)),
-                        Expression.Add(consumedA, one)),
-                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.StartIndex)),
-                        startA))),
+            SpellOp.Add => Expression.Call(
+                typeof(SpellDef).GetMethod(nameof(AddImpl),
+                    System.Reflection.BindingFlags.Static
+                    | System.Reflection.BindingFlags.NonPublic)!,
+                regs[inst.Arg0], regs[inst.Arg1]),
             _ => Expression.Constant(default(SpellContext)),
         };
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static SpellContext AddImpl(SpellContext a, SpellContext b)
+    {
+        return b.StartIndex < a.StartIndex || a.DrawsProvide <= 0
+            ? a
+            : new SpellContext(
+                a.Damage + b.Damage,
+                a.DrawsProvide + b.DrawsProvide - 1,
+                a.ConsumedThisRound + 1,
+                a.StartIndex);
     }
 }
 ```
 
-`Add` 中有两个透传条件：`b.StartIndex < a.StartIndex`（卡已在前一射击中消费）或 `a.DrawsProvide <= 0`（抽数耗尽）。正常执行时 `ConsumedThisRound` 每卡递增，`StartIndex` 透传不变。`b.DrawsProvide` 是卡面的抽牌提供量，净变化 = `提供量 - 1`。伤害修正直接累加，不受成本影响。
+`AddImpl` 是 `Compute` 和 JIT 路径的共享实现。Struct 字段越多，表达式树的手写开销越大：`Expression.Field`、`Expression.Bind`、`MemberInit` 需逐个字段展开，代码量随字段数线性增长。将逻辑提取为静态方法后，`GetExpression` 退化为一行 `Expression.Call`，两个路径保持行为一致。[`AggressiveInlining`](https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.methodimploptions) 确保 JIT 编译时内联此方法，消除调用开销。
+
+`Add` 的两个透传条件：`b.StartIndex < a.StartIndex`（卡已在前一射击中消费）或 `a.DrawsProvide <= 0`（抽数耗尽）。正常执行时 `ConsumedThisRound` 每卡递增，`StartIndex` 透传不变。伤害修正直接累加。
 
 ## 追踪结构体：SpellTracker
 
@@ -233,7 +217,7 @@ public struct SpellTracker : IEquatable<SpellTracker>
 }
 ```
 
-`SpellTracker` 与 `SpellContext` 分离，保证链公式的热路径不受掩码管理影响。掩码仅在追踪公式中读写。
+`SpellTracker` 与 `SpellContext` 分离，链公式的热路径不触碰掩码。
 
 ## 追踪操作符
 
@@ -306,7 +290,7 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
 2. **本轮无消费** → 透传（`ConsumedThisRound == 0`）
 3. **正常执行**：`tzcnt(~mask)` 定位第一个未消费位作为本轮起始位置，按 `consumed` 数量从该位置起连续置位，`ConsumedThisRound` 归零，`StartIndex` 更新为 `pos + consumed`（下一轮从此位置继续）
 
-顺序：链公式先跑整条链（所有卡顺序执行），执行完毕后追踪公式批量更新掩码。若抽数充足，while 循环回绕使链再跑一轮，掩码单调递增填满后自然终止，最高双倍利用率（Noita 机枪法杖的完整模拟）。
+链公式跑完整条链后，追踪公式批量更新掩码。若抽数充足，while 循环回绕使链再跑一轮，掩码单调递增填满后自然终止，最高双倍利用率。
 
 ## Lexer 配置
 
@@ -387,7 +371,7 @@ do
 
 ### Per-link JIT 缓存复用
 
-每条 `ChainLink` 的 delegate 通过 `DualHash64` 独立缓存在 `FormulaCache` 中。`Instantiate(chain)` 首次运行时编译所有 link，后续同链的 `Instantiate` 直接命中缓存。不同卡组共享同一张卡时（如卡1 在多个卡组中出现），delegate 跨链复用。
+每条 `ChainLink` 的 delegate 通过 `DualHash64` 独立缓存在 `FormulaCache` 中。`Instantiate(chain)` 首次运行时编译所有 link，后续同链的 `Instantiate` 直接命中缓存。同一张卡出现在多个卡组中时，delegate 跨链复用。
 
 ### 追踪公式与掩码管理
 
@@ -429,7 +413,7 @@ do
 
 ### 隐式施法成本
 
-每张卡自动消耗 1 抽。`10.5|idx:0` 不提供额外抽牌，净消耗 1 抽。`0|draw 2|idx:1`：剩余 1 抽 + 提供 2 抽 - 成本 1 抽 = 2 抽。施法成本是常数，卡面数值即卡面数值。
+每张卡自动消耗 1 抽。`10.5|idx:0` 不提供额外抽牌，净消耗 1 抽。`0|draw 2|idx:1`：剩余 1 抽 + 提供 2 抽 - 成本 1 抽 = 2 抽。施法成本是常数，不嵌入卡面数据。
 
 ## 要点
 
@@ -437,7 +421,7 @@ do
 - `Add` 同时作用于伤害修正和抽数修正，隐式扣除 1 抽施法成本；`b.StartIndex < a.StartIndex` 时透传跳过已消费卡
 - `ConsumedThisRound` 在链内递增，由追踪公式批量消费后归零
 - `StartIndex` 由追踪公式更新为 `pos + consumed`，确保下一轮从未消费位置继续
-- 二重施法（`0|2`）和 tradeoff（`-5|2`）是同一格式的自然推论
+- 二重施法（`0|draw 2`）和 tradeoff（`-5|draw 2`）是同一格式的自然推论
 - 法术回绕：链公式 → 追踪公式交替执行，掩码单调递增填满后终止
 - `SpellTracker` 与 `SpellContext` 分离，链公式热路径不触碰 `ulong` 掩码
 - Connect 保持每张卡独立，per-link delegate 缓存在 FormulaCache 中跨链复用
