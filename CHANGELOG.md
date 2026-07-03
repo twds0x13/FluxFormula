@@ -1,3 +1,13 @@
+## [4.0.0](https://github.com/twds0x13/FluxFormula/compare/v3.7.0...v4.0.0) (2026-07-03)
+
+### ⚠ BREAKING CHANGES
+
+* **core:** all IFluxDefinition implementations must accept Span<TData>.
+
+### Features
+
+* **core:** change Compute to Span<TData>, enable R0 interrupt from definitions ([6266288](https://github.com/twds0x13/FluxFormula/commit/62662883cb681869e87ff88b1c21f3184d1cfc25))
+
 ## [3.7.0](https://github.com/twds0x13/FluxFormula/compare/v3.6.1...v3.7.0) (2026-06-29)
 
 ### Features
