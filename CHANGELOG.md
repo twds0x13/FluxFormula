@@ -1,3 +1,14 @@
+## [5.0.0](https://github.com/twds0x13/FluxFormula/compare/v4.0.0...v5.0.0) (2026-07-03)
+
+### ⚠ BREAKING CHANGES
+
+* **core:** LexerConfig.LiteralParser and LiteralPattern are removed.
+Use CreateDefaultNumberScanner(parser) to set LiteralScanner instead.
+
+### Code Refactoring
+
+* **core:** remove LiteralParser and LiteralPattern, LiteralScanner is now required ([6cd5891](https://github.com/twds0x13/FluxFormula/commit/6cd5891a3e194cf9542c6ba25077e45cc053efe4))
+
 ## [4.0.0](https://github.com/twds0x13/FluxFormula/compare/v3.7.0...v4.0.0) (2026-07-03)
 
 ### ⚠ BREAKING CHANGES
