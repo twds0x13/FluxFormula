@@ -1,6 +1,6 @@
 # 示例：法术上下文
 
-演示双字段立即数语法和链式修正。`float` 字段为伤害修正值（正数增伤、负数减伤），`int` 字段为抽牌提供量。每张卡自动消耗 1 抽作为施法成本，通过 Connect 串联形成施法队列。
+演示命名字段立即数语法、链式修正和法术回绕追踪。`float` 字段为伤害修正值（正数增伤、负数减伤），`byte` 字段为抽牌提供量。每张卡自动消耗 1 抽作为施法成本，通过 Connect 串联形成施法队列，SpellTracker 实现 Noita 式已消费卡掩码追踪。
 
 ## 场景
 
@@ -8,47 +8,53 @@ Noita 式法术修正系统。每张法术卡有两个属性：
 - **伤害修正**：浮点数，正值 = 增加最终伤害，负值 = 降低最终伤害
 - **抽牌提供**：整数，本张卡提供的抽牌次数。施法自动消耗 1 抽，净变化 = 提供量 - 1
 
-`10.5|0` 是纯伤害修正法术：提供 0 抽，净消耗 1 抽。`0|2` 是二重施法：`1 + 2 - 1 = 2`，后续两次施法免费。`-5|2` 是含 tradeoff 的抽牌法术：`1 + 2 - 1 = 2`，以降低 5 点伤害为代价换取 2 次免费施法。`20|1` 是自偿法术：`1 + 1 - 1 = 1`，提供 1 抽恰好抵消自身成本。
+`10.5|idx:0` 是纯伤害修正法术：提供 0 抽，卡索引 0。`0|draw 2|idx:1` 是二重施法：`1 + 2 - 1 = 2`，后续两次施法免费，卡索引 1。`-5|draw 2|idx:2` 是含 tradeoff 的抽牌法术：`1 + 2 - 1 = 2`，以降低 5 点伤害为代价换取 2 次免费施法，卡索引 2。`20|draw 1|idx:3` 是自偿法术：`1 + 1 - 1 = 1`，提供 1 抽恰好抵消自身成本。
 
-**法术回绕**（Noita 机枪法杖）：当链末剩余抽数 > 0 时，while 循环将输出重新注入链首。链中 DrawsLeft 归零后自动透传，while 循环自然终止。
+**法术回绕**（Noita 机枪法杖）：链公式跑完整条链后，追踪公式用 `ConsumedThisRound` 更新位掩码。掩码未全满时 while 循环回绕链首；掩码全满后终止。链中 `DrawsProvide` 归零后自动透传，每张卡最多被执行 2 次（Noita 双倍利用率）。
 
 ## TData 结构体
 
 ```csharp
-public struct DrawState : IEquatable<DrawState>
+public struct SpellContext : IEquatable<SpellContext>
 {
-    public float Damage;      // 累积伤害
-    public int DrawsLeft;     // 剩余抽牌数
+    public float Damage;              // 累积伤害
+    public byte DrawsProvide;         // 剩余抽牌数
+    public byte ConsumedThisRound;    // 本轮已消费卡数
+    public byte StartIndex;           // 本轮起始卡位置
+    byte _padding;                    // 保留
 
-    public DrawState(float damage, int draws)
-        => (Damage, DrawsLeft) = (damage, draws);
+    public SpellContext(float damage, int draws, int consumed = 0, int startIndex = 0)
+        => (Damage, DrawsProvide, ConsumedThisRound, StartIndex)
+            = (damage, (byte)draws, (byte)consumed, (byte)startIndex);
 
-    public readonly bool Equals(DrawState other)
-        => Damage == other.Damage && DrawsLeft == other.DrawsLeft;
+    public readonly bool Equals(SpellContext other)
+        => Damage == other.Damage && DrawsProvide == other.DrawsProvide
+                                  && ConsumedThisRound == other.ConsumedThisRound
+                                  && StartIndex == other.StartIndex;
 
     public override readonly string ToString()
-        => $"({Damage:F1} dmg, {DrawsLeft} draws)";
+        => $"({Damage:F1} dmg, {DrawsProvide} draws, {ConsumedThisRound} consumed, start={StartIndex})";
 }
 ```
 
-`sizeof(DrawState) = 8` 字节（float + int），在字节码的 Immediate 中占用 1 个 Instruction 槽。
+`sizeof(SpellContext) = 8` 字节（float + byte + byte + byte + 1 padding），在字节码的 Immediate 中占用 1 个 Instruction 槽。
 
 ## 操作符枚举
 
 ```csharp
-public enum DrawOp : byte
+public enum SpellOp : byte
 {
     Const, Add,
     LParen, RParen, Return,
 }
 ```
 
-`Add` 同时作用于 Damage 和 DrawsLeft 两个字段。DrawsLeft 计算自动扣除 1 抽施法成本。
+`Add` 同时作用于 Damage 和 DrawsProvide 两个字段。DrawsProvide 计算自动扣除 1 抽施法成本。
 
-## LiteralScanner：`float|int` 双字段格式
+## LiteralScanner：`damage|draw N|idx:N` 命名字段格式
 
 ```csharp
-config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out DrawState value) =>
+config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value) =>
 {
     value = default;
     if (pos >= src.Length || !(char.IsDigit(src[pos]) || src[pos] == '-')) return pos;
@@ -65,62 +71,83 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out DrawState value) =
     float damage = float.Parse(src.Slice(start, pos - start));
 
     // 期望 '|' 分隔符
-    if (pos >= src.Length || src[pos] != '|') { value = new DrawState(damage, 0); return pos; }
+    if (pos >= src.Length || src[pos] != '|') { value = new SpellContext(damage, 0); return pos; }
     pos++;
 
-    // 扫描整数（抽牌提供量）
+    // 可选 'draw' 字段
     int draws = 0;
-    bool neg = false;
-    if (pos < src.Length && src[pos] == '-') { neg = true; pos++; }
+    if (src.Slice(pos).StartsWith("draw "))
+    {
+        pos += 5;
+        bool neg = false;
+        if (pos < src.Length && src[pos] == '-') { neg = true; pos++; }
+        while (pos < src.Length && char.IsDigit(src[pos]))
+        {
+            draws = draws * 10 + (src[pos] - '0');
+            pos++;
+        }
+        if (neg) draws = -draws;
+
+        // 消费 '|' 分隔符
+        if (pos < src.Length && src[pos] == '|') pos++;
+    }
+
+    // 必填 'idx:' 字段
+    if (!src.Slice(pos).StartsWith("idx:"))
+    {
+        value = new SpellContext(damage, draws);
+        return pos;
+    }
+    pos += 4;
+    int index = 0;
     while (pos < src.Length && char.IsDigit(src[pos]))
     {
-        draws = draws * 10 + (src[pos] - '0');
+        index = index * 10 + (src[pos] - '0');
         pos++;
     }
-    if (neg) draws = -draws;
 
-    value = new DrawState(damage, draws);
+    value = new SpellContext(damage, draws, 0, index);
     return pos;
 };
 ```
 
 格式规则：
-- `10.5|0` — 伤害 10.5，不提供额外抽牌（施法消耗 1 抽，净 -1）
-- `0|2` — 不改变伤害，提供 2 抽：`1 + 2 - 1 = 2`
-- `-5|2` — 降低 5 伤害，提供 2 抽：`1 + 2 - 1 = 2`
-- 省略 `|draws` 时默认为 0
+- `10.5|idx:0` — 伤害 10.5，不提供额外抽牌，卡索引 0
+- `0|draw 2|idx:1` — 不改变伤害，提供 2 抽：`1 + 2 - 1 = 2`，卡索引 1
+- `-5|draw 2|idx:2` — 降低 5 伤害，提供 2 抽：`1 + 2 - 1 = 2`，卡索引 2
+- `draw` 字段可省略（默认 0），`idx:` 字段必填
 
 ## 定义体
 
 ```csharp
-public readonly struct DrawDef : IFluxExprDefinition<DrawState>
+public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
 {
-    public byte GetReturnOp() => (byte)DrawOp.Return;
+    public byte GetReturnOp() => (byte)SpellOp.Return;
 
-    public int GetArity(byte op) => ((DrawOp)op) switch
+    public int GetArity(byte op) => ((SpellOp)op) switch
     {
-        DrawOp.Add => 2, _ => 0,
+        SpellOp.Add => 2, _ => 0,
     };
 
-    public OpType GetKind(byte op) => ((DrawOp)op) switch
+    public OpType GetKind(byte op) => ((SpellOp)op) switch
     {
-        DrawOp.Const  => OpType.Immediate,
-        DrawOp.Return => OpType.Return,
+        SpellOp.Const  => OpType.Immediate,
+        SpellOp.Return => OpType.Return,
         _             => OpType.Instruction,
     };
 
-    public int GetPrecedence(byte op) => ((DrawOp)op) switch
+    public int GetPrecedence(byte op) => ((SpellOp)op) switch
     {
-        DrawOp.Add => 1, _ => 0,
+        SpellOp.Add => 1, _ => 0,
     };
 
-    public OpPair GetPair(byte op) => ((DrawOp)op) switch
+    public OpPair GetPair(byte op) => ((SpellOp)op) switch
     {
-        DrawOp.LParen => new OpPair { PairRole = Pair.Left },
-        DrawOp.RParen => new OpPair
+        SpellOp.LParen => new OpPair { PairRole = Pair.Left },
+        SpellOp.RParen => new OpPair
         {
             PairRole   = Pair.Right,
-            TargetLeft = (byte)DrawOp.LParen,
+            TargetLeft = (byte)SpellOp.LParen,
         },
         _ => new OpPair { PairRole = Pair.None },
     };
@@ -129,15 +156,19 @@ public readonly struct DrawDef : IFluxExprDefinition<DrawState>
 
     public byte ResolveToken(byte op, TokenContext ctx) => op;
 
-    public DrawState Compute(byte op, Instruction inst, ReadOnlySpan<DrawState> regs)
+    public SpellContext Compute(byte op, Instruction inst, ReadOnlySpan<SpellContext> regs)
     {
-        DrawState a = regs[inst.Arg0];
-        DrawState b = regs[inst.Arg1];
-        return ((DrawOp)op) switch
+        SpellContext a = regs[inst.Arg0];
+        SpellContext b = regs[inst.Arg1];
+        return ((SpellOp)op) switch
         {
-            DrawOp.Add => a.DrawsLeft <= 0
+            SpellOp.Add => b.StartIndex < a.StartIndex || a.DrawsProvide <= 0
                 ? a
-                : new DrawState(a.Damage + b.Damage, a.DrawsLeft + b.DrawsLeft - 1),
+                : new SpellContext(
+                    a.Damage + b.Damage,
+                    a.DrawsProvide + b.DrawsProvide - 1,
+                    a.ConsumedThisRound + 1,
+                    a.StartIndex),
             _ => default,
         };
     }
@@ -146,48 +177,152 @@ public readonly struct DrawDef : IFluxExprDefinition<DrawState>
     {
         var argA = regs[inst.Arg0];
         var argB = regs[inst.Arg1];
-        var dmgA = Expression.Field(argA, nameof(DrawState.Damage));
-        var dmgB = Expression.Field(argB, nameof(DrawState.Damage));
-        var drawA = Expression.Field(argA, nameof(DrawState.DrawsLeft));
-        var drawB = Expression.Field(argB, nameof(DrawState.DrawsLeft));
-        var drawZero = Expression.LessThanOrEqual(drawA, Expression.Constant(0));
-        var one = Expression.Constant(1);
-        var ctor = typeof(DrawState).GetConstructor(new[] { typeof(float), typeof(int) });
+        var dmgA = Expression.Field(argA, nameof(SpellContext.Damage));
+        var dmgB = Expression.Field(argB, nameof(SpellContext.Damage));
+        var drawA = Expression.Field(argA, nameof(SpellContext.DrawsProvide));
+        var drawB = Expression.Field(argB, nameof(SpellContext.DrawsProvide));
+        var consumedA = Expression.Field(argA, nameof(SpellContext.ConsumedThisRound));
+        var startA = Expression.Field(argA, nameof(SpellContext.StartIndex));
+        var startB = Expression.Field(argB, nameof(SpellContext.StartIndex));
+        var drawZero = Expression.LessThanOrEqual(drawA, Expression.Constant((byte)0));
+        var indexLow = Expression.LessThan(startB, startA);
+        var skip = Expression.OrElse(indexLow, drawZero);
+        var one = Expression.Constant((byte)1);
+        var ctor = typeof(SpellContext).GetConstructor(
+            new[] { typeof(float), typeof(int), typeof(int), typeof(int) });
 
-        return ((DrawOp)op) switch
+        return ((SpellOp)op) switch
         {
-            DrawOp.Add => Expression.Condition(
-                drawZero,
+            SpellOp.Add => Expression.Condition(
+                skip,
                 argA,
                 Expression.MemberInit(
                     Expression.New(ctor),
-                    Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.Damage)),
+                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.Damage)),
                         Expression.Add(dmgA, dmgB)),
-                    Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.DrawsLeft)),
-                        Expression.Subtract(Expression.Add(drawA, drawB), one)))),
-            _ => Expression.Constant(default(DrawState)),
+                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.DrawsProvide)),
+                        Expression.Subtract(Expression.Add(drawA, drawB), one)),
+                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.ConsumedThisRound)),
+                        Expression.Add(consumedA, one)),
+                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.StartIndex)),
+                        startA))),
+            _ => Expression.Constant(default(SpellContext)),
         };
     }
 }
 ```
 
-`Add` 中 `- 1` 是隐式施法成本。`b.DrawsLeft` 是卡面的抽牌提供量，净变化 = `提供量 - 1`。伤害修正直接累加，不受成本影响。
+`Add` 中有两个透传条件：`b.StartIndex < a.StartIndex`（卡已在前一射击中消费）或 `a.DrawsProvide <= 0`（抽数耗尽）。正常执行时 `ConsumedThisRound` 每卡递增，`StartIndex` 透传不变。`b.DrawsProvide` 是卡面的抽牌提供量，净变化 = `提供量 - 1`。伤害修正直接累加，不受成本影响。
+
+## 追踪结构体：SpellTracker
+
+```csharp
+public struct SpellTracker : IEquatable<SpellTracker>
+{
+    public SpellContext Context;    // 链公式输出
+    public ulong ConsumedMask;      // 已消费位掩码
+
+    public SpellTracker(SpellContext context, ulong mask)
+        => (Context, ConsumedMask) = (context, mask);
+
+    public readonly bool Equals(SpellTracker other)
+        => Context.Equals(other.Context) && ConsumedMask == other.ConsumedMask;
+
+    public override readonly string ToString()
+        => $"(mask: 0x{ConsumedMask:X}, {Context})";
+}
+```
+
+`SpellTracker` 与 `SpellContext` 分离，保证链公式的热路径不受掩码管理影响。掩码仅在追踪公式中读写。
+
+## 追踪操作符
+
+```csharp
+public enum TrackerOp : byte
+{
+    Const, Track, Return,
+}
+```
+
+`Track` 是一元操作符：接收 `[prev]`（上一轮输出），更新 `ConsumedMask` 并检查终止条件。
+
+## 追踪定义体
+
+```csharp
+public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
+{
+    public byte GetReturnOp() => (byte)TrackerOp.Return;
+
+    public int GetArity(byte op) => ((TrackerOp)op) switch
+    {
+        TrackerOp.Track => 1, _ => 0,
+    };
+
+    public OpType GetKind(byte op) => ((TrackerOp)op) switch
+    {
+        TrackerOp.Const  => OpType.Immediate,
+        TrackerOp.Return => OpType.Return,
+        _                => OpType.Instruction,
+    };
+
+    public int GetPrecedence(byte op) => 0;
+
+    public OpPair GetPair(byte op) => new OpPair { PairRole = Pair.None };
+
+    public Associativity GetAssociativity(byte op) => Associativity.Left;
+
+    public byte ResolveToken(byte op, TokenContext ctx) => op;
+
+    public SpellTracker Compute(byte op, Instruction inst, ReadOnlySpan<SpellTracker> regs)
+    {
+        SpellTracker t = regs[inst.Arg0];
+        if (t.ConsumedMask == ulong.MaxValue)
+            return t;  // 全满，终止
+
+        byte consumed = t.Context.ConsumedThisRound;
+        if (consumed <= 0)
+            return t;  // 本轮无消费，透传
+
+        // tzcnt：找第一个未消费位 = 本轮起始卡位置
+        ulong inverted = ~t.ConsumedMask;
+        int pos = 0;
+        while ((inverted & 1) == 0) { inverted >>= 1; pos++; }
+
+        ulong mask = t.ConsumedMask;
+        for (int i = 0; i < consumed; i++)
+            mask |= 1ul << (pos + i);
+
+        var ctx = t.Context;
+        ctx.ConsumedThisRound = 0;
+        ctx.StartIndex = (byte)(pos + consumed);  // 下一轮从此位置继续
+        return new SpellTracker(ctx, mask);
+    }
+}
+```
+
+`Track` 的逻辑分三步：
+
+1. **掩码全满** → 透传（while 循环自然终止）
+2. **本轮无消费** → 透传（`ConsumedThisRound == 0`）
+3. **正常执行**：`tzcnt(~mask)` 定位第一个未消费位作为本轮起始位置，按 `consumed` 数量从该位置起连续置位，`ConsumedThisRound` 归零，`StartIndex` 更新为 `pos + consumed`（下一轮从此位置继续）
+
+顺序：链公式先跑整条链（所有卡顺序执行），执行完毕后追踪公式批量更新掩码。若抽数充足，while 循环回绕使链再跑一轮，掩码单调递增填满后自然终止，最高双倍利用率（Noita 机枪法杖的完整模拟）。
 
 ## Lexer 配置
 
 ```csharp
-var config = new LexerConfig<DrawState>
+var config = new LexerConfig<SpellContext>
 {
-    LiteralOper   = (byte)DrawOp.Const,
+    LiteralOper   = (byte)SpellOp.Const,
     LiteralParser = _ => default,
     LiteralScanner = /* 见上节 */,
     Operators =
     {
-        new("+", (byte)DrawOp.Add),
+        new("+", (byte)SpellOp.Add),
     },
     Brackets =
     {
-        new("(", ")", (byte)DrawOp.LParen, (byte)DrawOp.RParen),
+        new("(", ")", (byte)SpellOp.LParen, (byte)SpellOp.RParen),
     },
 };
 ```
@@ -195,35 +330,53 @@ var config = new LexerConfig<DrawState>
 ## 使用
 
 ```csharp
-var def    = new DrawDef();
-var runner = new FluxAssembler<DrawState, DrawDef>(def);
-var lexer  = new FluxLexer<DrawState>(config);
+var def    = new SpellDef();
+var runner = new FluxAssembler<SpellContext, SpellDef>(def);
+var lexer  = new FluxLexer<SpellContext>(config);
 
 // 构建法术卡：Modifier 形式为 "[prev] + 卡面修正"
 // 卡1: +10 伤害修正, 0 抽（仅消耗施法成本）
 // 卡2: +7 伤害修正,  0 抽
 // 卡3: +5 伤害修正,  0 抽
-var mod1 = runner.Compile(lexer.Lex("[prev] + 10|0"));
-var mod2 = runner.Compile(lexer.Lex("[prev] + 7|0"));
-var mod3 = runner.Compile(lexer.Lex("[prev] + 5|0"));
+var mod1 = runner.Compile(lexer.Lex("[prev] + 10|idx:0"));
+var mod2 = runner.Compile(lexer.Lex("[prev] + 7|idx:1"));
+var mod3 = runner.Compile(lexer.Lex("[prev] + 5|idx:2"));
 
 // 所有卡串联为一条链
 var chain = mod1.ToModifier().Connect(mod2.ToModifier()).Connect(mod3.ToModifier());
 
-// 7 抽初始状态：会触发法术回绕（Noita 机枪法杖）
-DrawState state = runner.Instantiate(chain)
-    .Set("prev", new DrawState(0, 7))
-    .Run();
-// → (22.5 dmg, 4 draws)  链末仍有 4 抽剩余
+// 追踪公式：Track [prev]
+var trackerDef    = new TrackerDef();
+var trackerConfig = new LexerConfig<SpellTracker>
+{
+    LiteralOper = (byte)TrackerOp.Const,
+    LiteralParser = _ => default,
+    Operators = { new("Track", (byte)TrackerOp.Track) { Arity = 1 } },
+};
+var trackerLexer = new FluxLexer<SpellTracker>(trackerConfig);
+var tracker      = new FluxAssembler<SpellTracker, TrackerDef>(trackerDef);
+var trackFormula = tracker.Compile(trackerLexer.Lex("Track [prev]"));
 
-// 法术回绕：剩余抽数 > 0 时重新从链首开始
-while (state.DrawsLeft > 0)
+// 初始状态：7 抽 + 空掩码
+SpellContext state = new SpellContext(0, 7, startIndex: 0);
+ulong mask = 0;
+
+// Noita 法术回绕：链公式 → 追踪公式，交替执行
+do
 {
     state = runner.Instantiate(chain).Set("prev", state).Run();
-}
-// 回绕 1: (22.5, 4) → (45.0, 1)  第二轮抽完 3 张卡
-// 回绕 2: (45.0, 1) → (55.5, 0)  链中抽数耗尽，仅执行卡1后自动透传
-// → (55.5 dmg, 0 draws)
+    var tracked = tracker.Instantiate(trackFormula)
+        .Set("prev", new SpellTracker(state, mask))
+        .Run();
+    state = tracked.Context;
+    mask  = tracked.ConsumedMask;
+} while (mask != ulong.MaxValue);
+
+// 第一枪：mask=0 → 链跑完 3 张卡（已消费卡 0/1/2），掩码 = 0b111
+// 掩码不全满 → 回绕
+// 第二枪：链再跑 3 张卡（已消费卡 0/1/2），掩码不变（全满）
+// 掩码全满 → 终止
+// → 每张卡被执行 2 次，双倍利用率
 ```
 
 ## 原理
@@ -236,34 +389,56 @@ while (state.DrawsLeft > 0)
 
 每条 `ChainLink` 的 delegate 通过 `DualHash64` 独立缓存在 `FormulaCache` 中。`Instantiate(chain)` 首次运行时编译所有 link，后续同链的 `Instantiate` 直接命中缓存。不同卡组共享同一张卡时（如卡1 在多个卡组中出现），delegate 跨链复用。
 
+### 追踪公式与掩码管理
+
+链公式的 `Compute(Add)` 在每张卡执行时递增 `ConsumedThisRound`。链跑完后，追踪公式的 `Track` 操作符读取该值，三步完成掩码更新：
+
+1. **tzcnt 定位起始位**：`~ConsumedMask` 的第一个 1 位 = 本轮起始卡位置
+2. **连续置位**：从起始位起置 `consumed` 位
+3. **归零 + 更新**：`ConsumedThisRound = 0`，`StartIndex = pos + consumed`，等待下一轮
+
+掩码单调递增填充。`ulong.MaxValue` 时终止，64 张卡上限。
+
+若本轮抽数不足以跑完整条链（如 5 张卡、初始 1 抽），只执行卡 0，`StartIndex` 更新为 `0 + 1 = 1`。下一轮 wand 充能注入新抽数后，链从卡 1 开始：`Add` 中 `b.StartIndex < a.StartIndex` 触发透传，跳过已消费的卡 0。
+
+先执行链公式再执行追踪公式（Noita 原始行为：先施法再结算）。链完整跑一遍后掩码才更新，每张卡在掩码全满前最多被执行 2 次。
+
 ### while 回绕零重编译
 
-回绕循环中的 `runner.Instantiate(chain).Set("prev", state).Run()` 走已编译 delegate。`Instantiate` 是轻量操作：`ref struct` 栈分配 + 缓存命中的 delegate 查找。每次回绕的执行成本 = N 次函数指针调用（N = 链中卡数），编译在首次 `Instantiate` 时完成。
+回绕循环中的两条 `Run()` 均走已编译 delegate。`Instantiate` 是轻量操作：`ref struct` 栈分配 + 缓存命中的 delegate 查找。链公式和追踪公式各自编译一次，while 循环内无任何编译行为。
 
 ```csharp
-// 编译：仅发生一次，在首次 Instantiate(chain) 时
+// 编译：首次 Instantiate(chain) + 首次 Instantiate(trackFormula)
 var chain = mod1.ToModifier().Connect(mod2.ToModifier()).Connect(mod3.ToModifier());
 
-// 回绕：以下循环中无任何编译行为
-while (state.DrawsLeft > 0)
+// 回绕：以下 do-while 中无任何编译行为
+do
 {
     state = runner.Instantiate(chain).Set("prev", state).Run();
-}
+    var tracked = tracker.Instantiate(trackFormula)
+        .Set("prev", new SpellTracker(state, mask))
+        .Run();
+    state = tracked.Context;
+    mask  = tracked.ConsumedMask;
+} while (mask != ulong.MaxValue);
 ```
 
 ### R1 总线传递上下文
 
-每张卡的 `[prev] + 卡面修正` 通过 R1 寄存器读取上一张卡的输出。`Set("prev", state)` 将当前上下文注入链首卡的第一 Immediate 槽位；求值后 R1 携带最终 `DrawState` 返回。整条链的上下文传递即 R1 的链式读写，无堆分配。
+每张卡的 `[prev] + 卡面修正` 通过 R1 寄存器读取上一张卡的输出。`Set("prev", state)` 将当前上下文注入链首卡的第一 Immediate 槽位；求值后 R1 携带最终 `SpellContext` 返回。整条链的上下文传递即 R1 的链式读写，无堆分配。
 
 ### 隐式施法成本
 
-每张卡自动消耗 1 抽。`10.5|0` 的第二字段 `0` 表示"本卡提供 0 抽"，净消耗 1 抽。`0|2`：剩余 1 抽 + 提供 2 抽 - 成本 1 抽 = 2 抽。施法成本是常数，卡面数值即卡面数值。
+每张卡自动消耗 1 抽。`10.5|idx:0` 不提供额外抽牌，净消耗 1 抽。`0|draw 2|idx:1`：剩余 1 抽 + 提供 2 抽 - 成本 1 抽 = 2 抽。施法成本是常数，卡面数值即卡面数值。
 
 ## 要点
 
-- `float|int` 双字段立即数是 LiteralScanner 的另一种应用：`|` 作为字段分隔符
-- `Add` 同时作用于伤害修正和抽数修正，隐式扣除 1 抽施法成本
+- `damage|draw N|idx:N` 命名字段格式：`draw` 可省略（默认 0），`idx:` 必填
+- `Add` 同时作用于伤害修正和抽数修正，隐式扣除 1 抽施法成本；`b.StartIndex < a.StartIndex` 时透传跳过已消费卡
+- `ConsumedThisRound` 在链内递增，由追踪公式批量消费后归零
+- `StartIndex` 由追踪公式更新为 `pos + consumed`，确保下一轮从未消费位置继续
 - 二重施法（`0|2`）和 tradeoff（`-5|2`）是同一格式的自然推论
-- 法术回绕：while 循环将链输出重新注入链首，链中 DrawsLeft 归零后自动透传
+- 法术回绕：链公式 → 追踪公式交替执行，掩码单调递增填满后终止
+- `SpellTracker` 与 `SpellContext` 分离，链公式热路径不触碰 `ulong` 掩码
 - Connect 保持每张卡独立，per-link delegate 缓存在 FormulaCache 中跨链复用
-- 回绕 100 次是 100 次 delegate 调用，不是 100 次编译
+- 回绕 100 次是 200 次 delegate 调用（链 + 追踪），不是 100 次编译

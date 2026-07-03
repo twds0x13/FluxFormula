@@ -1,6 +1,6 @@
 # Example: Spell Context
 
-A dual-field immediate syntax and chain modification model. The `float` field is a damage modifier (positive = increase, negative = decrease), the `int` field is draw provision. Each card automatically costs 1 draw to cast; cards are chained via Connect into a cast queue.
+A named-field immediate syntax with chain modification and spell-wrap tracking. The `float` field is a damage modifier (positive = increase, negative = decrease), the `byte` field is draw provision. Each card automatically costs 1 draw to cast; cards are chained via Connect into a cast queue with Noita-style consumed-card mask tracking via SpellTracker.
 
 ## Scenario
 
@@ -8,47 +8,53 @@ Noita-style spell correction system. Each spell card has two attributes:
 - **Damage modifier**: float, positive = increase final damage, negative = decrease final damage
 - **Draw provision**: int, how many draws this card provides. Casting automatically consumes 1 draw; net change = provision − 1
 
-`10.5|0` is a pure damage correction spell: provides 0 draws, net −1 draw. `0|2` is a double cast: `1 + 2 - 1 = 2`, the next two casts are free. `-5|2` is a tradeoff draw spell: `1 + 2 - 1 = 2`, paying 5 damage for 2 free casts. `20|1` is a self-paying spell: `1 + 1 - 1 = 1`, providing exactly enough draws to offset its own cost.
+`10.5|idx:0` is a pure damage correction spell: provides 0 draws, card index 0. `0|draw 2|idx:1` is a double cast: `1 + 2 - 1 = 2`, the next two casts are free, card index 1. `-5|draw 2|idx:2` is a tradeoff draw spell: `1 + 2 - 1 = 2`, paying 5 damage for 2 free casts, card index 2. `20|draw 1|idx:3` is a self-paying spell: `1 + 1 - 1 = 1`, providing exactly enough draws to offset its own cost.
 
-**Spell wrapping** (Noita machine-gun wand): when the chain ends with DrawsLeft > 0, a while loop re-injects the output back to the chain head. The chain pass-through kicks in automatically when DrawsLeft reaches zero mid-execution.
+**Spell wrapping** (Noita machine-gun wand): the chain formula runs all cards, then the tracker formula updates the bitmask using `ConsumedThisRound`. The while loop wraps back to the chain head while the mask isn't full; terminates when full. `DrawsProvide` pass-through engages mid-chain when draws run out; each card executes at most twice (Noita double utilization).
 
 ## TData Struct
 
 ```csharp
-public struct DrawState : IEquatable<DrawState>
+public struct SpellContext : IEquatable<SpellContext>
 {
-    public float Damage;      // Accumulated damage
-    public int DrawsLeft;     // Remaining draws
+    public float Damage;              // Accumulated damage
+    public byte DrawsProvide;         // Remaining draws
+    public byte ConsumedThisRound;    // Cards consumed this round
+    public byte StartIndex;           // Starting card position this round
+    byte _padding;                    // Reserved
 
-    public DrawState(float damage, int draws)
-        => (Damage, DrawsLeft) = (damage, draws);
+    public SpellContext(float damage, int draws, int consumed = 0, int startIndex = 0)
+        => (Damage, DrawsProvide, ConsumedThisRound, StartIndex)
+            = (damage, (byte)draws, (byte)consumed, (byte)startIndex);
 
-    public readonly bool Equals(DrawState other)
-        => Damage == other.Damage && DrawsLeft == other.DrawsLeft;
+    public readonly bool Equals(SpellContext other)
+        => Damage == other.Damage && DrawsProvide == other.DrawsProvide
+                                  && ConsumedThisRound == other.ConsumedThisRound
+                                  && StartIndex == other.StartIndex;
 
     public override readonly string ToString()
-        => $"({Damage:F1} dmg, {DrawsLeft} draws)";
+        => $"({Damage:F1} dmg, {DrawsProvide} draws, {ConsumedThisRound} consumed, start={StartIndex})";
 }
 ```
 
-`sizeof(DrawState) = 8` bytes (float + int), consuming 1 Instruction slot per Immediate.
+`sizeof(SpellContext) = 8` bytes (float + byte + byte + byte + 1 padding), consuming 1 Instruction slot per Immediate.
 
 ## Operator Enum
 
 ```csharp
-public enum DrawOp : byte
+public enum SpellOp : byte
 {
     Const, Add,
     LParen, RParen, Return,
 }
 ```
 
-`Add` operates on both Damage and DrawsLeft simultaneously. DrawsLeft automatically deducts the 1-draw casting cost.
+`Add` operates on both Damage and DrawsProvide simultaneously. DrawsProvide automatically deducts the 1-draw casting cost.
 
-## LiteralScanner: `float|int` Dual-Field Format
+## LiteralScanner: `damage|draw N|idx:N` Named-Field Format
 
 ```csharp
-config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out DrawState value) =>
+config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value) =>
 {
     value = default;
     if (pos >= src.Length || !(char.IsDigit(src[pos]) || src[pos] == '-')) return pos;
@@ -65,62 +71,83 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out DrawState value) =
     float damage = float.Parse(src.Slice(start, pos - start));
 
     // Expect '|' separator
-    if (pos >= src.Length || src[pos] != '|') { value = new DrawState(damage, 0); return pos; }
+    if (pos >= src.Length || src[pos] != '|') { value = new SpellContext(damage, 0); return pos; }
     pos++;
 
-    // Scan integer (draw provision)
+    // Optional 'draw' field
     int draws = 0;
-    bool neg = false;
-    if (pos < src.Length && src[pos] == '-') { neg = true; pos++; }
+    if (src.Slice(pos).StartsWith("draw "))
+    {
+        pos += 5;
+        bool neg = false;
+        if (pos < src.Length && src[pos] == '-') { neg = true; pos++; }
+        while (pos < src.Length && char.IsDigit(src[pos]))
+        {
+            draws = draws * 10 + (src[pos] - '0');
+            pos++;
+        }
+        if (neg) draws = -draws;
+
+        // Consume '|' separator
+        if (pos < src.Length && src[pos] == '|') pos++;
+    }
+
+    // Required 'idx:' field
+    if (!src.Slice(pos).StartsWith("idx:"))
+    {
+        value = new SpellContext(damage, draws);
+        return pos;
+    }
+    pos += 4;
+    int index = 0;
     while (pos < src.Length && char.IsDigit(src[pos]))
     {
-        draws = draws * 10 + (src[pos] - '0');
+        index = index * 10 + (src[pos] - '0');
         pos++;
     }
-    if (neg) draws = -draws;
 
-    value = new DrawState(damage, draws);
+    value = new SpellContext(damage, draws, 0, index);
     return pos;
 };
 ```
 
 Format rules:
-- `10.5|0` — 10.5 damage, 0 draw provision (implicit −1 cost → net −1)
-- `0|2` — no damage change, 2 draw provision: `1 + 2 - 1 = 2`
-- `-5|2` — decrease 5 damage, 2 draw provision: `1 + 2 - 1 = 2`
-- Omitting `|draws` defaults to 0
+- `10.5|idx:0` — 10.5 damage, 0 draw provision, card index 0
+- `0|draw 2|idx:1` — no damage change, 2 draw provision: `1 + 2 - 1 = 2`, card index 1
+- `-5|draw 2|idx:2` — decrease 5 damage, 2 draw provision: `1 + 2 - 1 = 2`, card index 2
+- `draw` field is optional (defaults to 0), `idx:` field is required
 
 ## Definition
 
 ```csharp
-public readonly struct DrawDef : IFluxExprDefinition<DrawState>
+public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
 {
-    public byte GetReturnOp() => (byte)DrawOp.Return;
+    public byte GetReturnOp() => (byte)SpellOp.Return;
 
-    public int GetArity(byte op) => ((DrawOp)op) switch
+    public int GetArity(byte op) => ((SpellOp)op) switch
     {
-        DrawOp.Add => 2, _ => 0,
+        SpellOp.Add => 2, _ => 0,
     };
 
-    public OpType GetKind(byte op) => ((DrawOp)op) switch
+    public OpType GetKind(byte op) => ((SpellOp)op) switch
     {
-        DrawOp.Const  => OpType.Immediate,
-        DrawOp.Return => OpType.Return,
+        SpellOp.Const  => OpType.Immediate,
+        SpellOp.Return => OpType.Return,
         _             => OpType.Instruction,
     };
 
-    public int GetPrecedence(byte op) => ((DrawOp)op) switch
+    public int GetPrecedence(byte op) => ((SpellOp)op) switch
     {
-        DrawOp.Add => 1, _ => 0,
+        SpellOp.Add => 1, _ => 0,
     };
 
-    public OpPair GetPair(byte op) => ((DrawOp)op) switch
+    public OpPair GetPair(byte op) => ((SpellOp)op) switch
     {
-        DrawOp.LParen => new OpPair { PairRole = Pair.Left },
-        DrawOp.RParen => new OpPair
+        SpellOp.LParen => new OpPair { PairRole = Pair.Left },
+        SpellOp.RParen => new OpPair
         {
             PairRole   = Pair.Right,
-            TargetLeft = (byte)DrawOp.LParen,
+            TargetLeft = (byte)SpellOp.LParen,
         },
         _ => new OpPair { PairRole = Pair.None },
     };
@@ -129,15 +156,19 @@ public readonly struct DrawDef : IFluxExprDefinition<DrawState>
 
     public byte ResolveToken(byte op, TokenContext ctx) => op;
 
-    public DrawState Compute(byte op, Instruction inst, ReadOnlySpan<DrawState> regs)
+    public SpellContext Compute(byte op, Instruction inst, ReadOnlySpan<SpellContext> regs)
     {
-        DrawState a = regs[inst.Arg0];
-        DrawState b = regs[inst.Arg1];
-        return ((DrawOp)op) switch
+        SpellContext a = regs[inst.Arg0];
+        SpellContext b = regs[inst.Arg1];
+        return ((SpellOp)op) switch
         {
-            DrawOp.Add => a.DrawsLeft <= 0
+            SpellOp.Add => b.StartIndex < a.StartIndex || a.DrawsProvide <= 0
                 ? a
-                : new DrawState(a.Damage + b.Damage, a.DrawsLeft + b.DrawsLeft - 1),
+                : new SpellContext(
+                    a.Damage + b.Damage,
+                    a.DrawsProvide + b.DrawsProvide - 1,
+                    a.ConsumedThisRound + 1,
+                    a.StartIndex),
             _ => default,
         };
     }
@@ -146,48 +177,152 @@ public readonly struct DrawDef : IFluxExprDefinition<DrawState>
     {
         var argA = regs[inst.Arg0];
         var argB = regs[inst.Arg1];
-        var dmgA = Expression.Field(argA, nameof(DrawState.Damage));
-        var dmgB = Expression.Field(argB, nameof(DrawState.Damage));
-        var drawA = Expression.Field(argA, nameof(DrawState.DrawsLeft));
-        var drawB = Expression.Field(argB, nameof(DrawState.DrawsLeft));
-        var drawZero = Expression.LessThanOrEqual(drawA, Expression.Constant(0));
-        var one = Expression.Constant(1);
-        var ctor = typeof(DrawState).GetConstructor(new[] { typeof(float), typeof(int) });
+        var dmgA = Expression.Field(argA, nameof(SpellContext.Damage));
+        var dmgB = Expression.Field(argB, nameof(SpellContext.Damage));
+        var drawA = Expression.Field(argA, nameof(SpellContext.DrawsProvide));
+        var drawB = Expression.Field(argB, nameof(SpellContext.DrawsProvide));
+        var consumedA = Expression.Field(argA, nameof(SpellContext.ConsumedThisRound));
+        var startA = Expression.Field(argA, nameof(SpellContext.StartIndex));
+        var startB = Expression.Field(argB, nameof(SpellContext.StartIndex));
+        var drawZero = Expression.LessThanOrEqual(drawA, Expression.Constant((byte)0));
+        var indexLow = Expression.LessThan(startB, startA);
+        var skip = Expression.OrElse(indexLow, drawZero);
+        var one = Expression.Constant((byte)1);
+        var ctor = typeof(SpellContext).GetConstructor(
+            new[] { typeof(float), typeof(int), typeof(int), typeof(int) });
 
-        return ((DrawOp)op) switch
+        return ((SpellOp)op) switch
         {
-            DrawOp.Add => Expression.Condition(
-                drawZero,
+            SpellOp.Add => Expression.Condition(
+                skip,
                 argA,
                 Expression.MemberInit(
                     Expression.New(ctor),
-                    Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.Damage)),
+                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.Damage)),
                         Expression.Add(dmgA, dmgB)),
-                    Expression.Bind(typeof(DrawState).GetField(nameof(DrawState.DrawsLeft)),
-                        Expression.Subtract(Expression.Add(drawA, drawB), one)))),
-            _ => Expression.Constant(default(DrawState)),
+                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.DrawsProvide)),
+                        Expression.Subtract(Expression.Add(drawA, drawB), one)),
+                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.ConsumedThisRound)),
+                        Expression.Add(consumedA, one)),
+                    Expression.Bind(typeof(SpellContext).GetField(nameof(SpellContext.StartIndex)),
+                        startA))),
+            _ => Expression.Constant(default(SpellContext)),
         };
     }
 }
 ```
 
-The `- 1` in `Add` is the implicit casting cost. `b.DrawsLeft` is the card's draw provision; net change = provision − 1. Damage modifiers accumulate directly, unaffected by the cost.
+`Add` has two pass-through conditions: `b.StartIndex < a.StartIndex` (card already consumed in a previous shot) or `a.DrawsProvide <= 0` (draws exhausted). On normal execution `ConsumedThisRound` increments per card while `StartIndex` passes through unchanged. `b.DrawsProvide` is the card's draw provision; net change = provision − 1. Damage modifiers accumulate directly, unaffected by the cost.
+
+## Tracker Struct: SpellTracker
+
+```csharp
+public struct SpellTracker : IEquatable<SpellTracker>
+{
+    public SpellContext Context;    // Chain formula output
+    public ulong ConsumedMask;      // Consumed bitmask
+
+    public SpellTracker(SpellContext context, ulong mask)
+        => (Context, ConsumedMask) = (context, mask);
+
+    public readonly bool Equals(SpellTracker other)
+        => Context.Equals(other.Context) && ConsumedMask == other.ConsumedMask;
+
+    public override readonly string ToString()
+        => $"(mask: 0x{ConsumedMask:X}, {Context})";
+}
+```
+
+`SpellTracker` is separated from `SpellContext` so the chain formula's hot path is unaffected by mask management. The mask lives exclusively in the tracker formula.
+
+## Tracker Operators
+
+```csharp
+public enum TrackerOp : byte
+{
+    Const, Track, Return,
+}
+```
+
+`Track` is a unary operator: it receives `[prev]` (the previous round's output), updates `ConsumedMask`, and checks the termination condition.
+
+## Tracker Definition
+
+```csharp
+public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
+{
+    public byte GetReturnOp() => (byte)TrackerOp.Return;
+
+    public int GetArity(byte op) => ((TrackerOp)op) switch
+    {
+        TrackerOp.Track => 1, _ => 0,
+    };
+
+    public OpType GetKind(byte op) => ((TrackerOp)op) switch
+    {
+        TrackerOp.Const  => OpType.Immediate,
+        TrackerOp.Return => OpType.Return,
+        _                => OpType.Instruction,
+    };
+
+    public int GetPrecedence(byte op) => 0;
+
+    public OpPair GetPair(byte op) => new OpPair { PairRole = Pair.None };
+
+    public Associativity GetAssociativity(byte op) => Associativity.Left;
+
+    public byte ResolveToken(byte op, TokenContext ctx) => op;
+
+    public SpellTracker Compute(byte op, Instruction inst, ReadOnlySpan<SpellTracker> regs)
+    {
+        SpellTracker t = regs[inst.Arg0];
+        if (t.ConsumedMask == ulong.MaxValue)
+            return t;  // Full — terminate
+
+        byte consumed = t.Context.ConsumedThisRound;
+        if (consumed <= 0)
+            return t;  // No consumption this round — pass through
+
+        // tzcnt: find first zero bit = this round's starting card position
+        ulong inverted = ~t.ConsumedMask;
+        int pos = 0;
+        while ((inverted & 1) == 0) { inverted >>= 1; pos++; }
+
+        ulong mask = t.ConsumedMask;
+        for (int i = 0; i < consumed; i++)
+            mask |= 1ul << (pos + i);
+
+        var ctx = t.Context;
+        ctx.ConsumedThisRound = 0;
+        ctx.StartIndex = (byte)(pos + consumed);  // Next round resumes here
+        return new SpellTracker(ctx, mask);
+    }
+}
+```
+
+`Track` logic:
+
+1. **Mask full** → pass through (while loop terminates naturally)
+2. **No consumption** → pass through (`ConsumedThisRound == 0`)
+3. **Normal execution**: `tzcnt(~mask)` locates the first zero bit as the round's starting position, then sets `consumed` consecutive bits from that position. `ConsumedThisRound` resets to zero, `StartIndex` is set to `pos + consumed` so the next round resumes from there.
+
+Order of execution: the chain formula runs all cards sequentially first, then the tracker formula batch-updates the mask. If draws suffice, the while loop wraps the chain for another full pass — the mask fills monotonically until termination, achieving up to double utilization (full Noita machine-gun wand simulation).
 
 ## Lexer Configuration
 
 ```csharp
-var config = new LexerConfig<DrawState>
+var config = new LexerConfig<SpellContext>
 {
-    LiteralOper   = (byte)DrawOp.Const,
+    LiteralOper   = (byte)SpellOp.Const,
     LiteralParser = _ => default,
     LiteralScanner = /* see above */,
     Operators =
     {
-        new("+", (byte)DrawOp.Add),
+        new("+", (byte)SpellOp.Add),
     },
     Brackets =
     {
-        new("(", ")", (byte)DrawOp.LParen, (byte)DrawOp.RParen),
+        new("(", ")", (byte)SpellOp.LParen, (byte)SpellOp.RParen),
     },
 };
 ```
@@ -195,35 +330,53 @@ var config = new LexerConfig<DrawState>
 ## Usage
 
 ```csharp
-var def    = new DrawDef();
-var runner = new FluxAssembler<DrawState, DrawDef>(def);
-var lexer  = new FluxLexer<DrawState>(config);
+var def    = new SpellDef();
+var runner = new FluxAssembler<SpellContext, SpellDef>(def);
+var lexer  = new FluxLexer<SpellContext>(config);
 
 // Build spell cards: Modifier form is "[prev] + card_face_value"
 // Card 1: +10 damage modifier, 0 draws (only the casting cost)
 // Card 2: +7 damage modifier,  0 draws
 // Card 3: +5 damage modifier,  0 draws
-var mod1 = runner.Compile(lexer.Lex("[prev] + 10|0"));
-var mod2 = runner.Compile(lexer.Lex("[prev] + 7|0"));
-var mod3 = runner.Compile(lexer.Lex("[prev] + 5|0"));
+var mod1 = runner.Compile(lexer.Lex("[prev] + 10|idx:0"));
+var mod2 = runner.Compile(lexer.Lex("[prev] + 7|idx:1"));
+var mod3 = runner.Compile(lexer.Lex("[prev] + 5|idx:2"));
 
 // Chain all cards together
 var chain = mod1.ToModifier().Connect(mod2.ToModifier()).Connect(mod3.ToModifier());
 
-// 7-draw initial state: triggers spell wrapping (Noita machine-gun wand)
-DrawState state = runner.Instantiate(chain)
-    .Set("prev", new DrawState(0, 7))
-    .Run();
-// → (22.5 dmg, 4 draws)  4 draws remain after chain
+// Tracker formula: Track [prev]
+var trackerDef    = new TrackerDef();
+var trackerConfig = new LexerConfig<SpellTracker>
+{
+    LiteralOper = (byte)TrackerOp.Const,
+    LiteralParser = _ => default,
+    Operators = { new("Track", (byte)TrackerOp.Track) { Arity = 1 } },
+};
+var trackerLexer = new FluxLexer<SpellTracker>(trackerConfig);
+var tracker      = new FluxAssembler<SpellTracker, TrackerDef>(trackerDef);
+var trackFormula = tracker.Compile(trackerLexer.Lex("Track [prev]"));
 
-// Spell wrapping: re-inject output back to chain head while draws > 0
-while (state.DrawsLeft > 0)
+// Initial state: 7 draws + empty mask
+SpellContext state = new SpellContext(0, 7, startIndex: 0);
+ulong mask = 0;
+
+// Noita spell wrapping: chain → tracker, alternating
+do
 {
     state = runner.Instantiate(chain).Set("prev", state).Run();
-}
-// Wrap 1: (22.5, 4) → (45.0, 1)  second pass draws all 3 cards
-// Wrap 2: (45.0, 1) → (55.5, 0)  mid-chain draw exhaustion, card 1 only
-// → (55.5 dmg, 0 draws)
+    var tracked = tracker.Instantiate(trackFormula)
+        .Set("prev", new SpellTracker(state, mask))
+        .Run();
+    state = tracked.Context;
+    mask  = tracked.ConsumedMask;
+} while (mask != ulong.MaxValue);
+
+// First shot: mask=0 → chain runs 3 cards (cards 0/1/2 consumed), mask = 0b111
+// Mask not full → wrap
+// Second shot: chain runs 3 cards again (cards 0/1/2 consumed), mask unchanged (full)
+// Mask full → terminate
+// → Each card executed twice, double utilization
 ```
 
 ## How It Works
@@ -236,34 +389,54 @@ while (state.DrawsLeft > 0)
 
 Each `ChainLink`'s delegate is independently cached in `FormulaCache` by `DualHash64`. The first `Instantiate(chain)` compiles all links; subsequent instantiations hit the cache. When the same card appears in multiple decks, its delegate is reused across chains.
 
+### Tracker Formula & Mask Management
+
+The chain formula's `Compute(Add)` increments `ConsumedThisRound` per card. After the chain runs, the tracker formula's `Track` operator reads that value and updates the mask in three steps:
+
+1. **tzcnt locates starting bit**: first 1-bit of `~ConsumedMask` = this round's starting card position
+2. **Sequential bit-set**: sets `consumed` consecutive bits from that position
+3. **Reset + update**: `ConsumedThisRound = 0`, `StartIndex = pos + consumed`, ready for the next round
+
+The mask fills monotonically. `ulong.MaxValue` terminates the loop — 64 cards max.
+
+If draws are insufficient to complete the chain in one round (e.g. 5 cards, 1 draw), only card 0 executes and `StartIndex` is set to `0 + 1 = 1`. When the wand recharges with fresh draws next round, the chain resumes from card 1: `Add` hits `b.StartIndex < a.StartIndex` and passes through cards 0 and 1, skipping the already-consumed card 0.
+
 ### Zero Recompilation on Spell Wrapping
 
-`runner.Instantiate(chain).Set("prev", state).Run()` inside the wrap loop performs zero compilation. `Instantiate` is a `ref struct` stack allocation plus a cache-hit delegate lookup. Each wrap costs N function pointer calls (N = cards in chain), fully decoupled from the one-time compilation.
+Both `Run()` calls inside the wrap loop use precompiled delegates. `Instantiate` is a lightweight `ref struct` stack allocation plus a cache-hit delegate lookup. The chain formula and tracker formula each compile once; the loop contains no compilation.
 
 ```csharp
-// Compilation: exactly once, during the first Instantiate(chain)
+// Compilation: once each for chain and tracker
 var chain = mod1.ToModifier().Connect(mod2.ToModifier()).Connect(mod3.ToModifier());
 
 // Wrapping: all delegate calls, zero compilation
-while (state.DrawsLeft > 0)
+do
 {
     state = runner.Instantiate(chain).Set("prev", state).Run();
-}
+    var tracked = tracker.Instantiate(trackFormula)
+        .Set("prev", new SpellTracker(state, mask))
+        .Run();
+    state = tracked.Context;
+    mask  = tracked.ConsumedMask;
+} while (mask != ulong.MaxValue);
 ```
 
 ### R1 Bus Carries the Context
 
-Each card's `[prev] + card_face_value` reads the previous card's output through the R1 register. `Set("prev", state)` injects the current context into the chain head's first Immediate slot; after evaluation, R1 carries the final `DrawState` back. The entire chain's context flow is R1 read-write chaining with zero heap allocation.
+Each card's `[prev] + card_face_value` reads the previous card's output through the R1 register. `Set("prev", state)` injects the current context into the chain head's first Immediate slot; after evaluation, R1 carries the final `SpellContext` back. The entire chain's context flow is R1 read-write chaining with zero heap allocation.
 
 ### Implicit Casting Cost
 
-Each card automatically costs 1 draw. `10.5|0` reads as "provides 0 draws"; the net −1 is implicit. `0|2`: 1 remaining + 2 provision − 1 cost = 2 draws. Card face values stay as card face values — the casting cost is a constant, not part of the card data.
+Each card automatically costs 1 draw. `10.5|idx:0` provides 0 draws; the net −1 is implicit. `0|draw 2|idx:1`: 1 remaining + 2 provision − 1 cost = 2 draws. Card face values stay as card face values — the casting cost is a constant, not part of the card data.
 
 ## Key Points
 
-- `float|int` dual-field immediates are another application of LiteralScanner: `|` as field separator
-- `Add` acts on both the damage modifier and draw provision simultaneously, with an implicit −1 casting cost
-- Double cast (`0|2`) and tradeoff (`-5|2`) are natural consequences of the same `float|int` format
-- Spell wrapping: a while loop re-injects chain output back to the chain head; pass-through engages when DrawsLeft reaches zero mid-execution
+- `damage|draw N|idx:N` named-field format: `draw` is optional (defaults to 0), `idx:` is required
+- `Add` acts on both the damage modifier and draw provision; `b.StartIndex < a.StartIndex` triggers pass-through to skip consumed cards
+- `ConsumedThisRound` increments inside the chain, consumed in batch by the tracker formula then reset
+- `StartIndex` is updated by the tracker to `pos + consumed`, so the next round resumes from the unconsumed position
+- Double cast (`0|2`) and tradeoff (`-5|2`) are natural consequences of the same format
+- Spell wrapping: chain → tracker alternation; mask fills monotonically until termination
+- `SpellTracker` is separated from `SpellContext` — hot path never touches the `ulong` mask
 - Connect keeps each card independent; per-link delegates are cached in FormulaCache and reused across chains
-- Wrapping 100 times = 100 delegate calls, not 100 compilations
+- Wrapping 100 times = 200 delegate calls (chain + tracker), not 100 compilations
