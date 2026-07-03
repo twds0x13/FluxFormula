@@ -35,21 +35,45 @@ export default withMermaid(
             {
               text: "API 参考",
               items: [
-                { text: "总览", link: "/api/overview" },
-                { text: "FluxAssembler", link: "/api/flux-assembler" },
-                { text: "FluxFormula", link: "/api/flux-formula" },
-                { text: "FluxChain", link: "/api/flux-chain" },
-                { text: "FluxInstance", link: "/api/flux-instance" },
-                { text: "IFluxDefinition", link: "/api/idefinition" },
-                { text: "Instruction", link: "/api/instruction" },
-                { text: "FluxToken", link: "/api/flux-token" },
-                { text: "VffFormat", link: "/api/vff-format" },
-                { text: "FormulaCache", link: "/api/formula-cache" },
-                { text: "DualHash64", link: "/api/dualhash64" },
-                { text: "FluxConfig", link: "/api/flux-config" },
-                { text: "IFluxCacheProvider", link: "/api/iflux-cache-provider" },
-                { text: "FluxArtifactKind", link: "/api/flux-artifact-kind" },
-                { text: "IFluxFileFormatter", link: "/api/iflux-file-formatter" },
+                {
+                  text: "核心管线",
+                  collapsed: false,
+                  items: [
+                    { text: "总览", link: "/api/overview" },
+                    { text: "FluxAssembler", link: "/api/flux-assembler" },
+                    { text: "FluxFormula", link: "/api/flux-formula" },
+                    { text: "FluxChain", link: "/api/flux-chain" },
+                    { text: "FluxInstance", link: "/api/flux-instance" },
+                  ],
+                },
+                {
+                  text: "运算符定义",
+                  collapsed: false,
+                  items: [
+                    { text: "IFluxDefinition", link: "/api/idefinition" },
+                    { text: "Instruction", link: "/api/instruction" },
+                    { text: "FluxToken", link: "/api/flux-token" },
+                  ],
+                },
+                {
+                  text: "缓存与配置",
+                  collapsed: false,
+                  items: [
+                    { text: "FormulaCache", link: "/api/formula-cache" },
+                    { text: "DualHash64", link: "/api/dualhash64" },
+                    { text: "FluxConfig", link: "/api/flux-config" },
+                    { text: "IFluxCacheProvider", link: "/api/iflux-cache-provider" },
+                  ],
+                },
+                {
+                  text: "持久化与格式",
+                  collapsed: false,
+                  items: [
+                    { text: "VffFormat", link: "/api/vff-format" },
+                    { text: "FluxArtifactKind", link: "/api/flux-artifact-kind" },
+                    { text: "IFluxFileFormatter", link: "/api/iflux-file-formatter" },
+                  ],
+                },
               ],
             },
             {
@@ -157,21 +181,45 @@ export default withMermaid(
             {
               text: "API Reference",
               items: [
-                { text: "Overview", link: "/en/api/overview" },
-                { text: "FluxAssembler", link: "/en/api/flux-assembler" },
-                { text: "FluxFormula", link: "/en/api/flux-formula" },
-                { text: "FluxChain", link: "/en/api/flux-chain" },
-                { text: "FluxInstance", link: "/en/api/flux-instance" },
-                { text: "IFluxDefinition", link: "/en/api/idefinition" },
-                { text: "Instruction", link: "/en/api/instruction" },
-                { text: "FluxToken", link: "/en/api/flux-token" },
-                { text: "VffFormat", link: "/en/api/vff-format" },
-                { text: "FormulaCache", link: "/en/api/formula-cache" },
-                { text: "DualHash64", link: "/en/api/dualhash64" },
-                { text: "FluxConfig", link: "/en/api/flux-config" },
-                { text: "IFluxCacheProvider", link: "/en/api/iflux-cache-provider" },
-                { text: "FluxArtifactKind", link: "/en/api/flux-artifact-kind" },
-                { text: "IFluxFileFormatter", link: "/en/api/iflux-file-formatter" },
+                {
+                  text: "Core Pipeline",
+                  collapsed: false,
+                  items: [
+                    { text: "Overview", link: "/en/api/overview" },
+                    { text: "FluxAssembler", link: "/en/api/flux-assembler" },
+                    { text: "FluxFormula", link: "/en/api/flux-formula" },
+                    { text: "FluxChain", link: "/en/api/flux-chain" },
+                    { text: "FluxInstance", link: "/en/api/flux-instance" },
+                  ],
+                },
+                {
+                  text: "Operator Definition",
+                  collapsed: false,
+                  items: [
+                    { text: "IFluxDefinition", link: "/en/api/idefinition" },
+                    { text: "Instruction", link: "/en/api/instruction" },
+                    { text: "FluxToken", link: "/en/api/flux-token" },
+                  ],
+                },
+                {
+                  text: "Caching & Configuration",
+                  collapsed: false,
+                  items: [
+                    { text: "FormulaCache", link: "/en/api/formula-cache" },
+                    { text: "DualHash64", link: "/en/api/dualhash64" },
+                    { text: "FluxConfig", link: "/en/api/flux-config" },
+                    { text: "IFluxCacheProvider", link: "/en/api/iflux-cache-provider" },
+                  ],
+                },
+                {
+                  text: "Persistence & Format",
+                  collapsed: false,
+                  items: [
+                    { text: "VffFormat", link: "/en/api/vff-format" },
+                    { text: "FluxArtifactKind", link: "/en/api/flux-artifact-kind" },
+                    { text: "IFluxFileFormatter", link: "/en/api/iflux-file-formatter" },
+                  ],
+                },
               ],
             },
             {
