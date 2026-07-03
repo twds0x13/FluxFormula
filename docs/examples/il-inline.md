@@ -104,9 +104,8 @@ var assembler = new FluxAssembler<float, FloatMathILDef>(def);
 // 构造 Lexer（与普通 Definition 完全相同）
 var lexer = new FluxLexer<float>(new LexerConfig<float>
 {
-    LiteralPattern = @"\d+(\.\d+)?f?",
-    LiteralParser  = s => float.Parse(s.TrimEnd('f')),
     LiteralOper    = (byte)FloatOp.Const,
+    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
     Operators =
     {
         new("+", (byte)FloatOp.Add),

@@ -215,7 +215,6 @@ public readonly struct ElemDef : IFluxExprDefinition<ElemValue>
 var config = new LexerConfig<ElemValue>
 {
     LiteralOper   = (byte)ElemOp.Const,
-    LiteralParser = _ => default,   // Unused when LiteralScanner is set
     LiteralScanner = /* see above */,
     Operators =
     {
@@ -233,7 +232,7 @@ var config = new LexerConfig<ElemValue>
 };
 ```
 
-`LiteralParser` must still be assigned (the constructor enforces non-null), but it is never called when `LiteralScanner` is set.
+`LiteralScanner` is the sole literal scanning entry point; it must be set.
 
 ## Usage
 
@@ -261,11 +260,10 @@ ElemValue result = runner.Instantiate(formula)
 
 ## Key Points
 
-- `LiteralScanner` is a lower-level extension point than `LiteralParser`: it receives `ReadOnlySpan<char>`, directly controls scan boundaries, and supports arbitrary syntax
+- `LiteralScanner` receives `ReadOnlySpan<char>`, directly controls scan boundaries, and supports arbitrary syntax
 - Returning `pos` (no match) lets the lexer continue trying other rules; returning `> pos` means the scanner consumed characters from `pos` to the return value
 - `ToString()` / `float.Parse` allocations at compile time are outside the hot path and acceptable
 - The `unmanaged` constraint on `TData` excludes reference types like `string`. Element tags must be encoded as enums or `byte`
-- The `LiteralPattern` field is for editor documentation only. Runtime behavior is entirely controlled by `LiteralScanner`
 
 ## Extension: Element Relationship Lookup Table
 

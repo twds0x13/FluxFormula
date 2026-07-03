@@ -202,7 +202,7 @@ if (!IsDefault(&regsPtr[0]))           // R0 non-default → short-circuit retur
 public class LexerConfig<TData>
 {
     public byte LiteralOper;                              // operator for numeric literals
-    public Func<string, TData> LiteralParser;             // literal → TData parse function
+    public LiteralScanner<TData> LiteralScanner;          // literal Span scanner
     public List<OperatorRule> Operators;                  // operator symbol list
     public List<BracketRule> Brackets;                    // bracket pair list
     public List<byte> ImplicitOperators;                  // implicit multiplication opcodes
@@ -219,7 +219,7 @@ public class LexerConfig<TData>
 **Potential issues**:
 - If operators have prefix relationships (e.g., `-` and `--`), the sort logic guarantees longer-first matching, but users must avoid defining ambiguous rules.
 - Implicit operator insertion performs an O(n) scan in the second pass where n = token count; linear overhead for very long formulas.
-- The literal parse delegate `LiteralParser` may throw exceptions (e.g., `float.Parse` failure); Lexer does not catch, propagating exceptions directly to the caller.
+- The literal scan delegate `LiteralScanner` may throw exceptions (e.g., `float.Parse` failure); Lexer does not catch, propagating exceptions directly to the caller.
 
 ---
 

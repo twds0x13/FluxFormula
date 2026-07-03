@@ -320,7 +320,6 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
 var config = new LexerConfig<SpellContext>
 {
     LiteralOper   = (byte)SpellOp.Const,
-    LiteralParser = _ => default,
     LiteralScanner = /* 见上节 */,
     Operators =
     {
@@ -356,7 +355,7 @@ var trackerDef    = new TrackerDef();
 var trackerConfig = new LexerConfig<SpellTracker>
 {
     LiteralOper = (byte)TrackerOp.Const,
-    LiteralParser = _ => default,
+    LiteralScanner = LexerConfig<SpellTracker>.CreateDefaultNumberScanner(_ => default),
     Operators = { new("Track", (byte)TrackerOp.Track) { Arity = 1 } },
 };
 var trackerLexer = new FluxLexer<SpellTracker>(trackerConfig);

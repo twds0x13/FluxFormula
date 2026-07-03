@@ -7,7 +7,7 @@
 Regex in .NET produces heap allocations (`Match` objects, `Group` collections). For FluxFormula's target (compile-time allocation only, zero-GC execution), regex allocation is acceptable since compilation itself allocates the token array. However, a hand-written scanner offers three advantages regex cannot provide:
 
 1. **Precise error locations**: the hand-written loop knows the current character position and can produce error messages with line and column numbers.
-2. **Zero intermediate strings**: `ReadOnlySpan<char>` slices are passed directly to `LiteralParser`; `ToString()` only at the final literal parse step.
+2. **Zero intermediate strings**: `ReadOnlySpan<char>` slices are passed directly to `LiteralScanner`; `ToString()` only when calling the parser inside `CreateDefaultNumberScanner`.
 3. **Context-aware disambiguation**: operator resolution (e.g., `-` as unary negation in `OperandExpected` position) happens during scanning, eliminating an extra compiler pass.
 
 ## Core Data Structures
@@ -87,15 +87,15 @@ public readonly struct VariablePatternRule
 
 During scanning, when a prefix start character is encountered, the scanner reads until the suffix ends and extracts the variable name between them. Variables are mapped to `LiteralOper`-type tokens (`Data = default`), and the variable name is added to the `VarNames` list. Variable-to-immediate-slot mapping happens during compilation.
 
-## Literal Parsing
+## Literal Scanning
 
-Literals are parsed via the `LiteralParser` delegate:
+Literals are scanned via the `LiteralScanner` delegate:
 
 ```csharp
-public Func<string, TData> LiteralParser { get; set; }
+public LiteralScanner<TData> LiteralScanner;
 ```
 
-This is a delegate that accepts a `string` and returns `TData`. For `float`, a typical implementation is `s => float.Parse(s.TrimEnd('f'))`. The `ToString()` allocation is the only literal-related heap allocation during compilation (~392B for simple, ~1080B for complex).
+`LiteralScanner` receives a `ReadOnlySpan<char>` and the current position, returning the consumed position and the parsed value. Use `CreateDefaultNumberScanner` for standard number formats. The `ToString()` allocation is the only literal-related heap allocation during compilation (~392B for simple, ~1080B for complex). See [Custom Literal Scanner](../../guide/literal-scanner.md).
 
 ## Implicit Multiplication
 

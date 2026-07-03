@@ -7,7 +7,7 @@
 正则表达式在 .NET 中的 `Match` 操作会产生 `Match` 对象和 `Group` 集合的堆分配。对于 FluxFormula 的目标场景（编译期一次性分配，执行期零 GC），正则的分配开销可以接受（编译本身就有 Token 数组分配）。但手写扫描器提供了三个正则无法提供的优势：
 
 1. **精确的错误定位**：手写循环知道当前字符位置，可以产出带行列号的错误信息。
-2. **零中间字符串**：`ReadOnlySpan<char>` 切片直接传给 `LiteralParser`，仅在最终解析字面量时才 `ToString()`。
+2. **零中间字符串**：`ReadOnlySpan<char>` 切片直接传给 `LiteralScanner`，仅在调用 `CreateDefaultNumberScanner` 中的 parser 时才 `ToString()`。
 3. **上下文感知**：操作符消歧（如 `-` 在 `OperandExpected` 位置是一元负号）在扫描阶段即可处理，不需要编译器的额外遍历。
 
 ## 核心数据结构
@@ -87,15 +87,15 @@ public readonly struct VariablePatternRule
 
 扫描时，当遇到 prefix 起始字符时，扫描至 suffix 结束，提取中间的变量名。变量被映射为 `LiteralOper` 类型的 Token（`Data = default`），同时变量名加入 `VarNames` 列表。变量到 Immediate 槽位的映射在编译阶段完成。
 
-## 字面量解析
+## 字面量扫描
 
-字面量通过 `LiteralParser` 委托解析：
+字面量通过 `LiteralScanner` 委托扫描：
 
 ```csharp
-public Func<string, TData> LiteralParser { get; set; }
+public LiteralScanner<TData> LiteralScanner;
 ```
 
-这是一个接受 `string` 返回 `TData` 的委托。对于 `float`，典型的实现是 `s => float.Parse(s.TrimEnd('f'))`。`ToString()` 分配是编译期唯一与字面量相关的堆分配（~392B for simple, ~1080B for complex）。
+`LiteralScanner` 接收 `ReadOnlySpan<char>` 和当前位置，返回消费后的位置和解析值。简单数字格式使用 `CreateDefaultNumberScanner`。`ToString()` 分配是编译期唯一与字面量相关的堆分配（~392B for simple, ~1080B for complex）。详见 [自定义字面量扫描器](../../guide/literal-scanner.md)。
 
 ## 隐式乘法
 

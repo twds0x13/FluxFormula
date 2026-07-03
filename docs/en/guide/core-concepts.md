@@ -22,7 +22,7 @@ Configuration:
 - **Brackets**: Bracket pair mappings (`"(" ")" → LParen, RParen`)
 - **VariablePatterns**: Variable prefix/suffix patterns (`"[" "]"` recognizes `[atk]`)
 - **ImplicitOperators**: Default operators for implicit multiplication (`2[atk]` → `2*[atk]`)
-- **LiteralOper / LiteralParser**: Numeric literal opcode and parser
+- **LiteralOper / LiteralScanner**: Numeric literal opcode and parser
 
 Produces `LexResult<TData>`, containing a token array and variable name array.
 

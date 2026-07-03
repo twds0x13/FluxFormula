@@ -171,7 +171,7 @@ public readonly struct FloatMathDef : IFluxExprDefinition<float>
 var config = new LexerConfig<float>
 {
     LiteralOper    = FloatOp.Const,
-    LiteralParser  = s => float.Parse(s, CultureInfo.InvariantCulture),
+    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s, CultureInfo.InvariantCulture)),
     Operators      = { new("+", FloatOp.Add), new("-", FloatOp.Sub),
                        new("*", FloatOp.Mul), new("/", FloatOp.Div) },
     Brackets       = { new("(", ")", FloatOp.LParen, FloatOp.RParen) },

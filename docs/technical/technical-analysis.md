@@ -202,7 +202,7 @@ if (!IsDefault(&regsPtr[0]))           // R0 非默认 → 短路返回
 public class LexerConfig<TData>
 {
     public byte LiteralOper;                              // 数字字面量对应操作码
-    public Func<string, TData> LiteralParser;             // 字面量→TData 解析函数
+    public LiteralScanner<TData> LiteralScanner;  // 字面量 Span 扫描器
     public List<OperatorRule> Operators;                  // 运算符符号列表
     public List<BracketRule> Brackets;                    // 括号对列表
     public List<byte> ImplicitOperators;                  // 隐式乘法操作码
@@ -219,7 +219,7 @@ public class LexerConfig<TData>
 **潜在问题**:
 - 若运算符存在前缀关系（如 `-` 和 `--`）, 排序逻辑保证长符号优先, 但用户需注意不要定义歧义规则。
 - 隐式运算符插入在第二轮扫描中做 O(n) 遍历, n 为 Token 数量, 对极长公式有线性开销。
-- 字面量解析委托 `LiteralParser` 可能抛出异常（如 `float.Parse` 失败）, Lexer 不做 catch, 异常直接传播给调用方。
+- 字面量扫描委托 `LiteralScanner` 可能抛出异常（如 `float.Parse` 失败）, Lexer 不做 catch, 异常直接传播给调用方。
 
 ---
 

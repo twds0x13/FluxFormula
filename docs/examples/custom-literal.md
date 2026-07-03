@@ -216,7 +216,6 @@ public readonly struct ElemDef : IFluxExprDefinition<ElemValue>
 var config = new LexerConfig<ElemValue>
 {
     LiteralOper   = (byte)ElemOp.Const,
-    LiteralParser = _ => default,   // 未被使用（LiteralScanner 接管）
     LiteralScanner = /* 见上节 */,
     Operators =
     {
@@ -234,7 +233,7 @@ var config = new LexerConfig<ElemValue>
 };
 ```
 
-注意 `LiteralParser` 仍然需要赋值（构造函数强制非 null），但设置 `LiteralScanner` 后它不会被调用。
+`LiteralScanner` 是唯一的字面量扫描入口，必须设置。
 
 ## 使用
 
@@ -262,11 +261,10 @@ ElemValue result = runner.Instantiate(formula)
 
 ## 要点
 
-- `LiteralScanner` 是比 `LiteralParser` 更底层的扩展点：接收 `ReadOnlySpan<char>`，可直接控制扫描边界，支持任意语法
+- `LiteralScanner` 接收 `ReadOnlySpan<char>`，可直接控制扫描边界，支持任意语法
 - 返回 `pos`（未匹配）让词法器继续尝试其他匹配规则；返回 `> pos` 表示消费了 `pos` 到返回值之间的字符
 - 编译期的 `ToString()` / `float.Parse` 分配在热路径之外，是可接受的
 - TData 的 `unmanaged` 约束排除了字符串等引用类型。元素标签必须编码为枚举或 `byte`
-- `LiteralPattern` 字段仅为编辑器文档参考，运行时无效果。实际行为完全由 `LiteralScanner` 控制
 
 ## 扩展：元素关系查找表
 

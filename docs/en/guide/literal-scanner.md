@@ -1,6 +1,6 @@
 # Custom Literal Scanner
 
-`LiteralScanner` is a low-level extension point on `LexerConfig<TData>`: a zero-allocation Span scanner delegate that fully replaces the built-in number scanner, enabling arbitrary literal syntax.
+`LiteralScanner` is a required field on `LexerConfig<TData>`: a zero-allocation Span scanner delegate that controls how the lexer recognizes numbers, keywords, and other literals.
 
 ## Signature
 
@@ -16,31 +16,24 @@ public delegate int LiteralScanner<TData>(
 - **Returns `> pos`**: matched. Characters from `pos` to the return value are consumed
 - **`out TData value`**: set to the parsed value on match; `default` on no match
 
-## Relationship with LiteralParser
-
-| | LiteralParser | LiteralScanner |
-|---|---|---|
-| Type | `Func<string, TData>` | Delegate `(ReadOnlySpan<char>, int, out TData) -> int` |
-| Input | Already-matched substring (`string`) | Full source + start position |
-| Controls scan boundaries | No | Yes |
-| Zero-allocation | No (receives `string`) | Yes (Span-based) |
-| When called | Only by the built-in default scanner | Fully replaces the default scanner when set |
-
-Key rule: when `LiteralScanner` is set, `LiteralParser` is never called. However, the constructor still requires `LiteralParser` to be non-null (as a placeholder for potential fallback). Assign `_ => default`.
-
-## The LiteralPattern Field
-
-`config.LiteralPattern` is never read at runtime. It exists only as a documentation reference field for the Unity editor and has zero effect on lexer behavior. Actual scanning is fully controlled by `LiteralScanner` (or the default scanner when none is set).
-
 ## Default Scanner
 
-When `LiteralScanner` is not set, the `FluxLexer` constructor calls `CreateDefaultNumberScanner(LiteralParser)` to generate a built-in scanner. Its behavior is equivalent to character-by-character matching of `\d+(\.\d+)?[fF]?`:
+For simple number formats (integers, floats), use `CreateDefaultNumberScanner` instead of writing a scanner by hand:
+
+```csharp
+config.LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
+    s => float.Parse(s.TrimEnd('f', 'F')));
+```
+
+Its behavior is equivalent to character-by-character matching of `\d+(\.\d+)?[fF]?`:
 
 1. Check if the current position is a digit
 2. Scan integer part
 3. Optional: `.` + fractional part
 4. Optional: `f` or `F` suffix
-5. Call `LiteralParser(matchedSubstring)` to convert to `TData`
+5. Call the provided parser function to convert to `TData`
+
+`CreateDefaultNumberScanner` internally calls `ToString()` on the matched Span before invoking the parser, producing a one-time allocation at compile time. For zero string-allocation scenarios, write a custom scanner that parses the Span directly.
 
 ## Examples
 
@@ -49,7 +42,7 @@ When `LiteralScanner` is not set, the `FluxLexer` constructor calls `CreateDefau
 Match `0xFF`-style hexadecimal literals:
 
 ```csharp
-var hexScanner = (ReadOnlySpan<char> src, int pos, out int value) =>
+config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out int value) =>
 {
     value = 0;
     if (pos + 2 >= src.Length) return pos;
@@ -96,7 +89,7 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out int value) =>
 
 ### Do Nothing
 
-A scanner that always returns `pos` is equivalent to having no custom scanner (the number scanner handles digits, then the lexer falls through):
+A scanner that always returns `pos` causes the lexer to fall through to other matching phases:
 
 ```csharp
 config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out float v) =>
@@ -112,3 +105,4 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out float v) =>
 - `ToString()` / `float.Parse` calls produce one-time allocations at compile time; they never enter the execution hot path
 - Custom scanners are fully compatible with `VariablePatterns`: the lexer first tries the scanner, then falls through to variable patterns on no match
 - The `TData : unmanaged` constraint excludes reference types like `string`. Encode extra metadata using `enum` or `byte` fields
+- `LiteralScanner` must be set; otherwise the constructor throws an `ArgumentException`

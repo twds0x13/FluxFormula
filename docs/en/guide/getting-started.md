@@ -112,7 +112,7 @@ readonly struct MathDef : IFluxExprDefinition<float>
 var config = new LexerConfig<float>
 {
     LiteralOper = (byte)MathOp.Const,
-    LiteralParser = s => float.Parse(s, CultureInfo.InvariantCulture),
+    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s, CultureInfo.InvariantCulture)),
     Operators =
     {
         new("+", (byte)MathOp.Add),

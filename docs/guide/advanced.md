@@ -45,7 +45,7 @@ restored.Set("input", 5f).Set("z", 3f).Run(); // 等价于 fB
 var config = new LexerConfig<float>
 {
     LiteralOper = (byte)MathOp.Const,
-    LiteralParser = s => float.Parse(s, CultureInfo.InvariantCulture),
+    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s, CultureInfo.InvariantCulture)),
     Operators = { new("+", (byte)MathOp.Add), new("*", (byte)MathOp.Mul) },
     VariablePatterns = { new("[", "]") },
     ImplicitOperators = { (byte)MathOp.Mul },
