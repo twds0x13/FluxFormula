@@ -197,8 +197,7 @@ public static class TestHelper
     {
         return new FluxLexer<float>(new LexerConfig<float>
         {
-            LiteralPattern = @"\d+(\.\d+)?f?",
-            LiteralParser  = s => float.Parse(s.TrimEnd('f')),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
             LiteralOper    = (byte)FloatOp.Const,
             Operators =
             {
@@ -217,8 +216,7 @@ public static class TestHelper
     {
         var lexer = new FluxLexer<float>(new LexerConfig<float>
         {
-            LiteralPattern = @"\d+(\.\d+)?f?",
-            LiteralParser  = s => float.Parse(s.TrimEnd('f')),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
             LiteralOper    = (byte)FloatOp.Const,
             Operators =
             {
@@ -239,8 +237,7 @@ public static class TestHelper
     {
         return new FluxLexer<float>(new LexerConfig<float>
         {
-            LiteralPattern = @"\d+(\.\d+)?f?",
-            LiteralParser  = s => float.Parse(s.TrimEnd('f')),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
             LiteralOper    = (byte)FloatOp.Const,
             Operators =
             {
@@ -264,8 +261,7 @@ public static class TestHelper
     {
         return new FluxLexer<float>(new LexerConfig<float>
         {
-            LiteralPattern = @"\d+(\.\d+)?f?",
-            LiteralParser  = s => float.Parse(s.TrimEnd('f')),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
             LiteralOper    = (byte)FloatOp.Const,
             Operators =
             {

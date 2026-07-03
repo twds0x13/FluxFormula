@@ -15,8 +15,7 @@ public static class FluxQuickTest
     {
         var config = new LexerConfig<float>
         {
-            LiteralPattern = @"\d+(\.\d+)?f?",
-            LiteralParser  = s => float.Parse(s.TrimEnd('f', 'F')),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f', 'F'))),
         };
         config.Operators.Add(new OperatorRule("+", (byte)FloatOp.Add));
         config.Operators.Add(new OperatorRule("-", (byte)FloatOp.Sub));

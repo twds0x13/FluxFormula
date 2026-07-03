@@ -48,7 +48,7 @@ public class CustomLiteralScannerTests
         var config = new LexerConfig<int>
         {
             LiteralOper   = 0,
-            LiteralParser = s => int.Parse(s),
+            LiteralScanner = LexerConfig<int>.CreateDefaultNumberScanner(s => int.Parse(s)),
             Operators     = { new("+", 1) },
         };
         var lexer = new FluxLexer<int>(config);
@@ -66,7 +66,7 @@ public class CustomLiteralScannerTests
         var config = new LexerConfig<float>
         {
             LiteralOper   = 0,
-            LiteralParser = s => float.Parse(s.TrimEnd('f', 'F')),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f', 'F'))),
             Operators     = { new("+", 1) },
         };
         var lexer = new FluxLexer<float>(config);
@@ -87,7 +87,6 @@ public class CustomLiteralScannerTests
         var config = new LexerConfig<int>
         {
             LiteralOper    = 0,
-            LiteralParser  = _ => 0, // fallback, not used when scanner is set
             LiteralScanner = HexScanner,
             Operators      = { new("+", 1), new("-", 2) },
         };
@@ -107,7 +106,6 @@ public class CustomLiteralScannerTests
         var config = new LexerConfig<float>
         {
             LiteralOper    = 0,
-            LiteralParser  = _ => 0f,
             LiteralScanner = (ReadOnlySpan<char> src, int pos, out float v) =>
             {
                 scanCalls++;
@@ -131,7 +129,6 @@ public class CustomLiteralScannerTests
         var config = new LexerConfig<int>
         {
             LiteralOper    = 0,
-            LiteralParser  = _ => 0,
             LiteralScanner = (ReadOnlySpan<char> src, int pos, out int value) =>
             {
                 value = 0;
@@ -167,7 +164,6 @@ public class CustomLiteralScannerTests
         var config = new LexerConfig<int>
         {
             LiteralOper    = 0,
-            LiteralParser  = _ => 0,
             LiteralScanner = (ReadOnlySpan<char> src, int pos, out int v) => { v = 0; return pos; },
         };
         var lexer = new FluxLexer<int>(config);
@@ -183,7 +179,6 @@ public class CustomLiteralScannerTests
         var config = new LexerConfig<float>
         {
             LiteralOper    = 0,
-            LiteralParser  = s => float.Parse(s),
             LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
                 s => float.Parse(s.TrimEnd('f', 'F'))),
             Operators       = { new("+", 1) },

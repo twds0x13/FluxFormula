@@ -64,8 +64,7 @@ public class FloatMathSample : MonoBehaviour
     {
         return new FluxLexer<float>(new LexerConfig<float>
         {
-            LiteralPattern = @"\d+(\.\d+)?f?",
-            LiteralParser  = s => float.Parse(s.TrimEnd('f'), CultureInfo.InvariantCulture),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'), CultureInfo.InvariantCulture)),
             LiteralOper    = (byte)FloatOp.Const,
             Operators =
             {

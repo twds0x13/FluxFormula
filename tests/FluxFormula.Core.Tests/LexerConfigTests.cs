@@ -3,23 +3,25 @@ using FluxFormula.Core;
 using NUnit.Framework;
 
 /// <summary>
-/// LexerConfig 配置验证：默认 LiteralParser、null 守卫。
+/// LexerConfig 配置验证：LiteralScanner 必须设置守卫。
 /// </summary>
 public class LexerConfigTests
 {
     [Test]
-    public void DefaultLiteralParser_ReturnsDefault()
+    public void NullLiteralScanner_ThrowsOnConstruct()
     {
-        var cfg = new LexerConfig<float>();
-        float result = cfg.LiteralParser("3.14");
-        Assert.That(result, Is.EqualTo(0f));
+        var cfg = new LexerConfig<float> { LiteralScanner = null! };
+        Assert.That(() => new FluxLexer<float>(cfg),
+            Throws.ArgumentException.With.Message.Contains("LiteralScanner"));
     }
 
     [Test]
-    public void NullLiteralParser_ThrowsOnConstruct()
+    public void CreateDefaultNumberScanner_ProducesWorkingScanner()
     {
-        var cfg = new LexerConfig<float> { LiteralParser = null! };
-        Assert.That(() => new FluxLexer<float>(cfg),
-            Throws.ArgumentException.With.Message.Contains("LiteralParser"));
+        var scanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s));
+        float value;
+        int end = scanner("3.14", 0, out value);
+        Assert.That(end, Is.GreaterThan(0));
+        Assert.That(value, Is.EqualTo(3.14f).Within(1e-5f));
     }
 }

@@ -302,8 +302,7 @@ public class LexerTests
         // 配置多个隐式运算符，遇到无法消歧的邻接时报错
         var lexer = new FluxLexer<float>(new LexerConfig<float>
         {
-            LiteralPattern = @"\d+(\.\d+)?f?",
-            LiteralParser  = s => float.Parse(s.TrimEnd('f')),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
             LiteralOper = (byte)FloatOp.Const,
             Operators =
             {
@@ -331,8 +330,7 @@ public class LexerTests
         // 同一个 Lexer 支持 [...] 和 {var:...} 两种语法
         var lexer = new FluxLexer<float>(new LexerConfig<float>
         {
-            LiteralPattern = @"\d+(\.\d+)?f?",
-            LiteralParser  = s => float.Parse(s.TrimEnd('f')),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
             LiteralOper = (byte)FloatOp.Const,
             Operators =
             {

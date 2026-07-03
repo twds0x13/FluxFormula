@@ -57,9 +57,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
     // 隐式运算符
     private List<byte>                _implicitOpers     = new();
 
-    // 字面量
-    private string                    _literalPattern    = @"\d+(\.\d+)?f?";
-
     // 编译结果
     private string                    _statusMessage     = "";
     private MessageType               _statusType        = MessageType.None;
@@ -72,7 +69,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
     private bool                      _showOperators;
     private bool                      _showBrackets;
     private bool                      _showImplicit;
-    private bool                      _showLiteral;
 
     // 编辑缓冲：借壳临时 ScriptableObject，利用 Unity 原生 Undo 系统
     private FluxEditState             _editState;
@@ -186,7 +182,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
         DrawOperators();
         DrawBrackets();
         DrawImplicitOperators();
-        DrawLiteralConfig();
         EditorGUILayout.EndScrollView();
 
         DrawStatus();
@@ -490,28 +485,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
     // 字面量配置
     // ═══════════════════════════════════════════════
 
-    private void DrawLiteralConfig()
-    {
-        _showLiteral = EditorGUILayout.BeginFoldoutHeaderGroup(_showLiteral, "Literal Pattern");
-
-        if (!_showLiteral) { EditorGUILayout.EndFoldoutHeaderGroup(); return; }
-
-        EditorGUI.indentLevel++;
-
-        EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("Regex:", GUILayout.Width(100));
-        _literalPattern = EditorGUILayout.TextField(_literalPattern, GUILayout.Width(250));
-        EditorGUILayout.EndHorizontal();
-
-        EditorGUILayout.HelpBox(
-            $"Current type: TData = {typeof(TData).Name}, TDef = {typeof(TDef).Name}\n" +
-            $"Default literal pattern matches integers and decimals (e.g., 1, 2.5, 3f).",
-            MessageType.None);
-
-        EditorGUI.indentLevel--;
-        EditorGUILayout.EndFoldoutHeaderGroup();
-    }
-
     // ═══════════════════════════════════════════════
     // 状态栏
     // ═══════════════════════════════════════════════
@@ -759,9 +732,8 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
     {
         var config = new LexerConfig<TData>
         {
-            LiteralPattern = _literalPattern,
             LiteralOper    = GetLiteralOper(),
-            LiteralParser  = GetLiteralParser(),
+            LiteralScanner = GetLiteralScanner(),
         };
 
         for (int i = 0; i < _opSymbols.Count; i++)
@@ -793,20 +765,24 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
         return 0;
     }
 
-    private Func<string, TData> GetLiteralParser()
+    private LiteralScanner<TData> GetLiteralScanner()
     {
         var t = typeof(TData);
 
         if (t == typeof(float))
-            return s => (TData)(object)float.Parse(s.TrimEnd('f', 'F'));
+            return LexerConfig<TData>.CreateDefaultNumberScanner(
+                s => (TData)(object)float.Parse(((string)s).TrimEnd('f', 'F')));
         if (t == typeof(int))
-            return s => (TData)(object)int.Parse(s);
+            return LexerConfig<TData>.CreateDefaultNumberScanner(
+                s => (TData)(object)int.Parse(s));
         if (t == typeof(double))
-            return s => (TData)(object)double.Parse(s);
+            return LexerConfig<TData>.CreateDefaultNumberScanner(
+                s => (TData)(object)double.Parse(s));
         if (t == typeof(long))
-            return s => (TData)(object)long.Parse(s);
+            return LexerConfig<TData>.CreateDefaultNumberScanner(
+                s => (TData)(object)long.Parse(s));
 
-        return s => default;
+        return LexerConfig<TData>.CreateDefaultNumberScanner(s => default);
     }
 
     private VariablePatternRule[] GetCachedPatterns()
@@ -863,7 +839,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
         SaveOpList("brLefts",           _brLefts);
         SaveOpList("brRights",          _brRights);
         SaveOpList("implicitOpers",     _implicitOpers);
-        EditorPrefs.SetString(PrefKey("literalPattern"), _literalPattern);
     }
 
     private void LoadState()
@@ -878,7 +853,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
         _brLefts         = LoadOpList("brLefts");
         _brRights        = LoadOpList("brRights");
         _implicitOpers   = LoadOpList("implicitOpers");
-        _literalPattern  = EditorPrefs.GetString(PrefKey("literalPattern"), @"\d+(\.\d+)?f?");
     }
 
     private List<string> LoadStringList(string key)

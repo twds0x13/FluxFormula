@@ -14,7 +14,8 @@ namespace FluxFormula.Tests
         private static FluxLexer<float> CreateMathLexer() => new(new LexerConfig<float>
         {
             LiteralOper    = (byte)FloatOp.Const,
-            LiteralParser  = s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
+                s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture)),
             Operators      = { new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
                                new("*", (byte)FloatOp.Mul), new("/", (byte)FloatOp.Div) },
             Brackets       = { new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen) },
@@ -23,7 +24,8 @@ namespace FluxFormula.Tests
         private static FluxLexer<float> CreateVarLexer(string prefix, string suffix) => new(new LexerConfig<float>
         {
             LiteralOper    = (byte)FloatOp.Const,
-            LiteralParser  = s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture),
+            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
+                s => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture)),
             Operators      = { new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
                                new("*", (byte)FloatOp.Mul), new("/", (byte)FloatOp.Div) },
             Brackets       = { new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen) },
