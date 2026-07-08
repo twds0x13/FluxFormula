@@ -1,6 +1,6 @@
 # Example: FloatMathDef
 
-A copy-paste-ready floating-point arithmetic definition for v3.0.0.
+A copy-paste-ready floating-point arithmetic definition for v5.1.0.
 
 > **v3.0.0**: The operator enum is now a `private` implementation detail. The definition implements `IFluxExprDefinition<TData>` (1 generic param). All operator-related methods use `byte`.
 
