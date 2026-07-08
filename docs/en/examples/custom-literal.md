@@ -8,6 +8,10 @@ Elemental damage formulas in games: `[atk] * 1.5:fire + [bonus]:ice - [def]:fire
 
 This requires two custom capabilities: `:tag` literal syntax at the lexer layer, and element-aware evaluation at the operator layer.
 
+::: tip Template-first
+For fixed-format literals (e.g. `<float X> <float Y>`), prefer `[LiteralTemplate]` over a manual delegate (see [Literal Scanner](../guide/literal-scanner.md)). This example uses a delegate because the `:element` tag syntax cannot be expressed with a template.
+:::
+
 ## TData Struct
 
 ```csharp
@@ -232,7 +236,7 @@ var config = new LexerConfig<ElemValue>
 };
 ```
 
-`LiteralScanner` is the sole literal scanning entry point; it must be set.
+`LiteralScanner` is the literal scanning entry point. When `[LiteralTemplate]` is present this field is not needed; the delegate serves as the manual fallback path.
 
 ## Usage
 
@@ -264,6 +268,7 @@ ElemValue result = runner.Instantiate(formula)
 - Returning `pos` (no match) lets the lexer continue trying other rules; returning `> pos` means the scanner consumed characters from `pos` to the return value
 - `ToString()` / `float.Parse` allocations at compile time are outside the hot path and acceptable
 - The `unmanaged` constraint on `TData` excludes reference types like `string`. Element tags must be encoded as enums or `byte`
+- For fixed-format literals, prefer `[LiteralTemplate]`; manual delegates are for irregular syntax (such as the `:tag` suffix in this example)
 
 ## Extension: Element Relationship Lookup Table
 

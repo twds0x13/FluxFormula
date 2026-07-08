@@ -108,3 +108,55 @@ public LiteralScanner<TData> LiteralScanner;
 ```
 
 插入条件：当字面量/右括号后紧跟左括号/变量前缀时，且隐式操作符已注册。
+
+## Source Generator 集成 (v5.0+)
+
+v5.0 引入 source generator 驱动的字面量模板系统，将扫描器生成从运行时移到编译期。
+
+### 编译期管线
+
+`LiteralScannerGenerator` (IIncrementalGenerator) 在编译期间运行，三条增量管线收集三类输入:
+
+| 管线 | Attribute | 收集对象 |
+|------|-----------|---------|
+| A | `[LiteralTemplate]` | 直接标记的 struct |
+| B | `[ExternalLiteralTemplate]` | 第三方类型的模板注册（覆盖管线 A） |
+| C | `[LiteralTypeAlias]` | 类型别名（如 `Distance` → `float`） |
+
+管线 A 和 B 合并后（B 覆盖 A），每个模板经过两阶段处理:
+
+1. **CompactToXml**: 紧凑格式 `"<float X> <float Y>"` 转为标准 XML `<literal-template><field type="float" name="X"/>...</literal-template>`
+2. **XmlTemplateParser**: XML 解析为 AST（`LiteralTextNode` / `FieldDirectiveNode` / `OptionalBlockNode`）
+
+随后 `BuildDependencyGraph` 分析模板间的类型引用关系、检测循环依赖、生成拓扑排序，最终由 `CodeEmitter` 将 AST 编译为 C# span scanner 源码，注入 `LiteralScanners.g.cs`。
+
+### 运行时集成
+
+生成的 `LiteralScanners` 部分类的静态构造函数将每个生成式扫描器写入 `ScannerRegistry<TData>.Scanner`:
+
+```csharp
+static LiteralScanners()
+{
+    ScannerRegistry<Point2D>.Scanner = (s, p, out v) => Scan_Point2D(s, p, out v);
+    ScannerRegistry<Entity>.Scanner = (s, p, out v) => Scan_Entity(s, p, out v);
+}
+```
+
+`FluxLexer<TData>` 构造函数按优先级选择扫描器:
+
+1. `LiteralScanners.TryGetScanner<TData>()` — 有 `[LiteralTemplate]` 时命中
+2. `config.LiteralScanner` — 手动委托回退
+3. 两者都无则抛出 `ArgumentException`
+
+### 生成代码模式
+
+每个生成式 `Scan_Xxx` 方法的结构:
+
+- span 边界检查 → 逐字段扫描
+- 内置类型字段调用 `LiteralTemplateRegistry.Scan_Float` 等 12 种内置扫描器
+- 自定义类型字段递归调用已生成的 `Scan_OtherStruct`
+- 可选块: save position → 尝试匹配 → 成功则继续，失败则 restore
+- 逐字符精确匹配裸文字
+- 所有方法标注 `[MethodImpl(AggressiveInlining)]`
+
+内置扫描器的识别格式和更多细节见[字面量扫描器](../../guide/literal-scanner.md)。

@@ -106,6 +106,10 @@ readonly struct MathDef : IFluxExprDefinition<float>
 }
 ```
 
+::: tip LiteralTemplate (v5.0+)
+For custom TData structs, use `[LiteralTemplate]` to auto-generate literal scanners at compile time instead of writing a `LiteralScanner` delegate. The built-in `float` type works directly via `CreateDefaultNumberScanner`. See the [Literal Scanner guide](/en/guide/literal-scanner) for details.
+:::
+
 ## Step 3: Configure the Lexer and Parse
 
 ```csharp
@@ -173,7 +177,7 @@ float result  = runner.Instantiate(formula, jit: true).Run();
 // result = 7.0
 ```
 
-## v3.0.0 Key Changes
+## Key Changes from v3.0.0 to v5.1.0
 
 | v2.x | v3.0.0 |
 |------|--------|
@@ -184,6 +188,11 @@ float result  = runner.Instantiate(formula, jit: true).Run();
 | `OpPair<FloatOp>` | `OpPair` (non-generic) |
 | `FluxToken<float, FloatOp>` | `FluxToken<float>` |
 | `FluxAssembler<float, FloatOp, FloatMathDef>` | `FluxAssembler<float, MathDef>` |
+
+| v3.0.0 | v5.1.0 |
+|--------|--------|
+| `LiteralScanner` delegate required | `[LiteralTemplate]` generated scanner (delegate now optional) |
+| Manual scan logic | Compile-time source generator producing `Scan_Xxx` methods |
 
 ## Next Steps
 

@@ -108,3 +108,55 @@ Input: "(a)(b)" → scanner auto-inserts Mul token between ")("
 ```
 
 Insertion condition: when a literal/right-paren is followed by a left-paren/variable-prefix, and the implicit operator is registered.
+
+## Source Generator Integration (v5.0+)
+
+v5.0 introduces a source-generator-driven literal template system that moves scanner generation from runtime to compile time.
+
+### Compile-Time Pipeline
+
+`LiteralScannerGenerator` (IIncrementalGenerator) runs during compilation. Three incremental pipelines collect three categories of input:
+
+| Pipeline | Attribute | Collects |
+|----------|-----------|----------|
+| A | `[LiteralTemplate]` | Directly annotated structs |
+| B | `[ExternalLiteralTemplate]` | Third-party type template registrations (overrides Pipeline A) |
+| C | `[LiteralTypeAlias]` | Type aliases (e.g. `Distance` → `float`) |
+
+After merging Pipelines A and B (B overrides A), each template passes through two stages:
+
+1. **CompactToXml**: compact format `"<float X> <float Y>"` is converted to standard XML `<literal-template><field type="float" name="X"/>...</literal-template>`
+2. **XmlTemplateParser**: XML is parsed into an AST (`LiteralTextNode` / `FieldDirectiveNode` / `OptionalBlockNode`)
+
+`BuildDependencyGraph` then analyzes type reference relationships between templates, detects circular dependencies, produces a topological sort, and `CodeEmitter` compiles the AST into C# span scanner source code, injected as `LiteralScanners.g.cs`.
+
+### Runtime Integration
+
+The generated `LiteralScanners` partial class's static constructor writes each generated scanner into `ScannerRegistry<TData>.Scanner`:
+
+```csharp
+static LiteralScanners()
+{
+    ScannerRegistry<Point2D>.Scanner = (s, p, out v) => Scan_Point2D(s, p, out v);
+    ScannerRegistry<Entity>.Scanner = (s, p, out v) => Scan_Entity(s, p, out v);
+}
+```
+
+`FluxLexer<TData>` constructor selects scanners in priority order:
+
+1. `LiteralScanners.TryGetScanner<TData>()` — hits when `[LiteralTemplate]` is present
+2. `config.LiteralScanner` — manual delegate fallback
+3. Throws `ArgumentException` if neither is available
+
+### Generated Code Pattern
+
+Each generated `Scan_Xxx` method structure:
+
+- Span bounds check → field-by-field scan
+- Built-in type fields call `LiteralTemplateRegistry.Scan_Float` etc. (12 built-in scanners)
+- Custom struct fields recursively call previously generated `Scan_OtherStruct`
+- Optional blocks: save position → attempt match → continue on success, restore on failure
+- Character-by-character exact matching for literal text
+- All methods annotated with `[MethodImpl(AggressiveInlining)]`
+
+See [Literal Scanner](../../guide/literal-scanner.md) for built-in scanner recognition formats and further details.

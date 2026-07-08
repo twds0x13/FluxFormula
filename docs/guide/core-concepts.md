@@ -22,7 +22,7 @@ graph LR
 - **Brackets**：括号对映射（`"(" ")" → LParen, RParen`）
 - **VariablePatterns**：变量前缀/后缀（`"[" "]"` 识别 `[atk]`）
 - **ImplicitOperators**：缺省运算符（`2[atk]` → `2*[atk]`）
-- **LiteralOper / LiteralScanner**：数字字面量的操作码和扫描器
+- **LiteralOper / LiteralScanner**：数字字面量的操作码和扫描器。v5.1 起可在 TData struct 上加 `[LiteralTemplate]` 自动生成扫描器，委托变为可选
 
 产出 `LexResult<TData>`，内含 Token 数组和变量名数组。
 

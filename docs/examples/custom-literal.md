@@ -8,6 +8,10 @@
 
 这需要两个自定义能力：词法层的 `:tag` 立即数语法，以及运算符层的元素感知求值逻辑。
 
+::: tip 模板优先
+对于格式固定的字面量（如 `<float X> <float Y>`），优先使用 `[LiteralTemplate]` 替代手写委托（参见[字面量扫描器](../guide/literal-scanner.md)）。本示例使用委托是因为 `:element` tag 语法无法用模板表达。
+:::
+
 ## TData 结构体
 
 ```csharp
@@ -233,7 +237,7 @@ var config = new LexerConfig<ElemValue>
 };
 ```
 
-`LiteralScanner` 是唯一的字面量扫描入口，必须设置。
+`LiteralScanner` 是字面量扫描入口。有 `[LiteralTemplate]` 时无需设置此字段，委托方式为手动回退路径。
 
 ## 使用
 
@@ -265,6 +269,7 @@ ElemValue result = runner.Instantiate(formula)
 - 返回 `pos`（未匹配）让词法器继续尝试其他匹配规则；返回 `> pos` 表示消费了 `pos` 到返回值之间的字符
 - 编译期的 `ToString()` / `float.Parse` 分配在热路径之外，是可接受的
 - TData 的 `unmanaged` 约束排除了字符串等引用类型。元素标签必须编码为枚举或 `byte`
+- 格式固定的字面量优先用 `[LiteralTemplate]`；手动委托适用于不规则语法（如本示例的 `:tag` 后缀）
 
 ## 扩展：元素关系查找表
 
