@@ -36,6 +36,59 @@
 
 ---
 
+## 从 3.x 迁移到 4.0
+
+### 概述
+
+4.0 将 `IFluxDefinition<TData>.Compute()` 签名从 `ReadOnlySpan<TData>` 改为 `Span<TData>`，允许在 Compute 实现中原地修改寄存器值。同时 `FluxExprCompiler` 和 `IFluxExprDefinition` 从旧名 `FluxJITCompiler`/`IFluxJITDefinition` 重命名而来。
+
+### Breaking Changes
+
+| 变更 | 说明 | 迁移 |
+|------|------|------|
+| `Compute(byte, Instruction, ReadOnlySpan<TData>)` → `Span<TData>` | 寄存器 span 变为可写 | 多数实现无需修改: `Span<TData>` 与基于 index 的读取完全兼容 |
+| `FluxJITCompiler` → `FluxExprCompiler` | 类重命名 | 替换所有类型引用 |
+| `IFluxJITDefinition` → `IFluxExprDefinition` | 接口重命名 | 替换所有接口实现 |
+
+### 新增
+
+- `Span<TData>` 寄存器参数支持原地修改，适用于需要在 Compute 中累积状态的场景
+
+---
+
+## 从 4.x 迁移到 5.1
+
+### 概述
+
+5.0 移除 `LiteralParser` 和 `LiteralPattern`，引入 source generator 驱动的字面量模板系统。`[LiteralTemplate]` attribute 使编译器自动生成零分配 span 扫描器，`LexerConfig.LiteralScanner` 委托变为可选。
+
+### Breaking Changes
+
+| 变更 | 4.x 行为 | 5.1 行为 | 迁移 |
+|------|----------|----------|------|
+| `LexerConfig.LiteralParser` | 存在 | 移除 | 使用 `LexerConfig.LiteralScanner` 委托，或为 TData struct 添加 `[LiteralTemplate]` |
+| `LexerConfig.LiteralPattern` | 存在 | 移除 | 由 `[LiteralTemplate]` 的模板字符串替代 |
+| `LexerConfig.LiteralScanner` | 必设字段 | 可选（有 `[LiteralTemplate]` 时自动生成） | 现有手写委托继续有效，无需修改 |
+
+### 新增
+
+- `[LiteralTemplate("<float X> <float Y>")]` — 在 struct 上标记模板，source generator 编译期生成扫描代码
+- `[ExternalLiteralTemplate(typeof(T), "...")]` — 为第三方无法修改源码的类型注册模板
+- `[LiteralTypeAlias("Alias", "float")]` — 自定义类型别名，纯语法糖
+- `LiteralTemplateRegistry` — 12 种内置类型的 `Scan_Xxx` 零分配解析方法 (float, double, int, uint, long, ulong, short, ushort, byte, sbyte, bool, char)
+- 编译器诊断: FLX001 (模板语法错误), FLX002 (循环依赖), FLX003 (readonly struct 不可用), FLX004 (引用未注册类型)
+- `CompactToXml` / `XmlTemplateParser` — 内部模板解析管线
+- `CodeEmitter` — AST → C# 源码发射器
+
+### 运行时优先级
+
+`FluxLexer<TData>` 构造时按以下顺序选择扫描器:
+1. 生成的 `LiteralScanners.TryGetScanner<TData>()` (有 `[LiteralTemplate]` 时命中)
+2. `config.LiteralScanner` 手动委托 (回退)
+3. 两者都无则抛出 `ArgumentException`
+
+---
+
 ## 从 1.5 迁移到 1.7
 
 无 breaking changes。

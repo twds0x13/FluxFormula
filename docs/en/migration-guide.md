@@ -36,6 +36,59 @@ The current latest version is 5.1.x.
 
 ---
 
+## Migrating from 3.x to 4.0
+
+### Overview
+
+4.0 changes the `IFluxDefinition<TData>.Compute()` signature from `ReadOnlySpan<TData>` to `Span<TData>`, enabling in-place register modification within Compute implementations. `FluxExprCompiler` and `IFluxExprDefinition` are renamed from their previous names `FluxJITCompiler`/`IFluxJITDefinition`.
+
+### Breaking Changes
+
+| Change | Description | Migration |
+|--------|-------------|-----------|
+| `Compute(byte, Instruction, ReadOnlySpan<TData>)` → `Span<TData>` | Register span is now writable | Most implementations require no changes: `Span<TData>` is fully compatible with index-based reads |
+| `FluxJITCompiler` → `FluxExprCompiler` | Class renamed | Replace all type references |
+| `IFluxJITDefinition` → `IFluxExprDefinition` | Interface renamed | Replace all interface implementations |
+
+### Additions
+
+- `Span<TData>` register parameter supports in-place modification for scenarios requiring state accumulation within Compute
+
+---
+
+## Migrating from 4.x to 5.1
+
+### Overview
+
+5.0 removes `LiteralParser` and `LiteralPattern`, introducing a source-generator-driven literal template system. The `[LiteralTemplate]` attribute enables the compiler to auto-generate zero-allocation span scanners, making the `LexerConfig.LiteralScanner` delegate optional.
+
+### Breaking Changes
+
+| Change | 4.x Behavior | 5.1 Behavior | Migration |
+|--------|-------------|-------------|-----------|
+| `LexerConfig.LiteralParser` | Present | Removed | Use `LexerConfig.LiteralScanner` delegate, or add `[LiteralTemplate]` to the TData struct |
+| `LexerConfig.LiteralPattern` | Present | Removed | Replaced by `[LiteralTemplate]` template strings |
+| `LexerConfig.LiteralScanner` | Required | Optional (auto-generated when `[LiteralTemplate]` is present) | Existing manual delegates continue to work unchanged |
+
+### Additions
+
+- `[LiteralTemplate("<float X> <float Y>")]` — marks a struct with a template; source generator produces scan code at compile time
+- `[ExternalLiteralTemplate(typeof(T), "...")]` — registers templates for third-party types you cannot modify
+- `[LiteralTypeAlias("Alias", "float")]` — custom type alias, purely cosmetic
+- `LiteralTemplateRegistry` — zero-allocation `Scan_Xxx` methods for 12 built-in types (float, double, int, uint, long, ulong, short, ushort, byte, sbyte, bool, char)
+- Compiler diagnostics: FLX001 (template syntax error), FLX002 (circular dependency), FLX003 (readonly struct not allowed), FLX004 (reference to unregistered type)
+- `CompactToXml` / `XmlTemplateParser` — internal template parsing pipeline
+- `CodeEmitter` — AST to C# source emitter
+
+### Runtime Priority
+
+`FluxLexer<TData>` constructor selects scanners in the following order:
+1. Generated `LiteralScanners.TryGetScanner<TData>()` (hits when `[LiteralTemplate]` is present)
+2. `config.LiteralScanner` manual delegate (fallback)
+3. Throws `ArgumentException` if neither is available
+
+---
+
 ## Migrating from 2.x to 3.0
 
 ### Overview
