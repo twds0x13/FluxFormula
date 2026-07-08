@@ -43,7 +43,7 @@ namespace FluxFormula.LiteralScanner.Generator
                     predicate: (node, _) => node is StructDeclarationSyntax,
                     transform: (ctx, _) => GetStructInfo(ctx, fromExternal: false))
                 .Where(info => info.HasValue)
-                .Select((info, _) => info.Value);
+                .Select((info, _) => info!.Value);
 
             // Pipeline B: [ExternalLiteralTemplate(typeof(X), "...")]
             var externalDeclarations = context.SyntaxProvider
@@ -52,7 +52,7 @@ namespace FluxFormula.LiteralScanner.Generator
                     predicate: (node, _) => true,
                     transform: (ctx, _) => GetExternalInfo(ctx))
                 .Where(info => info.HasValue)
-                .Select((info, _) => info.Value);
+                .Select((info, _) => info!.Value);
 
             // Pipeline C: [LiteralTypeAlias("Alias", "float")] — custom aliases
             var typeAliases = context.SyntaxProvider
@@ -102,7 +102,7 @@ namespace FluxFormula.LiteralScanner.Generator
             var structName = structSymbol.Name;
             bool isReadonly = structSymbol.IsReadOnly;
 
-            string template = ExtractTemplateArg(structSymbol, "LiteralTemplateAttribute");
+            string? template = ExtractTemplateArg(structSymbol, "LiteralTemplateAttribute");
             if (string.IsNullOrEmpty(template))
                 return null;
 
@@ -118,7 +118,7 @@ namespace FluxFormula.LiteralScanner.Generator
             return new StructTemplateInfo
             {
                 StructName = structName,
-                Template = template,
+                Template = template!,
                 IsReadonly = isReadonly,
                 Fields = fields,
             };
@@ -147,7 +147,7 @@ namespace FluxFormula.LiteralScanner.Generator
                 if (targetType.TypeKind != TypeKind.Struct)
                     continue;
 
-                string template = attr.ConstructorArguments[1].Value as string;
+                string? template = attr.ConstructorArguments[1].Value as string;
                 if (string.IsNullOrEmpty(template))
                     continue;
 
@@ -161,7 +161,7 @@ namespace FluxFormula.LiteralScanner.Generator
                 return new StructTemplateInfo
                 {
                     StructName = targetType.Name,
-                    Template = template,
+                    Template = template!,
                     IsReadonly = targetType.IsReadOnly,
                     Fields = fields,
                 };
@@ -180,16 +180,16 @@ namespace FluxFormula.LiteralScanner.Generator
                     || attr.ConstructorArguments.Length < 2)
                     continue;
 
-                string alias = attr.ConstructorArguments[0].Value as string;
-                string csharpType = attr.ConstructorArguments[1].Value as string;
+                string? alias = attr.ConstructorArguments[0].Value as string;
+                string? csharpType = attr.ConstructorArguments[1].Value as string;
                 if (!string.IsNullOrEmpty(alias) && !string.IsNullOrEmpty(csharpType))
-                    return (alias, csharpType);
+                    return (alias!, csharpType!);
             }
             return null;
         }
 
         /// <summary>从 symbol 的指定 attribute 中提取第一个构造参数（模板字符串）</summary>
-        private static string ExtractTemplateArg(ISymbol symbol, string attrName)
+        private static string? ExtractTemplateArg(ISymbol symbol, string attrName)
         {
             foreach (var attr in symbol.GetAttributes())
             {
@@ -267,7 +267,7 @@ namespace FluxFormula.LiteralScanner.Generator
             }
         }
 
-        private static Dictionary<string, HashSet<string>> BuildDependencyGraph(
+        private static Dictionary<string, HashSet<string>>? BuildDependencyGraph(
             SourceProductionContext context,
             List<(StructTemplateInfo Info, List<TemplateNode> Ast)> parsed,
             System.Collections.Immutable.ImmutableArray<(string Alias, string CSharpType)> typeAliases)

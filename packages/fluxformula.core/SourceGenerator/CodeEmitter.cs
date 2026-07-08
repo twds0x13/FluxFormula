@@ -122,7 +122,7 @@ namespace FluxFormula.LiteralScanner.Generator
             }
         }
 
-        private static string MakeFailure(string failureLabel)
+        private static string MakeFailure(string? failureLabel)
         {
             return failureLabel != null
                 ? $"goto {failureLabel};"
@@ -155,7 +155,7 @@ namespace FluxFormula.LiteralScanner.Generator
 
         private static void EmitFieldDirective(
             StringBuilder sb, FieldDirectiveNode field, string indent,
-            Dictionary<string, string> dependencyGraph, string failureLabel)
+            Dictionary<string, string> dependencyGraph, string? failureLabel)
         {
             string typeAlias = field.TypeAlias;
             string fieldName = field.FieldName;
