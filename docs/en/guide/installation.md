@@ -1,6 +1,6 @@
 # Installation
 
-FluxFormula is a three-package monorepo. Install only what you need.
+FluxFormula is a five-package monorepo. Install only what you need.
 
 ## Package Structure
 
@@ -9,6 +9,8 @@ FluxFormula is a three-package monorepo. Install only what you need.
 | `com.twds0x13.fluxformula.core` | Pure C# pipeline engine (zero Unity dependency) | None |
 | `com.twds0x13.fluxformula` | Unity integration (ScriptableObject + Editor) | Core |
 | `com.twds0x13.fluxformula.addressables` | Addressables-based formula loading | Core + FluxFormula + Unity.Addressables |
+| `com.twds0x13.fluxformula.addressables.unitask` | UniTask-based async Addressables loading | Addressables + UniTask |
+| `com.twds0x13.fluxformula.burst` | Unity Jobs + Burst compiler acceleration | Core + Unity.Burst + Unity.Collections |
 
 ## Choose by Scenario
 
@@ -17,6 +19,8 @@ FluxFormula is a three-package monorepo. Install only what you need.
 | Standalone .NET / Godot / server | Core only |
 | Unity basic usage | Core + FluxFormula |
 | Unity + Addressables loading | Core + FluxFormula + Addressables |
+| Unity + UniTask async loading | Core + FluxFormula + Addressables + Addressables.UniTask |
+| Unity + Burst high-perf evaluation | Core + Burst |
 
 ## Unity Package Manager
 
@@ -26,6 +30,8 @@ Open **Window → Package Manager**, click **+ → Add package from git URL**, a
 https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.core
 https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula
 https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.addressables
+https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.addressables.unitask
+https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.burst
 ```
 
 Installation order does not matter. UPM resolves dependencies automatically — adding `fluxformula` without `core` will produce a dependency error; install `core` first.
@@ -41,7 +47,9 @@ Add to `Packages/manifest.json`:
   "dependencies": {
     "com.twds0x13.fluxformula.core": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.core",
     "com.twds0x13.fluxformula": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula",
-    "com.twds0x13.fluxformula.addressables": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.addressables"
+    "com.twds0x13.fluxformula.addressables": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.addressables",
+    "com.twds0x13.fluxformula.addressables.unitask": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.addressables.unitask",
+    "com.twds0x13.fluxformula.burst": "https://github.com/twds0x13/FluxFormula.git?path=packages/fluxformula.burst"
   }
 }
 ```
