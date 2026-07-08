@@ -7,6 +7,13 @@ export default withMermaid(
     description: "High-performance, Zero-GC linear formula pipeline for Unity.",
     base: "/FluxFormula/",
 
+    mermaid: {
+      htmlLabels: true,
+      themeVariables: {
+        fontFamily: '"Microsoft YaHei", "Noto Sans SC", "PingFang SC", sans-serif',
+      },
+    },
+
     locales: {
       root: {
         label: "简体中文",

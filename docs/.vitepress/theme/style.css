@@ -6,10 +6,23 @@
     overflow-x: auto;
 }
 
-/* SVG 不超出容器宽度 */
+/* SVG 不超出容器宽度；overflow:visible 防止 CJK 字符底部被 viewBox 裁切 */
 .vp-doc .mermaid svg {
     max-width: 100%;
     height: auto;
+    overflow: visible;
+}
+
+/* foreignObject 内文本标签底部留呼吸空间，防止 CJK descent 被截断 */
+.vp-doc .mermaid svg .label foreignObject,
+.vp-doc .mermaid svg .nodeLabel foreignObject,
+.vp-doc .mermaid svg .edgeLabel foreignObject {
+    overflow: visible;
+}
+
+.vp-doc .mermaid svg .label div,
+.vp-doc .mermaid svg .nodeLabel div {
+    padding-bottom: 2px;
 }
 
 /* 暗色模式下 Mermaid 使用内置 theme 变量即可，
