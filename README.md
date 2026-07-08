@@ -143,7 +143,7 @@ public readonly struct FloatMathDef : IFluxExprDefinition<float>
         => oper == (byte)FloatOp.Sub && ctx == TokenContext.OperandExpected
             ? (byte)FloatOp.Neg : oper;
 
-    public float Compute(byte op, Instruction inst, ReadOnlySpan<float> regs)
+    public float Compute(byte op, Instruction inst, Span<float> regs)
         => ((FloatOp)op) switch
         {
             FloatOp.Add => regs[inst.Arg0] + regs[inst.Arg1],

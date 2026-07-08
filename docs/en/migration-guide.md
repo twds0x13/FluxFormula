@@ -2,7 +2,7 @@
 
 This document tracks breaking changes between major FluxFormula versions and the steps required to migrate.
 
-The current latest version is 3.6.x.
+The current latest version is 5.1.x.
 
 ---
 
