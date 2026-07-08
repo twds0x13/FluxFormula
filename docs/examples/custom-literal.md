@@ -87,7 +87,7 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out ElemValue value) =
 };
 ```
 
-`LiteralScanner` 的签名、返回值约定和更多简单示例见 [自定义字面量扫描器](../guide/literal-scanner.md)。
+`LiteralScanner` 的签名、返回值约定和更多简单示例见 [字面量扫描器](../guide/literal-scanner.md)。
 
 ## 定义体
 

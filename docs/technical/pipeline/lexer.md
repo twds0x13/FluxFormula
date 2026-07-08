@@ -95,7 +95,7 @@ public readonly struct VariablePatternRule
 public LiteralScanner<TData> LiteralScanner;
 ```
 
-`LiteralScanner` 接收 `ReadOnlySpan<char>` 和当前位置，返回消费后的位置和解析值。简单数字格式使用 `CreateDefaultNumberScanner`。`ToString()` 分配是编译期唯一与字面量相关的堆分配（~392B for simple, ~1080B for complex）。详见 [自定义字面量扫描器](../../guide/literal-scanner.md)。
+`LiteralScanner` 接收 `ReadOnlySpan<char>` 和当前位置，返回消费后的位置和解析值。简单数字格式使用 `CreateDefaultNumberScanner`。`ToString()` 分配是编译期唯一与字面量相关的堆分配（~392B for simple, ~1080B for complex）。详见 [字面量扫描器](../../guide/literal-scanner.md)。
 
 ## 隐式乘法
 

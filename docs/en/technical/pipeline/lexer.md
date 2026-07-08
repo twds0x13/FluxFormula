@@ -95,7 +95,7 @@ Literals are scanned via the `LiteralScanner` delegate:
 public LiteralScanner<TData> LiteralScanner;
 ```
 
-`LiteralScanner` receives a `ReadOnlySpan<char>` and the current position, returning the consumed position and the parsed value. Use `CreateDefaultNumberScanner` for standard number formats. The `ToString()` allocation is the only literal-related heap allocation during compilation (~392B for simple, ~1080B for complex). See [Custom Literal Scanner](../../guide/literal-scanner.md).
+`LiteralScanner` receives a `ReadOnlySpan<char>` and the current position, returning the consumed position and the parsed value. Use `CreateDefaultNumberScanner` for standard number formats. The `ToString()` allocation is the only literal-related heap allocation during compilation (~392B for simple, ~1080B for complex). See [Literal Scanner](../../guide/literal-scanner.md).
 
 ## Implicit Multiplication
 

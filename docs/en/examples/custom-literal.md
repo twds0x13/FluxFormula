@@ -87,7 +87,7 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out ElemValue value) =
 };
 ```
 
-See [Custom Literal Scanner](../guide/literal-scanner.md) for the delegate signature, return value conventions, and additional simple examples.
+See [Literal Scanner](../guide/literal-scanner.md) for the delegate signature, return value conventions, and additional simple examples.
 
 ## Definition
 
