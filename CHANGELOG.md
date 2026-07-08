@@ -1,3 +1,9 @@
+## [5.1.1](https://github.com/twds0x13/FluxFormula/compare/v5.1.0...v5.1.1) (2026-07-08)
+
+### Bug Fixes
+
+* resolve LiteralScanner build errors and source generator warnings ([fe9d1da](https://github.com/twds0x13/FluxFormula/commit/fe9d1da4d0b9489b2346002edc444c2b2bb15a9c))
+
 ## [5.1.0](https://github.com/twds0x13/FluxFormula/compare/v5.0.0...v5.1.0) (2026-07-08)
 
 ### Features
