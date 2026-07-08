@@ -98,4 +98,4 @@ FluxAssembler.Instantiate(jit: true)
 - IL2CPP/WebGL 平台的集成测试（不在 CI 中运行）
 - `JitConsistencyTests` 验证 JIT 与解释器的语义等价性（同进程两路径结果一致）
 
-详见 [[test-coverage-boundary]]。
+详见 [测试覆盖边界](../test-coverage-boundary.md)。

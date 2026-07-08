@@ -98,4 +98,4 @@ On the Unity side, `FluxAsset` provides a `UseJit` property, toggleable in the I
 - IL2CPP/WebGL platform integration tests (not run in CI)
 - `JitConsistencyTests` verifying JIT-to-interpreter semantic equivalence (both paths produce the same result in the same process)
 
-See [[test-coverage-boundary]].
+See [Test Coverage Boundary](../test-coverage-boundary.md).
