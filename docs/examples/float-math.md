@@ -121,7 +121,7 @@ Assert.That(runner.Instantiate(formula).Run(), Is.EqualTo(7f).Within(1e-6f));
 // 1 / 0 → NaN
 ```
 
-### v3.0.0 关键变更
+### 关键变更
 
 - `IFluxExprDefinition<float, FloatOp>` → `IFluxExprDefinition<float>`：单泛型参数
 - 操作符枚举（`MathOp`）是 `private`，不再需要 `public`
@@ -129,6 +129,6 @@ Assert.That(runner.Instantiate(formula).Run(), Is.EqualTo(7f).Within(1e-6f));
 - `OpPair<FloatOp>` → `OpPair`（非泛型）
 - `FluxToken<float, FloatOp>` → `FluxToken<float>`；`Oper` 为 `byte`
 - `FluxAssembler<float, FloatOp, FloatMathDef>` → `FluxAssembler<float, MathDef>`
-- 不再需要 `sizeof(TOper) != 1` 运行时检查：`byte` 永远是 1 字节
+- `LexerConfig.LiteralScanner` 委托变为可选：`float` 等内置类型可用 `CreateDefaultNumberScanner`；自定义 struct 推荐 `[LiteralTemplate]`
 
 完整源码见 `tests/FluxFormula.Core.Tests/TestDefinition.cs`。

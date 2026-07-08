@@ -121,7 +121,7 @@ Assert.That(runner.Instantiate(formula).Run(), Is.EqualTo(7f).Within(1e-6f));
 // 1 / 0 → NaN
 ```
 
-### Key v3.0.0 Changes
+### Key Changes
 
 - `IFluxExprDefinition<float, FloatOp>` → `IFluxExprDefinition<float>` — single generic param
 - Operator enum (`MathOp`) is `private` — no longer needs to be `public`
@@ -129,6 +129,6 @@ Assert.That(runner.Instantiate(formula).Run(), Is.EqualTo(7f).Within(1e-6f));
 - `OpPair<FloatOp>` → `OpPair` (non-generic)
 - `FluxToken<float, FloatOp>` → `FluxToken<float>`; `Oper` is `byte`
 - `FluxAssembler<float, FloatOp, FloatMathDef>` → `FluxAssembler<float, MathDef>`
-- No more `sizeof(TOper) != 1` runtime check — `byte` is always 1 byte
+- `LexerConfig.LiteralScanner` delegate is now optional — built-in types like `float` can use `CreateDefaultNumberScanner`; custom structs should prefer `[LiteralTemplate]`
 
 Full source at `tests/FluxFormula.Core.Tests/TestDefinition.cs`.
