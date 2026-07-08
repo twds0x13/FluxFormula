@@ -1,59 +1,91 @@
 # API 总览
 
-## 编译与执行管线
+## 词法分析
 
 ```mermaid
 graph LR
-    Source["string 表达式"] --> Lexer["FluxLexer<br/>词法分析"]
-    Token["FluxToken"] -.-> Lexer
-    Lexer --> LR["LexResult"]
-    LR --> Assembler["FluxAssembler<br/>编译入口"]
-    Token -.-> Assembler
-    Assembler --> Formula["FluxFormula<br/>不可变字节码"]
-    Assembler --> Instance["FluxInstance<br/>ref struct 执行器"]
-    Formula --> Instance
-    Instance --> Result["TData"]
-
-    Assembler --> Compiler["FluxCompiler<br/>调车场算法"]
-    Compiler --> Instr["Instruction[]<br/>8字节字节码"]
-    Instr -.-> Formula
-
-    Instance --> JIT["JIT 委托"]
-    Instance --> Interp["FluxEvaluator<br/>解释器"]
-    JIT --> Result
-    Interp --> Result
-
-    Def["IFluxExprDefinition<br/>运算符语义"] -.-> Assembler
-    Def -.-> Interp
-    Def -.-> JIT
-
-    Formula -->|"Connect()"| ChainNode["FluxChain"]
-    ChainNode --> Chain["ChainLink[]"]
+    Source["string 表达式"] --> Lexer["FluxLexer<br/>手写 Span 词法器"]
+    Lexer --> Token["FluxToken<br/>词法 Token"]
+    Lexer --> Result["LexResult<br/>Token[] + 变量名"]
 ```
 
-## 持久化与缓存
+## 编译
+
+```mermaid
+graph LR
+    LexResult["LexResult"] --> Assembler["FluxAssembler<br/>编译入口"]
+    Assembler --> Compiler["FluxCompiler<br/>调车场算法"]
+    Compiler --> Instr["Instruction[]<br/>8 字节字节码"]
+    Instr --> Formula["FluxFormula<br/>不可变字节码"]
+    Def["IFluxExprDefinition<br/>运算符语义"] -.-> Assembler
+    Def -.-> Compiler
+```
+
+## 执行
+
+```mermaid
+graph LR
+    Formula["FluxFormula"] --> Instance["FluxInstance<br/>ref struct 执行器"]
+    Instance --> JIT["FluxExprCompiler<br/>JIT 委托"]
+    Instance --> Interp["FluxEvaluator<br/>解释器"]
+    JIT --> Result["TData"]
+    Interp --> Result
+    Def["IFluxExprDefinition"] -.-> JIT
+    Def -.-> Interp
+    Formula -->|"Connect()"| Chain["FluxChain"]
+    Chain --> ChainLink["ChainLink[]"]
+```
+
+## 文件持久化
 
 ```mermaid
 graph LR
     F["FluxFormula"] -->|"ToBytes()"| FF[".ff 字节码"]
-    F -->|"Connect()"| FC["FluxChain"]
-    FC -->|"GetLinks()"| Chain["ChainLink[]"]
-    Chain -->|"VffFormat.ToBytes()"| VFF[".vff 引用"]
-
+    Chain["FluxChain"] -->|"VffFormat.ToBytes()"| VFF[".vff 引用"]
     FF --> Fmt["IFluxFileFormatter<br/>Save / Load"]
     VFF --> Fmt
-    Fmt --> FileFmt["FileFluxFileFormatter<br/>System.IO 默认实现"]
+```
 
-    F --> Hash["DualHash64"]
-    Hash --> Cache[("FormulaCache<br/>2048 槽")]
+## Blob 管线
 
-    FF --> BB["FluxBlobBuilder<br/>批量构建"]
-    VFF --> BB
-    BB --> Blob[("FluxBlob<br/>pinned 内存")]
-    Blob --> Cache
+```mermaid
+graph LR
+    Asset["FluxAsset ×N"] --> Builder["FluxBlobBuilder<br/>批量构建"]
+    Builder --> BlobFile[".blob 二进制"]
+    BlobFile --> Load["FluxBlob.Load()"]
+    Load --> Pin["GCHandle.Pin"]
+    Pin --> Cache["FormulaCache.Put()"]
+    BlobFile --> SG["BlobRegistryGenerator<br/>SG 编译期解析"]
+    SG --> Reg["BlobRegistry.g.cs"]
+    Reg --> Load
+```
 
-    F --> Asset["FluxAsset<br/>ScriptableObject"]
-    Asset --> Lib["FormulaLibrary<br/>资产加载"]
+## 缓存查找
+
+```mermaid
+graph LR
+    Bytes["字节码"] --> Hash["DualHash64.Compute()"]
+    Hash --> TryGet["FormulaCache.TryGet"]
+    Hash --> TryGetDel["FormulaCache.TryGetDelegate"]
+    TryGet --> Ptr["pinned 指针"]
+    TryGetDel --> Del["JIT delegate"]
+```
+
+## Blob Mod 架构
+
+```mermaid
+graph LR
+    subgraph Base["游戏本体"]
+        SG1["BlobRegistry.g.cs"] --> Boot["BlobBootstrapper"]
+        Boot --> Load1["FluxBlob.Load()"]
+    end
+    subgraph Mod["Mod 程序集"]
+        SG2["BlobRegistry.g.cs"] -->|"[FluxBlobRegistryAssembly]"| Scan["FluxBlobScanner.DiscoverAll()"]
+        Scan --> Load2["FluxBlob.Load()"]
+    end
+    Load1 --> Shared[("FormulaCache.Instance<br/>共享缓存")]
+    Load2 --> Shared
+    Unload["FluxBlob.Unload()"] -->|"Remove() ×N"| Shared
 ```
 
 ## Public 类型
@@ -80,8 +112,11 @@ graph LR
 | [VffFormat](./vff-format) | — | `.vff` 虚拟公式格式定义、编码与解析 |
 | [FluxArtifactKind](./flux-artifact-kind) | — | 二进制产物类型枚举（`.ff` / `.vff`） |
 | [IFluxFileFormatter](./iflux-file-formatter) | — | 最小持久化契约接口（含 `FileFluxFileFormatter` 内置实现） |
+| [BlobFormat](./blob-format) | — | `.blob` 二进制格式定义与解析 |
+| [BlobEntry](./blob-entry) | — | 偏移表条目：DualHash64 → offset + length |
+| [FluxBlob](./flux-blob) | — | Blob 加载/卸载门面（含 `FluxBlobHandle`） |
+| [IFluxBlobRegistry](./iflux-blob-registry) | — | Mod 公式注册表接口（含 `FluxBlobScanner` 扫描器） |
 | `FluxAsset` | — | ScriptableObject 资产容器 |
-| `FluxBlob` | — | Blob pinned 内存管理器 |
 | `FluxBlobBuilder` | — | 离线构建管线 |
 
 ### 内部类型
@@ -103,6 +138,7 @@ graph LR
 - `FormulaHeader` — 公式字节码头结构体（v3.7 改为 `internal`）
 - `FluxCompression` — Brotli 压缩原语（v3.7 改为 `internal`）
 - `OpPair` — 括号配对描述（非泛型）
+- `FluxBlobRegistryAssemblyAttribute` — 程序集级 SG 标记（通过 `IFluxBlobRegistry` 文档说明）
 
 ## 命名空间
 

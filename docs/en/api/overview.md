@@ -1,69 +1,101 @@
 # API Overview
 
-## Compilation & Execution Pipeline
+## Lexical Analysis
 
 ```mermaid
 graph LR
-    Source["string expression"] --> Lexer["FluxLexer<br/>lexical analysis"]
-    Token["FluxToken"] -.-> Lexer
-    Lexer --> LR["LexResult"]
-    LR --> Assembler["FluxAssembler<br/>compilation entry"]
-    Token -.-> Assembler
-    Assembler --> Formula["FluxFormula<br/>immutable bytecode"]
-    Assembler --> Instance["FluxInstance<br/>ref struct executor"]
-    Formula --> Instance
-    Instance --> Result["TData"]
-
-    Assembler --> Compiler["FluxCompiler<br/>shunting-yard"]
-    Compiler --> Instr["Instruction[]<br/>8-byte bytecode"]
-    Instr -.-> Formula
-
-    Instance --> JIT["JIT delegate"]
-    Instance --> Interp["FluxEvaluator<br/>interpreter"]
-    JIT --> Result
-    Interp --> Result
-
-    Def["IFluxExprDefinition<br/>operator semantics"] -.-> Assembler
-    Def -.-> Interp
-    Def -.-> JIT
-
-    Formula -->|"Connect()"| ChainNode["FluxChain"]
-    ChainNode --> Chain["ChainLink[]"]
+    Source["string expression"] --> Lexer["FluxLexer<br/>Handwritten Span Lexer"]
+    Lexer --> Token["FluxToken<br/>Lexical Token"]
+    Lexer --> Result["LexResult<br/>Token[] + Variable Names"]
 ```
 
-## Persistence & Caching
+## Compilation
 
 ```mermaid
 graph LR
-    F["FluxFormula"] -->|"ToBytes()"| FF[".ff bytecode"]
-    F -->|"Connect()"| FC["FluxChain"]
-    FC -->|"GetLinks()"| Chain["ChainLink[]"]
-    Chain -->|"VffFormat.ToBytes()"| VFF[".vff reference"]
+    LexResult["LexResult"] --> Assembler["FluxAssembler<br/>Compilation Entry"]
+    Assembler --> Compiler["FluxCompiler<br/>Shunting-Yard Algorithm"]
+    Compiler --> Instr["Instruction[]<br/>8-Byte Bytecode"]
+    Instr --> Formula["FluxFormula<br/>Immutable Bytecode"]
+    Def["IFluxExprDefinition<br/>Operator Semantics"] -.-> Assembler
+    Def -.-> Compiler
+```
 
+## Execution
+
+```mermaid
+graph LR
+    Formula["FluxFormula"] --> Instance["FluxInstance<br/>ref struct Executor"]
+    Instance --> JIT["FluxExprCompiler<br/>JIT Delegate"]
+    Instance --> Interp["FluxEvaluator<br/>Interpreter"]
+    JIT --> Result["TData"]
+    Interp --> Result
+    Def["IFluxExprDefinition"] -.-> JIT
+    Def -.-> Interp
+    Formula -->|"Connect()"| Chain["FluxChain"]
+    Chain --> ChainLink["ChainLink[]"]
+```
+
+## File Persistence
+
+```mermaid
+graph LR
+    F["FluxFormula"] -->|"ToBytes()"| FF[".ff Bytecode"]
+    Chain["FluxChain"] -->|"VffFormat.ToBytes()"| VFF[".vff Reference"]
     FF --> Fmt["IFluxFileFormatter<br/>Save / Load"]
     VFF --> Fmt
-    Fmt --> FileFmt["FileFluxFileFormatter<br/>System.IO default impl"]
+```
 
-    F --> Hash["DualHash64"]
-    Hash --> Cache[("FormulaCache<br/>2048 slots")]
+## Blob Pipeline
 
-    FF --> BB["FluxBlobBuilder<br/>batch build"]
-    VFF --> BB
-    BB --> Blob[("FluxBlob<br/>pinned memory")]
-    Blob --> Cache
+```mermaid
+graph LR
+    Asset["FluxAsset ×N"] --> Builder["FluxBlobBuilder<br/>Batch Build"]
+    Builder --> BlobFile[".blob Binary"]
+    BlobFile --> Load["FluxBlob.Load()"]
+    Load --> Pin["GCHandle.Pin"]
+    Pin --> Cache["FormulaCache.Put()"]
+    BlobFile --> SG["BlobRegistryGenerator<br/>SG Compile-Time Parse"]
+    SG --> Reg["BlobRegistry.g.cs"]
+    Reg --> Load
+```
 
-    F --> Asset["FluxAsset<br/>ScriptableObject"]
-    Asset --> Lib["FormulaLibrary<br/>asset loading"]
+## Cache Lookup
+
+```mermaid
+graph LR
+    Bytes["Bytecode"] --> Hash["DualHash64.Compute()"]
+    Hash --> TryGet["FormulaCache.TryGet"]
+    Hash --> TryGetDel["FormulaCache.TryGetDelegate"]
+    TryGet --> Ptr["Pinned Pointer"]
+    TryGetDel --> Del["JIT Delegate"]
+```
+
+## Blob Mod Architecture
+
+```mermaid
+graph LR
+    subgraph Base["Base Game"]
+        SG1["BlobRegistry.g.cs"] --> Boot["BlobBootstrapper"]
+        Boot --> Load1["FluxBlob.Load()"]
+    end
+    subgraph Mod["Mod Assembly"]
+        SG2["BlobRegistry.g.cs"] -->|"[FluxBlobRegistryAssembly]"| Scan["FluxBlobScanner.DiscoverAll()"]
+        Scan --> Load2["FluxBlob.Load()"]
+    end
+    Load1 --> Shared[("FormulaCache.Instance<br/>Shared Cache")]
+    Load2 --> Shared
+    Unload["FluxBlob.Unload()"] -->|"Remove() ×N"| Shared
 ```
 
 ## Public Types
 
 | Type | Generics | Role |
-|------|:--:|------|
-| [FluxAssembler](./flux-assembler) | `<TData, TDef>` | Main entry: compile & instantiate |
+|------|:------:|------|
+| [FluxAssembler](./flux-assembler) | `<TData, TDef>` | Main entry: compilation and instantiation |
 | [FluxFormula](./flux-formula) | `<TData, TDef>` | Immutable bytecode container (complete formula, always atomic) |
 | [FluxChain](./flux-chain) | `<TData, TDef>` | Immutable chained bytecode container (Connect product) |
-| `FluxModifier` | `<TData, TDef>` | Immutable bytecode container (missing left operand, chain-only) |
+| `FluxModifier` | `<TData, TDef>` | Immutable bytecode container (no left operand; chain-only) |
 | [FluxInstance](./flux-instance) | `<TData, TDef>` | ref struct streaming executor |
 | [IFluxDefinition](./idefinition) | `<TData>` | Operator definition interface (interpreter path) |
 | [IFluxExprDefinition](./idefinition) | `<TData>` | Operator definition interface (with JIT path) |
@@ -71,42 +103,46 @@ graph LR
 | [FluxToken](./flux-token) | `<TData>` | Lexical token (`Oper` is `byte`) |
 | `FluxLexer<TData>` | `<TData>` | Handwritten span lexer |
 | `LexResult<TData>` | `<TData>` | Lexer output: token array + variable names |
-| `LexerConfig<TData>` | `<TData>` | Lexer config (operators/brackets/variable rules) |
-| `VariableSlot` | — | Variable name → slot index mapping |
+| `LexerConfig<TData>` | `<TData>` | Lexer configuration (operators/brackets/variable rules) |
+| `VariableSlot` | — | Variable name to slot index mapping |
 | [DualHash64](./dualhash64) | — | 128-bit dual hash (xxHash64 + FNV-1a 64), content-addressable cache key |
 | [FluxConfig](./flux-config) | — | Project-level global configuration |
-| [FormulaCache](./formula-cache) | — | 2048-slot open-addressing hashmap cache |
+| [FormulaCache](./formula-cache) | — | 2048-slot open-addressing hash table cache |
 | [IFluxCacheProvider](./iflux-cache-provider) | — | Replaceable cache backend interface |
-| [VffFormat](./vff-format) | — | `.vff` virtual formula format definition, encoding & parsing |
-| [FluxArtifactKind](./flux-artifact-kind) | — | Binary artifact type enum (`.ff` / `.vff`) |
-| [IFluxFileFormatter](./iflux-file-formatter) | — | Minimal persistence contract interface (with `FileFluxFileFormatter` built-in impl) |
+| [VffFormat](./vff-format) | — | `.vff` virtual formula format: encode, decode, and resolve |
+| [FluxArtifactKind](./flux-artifact-kind) | — | Binary artifact kind enum (`.ff` / `.vff`) |
+| [IFluxFileFormatter](./iflux-file-formatter) | — | Minimal persistence contract (includes built-in `FileFluxFileFormatter`) |
+| [BlobFormat](./blob-format) | — | `.blob` binary format definition and parsing |
+| [BlobEntry](./blob-entry) | — | Offset table entry: DualHash64 → offset + length |
+| [FluxBlob](./flux-blob) | — | Blob load/unload facade (includes `FluxBlobHandle`) |
+| [IFluxBlobRegistry](./iflux-blob-registry) | — | Mod formula registry interface (includes `FluxBlobScanner`) |
 | `FluxAsset` | — | ScriptableObject asset container |
-| `FluxBlob` | — | Blob pinned memory manager |
 | `FluxBlobBuilder` | — | Offline build pipeline |
 
 ### Internal Types
 
-The following types are not Public API, listed for reference only:
+The following types are not Public API and are listed for reference only:
 
-- `FluxType` — internal enum (Formula / Modifier), made `internal` in v3.0.0
-- `FluxPlatform` — JIT degradation state control
-- `ChainReserved` — chain evaluation internal variable prefix (made `internal` in v3.7)
-- `ChainLink` — chain link struct (public struct, accessed via `FluxChain.GetLinks()`)
-- `FluxEvaluator<TData, TDef>` — interpreter execution engine
-- `FluxCompiler<TData, TDef>` — shunting-yard algorithm compiler
+- `FluxType` — Internal enum (Formula / Modifier), made `internal` in v3.0.0
+- `FluxPlatform` — JIT fallback state control
+- `ChainReserved` — Chain evaluation internal variable prefix (made `internal` in v3.7)
+- `ChainLink` — Chain link struct (public struct, accessed via `FluxChain.GetLinks()`)
+- `FluxEvaluator<TData, TDef>` — Interpreter execution engine
+- `FluxCompiler<TData, TDef>` — Shunting-yard algorithm compiler
 - `FluxExprCompiler<TData, TDef>` — LINQ Expression Tree JIT
-- `FluxILCompiler<TData, TDef>` — IL emission compiler (DynamicMethod path)
-- `FluxInjector<TData>` — data injector
-- `CompiledFunc<TData>` — JIT compilation delegate type (made `internal` in v3.7)
-- `BinaryFormat` — little-endian binary I/O primitives (made `internal` in v3.7)
+- `FluxILCompiler<TData, TDef>` — IL emit compiler (DynamicMethod path)
+- `FluxInjector<TData>` — Data injector
+- `CompiledFunc<TData>` — JIT compiled delegate type (made `internal` in v3.7)
+- `BinaryFormat` — Little-endian binary read/write primitives (made `internal` in v3.7)
 - `FormulaFormat` — `.ff` bytecode format definition (made `internal` in v3.7)
-- `FormulaHeader` — formula bytecode header struct (made `internal` in v3.7)
+- `FormulaHeader` — Formula bytecode header struct (made `internal` in v3.7)
 - `FluxCompression` — Brotli compression primitives (made `internal` in v3.7)
-- `OpPair` — bracket pairing descriptor (non-generic)
+- `OpPair` — Bracket pair descriptor (non-generic)
+- `FluxBlobRegistryAssemblyAttribute` — Assembly-level SG marker (documented in `IFluxBlobRegistry`)
 
 ## Namespaces
 
-- **`FluxFormula.Core`** — all public types and internal runtime types
+- **`FluxFormula.Core`** — All public types and internal runtime types
 - **`FluxFormula.Compiler`** — `FluxCompiler` and `FluxExprCompiler` (internal)
 - **`FluxFormula.Editor`** — `FluxAssetEditor`, `FluxAssetInspector`, Dump extensions (Editor-only)
 

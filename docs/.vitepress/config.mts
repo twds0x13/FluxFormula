@@ -75,6 +75,16 @@ export default withMermaid(
                     { text: "IFluxFileFormatter", link: "/api/iflux-file-formatter" },
                   ],
                 },
+                {
+                  text: "Blob 与 Mod",
+                  collapsed: false,
+                  items: [
+                    { text: "BlobFormat", link: "/api/blob-format" },
+                    { text: "BlobEntry", link: "/api/blob-entry" },
+                    { text: "IFluxBlobRegistry", link: "/api/iflux-blob-registry" },
+                    { text: "FluxBlob", link: "/api/flux-blob" },
+                  ],
+                },
               ],
             },
             {
@@ -220,6 +230,16 @@ export default withMermaid(
                     { text: "VffFormat", link: "/en/api/vff-format" },
                     { text: "FluxArtifactKind", link: "/en/api/flux-artifact-kind" },
                     { text: "IFluxFileFormatter", link: "/en/api/iflux-file-formatter" },
+                  ],
+                },
+                {
+                  text: "Blob & Mod",
+                  collapsed: false,
+                  items: [
+                    { text: "BlobFormat", link: "/en/api/blob-format" },
+                    { text: "BlobEntry", link: "/en/api/blob-entry" },
+                    { text: "IFluxBlobRegistry", link: "/en/api/iflux-blob-registry" },
+                    { text: "FluxBlob", link: "/en/api/flux-blob" },
                   ],
                 },
               ],
