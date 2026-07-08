@@ -1,4 +1,4 @@
-# 示例：ChainLink
+# 示例：链式 Connect
 
 以下示例演示 `Connect()` 的链式行为。ChainLink 为公开结构体：普通用户通过 `FluxFormula` / `FluxModifier` 的方法间接使用，高级用户可通过 `FluxChain.GetLinks()` 读取链结构并配合 `VffFormat.ToBytes()` 持久化。
 

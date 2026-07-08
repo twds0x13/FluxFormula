@@ -1,4 +1,4 @@
-# Example: UniTask Async Load
+# Example: UniTask Load
 
 > **Required package:** `com.twds0x13.fluxformula.addressables.unitask` (3.2+)
 > This package depends on `com.twds0x13.fluxformula.addressables` and `com.cysharp.unitask`, pulled automatically by UPM. Only active when the project already has UniTask installed (`autoReferenced: false`).

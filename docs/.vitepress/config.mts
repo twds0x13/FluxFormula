@@ -261,9 +261,9 @@ export default withMermaid(
                   items: [
                     { text: "Pipeline Overview", link: "/en/technical/pipeline/overview" },
                     { text: "Lexer", link: "/en/technical/pipeline/lexer" },
-                    { text: "Compiler", link: "/en/technical/pipeline/compiler" },
+                    { text: "Shunting-Yard Compiler", link: "/en/technical/pipeline/compiler" },
                     { text: "Instruction Layout", link: "/en/technical/pipeline/instruction" },
-                    { text: "Evaluator", link: "/en/technical/pipeline/evaluator" },
+                    { text: "Interpreter Execution Loop", link: "/en/technical/pipeline/evaluator" },
                     { text: "IL Compiler", link: "/en/technical/pipeline/il-compiler" },
                     { text: "Expression Tree Compilation", link: "/en/technical/pipeline/jit" },
                     { text: "Platform", link: "/en/technical/pipeline/platform" },

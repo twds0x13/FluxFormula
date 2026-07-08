@@ -1,4 +1,4 @@
-# Example: ChainLink
+# Example: Chain Connect
 
 The following examples demonstrate the chaining behavior of `Connect()`. ChainLink is a public struct — regular users interact with it indirectly via `FluxFormula` / `FluxModifier` methods; advanced users can read the chain structure via `FluxChain.GetLinks()` and persist it using `VffFormat.ToBytes()`.
 

@@ -1,4 +1,4 @@
-# JIT 编译：从字节码到委托
+# Expression 树编译
 
 FluxFormula 提供两条 JIT 编译路径：**IL 发射**（`FluxILCompiler`，Mono/CoreCLR 优先）和 **Expression 树**（`FluxExprCompiler`，全平台回退）。本文档覆盖 Expression 树路径；IL 路径详见 [IL 发射编译器](./il-compiler.md)。两条路径共享同一委托类型 `CompiledFunc<TData>` 和同一缓存入口 `FormulaCache`，调用方不感知委托来源。
 

@@ -1,4 +1,4 @@
-# Example: Addressables Async Load
+# Example: Addressables Load
 
 > **Required package:** `com.twds0x13.fluxformula.addressables` (3.2+)
 > Also requires `com.unity.addressables`. Pulled automatically by UPM.

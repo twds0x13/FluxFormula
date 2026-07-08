@@ -1,4 +1,4 @@
-# JIT Compilation: From Bytecode to Delegate
+# Expression Tree Compilation
 
 FluxFormula provides two JIT compilation paths: **IL emission** (`FluxILCompiler`, preferred on Mono/CoreCLR) and **Expression Tree** (`FluxExprCompiler`, universal fallback). This document covers the Expression Tree path; the IL path is documented in [IL Compiler](./il-compiler.md). Both paths share the same delegate type `CompiledFunc<TData>` and the same cache entry `FormulaCache`; callers are unaware of which path produced the delegate.
 
