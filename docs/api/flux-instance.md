@@ -62,11 +62,6 @@ float r = runner.Instantiate(formula)
 
 ```
 
-## v3.0.0 变更
-
-- `FluxInstance<TData, TOper, TDef>` → `FluxInstance<TData, TDef>`（三参数→两参数）
-- 移除 `Type == Modifier` 运行时检查：`FluxModifier` 类型上不存在 `Instantiate()`，编译期保证安全
-
 ## 参见
 
 - [FluxAssembler](./flux-assembler) — 通过 Instantiate/Build 产出 FluxInstance

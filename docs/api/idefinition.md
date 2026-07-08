@@ -117,12 +117,3 @@ readonly struct MathDef : IFluxExprDefinition<float>
         };
 }
 ```
-
-## v3.0.0 变更
-
-- `IFluxDefinition<TData, TOper>` → `IFluxDefinition<TData>`（两参数→一参数）
-- `IFluxExprDefinition<TData, TOper>` → `IFluxExprDefinition<TData>`
-- 所有 `TOper` 参数和返回值 → `byte`
-- 操作符枚举现在是定义体的 `internal`/`private` 细节，不再需要 `public enum`
-- 新增 `GetOperatorName(byte op)` DIM，供编辑器/工具链查询操作码名称
-- `OpPair` 不再泛型化：`OpPair` 替代 `OpPair<TOper>`

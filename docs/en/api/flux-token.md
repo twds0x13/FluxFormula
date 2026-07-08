@@ -35,12 +35,6 @@ new FluxToken<float> { Oper = (byte)MathOp.Add };
 - **Operator Token**: `Oper`'s `GetKind()` returns `OpType.Instruction`; `Data` is ignored
 - **Bracket Token**: `Oper`'s `GetPair()` returns `PairRole = Left/Right`
 
-## v3.0.0 Changes
-
-- `FluxToken<TData, TOper>` → `FluxToken<TData>` (2 params → 1 param)
-- `Oper` field: `TOper` → `byte`
-- `where TOper : unmanaged, Enum` constraint removed
-
 ## See Also
 
 - [IDefinition](./idefinition) — Token.Oper bytecodes are produced by the definition

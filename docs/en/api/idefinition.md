@@ -118,11 +118,3 @@ readonly struct MathDef : IFluxExprDefinition<float>
 }
 ```
 
-## v3.0.0 Changes
-
-- `IFluxDefinition<TData, TOper>` → `IFluxDefinition<TData>` (2 params → 1 param)
-- `IFluxExprDefinition<TData, TOper>` → `IFluxExprDefinition<TData>`
-- All `TOper` parameters and return values → `byte`
-- Operator enum is now an `internal`/`private` detail of the definition — no `public enum` required
-- New `GetOperatorName(byte op)` DIM for editor/toolchain opcode name queries
-- `OpPair` is no longer generic (`OpPair` instead of `OpPair<TOper>`)

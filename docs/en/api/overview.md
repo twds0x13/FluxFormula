@@ -116,5 +116,3 @@ The following types are not Public API, listed for reference only:
 TData  : unmanaged               (float, int, custom blittable struct)
 TDef   : unmanaged, IFluxExprDefinition<TData>
 ```
-
-v3.0.0 removed the `TOper` generic parameter — the operator enum is now an internal implementation detail of the definition.

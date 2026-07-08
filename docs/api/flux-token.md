@@ -35,12 +35,6 @@ new FluxToken<float> { Oper = (byte)MathOp.Add };
 - **Operator Token**：`Oper` 对应的 `GetKind()` 返回 `OpType.Instruction`，`Data` 忽略
 - **括号 Token**：`Oper` 对应的 `GetPair()` 返回 `PairRole = Left/Right`
 
-## v3.0.0 变更
-
-- `FluxToken<TData, TOper>` → `FluxToken<TData>`（两参数→一参数）
-- `Oper` 字段：`TOper` → `byte`
-- 不再需要 `where TOper : unmanaged, Enum` 约束
-
 ## 参见
 
 - [IDefinition](./idefinition) — Token 的 Oper 字节码由定义体产出

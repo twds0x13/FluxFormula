@@ -54,13 +54,6 @@ public FluxInstance<TData, TDef> Instantiate(
 | 左括号（PairRole=Left） | `FluxFormula<TData, TDef>` |
 | 二元运算符（arity≥2 且非括号） | `FluxModifier<TData, TDef>` |
 
-## v3.0.0 变更
-
-- `FluxAssembler<TData, TOper, TDef>` → `FluxAssembler<TData, TDef>`（三参数→两参数）
-- `LexResult<TData, TOper>` → `LexResult<TData>`
-- `FluxToken<TData, TOper>` → `FluxToken<TData>`（`Oper` 字段变为 `byte`）
-- 编译期跨定义类型安全检查：`FluxFormula<float, MathDef>` 和 `FluxFormula<float, GameDef>` 为不同编译器类型，误连编译不过
-
 ## 参见
 
 - [FluxFormula](./flux-formula) — 编译产出的字节码容器

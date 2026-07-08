@@ -54,13 +54,6 @@ Activates an existing Formula as an executable Instance.
 | Left bracket (PairRole=Left) | `FluxFormula<TData, TDef>` |
 | Binary operator (arity≥2, non-bracket) | `FluxModifier<TData, TDef>` |
 
-## v3.0.0 Changes
-
-- `FluxAssembler<TData, TOper, TDef>` → `FluxAssembler<TData, TDef>` (3 params → 2 params)
-- `LexResult<TData, TOper>` → `LexResult<TData>`
-- `FluxToken<TData, TOper>` → `FluxToken<TData>` (`Oper` field is now `byte`)
-- Compile-time cross-definition safety: `FluxFormula<float, MathDef>` and `FluxFormula<float, GameDef>` are different types — accidental connection won't compile
-
 ## See Also
 
 - [FluxFormula](./flux-formula) — immutable bytecode container produced by Compile

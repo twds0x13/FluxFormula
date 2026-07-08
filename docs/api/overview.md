@@ -116,5 +116,3 @@ graph LR
 TData  : unmanaged               (float, int, 自定义 blittable struct)
 TDef   : unmanaged, IFluxExprDefinition<TData>
 ```
-
-v3.0.0 移除了 `TOper` 泛型参数：操作符枚举变为定义体的内部实现细节。
