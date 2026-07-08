@@ -8,6 +8,7 @@ export default withMermaid(
     base: "/FluxFormula/",
 
     head: [
+      ["link", { rel: "icon", type: "image/png", href: "/FluxFormula/favicon.png" }],
       ["meta", { property: "og:image", content: "https://twds0x13.github.io/FluxFormula/logo.png" }],
       ["meta", { property: "og:image:width", content: "1254" }],
       ["meta", { property: "og:image:height", content: "1254" }],
