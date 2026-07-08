@@ -18,7 +18,7 @@ public unsafe class FormulaCache : IFluxCacheProvider
 | **Split hash key storage** | Keys stored as two independent `ulong[]` arrays (xxHash64 + FNV-1a 64), avoiding 16-byte alignment overhead |
 | **Value semantics** | `length ≥ 0` = bytecode pointer `(byte*, length)`; `DelegateSlot (-2)` = GCHandle for JIT delegate |
 | **Tombstone compaction** | Automatically triggers a full-table Compact (rehash live entries) when tombstones exceed `Capacity / 4` |
-| **Single-threaded design** | No locking. Designed for Unity main thread usage. Add external locking for multi-threaded scenarios |
+| **Thread safety** | `ReaderWriterLockSlim`. Read path (`TryGet`/`TryGetDelegate`) acquires read lock concurrently — no mutual blocking. Write path (`Put`/`PutBytes`/`PutDelegate`) acquires write lock exclusively — writes are rare (only during compilation/ToAtomic). Read lock fast path: single `Interlocked.Increment` + volatile read, nanosecond overhead |
 
 ## Constants
 

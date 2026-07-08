@@ -18,7 +18,7 @@ public unsafe class FormulaCache : IFluxCacheProvider
 | **双哈希键存储** | 键存储为两个独立 `ulong[]`（xxHash64 + FNV-1a 64），避免 16 字节对齐损失 |
 | **值语义区分** | `length ≥ 0` = 字节码指针 `(byte*, length)`；`DelegateSlot (-2)` = JIT delegate 的 GCHandle |
 | **墓碑压缩** | 墓碑超过 `Capacity / 4` 时自动全表 Compact（rehash 存活条目） |
-| **单线程设计** | 无锁。Unity 主线程单线程使用。多线程场景外层加锁 |
+| **线程安全** | `ReaderWriterLockSlim`。读路径（`TryGet`/`TryGetDelegate`）并发持读锁，互不阻塞；写路径（`Put`/`PutBytes`/`PutDelegate`）持写锁互斥——写极少（仅编译期/ToAtomic），读锁 fast path 单次 `Interlocked.Increment` + volatile read，纳秒级开销 |
 
 ## 常量
 
