@@ -1,8 +1,165 @@
-# Custom Literal Scanner
+# Literal Scanner
 
-`LiteralScanner` is a required field on `LexerConfig<TData>`: a zero-allocation Span scanner delegate that controls how the lexer recognizes numbers, keywords, and other literals.
+Controls how the lexer recognizes literals such as numbers and keywords. Starting from v5.0, the source-generator-driven `[LiteralTemplate]` is the recommended approach: declare a format template on your TData struct and the compiler auto-generates a zero-allocation span scanner at compile time.
 
-## Signature
+## Recommended: `[LiteralTemplate]`
+
+Add an attribute to your struct. The source generator produces the scanner at compile time. `LexerConfig.LiteralScanner` is no longer required:
+
+```csharp
+[LiteralTemplate("<float X> <float Y>")]
+public struct Point2D
+{
+    public float X;
+    public float Y;
+}
+
+// LiteralScanner does not need to be set
+var config = new LexerConfig<Point2D>
+{
+    LiteralOper = 0,
+    Operators = { new("+", 1), new("-", 2) },
+};
+var lexer = new FluxLexer<Point2D>(config);
+var result = lexer.Lex("3.5 -2.1");
+// result.Tokens[0].Data → Point2D { X = 3.5, Y = -2.1 }
+```
+
+**Runtime priority**: the lexer constructor first checks `LiteralScanners.TryGetScanner<TData>()` (hits when `[LiteralTemplate]` is present), falls back to `config.LiteralScanner` manual delegate, and throws `ArgumentException` if neither is available.
+
+## Template Syntax
+
+### Compact Format
+
+```csharp
+[LiteralTemplate("<float Damage>|<optional>draw <int Count>|</optional>idx:<int Index>")]
+public struct SpellCard { ... }
+```
+
+`<type fieldname>` declares a field. Everything else is literal text matched character by character. The example above matches `10.5|draw 2|idx:1` or `10.5|idx:0` (the `draw` segment is optional).
+
+### XML Format
+
+Semantically equivalent to compact format. Useful when precise whitespace control is needed:
+
+```xml
+<literal-template>
+  <field type="float" name="X"/>
+  <text>, </text>
+  <field type="float" name="Y"/>
+</literal-template>
+```
+
+Matches `3.5, -2.1`. `<text>` elements wrap exact-match characters, `<field>` declares fields, `<optional>` wraps optional blocks.
+
+### Multi-line Templates
+
+Templates support C# raw string literal multi-line syntax. Line breaks are normalized to spaces during parsing:
+
+```csharp
+[LiteralTemplate("""
+    <float X>
+    <float Y>
+    """)]
+public struct PointMultiLine { public float X; public float Y; }
+```
+
+## Optional Blocks `<optional>`
+
+Segments wrapped in `<optional>...</optional>` may be absent from the input. Matching logic: save the current position, attempt to match the block contents, continue on success, restore position and skip the block on failure.
+
+```csharp
+[LiteralTemplate("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
+public struct SpellCard
+{
+    public float Damage;
+    public int DrawsProvide;
+    public int StartIndex;
+}
+```
+
+`"10.5|draw 2|idx:1"` matches all fields. `"10.5|idx:0"` omits the `draw` segment; `DrawsProvide` retains its `default` value.
+
+## Nested Structs
+
+A type name in a template can reference another struct with `[LiteralTemplate]`. The generator recursively produces nested scan code:
+
+```csharp
+[LiteralTemplate("<float X> <float Y> <float Z>")]
+public struct Vec3 { public float X, Y, Z; }
+
+[LiteralTemplate("(<Vec3 Pos>)")]
+public struct Entity { public Vec3 Pos; }
+
+[LiteralTemplate("[<Entity Member>]")]
+public struct Team { public Entity Member; }
+```
+
+`[(10 20 30)]` → Team → Entity → Vec3: three levels of recursion. The dependency graph is topologically sorted automatically. Circular dependencies trigger FLX002 compile errors.
+
+## External Types
+
+For third-party structs you cannot modify, use `[ExternalLiteralTemplate]`:
+
+```csharp
+[assembly: ExternalLiteralTemplate(typeof(UnityEngine.Vector3),
+    "<float x> <float y> <float z>")]
+
+// or on a class/struct
+[ExternalLiteralTemplate(typeof(SomeExternalStruct), "<int A> <int B>")]
+public class MyBehaviour { ... }
+```
+
+Priority B semantics: if a type has both `[LiteralTemplate]` and `[ExternalLiteralTemplate]`, the latter overrides the former.
+
+## Type Aliases
+
+Use `[LiteralTypeAlias]` to give built-in types domain-specific names. Purely cosmetic — does not change parsing logic:
+
+```csharp
+[assembly: LiteralTypeAlias("Distance", "float")]
+[assembly: LiteralTypeAlias("Health", "int")]
+
+// Aliases can be used in templates
+[LiteralTemplate("<Distance Range> <Health HP>")]
+public struct WeaponStats { public float Range; public int HP; }
+```
+
+## Built-in Types
+
+The source generator supports 12 C# built-in unmanaged types, each with a corresponding `LiteralTemplateRegistry.Scan_Xxx` method:
+
+| Alias | C# Type | Recognized Format |
+|------|---------|-------------------|
+| `float` | `float` | `-?\d+(\.\d+)?[fF]?` |
+| `double` | `double` | `-?\d+(\.\d+)?([eE][+-]?\d+)?[dD]?` |
+| `int` | `int` | `-?\d+` |
+| `uint` | `uint` | `\d+` |
+| `long` | `long` | `-?\d+[lL]?` |
+| `ulong` | `ulong` | `\d+[uU]?[lL]?` |
+| `short` | `short` | `-?\d+` |
+| `ushort` | `ushort` | `\d+` |
+| `byte` | `byte` | `\d+` |
+| `sbyte` | `sbyte` | `-?\d+` |
+| `bool` | `bool` | `true` / `false` |
+| `char` | `char` | Single character |
+
+All built-in scanners are zero-allocation span methods annotated with `AggressiveInlining`.
+
+## Compiler Diagnostics
+
+| ID | Severity | Meaning |
+|----|----------|---------|
+| FLX001 | Error | Template syntax or format error |
+| FLX002 | Error | Circular dependency between template types |
+| FLX003 | Error | `readonly struct` cannot use `[LiteralTemplate]` (field assignment requires a mutable struct) |
+| FLX004 | Warning | Template references a type without `[LiteralTemplate]` or `[ExternalLiteralTemplate]` registration (field is skipped) |
+
+## Manual Delegate: Advanced / Fallback
+
+Use a handwritten `LiteralScanner<TData>` delegate when the literal syntax is too irregular for a template. When `[LiteralTemplate]` is present this field is not needed, but setting both is not an error: generated scanners take priority.
+
+### Signature
 
 ```csharp
 public delegate int LiteralScanner<TData>(
@@ -12,34 +169,24 @@ public delegate int LiteralScanner<TData>(
 );
 ```
 
-- **Returns `pos`**: no match. The lexer continues to try variables, operators, brackets
-- **Returns `> pos`**: matched. Characters from `pos` to the return value are consumed
-- **`out TData value`**: set to the parsed value on match; `default` on no match
+- **Returns `pos`**: no match — lexer continues trying variables, operators, brackets
+- **Returns `> pos`**: match succeeded — characters from `pos` to the returned position are consumed
+- **`out TData value`**: written with the parsed value on match; `default` on no match
 
-## Default Scanner
+### Default Scanner
 
-For simple number formats (integers, floats), use `CreateDefaultNumberScanner` instead of writing a scanner by hand:
+For simple numeric formats, use `CreateDefaultNumberScanner` instead of writing a scanner from scratch:
 
 ```csharp
 config.LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
     s => float.Parse(s.TrimEnd('f', 'F')));
 ```
 
-Its behavior is equivalent to character-by-character matching of `\d+(\.\d+)?[fF]?`:
+Equivalent to matching `\d+(\.\d+)?[fF]?` character by character, then calling the provided parser to convert to `TData`. `CreateDefaultNumberScanner` internally calls `ToString()` on the matched span and passes the string to the parser, producing a one-time compile-time allocation.
 
-1. Check if the current position is a digit
-2. Scan integer part
-3. Optional: `.` + fractional part
-4. Optional: `f` or `F` suffix
-5. Call the provided parser function to convert to `TData`
+### Hex Integers
 
-`CreateDefaultNumberScanner` internally calls `ToString()` on the matched Span before invoking the parser, producing a one-time allocation at compile time. For zero string-allocation scenarios, write a custom scanner that parses the Span directly.
-
-## Examples
-
-### Hex Integer
-
-Match `0xFF`-style hexadecimal literals:
+Match `0xFF` format:
 
 ```csharp
 config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out int value) =>
@@ -51,7 +198,7 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out int value) =>
 
     int end = pos + 2;
     while (end < src.Length && IsHexDigit(src[end])) end++;
-    if (end == pos + 2) return pos; // No digits after 0x
+    if (end == pos + 2) return pos;
 
     value = ParseHex(src.Slice(pos + 2, end - pos - 2));
     return end;
@@ -61,11 +208,11 @@ static bool IsHexDigit(char c) =>
     char.IsDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 ```
 
-Key point: returning `pos` on `0x` prefix mismatch lets the lexer fall through and treat `0` as an ordinary decimal digit.
+Key: when the `0x` prefix check fails, return `pos` — the lexer will then retry and recognize `0` as a regular decimal digit.
 
 ### Keyword Literals
 
-Match `true` / `false` as literal tokens mapping to `1` / `0`:
+Match `true` / `false` as literals and map them to `1` / `0`:
 
 ```csharp
 config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out int value) =>
@@ -85,24 +232,24 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out int value) =>
 };
 ```
 
-`Span.SequenceEqual` is the zero-allocation approach to prefix matching.
+`Span.SequenceEqual` is a zero-allocation way to perform prefix matching on strings.
 
 ### Do Nothing
 
-A scanner that always returns `pos` causes the lexer to fall through to other matching phases:
+A scanner that always returns `pos` — the lexer falls back to operators and other matchers:
 
 ```csharp
 config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out float v) =>
 {
     v = 0;
-    return pos; // Never matches literals; lexer continues to try operators etc.
+    return pos;
 };
 ```
 
 ## Notes
 
-- Scanners should advance character by character, not use regex. Regex introduces heap allocations that negate Span's zero-allocation advantage
-- `ToString()` / `float.Parse` calls produce one-time allocations at compile time; they never enter the execution hot path
-- Custom scanners are fully compatible with `VariablePatterns`: the lexer first tries the scanner, then falls through to variable patterns on no match
-- The `TData : unmanaged` constraint excludes reference types like `string`. Encode extra metadata using `enum` or `byte` fields
-- `LiteralScanner` must be set; otherwise the constructor throws an `ArgumentException`
+- Scanners should advance character by character. Regex introduces heap allocations that negate Span's zero-allocation advantage
+- `ToString()` / `float.Parse` and similar operations produce one-time compile-time allocations, not runtime hot-path allocations
+- Custom scanners are fully compatible with `VariablePatterns`: the lexer tries the scanner first, variable patterns only on no match
+- The `TData : unmanaged` constraint excludes reference types like `string`. Use `enum` or `byte` fields to encode extra information
+- When to use a manual delegate: irregular syntax that templates cannot express, or when the source generator is unavailable (pre-C# 12)
