@@ -22,6 +22,11 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInjector.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxLexer.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTemplateAttribute.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTemplateRegistry.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralScanners.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/ExternalLiteralTemplateAttribute.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTypeAliasAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/DualHash64.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FormulaCache.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxCacheProvider.cs" />
@@ -67,6 +72,7 @@
     <Compile Include="FluxCompressionTests.cs" />       <!-- FluxCompression -->
     <Compile Include="FecExplicitStructTests.cs" />       <!-- FEC × Explicit struct -->
     <Compile Include="CustomLiteralScannerTests.cs" />    <!-- 自定义字面量扫描器 -->
+    <Compile Include="LiteralTemplateTests.cs" />           <!-- 字面量模板系统 -->
   </ItemGroup>
 
   <ItemGroup>
@@ -76,6 +82,12 @@
     <PackageReference Include="FastExpressionCompiler" Version="5.4.1" />
     <PackageReference Include="System.IO.Hashing" Version="9.0.4" />
     <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../packages/fluxformula.core/SourceGenerator/FluxFormula.LiteralScanner.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

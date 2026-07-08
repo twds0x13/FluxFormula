@@ -206,11 +206,23 @@ namespace FluxFormula.Core
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
 
-            _literalScanner = config.LiteralScanner
-                ?? throw new ArgumentException(
+            // Priority: generated template scanner > manual LiteralScanner delegate
+            if (LiteralScanners.TryGetScanner<TData>(out var generatedScanner))
+            {
+                _literalScanner = generatedScanner;
+            }
+            else if (config.LiteralScanner != null)
+            {
+                _literalScanner = config.LiteralScanner;
+            }
+            else
+            {
+                throw new ArgumentException(
                     "LexerConfig.LiteralScanner must be set. " +
                     "Use CreateDefaultNumberScanner(parser) for standard number formats, " +
-                    "or provide a custom LiteralScanner delegate.");
+                    "provide a custom LiteralScanner delegate, " +
+                    "or add [LiteralTemplate] attribute to the TData struct.");
+            }
 
             // ── 变量模式 ──
             _varRules = config.VariablePatterns.ToArray();
