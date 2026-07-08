@@ -3,6 +3,8 @@
 > Generated: 2026-06-19 | Last updated: 2026-06-25 | Based on version: v3.0.0 (type signatures fully updated)
 >
 > A file-by-file technical analysis of FluxFormula's source code, noting potential issues, implicit conventions, and optimization opportunities. Read-only analysis, no source modifications.
+>
+> **This document is based on the v3.0.0 architecture.** The v4.0 `Span<TData>` register signature and v5.x LiteralScanner source generator are incremental changes not reflected in this analysis. See [Migration Guide](/en/migration-guide) and [Literal Scanner Guide](/en/guide/literal-scanner).
 
 ### Generic Constraints (shared by all core types)
 
