@@ -9,6 +9,12 @@ export default withMermaid(
 
     mermaid: {
       htmlLabels: true,
+      themeCSS: `
+        .label foreignObject { overflow: visible !important; }
+        .nodeLabel foreignObject { overflow: visible !important; }
+        .edgeLabel foreignObject { overflow: visible !important; }
+        .label div, .nodeLabel div, .edgeLabel div { padding-bottom: 3px; }
+      `,
       themeVariables: {
         fontFamily: '"Microsoft YaHei", "Noto Sans SC", "PingFang SC", sans-serif',
       },

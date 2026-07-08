@@ -22,7 +22,7 @@
 
 .vp-doc .mermaid svg .label div,
 .vp-doc .mermaid svg .nodeLabel div {
-    padding-bottom: 6px;
+    padding-bottom: 2px;
 }
 
 /* 暗色模式下 Mermaid 使用内置 theme 变量即可，
