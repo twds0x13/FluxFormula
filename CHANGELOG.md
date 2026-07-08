@@ -1,3 +1,18 @@
+## [5.3.0](https://github.com/twds0x13/FluxFormula/compare/v5.2.0...v5.3.0) (2026-07-08)
+
+### Features
+
+* add favicon ([b981218](https://github.com/twds0x13/FluxFormula/commit/b981218c9532cc2c7c541871135e0c3b0ee83b01))
+* add project logo with blue gradient glow effect ([767b915](https://github.com/twds0x13/FluxFormula/commit/767b91586f522733f5c649a9a8e0a04c1a268bab))
+
+### Bug Fixes
+
+* clean up redundant CSS, set themeCSS padding to 5px ([caa0b56](https://github.com/twds0x13/FluxFormula/commit/caa0b56b1a863471ea2749f536a7c49e8bffff96))
+* increase Mermaid label bottom padding to 6px ([2f710f9](https://github.com/twds0x13/FluxFormula/commit/2f710f98c3fc562df05126295d74cf9887c96b75))
+* increase themeCSS label padding to 5px ([e5d17bc](https://github.com/twds0x13/FluxFormula/commit/e5d17bc29eb18c44447bc0c955055bb6929fc998))
+* inject themeCSS into Mermaid SVG for CJK overflow ([156e003](https://github.com/twds0x13/FluxFormula/commit/156e003102a10548d7a2fe8dccb8f817dd6dd114))
+* prevent Mermaid CJK text bottom clipping ([bf948b1](https://github.com/twds0x13/FluxFormula/commit/bf948b1f9a88da45d64381305954f2a9724569a6))
+
 ## [5.2.0](https://github.com/twds0x13/FluxFormula/compare/v5.1.1...v5.2.0) (2026-07-08)
 
 ### Features
