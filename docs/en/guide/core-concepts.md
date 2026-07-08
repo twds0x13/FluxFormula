@@ -1,6 +1,6 @@
 # Core Concepts
 
-FluxFormula's compilation pipeline and key data structures (v3.0.0).
+FluxFormula's compilation pipeline and key data structures (v5.1.0).
 
 ## Pipeline
 

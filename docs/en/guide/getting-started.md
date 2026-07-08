@@ -1,6 +1,6 @@
 # Getting Started
 
-Build a complete floating-point arithmetic formula from scratch (v3.0.0).
+Build a complete floating-point arithmetic formula from scratch (v5.1.0).
 
 ## Step 1: Define the Operator Enum
 
