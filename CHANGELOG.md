@@ -1,3 +1,9 @@
+## [5.1.0](https://github.com/twds0x13/FluxFormula/compare/v5.0.0...v5.1.0) (2026-07-08)
+
+### Features
+
+* **core:** add literal template source generator for zero-alloc span scanning ([6f54aaa](https://github.com/twds0x13/FluxFormula/commit/6f54aaaeb3d0bc1670b372cac7114afc24c2de39))
+
 ## [5.0.0](https://github.com/twds0x13/FluxFormula/compare/v4.0.0...v5.0.0) (2026-07-03)
 
 ### ⚠ BREAKING CHANGES
