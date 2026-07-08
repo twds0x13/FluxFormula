@@ -1,6 +1,6 @@
 # Writing a Definition
 
-Define operator semantics. One implementation yields both interpreter and JIT execution paths. Since v3.0.0, the interface uses a single generic parameter — the operator enum is a `private` internal detail of the definition.
+Define operator semantics. One implementation yields both interpreter and JIT execution paths. The interface uses a single generic parameter — the operator enum is a `private` internal detail of the definition.
 
 ## Interface Overview
 
