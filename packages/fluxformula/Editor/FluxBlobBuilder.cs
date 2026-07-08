@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using FluxFormula.Core;
 using UnityEditor;
 using UnityEditor.Build;
@@ -11,21 +10,22 @@ using UnityEngine;
 namespace FluxFormula.Editor
 {
     /// <summary>
-    /// Blob 构建管线：扫描项目所有 FluxAsset，拼接为单一 blob，生成 C# 偏移表。
+    /// Blob 构建管线：扫描项目所有 FluxAsset，拼接为单一二进制 .bytes 文件。
     /// </summary>
     /// <remarks>
-    /// <para>产出（写入 <c>Assets/FluxFormula/Generated/</c>）：</para>
-    /// <list type="bullet">
-    ///   <item><c>BlobData.cs</c> — blob byte[] + <see cref="FluxBlob.Entry"/>[] 偏移表</item>
-    ///   <item><c>BlobBootstrapper.cs</c> — 运行时自动调用 <see cref="FluxBlob.Initialize"/></item>
-    ///   <item><c>FluxFormula.Generated.asmdef</c> — 引用 FluxFormula</item>
-    /// </list>
+    /// <para>产出：<c>Assets/StreamingAssets/flux.bytes</c>（.bytes 扩展名确保 Unity 原生导入为 TextAsset）</para>
     ///
-    /// <para>触发时机：</para>
+    /// <para>运行时：source generator 读取 .bytes 文件 header + entry table，
+    /// 生成 <c>BlobRegistry.g.cs</c>（编译期偏移表常量）。
+    /// <c>FluxBlobAddressablesLoader</c> 或 <c>FluxBundleScanner</c> 负责加载 blob 数据
+    /// 并调用 <c>FluxBlob.Load()</c>。</para>
+    ///
+    /// <para>触发时机：
     /// <list type="bullet">
     ///   <item><c>FluxFormula &gt; Build Blob</c> 菜单手动触发</item>
     ///   <item>Player Build 前自动触发（<see cref="IPreprocessBuildWithReport"/>）</item>
     /// </list>
+    /// </para>
     /// </remarks>
     public static class FluxBlobBuilder
     {
@@ -33,10 +33,9 @@ namespace FluxFormula.Editor
         // 常量
         // ═══════════════════════════════════════════════════════
 
-        private const string GeneratedDir = "Assets/FluxFormula/Generated";
-        private const string DataFilePath = "Assets/FluxFormula/Generated/BlobData.cs";
-        private const string BootstrapperFilePath = "Assets/FluxFormula/Generated/BlobBootstrapper.cs";
-        private const string AsmdefFilePath = "Assets/FluxFormula/Generated/FluxFormula.Generated.asmdef";
+        private const string DefaultBlobDir = "Assets/StreamingAssets";
+        /// <summary>.bytes 扩展名确保 Unity 原生导入为 TextAsset。</summary>
+        private const string DefaultBlobFileName = "flux.bytes";
         private const string MenuPath = "FluxFormula/Build Blob";
 
         // ═══════════════════════════════════════════════════════
@@ -48,46 +47,49 @@ namespace FluxFormula.Editor
         {
             try
             {
-                Build();
+                int count = Build();
                 EditorUtility.DisplayDialog("FluxBlob Builder",
-                    "Blob built successfully.\n\n" +
-                    $"Output: {GeneratedDir}",
+                    $"Blob built successfully: {count} formulas.\n\nOutput: {GetOutputPath()}",
                     "OK");
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[FluxBlobBuilder] Build failed: {ex.Message}\n{ex.StackTrace}");
                 EditorUtility.DisplayDialog("FluxBlob Builder - Error",
-                    $"Build failed:\n{ex.Message}",
-                    "OK");
+                    $"Build failed:\n{ex.Message}", "OK");
             }
         }
 
         [MenuItem("FluxFormula/Clear Blob", priority = 201)]
         public static void ClearFromMenu()
         {
-            if (!Directory.Exists(GeneratedDir))
+            string path = GetOutputPath();
+            if (!File.Exists(path))
             {
-                EditorUtility.DisplayDialog("Clear Blob", "No generated blob found.", "OK");
+                EditorUtility.DisplayDialog("Clear Blob", $"No blob file found at:\n{path}", "OK");
                 return;
             }
 
             bool confirm = EditorUtility.DisplayDialog(
                 "Clear Blob",
-                $"Delete all generated files under:\n{GeneratedDir}\n\nRebuild via FluxFormula > Build Blob.",
+                $"Delete blob file at:\n{path}\n\nRebuild via FluxFormula > Build Blob.",
                 "Delete", "Cancel");
 
             if (!confirm) return;
 
             try
             {
-                Directory.Delete(GeneratedDir, recursive: true);
+                File.Delete(path);
+                // 也删除同目录的 .meta 文件
+                string metaPath = path + ".meta";
+                if (File.Exists(metaPath))
+                    File.Delete(metaPath);
                 AssetDatabase.Refresh();
-                Debug.Log($"[FluxBlobBuilder] Deleted: {GeneratedDir}");
+                Debug.Log($"[FluxBlobBuilder] Deleted: {path}");
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[FluxBlobBuilder] Failed to delete generated files: {ex.Message}");
+                Debug.LogError($"[FluxBlobBuilder] Failed to delete blob file: {ex.Message}");
             }
         }
 
@@ -96,7 +98,7 @@ namespace FluxFormula.Editor
         // ═══════════════════════════════════════════════════════
 
         /// <summary>
-        /// 执行完整的 blob 构建：扫描 FluxAsset → 拼接字节码 → 生成 C# 代码。
+        /// 执行完整的 blob 构建：扫描 FluxAsset → 拼接字节码 → 写入二进制 .bytes 文件。
         /// </summary>
         /// <returns>生成的公式条目数</returns>
         public static int Build()
@@ -140,8 +142,8 @@ namespace FluxFormula.Editor
 
             if (entries.Count == 0)
             {
-                Debug.LogWarning("[FluxBlobBuilder] No FluxAssets with bytecode found. Empty blob generated.");
-                WriteEmpty();
+                Debug.LogWarning("[FluxBlobBuilder] No FluxAssets with bytecode found. Empty blob written.");
+                WriteEmptyBlob();
                 return 0;
             }
 
@@ -153,34 +155,29 @@ namespace FluxFormula.Editor
                 return a.hash.FnvHash64.CompareTo(b.hash.FnvHash64);
             });
 
-            // 3. 拼接 blob
+            // 3. 拼接 blob data 段并构建 BlobEntry[]
             int totalBlobSize = 0;
             foreach (var (_, raw) in entries)
                 totalBlobSize += raw.Length;
 
-            var blob = new byte[totalBlobSize];
-            var offsetTable = new FluxBlob.Entry[entries.Count];
+            var blobData = new byte[totalBlobSize];
+            var blobEntries = new BlobEntry[entries.Count];
             int currentOffset = 0;
 
             for (int i = 0; i < entries.Count; i++)
             {
                 var (hash, raw) = entries[i];
-                Buffer.BlockCopy(raw, 0, blob, currentOffset, raw.Length);
+                Buffer.BlockCopy(raw, 0, blobData, currentOffset, raw.Length);
 
-                offsetTable[i] = new FluxBlob.Entry(hash, currentOffset, raw.Length);
+                blobEntries[i] = new BlobEntry(hash, currentOffset, raw.Length);
                 currentOffset += raw.Length;
             }
 
-            // 4. 确保输出目录存在
-            if (!Directory.Exists(GeneratedDir))
-                Directory.CreateDirectory(GeneratedDir);
+            // 4. 写入 .bytes 文件
+            bool compressed = FluxConfig.Current.CompressBlob;
+            WriteBlobFile(blobData, blobEntries, compressed);
 
-            // 5. 写入生成文件
-            WriteAsmdef();
-            WriteDataFile(blob, offsetTable);
-            WriteBootstrapper();
-
-            // 6. 统计 .ff / .vff 数量
+            // 5. 统计 .ff / .vff 数量
             int formulaCount = 0, vffCount = 0;
             foreach (var (_, raw) in entries)
             {
@@ -190,161 +187,85 @@ namespace FluxFormula.Editor
                     formulaCount++;
             }
 
-            // 7. 刷新 AssetDatabase
+            // 6. 刷新 AssetDatabase
             AssetDatabase.Refresh();
 
-            var parts = new System.Collections.Generic.List<string>();
+            var parts = new List<string>();
             if (formulaCount > 0) parts.Add($"{formulaCount} .ff");
             if (vffCount > 0) parts.Add($"{vffCount} .vff");
-            string compressionNote = FluxConfig.Current.CompressBlob ? " [Brotli]" : "";
-            Debug.Log($"[FluxBlobBuilder] Blob built: {string.Join(", ", parts)}, {totalBlobSize} bytes{compressionNote} → {GeneratedDir}");
+            string compressionNote = compressed ? " [Brotli]" : "";
+            Debug.Log($"[FluxBlobBuilder] Blob written: {string.Join(", ", parts)}, {totalBlobSize} bytes{compressionNote} → {GetOutputPath()}");
             return entries.Count;
         }
 
         // ═══════════════════════════════════════════════════════
-        // 空构建
+        // 文件写入
         // ═══════════════════════════════════════════════════════
 
-        private static void WriteEmpty()
+        private static void WriteBlobFile(byte[] blobData, BlobEntry[] blobEntries, bool compressed)
         {
-            if (!Directory.Exists(GeneratedDir))
-                Directory.CreateDirectory(GeneratedDir);
+            string filePath = GetOutputPath();
+            EnsureDirectory(Path.GetDirectoryName(filePath));
 
-            WriteAsmdef();
+            int headerSize = BlobFormat.HeaderSize;
+            int entryTableSize = blobEntries.Length * BlobFormat.EntrySize;
+            int totalSize = headerSize + entryTableSize + blobData.Length;
 
-            var dataSb = new StringBuilder();
-            dataSb.AppendLine("// <auto-generated />");
-            dataSb.AppendLine("// FluxFormula Blob Offset Table — no formulas found");
-            dataSb.AppendLine();
-            dataSb.AppendLine("using FluxFormula.Core;");
-            dataSb.AppendLine();
-            dataSb.AppendLine("namespace FluxFormula.Generated");
-            dataSb.AppendLine("{");
-            dataSb.AppendLine("    internal static class BlobData");
-            dataSb.AppendLine("    {");
-            dataSb.AppendLine("        internal static readonly byte[] Blob = System.Array.Empty<byte>();");
-            dataSb.AppendLine();
-            dataSb.AppendLine("        internal static readonly FluxBlob.Entry[] Entries =");
-            dataSb.AppendLine("            System.Array.Empty<FluxBlob.Entry>();");
-            dataSb.AppendLine("    }");
-            dataSb.AppendLine("}");
-            File.WriteAllText(DataFilePath, dataSb.ToString());
+            byte[] fileBytes = new byte[totalSize];
+            var span = fileBytes.AsSpan();
 
-            WriteBootstrapper();
+            // Header
+            BlobFormat.WriteHeader(span, blobEntries.Length, blobData.Length, compressed);
+
+            // Entry table
+            int entryOffset = headerSize;
+            for (int i = 0; i < blobEntries.Length; i++)
+            {
+                var e = blobEntries[i];
+                BlobFormat.WriteEntry(
+                    span.Slice(entryOffset),
+                    e.Hash.XxHash64,
+                    e.Hash.FnvHash64,
+                    e.Offset,
+                    e.Length);
+                entryOffset += BlobFormat.EntrySize;
+            }
+
+            // Blob data
+            Buffer.BlockCopy(blobData, 0, fileBytes, entryOffset, blobData.Length);
+
+            File.WriteAllBytes(filePath, fileBytes);
+        }
+
+        private static void WriteEmptyBlob()
+        {
+            string filePath = GetOutputPath();
+            EnsureDirectory(Path.GetDirectoryName(filePath));
+
+            byte[] fileBytes = new byte[BlobFormat.HeaderSize];
+            var span = fileBytes.AsSpan();
+            BlobFormat.WriteHeader(span, entryCount: 0, blobDataSize: 0, compressed: false);
+
+            File.WriteAllBytes(filePath, fileBytes);
             AssetDatabase.Refresh();
         }
 
         // ═══════════════════════════════════════════════════════
-        // 文件生成
+        // 路径
         // ═══════════════════════════════════════════════════════
 
-        private static void WriteAsmdef()
+        private static string GetOutputPath()
         {
-            string json = "{\n" +
-                "    \"name\": \"FluxFormula.Generated\",\n" +
-                "    \"rootNamespace\": \"FluxFormula.Generated\",\n" +
-                "    \"references\": [\n" +
-                "        \"FluxFormula\"\n" +
-                "    ],\n" +
-                "    \"includePlatforms\": [],\n" +
-                "    \"excludePlatforms\": [],\n" +
-                "    \"allowUnsafeCode\": false,\n" +
-                "    \"overrideReferences\": false,\n" +
-                "    \"precompiledReferences\": [],\n" +
-                "    \"autoReferenced\": true,\n" +
-                "    \"defineConstraints\": [],\n" +
-                "    \"versionDefines\": [],\n" +
-                "    \"noEngineReferences\": false\n" +
-                "}";
-
-            File.WriteAllText(AsmdefFilePath, json);
+            string configured = FluxConfig.Current.BlobFilePath;
+            if (!string.IsNullOrEmpty(configured))
+                return configured;
+            return Path.Combine(DefaultBlobDir, DefaultBlobFileName);
         }
 
-        private static void WriteDataFile(byte[] blob, FluxBlob.Entry[] offsetTable)
+        private static void EnsureDirectory(string dir)
         {
-            var sb = new StringBuilder();
-
-            sb.AppendLine("// <auto-generated />");
-            sb.AppendLine("// FluxFormula Blob Offset Table");
-            sb.AppendLine($"// Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            sb.AppendLine($"// Formula count: {offsetTable.Length}");
-            sb.AppendLine($"// Blob size: {blob.Length} bytes ({blob.Length / 1024.0:F1} KB)");
-            if (FluxConfig.Current.CompressBlob)
-                sb.AppendLine("// Compression: Brotli (FluxCompression)");
-            sb.AppendLine();
-            sb.AppendLine("using FluxFormula.Core;");
-            sb.AppendLine();
-            sb.AppendLine("namespace FluxFormula.Generated");
-            sb.AppendLine("{");
-            sb.AppendLine("    internal static class BlobData");
-            sb.AppendLine("    {");
-
-            // ── blob byte[] ──
-            sb.AppendLine($"        internal static readonly byte[] Blob = new byte[{blob.Length}]");
-            sb.AppendLine("        {");
-
-            const int bytesPerLine = 16;
-            for (int i = 0; i < blob.Length; i += bytesPerLine)
-            {
-                sb.Append("           ");
-                int lineEnd = Math.Min(i + bytesPerLine, blob.Length);
-                for (int j = i; j < lineEnd; j++)
-                {
-                    sb.Append($"0x{blob[j]:X2}");
-                    if (j < blob.Length - 1)
-                        sb.Append(", ");
-                }
-                sb.AppendLine();
-            }
-
-            sb.AppendLine("        };");
-            sb.AppendLine();
-
-            // ── FluxBlob.Entry[] ──
-            sb.AppendLine($"        internal static readonly FluxBlob.Entry[] Entries =");
-            sb.AppendLine($"            new FluxBlob.Entry[{offsetTable.Length}]");
-            sb.AppendLine("        {");
-
-            for (int i = 0; i < offsetTable.Length; i++)
-            {
-                var e = offsetTable[i];
-                sb.Append($"            new FluxBlob.Entry(" +
-                    $"new DualHash64(0x{e.Hash.XxHash64:X16}UL, 0x{e.Hash.FnvHash64:X16}UL), " +
-                    $"{e.Offset}, {e.Length})");
-                if (i < offsetTable.Length - 1)
-                    sb.AppendLine(",");
-                else
-                    sb.AppendLine();
-            }
-
-            sb.AppendLine("        };");
-            sb.AppendLine("    }");
-            sb.AppendLine("}");
-
-            File.WriteAllText(DataFilePath, sb.ToString());
-        }
-
-        private static void WriteBootstrapper()
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("// <auto-generated />");
-            sb.AppendLine();
-            sb.AppendLine("using FluxFormula.Core;");
-            sb.AppendLine("using UnityEngine;");
-            sb.AppendLine();
-            sb.AppendLine("namespace FluxFormula.Generated");
-            sb.AppendLine("{");
-            sb.AppendLine("    internal static class BlobBootstrapper");
-            sb.AppendLine("    {");
-            sb.AppendLine("        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]");
-            sb.AppendLine("        internal static void Initialize()");
-            sb.AppendLine("        {");
-            sb.AppendLine("            FluxBlob.Initialize(BlobData.Blob, BlobData.Entries);");
-            sb.AppendLine("        }");
-            sb.AppendLine("    }");
-            sb.AppendLine("}");
-
-            File.WriteAllText(BootstrapperFilePath, sb.ToString());
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
         }
 
         // ═══════════════════════════════════════════════════════

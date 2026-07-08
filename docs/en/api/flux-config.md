@@ -29,7 +29,8 @@ Replaces the current config. Equivalent to `Current = config`. Passing `null` th
 |------|------|------|------|
 | `FormulaCacheCapacity` | `int` | `2048` | `FormulaCache` hashmap slot count. Larger = fewer collisions, more memory |
 | `MergeThreshold` | `int` | `8` | Chain merge threshold — `ToAtomic()` merges when chain length exceeds this |
-| `BlobFilePath` | `string` | `null` | Blob binary file path. null = `StreamingAssets/flux.blob` |
+| `BlobFilePath` | `string` | `null` | Blob binary file path. null = `StreamingAssets/flux.bytes` |
+| `CompressBlob` | `bool` | `false` | Enables Brotli compression per-formula in blob. Auto-decompressed by `FluxBlob.Load()` at runtime |
 | `DiskCacheDirectory` | `string` | `null` | Disk cache directory. null = `Application.persistentDataPath` |
 
 All properties use `init` accessors — immutable after construction.

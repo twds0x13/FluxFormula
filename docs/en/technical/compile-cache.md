@@ -4,11 +4,12 @@ Full-chain architecture: formula bytecode hashing, caching, chain composition, a
 
 ## Architecture Overview
 
-**Offline** — formula file hashing into the offset table:
+**Offline** — formula compilation to bytecode, Source Generator produces the offset table:
 
 ```mermaid
 flowchart TD
-    A[".ff files"] -->|DualHash64.Compute| B["Hash → offset table<br/>(SG output)"]
+    A[".ff / .vff files"] -->|FluxBlobBuilder| B["flux.bytes<br/>(Blob binary)"]
+    B -->|BlobRegistryGenerator| C["BlobRegistry.g.cs<br/>offset table constants"]
 ```
 
 **Runtime** — Lex → Compile → cache query → JIT/reuse:
@@ -45,15 +46,15 @@ Two hashes with independent internal structures force the attacker to solve simu
 
 ### Storage Strategy
 
-Hashes are stored in the Source Generator offset table (compiled into the assembly), not in the blob data file:
+Hashes are read by `BlobRegistryGenerator` (Source Generator) at compile time from the `.bytes` file header and entry table, then emitted as compiled offset-table constants in the assembly:
 
 ```
-Offset table (in assembly)              Blob (data file)
-  offset_A → (hash1, hash2)    →    [bytecode_A raw bytes]
-  offset_B → (hash1, hash2)    →    [bytecode_B raw bytes]
+BlobRegistry.g.cs (in assembly)        flux.bytes (data file)
+  BlobEntry { hash, offset_0, len_0 } → [bytecode_A raw bytes]
+  BlobEntry { hash, offset_1, len_1 } → [bytecode_B raw bytes]
 ```
 
-Tampering with the blob requires also modifying the offset table — which is compiled IL, requiring decompilation and recompilation of the assembly.
+Tampering with the `.bytes` file also requires modifying the compiled IL, which requires decompilation and recompilation of the assembly. At runtime, the offset table is obtained via `IFluxBlobRegistry.GetEntries()`; `FluxBlob.Load()` uses `BlobEntry.Offset` to index bytecode directly from the pinned blob data.
 
 ### xxHash64 Implementation
 
@@ -109,7 +110,11 @@ Delegates are stored via `GCHandle.Alloc(func)` → `GCHandle.ToIntPtr()`. Evict
 
 ## FormulaCache Static Singleton
 
-All cache operations go through `FormulaCache.Instance`, the global singleton. Pre-compiled formulas are registered at startup by `FluxBlob.Initialize()` — bytecode pointers come directly from the pinned blob, zero-copy into FormulaCache. Runtime JIT delegates are cached via `PutDelegate` after compilation.
+All cache operations go through `FormulaCache.Instance`, the global singleton.
+
+Pre-compiled formulas are registered by `FluxBlob.Load()`: bytecode pointers come directly from the pinned blob data array, zero-copy into `FormulaCache`. Compressed entries are auto-decompressed by `FluxBlob.Load()` into separate pinned arrays. `FluxBlob.Unload()` calls `FormulaCache.Remove()` per key to release resources.
+
+Runtime JIT delegates are cached via `PutDelegate` after compilation. `PutBytes` provides an owned-memory write path — the cache takes over GCHandle lifecycle, auto-freeing on eviction, overwrite, or compact.
 
 ConnectCache (the former 1 MB pinned buffer intermediate copy layer) has been removed — the blob pipeline made runtime bytecode staging unnecessary.
 

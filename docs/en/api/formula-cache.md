@@ -92,6 +92,34 @@ unsafe
 }
 ```
 
+### PutBytes
+
+```csharp
+public void PutBytes(DualHash64 key, byte[] bytes)
+```
+
+Pins a byte array and writes it into the cache. The cache takes ownership of this memory — the GCHandle is automatically freed on eviction, overwrite, or compaction. The caller does not need to retain a reference to the array.
+
+If the key already exists and the old value is a delegate, frees the old delegate's GCHandle before writing. If the old value is a PutBytes entry, frees its owned-memory GCHandle.
+
+### Remove
+
+```csharp
+public void Remove(DualHash64 key)
+```
+
+Removes the entry for the specified key from the cache. No-op if the key does not exist.
+
+- Blob-path entries (`Put`, external pointer): only marks the slot as tombstone; does not free the pointer
+- Owned-memory entries (`PutBytes`): frees the GCHandle before marking as tombstone
+- The slot is marked as tombstone after removal to preserve probe chain integrity
+
+```csharp
+// Per-key removal during mod unload
+foreach (var key in handle.EntryKeys)
+    FormulaCache.Instance.Remove(key);
+```
+
 ### TryGetDelegate
 
 ```csharp

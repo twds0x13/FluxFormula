@@ -7,15 +7,27 @@ branches in source files that are dead code on the current TFM, and
 outputs adjusted coverage percentages.
 
 Usage:
-    dotnet-coverage collect -f cobertura -o cov.xml "dotnet test ..."
-    python3 scripts/coverage-report.py cov.xml
+    # Quick: auto-collect and show only below-threshold classes
+    python3 scripts/coverage-report.py
 
-Output:
-    Per-class coverage with #else noise excluded.
-    Print only classes below --threshold (default 95%).
+    # Brief: auto-collect and show only the overall percentage
+    python3 scripts/coverage-report.py --brief
+
+    # CI gate: exit non-zero if coverage below 95%
+    python3 scripts/coverage-report.py --fail-under 95
+
+    # Full detail: show every class
+    python3 scripts/coverage-report.py --all
+
+    # Machine-readable JSON
+    python3 scripts/coverage-report.py --json
+
+    # From existing XML file
+    python3 scripts/coverage-report.py cov.xml --threshold 90
 """
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -29,7 +41,6 @@ def find_dead_else_lines(source_dir, filenames):
     that are dead on net6.0+ targets.
     """
     dead_lines = {}
-    ifdef_re = re.compile(r'^\s*#\s*if\s+NET6_0_OR_GREATER')
 
     for fname in filenames:
         path = os.path.join(source_dir, fname)
@@ -49,10 +60,10 @@ def find_dead_else_lines(source_dir, filenames):
                 depth += 1
             elif stripped.startswith('#else') and depth > 0:
                 in_else = True
-                dead.add(i)  # the #else directive itself
+                dead.add(i)
             elif stripped.startswith('#endif'):
                 if in_else:
-                    dead.add(i)  # the #endif
+                    dead.add(i)
                 in_else = False
                 if depth > 0:
                     depth -= 1
@@ -73,7 +84,7 @@ def process_coverage(xml_path, dead_lines):
     results = []
     total_covered = 0
     total_valid = 0
-    seen = set()  # dedup: same class may appear in multiple packages
+    seen = set()
 
     for pkg in root.iter('package'):
         for cls in pkg.iter('class'):
@@ -86,21 +97,17 @@ def process_coverage(xml_path, dead_lines):
             else:
                 fname = filename
 
-            # Only count class-level <lines> to avoid double-counting method-level duplicates
             lines_elem = cls.find('lines')
             all_lines = lines_elem.findall('line') if lines_elem is not None else []
             name = cls.get('name', '?')
-            # Dedup by combining name + filename
             dedup_key = (name, fname)
             if dedup_key in seen:
                 continue
             seen.add(dedup_key)
 
-            # Find dead #else lines for this file
             dead = dead_lines.get(fname, set())
             uncovered = [l for l in all_lines if l.get('hits', '0') == '0']
 
-            # Exclude dead #else lines from both valid and uncovered counts
             real_valid = len(all_lines) - len([l for l in all_lines if int(l.get('number', '0')) in dead])
             real_uncovered_count = len([l for l in uncovered if int(l.get('number', '0')) not in dead])
             real_covered = real_valid - real_uncovered_count
@@ -114,14 +121,67 @@ def process_coverage(xml_path, dead_lines):
     return results, overall, total_covered, total_valid
 
 
+def format_table(results, overall, total_covered, total_valid, threshold, show_all):
+    """Format the coverage table as a string."""
+    lines = []
+    lines.append(f"{'Coverage':>7} {'Covered':>7} {'Valid':>6} {'Gap':>4}  Class")
+    lines.append(f"{'─'*7:>7} {'─'*7:>7} {'─'*6:>6} {'─'*4:>4}  {'─'*30}")
+
+    shown = 0
+    for rate, covered, valid, uncovered, name in sorted(results):
+        if not show_all and rate * 100 >= threshold:
+            continue
+        shown += 1
+        pct = f"{rate*100:5.1f}%"
+        lines.append(f"{pct:>7} {covered:>7} {valid:>6} {uncovered:>4}  {name}")
+
+    lines.append(f"{'─'*7:>7} {'─'*7:>7} {'─'*6:>6} {'─'*4:>4}  {'─'*30}")
+    lines.append(f"{overall*100:5.1f}% {total_covered:>7} {total_valid:>6}       OVERALL (#else filtered)")
+    if shown == 0 and not show_all:
+        lines.append("  All classes above threshold.")
+
+    return '\n'.join(lines)
+
+
+def collect_coverage(xml_path, framework, project):
+    """Run dotnet-coverage to collect coverage data. Returns True on success."""
+    print(f'Collecting coverage ({framework})...')
+    cmd = (
+        f'dotnet-coverage collect -f cobertura -o {xml_path} '
+        f'"dotnet test {project} --framework {framework}"'
+    )
+    ret = os.system(cmd)
+    if ret != 0:
+        # dotnet-coverage may fail if tests fail, but XML might still exist
+        if os.path.exists(xml_path):
+            print('Tests had failures, but coverage XML was generated.', file=sys.stderr)
+            return True
+        print('dotnet-coverage failed and no coverage XML generated.', file=sys.stderr)
+        return False
+    return True
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Coverage report with #else noise filtered')
+    parser = argparse.ArgumentParser(
+        description='Coverage report with #else noise filtered',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='Examples:\n'
+               '  %(prog)s                    # auto-collect, show gaps below 95%\n'
+               '  %(prog)s --brief            # auto-collect, one-line summary\n'
+               '  %(prog)s --all              # auto-collect, show every class\n'
+               '  %(prog)s --fail-under 95    # CI gate mode\n'
+               '  %(prog)s --json             # machine-readable JSON\n'
+               '  %(prog)s cov.xml -t 90      # from existing XML file')
     parser.add_argument('xml', nargs='?', help='Cobertura coverage XML file (if omitted, auto-collect)')
     parser.add_argument('--source', default='packages/fluxformula.core/Runtime/Core',
                         help='Source directory to scan for #else blocks')
-    parser.add_argument('--threshold', type=float, default=95.0,
+    parser.add_argument('--threshold', '-t', type=float, default=95.0,
                         help='Only show classes below this coverage %% (default 95)')
-    parser.add_argument('--all', action='store_true', help='Show all classes, not just below threshold')
+    parser.add_argument('--all', '-a', action='store_true', help='Show all classes, not just below threshold')
+    parser.add_argument('--brief', '-b', action='store_true', help='Only print the overall percentage line')
+    parser.add_argument('--json', '-j', action='store_true', help='Output as JSON')
+    parser.add_argument('--fail-under', '-f', type=float, metavar='PCT',
+                        help='Exit with code 1 if overall coverage is below PCT%%')
     parser.add_argument('--framework', default='net8.0', help='Target framework for test (default net8.0)')
     parser.add_argument('--project', default='tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj',
                         help='Test project path')
@@ -129,17 +189,9 @@ def main():
 
     xml_path = args.xml
     if xml_path is None:
-        # Auto-collect coverage
         xml_path = '.coverage-report.xml'
-        print(f'Collecting coverage ({args.framework})...')
-        cmd = (
-            f'dotnet-coverage collect -f cobertura -o {xml_path} '
-            f'"dotnet test {args.project} --framework {args.framework}"'
-        )
-        ret = os.system(cmd)
-        if ret != 0:
-            print('dotnet-coverage failed', file=sys.stderr)
-            sys.exit(1)
+        if not collect_coverage(xml_path, args.framework, args.project):
+            sys.exit(2)
         print()
 
     # Find dead #else lines
@@ -149,22 +201,35 @@ def main():
     # Process coverage
     results, overall, total_covered, total_valid = process_coverage(xml_path, dead_lines)
 
-    # Output
-    print(f"{'Coverage':>7} {'Covered':>7} {'Valid':>6} {'Gap':>4}  Class")
-    print(f"{'─'*7:>7} {'─'*7:>7} {'─'*6:>6} {'─'*4:>4}  {'─'*30}")
+    # ── Output ──────────────────────────────────────────────────
 
-    shown = 0
-    for rate, covered, valid, uncovered, name in sorted(results):
-        if not args.all and rate * 100 >= args.threshold:
-            continue
-        shown += 1
-        pct = f"{rate*100:5.1f}%"
-        print(f"{pct:>7} {covered:>7} {valid:>6} {uncovered:>4}  {name}")
+    if args.json:
+        output = {
+            'overall_pct': round(overall * 100, 1),
+            'covered': total_covered,
+            'valid': total_valid,
+            'classes': [
+                {
+                    'name': name,
+                    'pct': round(rate * 100, 1),
+                    'covered': covered,
+                    'valid': valid,
+                    'gap': uncovered,
+                }
+                for rate, covered, valid, uncovered, name in sorted(results)
+            ]
+        }
+        print(json.dumps(output, ensure_ascii=False, indent=2))
+    elif args.brief:
+        print(f'{overall*100:5.1f}%  ({total_covered}/{total_valid} lines)')
+    else:
+        print(format_table(results, overall, total_covered, total_valid,
+                          args.threshold, args.all))
 
-    print(f"{'─'*7:>7} {'─'*7:>7} {'─'*6:>6} {'─'*4:>4}  {'─'*30}")
-    print(f"{overall*100:5.1f}% {total_covered:>7} {total_valid:>6}       OVERALL (#else filtered)")
-    if shown == 0:
-        print("  All classes above threshold.")
+    # ── CI gate ─────────────────────────────────────────────────
+    if args.fail_under is not None and overall * 100 < args.fail_under:
+        print(f'\nCoverage {overall*100:.1f}% is below required {args.fail_under}%', file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

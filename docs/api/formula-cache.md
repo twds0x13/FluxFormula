@@ -18,7 +18,7 @@ public unsafe class FormulaCache : IFluxCacheProvider
 | **双哈希键存储** | 键存储为两个独立 `ulong[]`（xxHash64 + FNV-1a 64），避免 16 字节对齐损失 |
 | **值语义区分** | `length ≥ 0` = 字节码指针 `(byte*, length)`；`DelegateSlot (-2)` = JIT delegate 的 GCHandle |
 | **墓碑压缩** | 墓碑超过 `Capacity / 4` 时自动全表 Compact（rehash 存活条目） |
-| **线程安全** | `ReaderWriterLockSlim`。读路径（`TryGet`/`TryGetDelegate`）并发持读锁，互不阻塞；写路径（`Put`/`PutBytes`/`PutDelegate`）持写锁互斥——写极少（仅编译期/ToAtomic），读锁 fast path 单次 `Interlocked.Increment` + volatile read，纳秒级开销 |
+| **线程安全** | `ReaderWriterLockSlim`。读路径（`TryGet`/`TryGetDelegate`）并发持读锁，互不阻塞；写路径（`Put`/`PutBytes`/`PutDelegate`/`Remove`）持写锁互斥。写极少（仅编译期/ToAtomic/mod 卸载），读锁 fast path 单次 `Interlocked.Increment` + volatile read，纳秒级开销 |
 
 ## 常量
 
@@ -90,6 +90,36 @@ unsafe
     fixed (byte* p = bytecode)
         FormulaCache.Instance.Put(hash, (IntPtr)p, bytecode.Length);
 }
+```
+
+### PutBytes
+```
+
+```csharp
+public void PutBytes(DualHash64 key, byte[] bytes)
+```
+
+将字节数组钉住（pinned）后写入缓存。缓存获取该内存的所有权：驱逐、覆盖或压缩时自动释放 GCHandle。调用方无需保留对数组的引用。
+
+若 key 已存在且旧值为 delegate，先释放旧 delegate 的 GCHandle 再写入；若旧值为 PutBytes 条目，先释放其自有内存 GCHandle。
+
+### Remove
+
+```csharp
+public void Remove(DualHash64 key)
+```
+
+从缓存中移除指定 key 的条目。若 key 不存在则无操作。
+
+- blob 路径的条目（`Put` 写入，外部指针）：仅清理槽位标记为墓碑，不释放指针
+- 自有内存条目（`PutBytes` 写入）：释放 GCHandle 后标记墓碑
+- 移除后槽位标记为墓碑以保持探测链完整
+- key 不存在时无操作
+
+```csharp
+// 按 mod 卸载时逐 key 移除
+foreach (var key in handle.EntryKeys)
+    FormulaCache.Instance.Remove(key);
 ```
 
 ### TryGetDelegate

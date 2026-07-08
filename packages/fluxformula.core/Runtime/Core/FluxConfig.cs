@@ -69,7 +69,7 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// Blob 二进制文件路径。null 或空字符串使用默认路径
-        /// (<c>StreamingAssets/flux.blob</c>)。
+        /// (<c>StreamingAssets/flux.bytes</c>)。
         /// </summary>
         public string BlobFilePath { get; init; }
 

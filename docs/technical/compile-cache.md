@@ -4,11 +4,12 @@
 
 ## 架构全景
 
-**编译期**：公式文件哈希写入偏移表：
+**编译期**：公式编译为字节码，Source Generator 生成偏移表：
 
 ```mermaid
 flowchart TD
-    A[".ff 文件"] -->|DualHash64.Compute| B["哈希写入<br/>偏移表 (SG 输出)"]
+    A[".ff / .vff 文件"] -->|FluxBlobBuilder| B["flux.bytes<br/>(Blob 二进制)"]
+    B -->|BlobRegistryGenerator| C["BlobRegistry.g.cs<br/>偏移表常量"]
 ```
 
 **运行时**：Lex → Compile → 缓存查询 → JIT/复用：
@@ -45,15 +46,15 @@ flowchart TD
 
 ### 哈希存储策略
 
-哈希**不存储在 blob 数据文件内**，而是写入 Source Generator 生成的偏移表（编译进 assembly）：
+哈希**不存储在 blob 数据文件内**，而是由 `BlobRegistryGenerator` (Source Generator) 在编译期读取 `.bytes` 文件 header 和 entry table，生成编译进 assembly 的偏移表常量：
 
 ```
-偏移表 (assembly 内)                     Blob (数据文件)
-  offset_A → (hash1, hash2)    →    [bytecode_A 原始字节]
-  offset_B → (hash1, hash2)    →    [bytecode_B 原始字节]
+BlobRegistry.g.cs (assembly 内)          flux.bytes (数据文件)
+  BlobEntry { hash, offset_0, len_0 } → [bytecode_A 原始字节]
+  BlobEntry { hash, offset_1, len_1 } → [bytecode_B 原始字节]
 ```
 
-攻击者修改 blob 文件时必须同步修改偏移表，而偏移表已编译为 IL，篡改需要反编译并重编译程序集。
+攻击者修改 `.bytes` 文件时必须同步修改 compiled IL，篡改需要反编译并重编译程序集。运行时偏移表通过 `IFluxBlobRegistry.GetEntries()` 获取，`FluxBlob.Load()` 使用 `BlobEntry.Offset` 直接从 pinned blob data 中索引字节码。
 
 ### xxHash64 实现
 
@@ -75,11 +76,11 @@ v3 = seed              v4 = seed - P1
 雪崩: h ^= h>>33; h*=P2; h ^= h>>29; h*=P3; h ^= h>>32
 ```
 
-已与 .NET 9 `System.IO.Hashing.XxHash64` 对 0~256+ 字节全范围交叉验证。
+已与 .NET 9 `System.IO.Hashing.XxHash64` 对 0–256+ 字节全范围交叉验证。
 
 ### FNV-1a 64 实现
 
-逐字节 XOR 后乘质数，~10 行代码：
+逐字节 XOR 后乘质数，约 10 行代码：
 
 ```
 hash = 0xCBF29CE484222325  (FNV_offset_basis)
@@ -136,7 +137,11 @@ Delegate 通过 `GCHandle.Alloc(func)` → `GCHandle.ToIntPtr()` 存储。驱逐
 
 ## FormulaCache 静态单例
 
-所有缓存操作通过 `FormulaCache.Instance` 全局单例。预编译公式由 `FluxBlob.Initialize()` 在启动时注册：字节码指针直接来自 pinned blob，零拷贝存入 FormulaCache。运行时 JIT delegate 编译后通过 `PutDelegate` 缓存。
+所有缓存操作通过 `FormulaCache.Instance` 全局单例。
+
+预编译公式由 `FluxBlob.Load()` 注册：字节码指针直接来自 pinned blob data 数组，零拷贝存入 `FormulaCache`。压缩条目由 `FluxBlob.Load()` 自动解压后存入独立 pinned 数组。`FluxBlob.Unload()` 逐 key 调用 `FormulaCache.Remove()` 释放资源。
+
+运行时 JIT delegate 编译后通过 `PutDelegate` 缓存。`PutBytes` 提供自有内存写入路径：缓存接管 GCHandle 生命周期，驱逐、覆盖、Compact 时自动释放。
 
 ConnectCache（原 1 MB pinned buffer 中间复制层）已移除；blob 管线完成后不再需要运行时字节码中转。
 

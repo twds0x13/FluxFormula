@@ -7,173 +7,204 @@ namespace FluxFormula.Core
 {
     /// <summary>
     /// Blob 公式数据库——管理预编译公式字节码的 pinned 内存块和偏移表注册。
+    /// 支持多个 blob 共存（游戏本体 + mod），每次 Load 返回独立的 <see cref="FluxBlobHandle"/>。
     /// </summary>
     /// <remarks>
     /// <para>预编译公式的字节码直接来自 blob 的 fixed 指针，零拷贝存入 <see cref="FormulaCache"/>。
-    /// 运行时新建公式通过 <see cref="FormulaCache.Instance"/> 缓存 JIT delegate，字节码从 <c>formula.Raw()</c> 直接读取。</para>
+    /// 运行时新建公式通过 <see cref="FormulaCache.Instance"/> 缓存 JIT delegate。</para>
     ///
-    /// <para>使用方式（由生成代码调用，用户一般不直接接触）：
+    /// <para>使用方式：
     /// <code>
-    /// FluxBlob.Initialize(BlobData.Blob, BlobData.Entries);
+    /// var handle = FluxBlob.Load(blobData, BlobRegistry.GetEntries());
+    /// // ... evaluate formulas ...
+    /// FluxBlob.Unload(handle);  // mod 卸载时
     /// </code>
     /// </para>
     /// </remarks>
     public static unsafe class FluxBlob
     {
         // ═══════════════════════════════════════════════════════
-        // Entry — 偏移表条目
+        // Entry — 类型别名
         // ═══════════════════════════════════════════════════════
-
-        /// <summary>
-        /// Blob 偏移表条目——将一条公式的 <see cref="DualHash64"/> 映射到其在 blob 二进制块中的位置。
-        /// </summary>
-        /// <remarks>每条公式 24 字节：offset(4) + length(4) + DualHash64(16)。</remarks>
-        [Serializable]
-        public readonly struct Entry : IEquatable<Entry>
-        {
-            /// <summary>公式字节码的 <see cref="DualHash64"/> 标识</summary>
-            public readonly DualHash64 Hash;
-
-            /// <summary>在 blob 中的起始偏移（字节）</summary>
-            public readonly int Offset;
-
-            /// <summary>字节码长度（字节）</summary>
-            public readonly int Length;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Entry(DualHash64 hash, int offset, int length)
-            {
-                Hash   = hash;
-                Offset = offset;
-                Length = length;
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public readonly bool Equals(Entry other) =>
-                Hash.Equals(other.Hash) && Offset == other.Offset && Length == other.Length;
-
-            public override readonly bool Equals(object obj) =>
-                obj is Entry other && Equals(other);
-
-            public override readonly int GetHashCode() =>
-                Hash.GetHashCode() ^ (Offset * 397) ^ (Length * 7919);
-
-            public override readonly string ToString() =>
-                $"[{Hash}] @{Offset} len={Length}";
-        }
+        //
+        // FluxBlob.Entry 已移至 FluxFormula.Core.BlobEntry。
+        // 使用 BlobEntry 替代 FluxBlob.Entry。
 
         // ═══════════════════════════════════════════════════════
         // 状态
         // ═══════════════════════════════════════════════════════
 
-        /// <summary>blob 是否已初始化并可用</summary>
-        public static bool IsInitialized { get; private set; }
+        private static readonly List<FluxBlobHandle> _loadedBlobs = new();
 
-        /// <summary>当前已注册的公式条目数</summary>
-        public static int EntryCount { get; private set; }
+        /// <summary>当前已加载的 blob 总数</summary>
+        public static int LoadedBlobCount
+        {
+            get { lock (_loadedBlobs) return _loadedBlobs.Count; }
+        }
 
-        private static byte* _blobPtr;
-        private static GCHandle _blobHandle;
-        private static int _blobLength;
-        private static readonly List<GCHandle> _decompressedHandles = new();
+        /// <summary>所有 blob 中的公式条目总数</summary>
+        public static int TotalEntryCount { get; private set; }
+
+        /// <summary>是否有任何 blob 已加载</summary>
+        public static bool IsInitialized => LoadedBlobCount > 0;
+
+        /// <summary>所有已加载 blob 的总字节数</summary>
+        public static int TotalBlobSize { get; private set; }
 
         // ═══════════════════════════════════════════════════════
-        // 公开 API
+        // 公开 API（推荐使用）
         // ═══════════════════════════════════════════════════════
 
         /// <summary>
-        /// 初始化 blob 数据库：固定内存块，将偏移表中的每条公式注册到 <see cref="FormulaCache"/>。
+        /// 加载一个 blob 数据块并将其所有条目注册到 <see cref="FormulaCache"/>。
+        /// 可多次调用——每次调用创建独立的 <see cref="FluxBlobHandle"/>，互不干扰。
         /// </summary>
-        /// <param name="blob">拼接后的公式字节码内存块</param>
+        /// <param name="blobData">拼接后的公式字节码（纯 data 段，不含 header 和 entry table）</param>
         /// <param name="entries">偏移表——每条公式的哈希→(offset, length) 映射</param>
-        /// <exception cref="ArgumentNullException">blob 为 null</exception>
-        public static void Initialize(byte[] blob, ReadOnlySpan<Entry> entries)
+        /// <returns>blob 句柄——用于后续 <see cref="Unload"/> 释放</returns>
+        /// <exception cref="ArgumentNullException">blobData 为 null</exception>
+        public static FluxBlobHandle Load(byte[] blobData, ReadOnlySpan<BlobEntry> entries)
         {
-            if (blob == null)
-                throw new ArgumentNullException(nameof(blob));
+            if (blobData == null)
+                throw new ArgumentNullException(nameof(blobData));
 
-            if (IsInitialized)
-                Shutdown();
-
-            if (blob.Length == 0 || entries.Length == 0)
-                return;
+            if (blobData.Length == 0 || entries.Length == 0)
+                return FluxBlobHandle.Empty;
 
             // 固定 blob——自此获得跨整个运行时的稳定 byte* 指针
-            _blobHandle = GCHandle.Alloc(blob, GCHandleType.Pinned);
-            _blobPtr    = (byte*)_blobHandle.AddrOfPinnedObject();
-            _blobLength = blob.Length;
+            var blobHandle = GCHandle.Alloc(blobData, GCHandleType.Pinned);
+            byte* blobPtr = (byte*)blobHandle.AddrOfPinnedObject();
+            int blobLength = blobData.Length;
+
+            var decompressedHandles = new List<GCHandle>();
+            var entryKeys = new DualHash64[entries.Length];
 
             // 将每条公式的字节码指针注册到 FormulaCache
-            // FormulaCache 以 (key → IntPtr, length) 存储，不关心指针来源
-            // 压缩条目：解压到独立 pinned 数组；未压缩条目：直接指向 blob 内存
             var cache = FormulaCache.Instance;
             for (int i = 0; i < entries.Length; i++)
             {
                 var e = entries[i];
 
-                if (e.Offset < 0 || e.Length <= 0 || e.Offset + e.Length > _blobLength)
+                if (e.Offset < 0 || e.Length <= 0 || e.Offset + e.Length > blobLength)
                     throw new ArgumentException(
-                        $"Blob entry [{i}] out of bounds: offset={e.Offset}, length={e.Length}, blobSize={_blobLength}");
+                        $"Blob entry [{i}] out of bounds: offset={e.Offset}, length={e.Length}, blobSize={blobLength}");
 
-                byte* entryPtr = _blobPtr + e.Offset;
+                byte* entryPtr = blobPtr + e.Offset;
                 var storedSpan = new ReadOnlySpan<byte>(entryPtr, e.Length);
 
                 if (FluxCompression.IsCompressed(storedSpan))
                 {
                     byte[] decompressed = FluxCompression.Decompress(storedSpan);
                     var handle = GCHandle.Alloc(decompressed, GCHandleType.Pinned);
-                    _decompressedHandles.Add(handle);
+                    decompressedHandles.Add(handle);
                     cache.Put(e.Hash, handle.AddrOfPinnedObject(), decompressed.Length);
                 }
                 else
                 {
-                    IntPtr ptr = (IntPtr)(_blobPtr + e.Offset);
+                    IntPtr ptr = (IntPtr)(blobPtr + e.Offset);
                     cache.Put(e.Hash, ptr, e.Length);
                 }
+
+                entryKeys[i] = e.Hash;
             }
 
-            EntryCount    = entries.Length;
-            IsInitialized = true;
+            var result = new FluxBlobHandle(
+                blobData, blobHandle, blobPtr, blobLength,
+                decompressedHandles, entries.Length, entryKeys);
+
+            lock (_loadedBlobs)
+                _loadedBlobs.Add(result);
+
+            TotalEntryCount += entries.Length;
+            TotalBlobSize += blobLength;
+
+            return result;
         }
 
         /// <summary>
-        /// 关闭 blob 数据库：释放 fixed 指针，清空相关缓存条目。
+        /// 卸载指定 blob handle 对应的所有条目。
+        /// 释放 pinned 内存和解压后的临时数组，从 FormulaCache 逐条移除注册。
         /// </summary>
-        public static void Shutdown()
+        public static void Unload(FluxBlobHandle handle)
         {
-            if (!IsInitialized)
+            if (handle == null || !handle.IsLoaded)
                 return;
 
-            if (_blobHandle.IsAllocated)
-                _blobHandle.Free();
+            lock (_loadedBlobs)
+                _loadedBlobs.Remove(handle);
 
-            // 释放所有解压后独立分配的 pinned 数组
-            foreach (var h in _decompressedHandles)
+            // 从 FormulaCache 移除该 blob 的所有条目
+            var cache = FormulaCache.Instance;
+            foreach (var key in handle.EntryKeys)
+                cache.Remove(key);
+
+            // 释放解压后的独立 pinned 数组
+            foreach (var h in handle.DecompressedHandles)
             {
                 if (h.IsAllocated)
                     h.Free();
             }
-            _decompressedHandles.Clear();
 
-            _blobPtr    = null;
-            _blobLength = 0;
-            EntryCount  = 0;
+            // 释放 blob pinned handle
+            if (handle.BlobHandle.IsAllocated)
+                handle.BlobHandle.Free();
 
-            // 清空 FormulaCache（旧指针指向已释放的 blob）
-            FormulaCache.Reset();
-
-            IsInitialized = false;
+            TotalEntryCount -= handle.EntryCount;
+            TotalBlobSize -= handle.BlobLength;
+            handle.MarkUnloaded();
         }
+
+        /// <summary>
+        /// 卸载全部已加载的 blob，释放所有资源。等价于对每个 handle 调用 Unload。
+        /// </summary>
+        public static void Shutdown()
+        {
+            FluxBlobHandle[] handles;
+            lock (_loadedBlobs)
+            {
+                handles = _loadedBlobs.ToArray();
+                _loadedBlobs.Clear();
+            }
+
+            foreach (var handle in handles)
+            {
+                foreach (var h in handle.DecompressedHandles)
+                {
+                    if (h.IsAllocated) h.Free();
+                }
+                if (handle.BlobHandle.IsAllocated)
+                    handle.BlobHandle.Free();
+                handle.MarkUnloaded();
+            }
+
+            TotalEntryCount = 0;
+            TotalBlobSize = 0;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 向后兼容（已废弃）
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 向后兼容：旧的单 blob 初始化——内部先 Shutdown 再 Load。
+        /// 新代码应使用 <see cref="Load"/> + <see cref="FluxBlobHandle"/>。
+        /// </summary>
+        public static void Initialize(byte[] blob, ReadOnlySpan<BlobEntry> entries)
+        {
+            if (IsInitialized)
+                Shutdown();
+            Load(blob, entries);
+        }
+
+        /// <summary>所有 blob 中的公式条目总数（向后兼容别名，等价于 <see cref="TotalEntryCount"/>）。</summary>
+        public static int EntryCount => TotalEntryCount;
 
         // ═══════════════════════════════════════════════════════
         // 诊断
         // ═══════════════════════════════════════════════════════
 
-        /// <summary>blob 内存块的总字节数</summary>
-        public static int BlobSize => IsInitialized ? _blobLength : 0;
-
         /// <summary>
-        /// 验证 blob 中指定公式的完整性——从偏移表取期望哈希，实际计算字节码哈希并比对。
+        /// 验证指定哈希的公式在缓存中的完整性——实际计算字节码哈希并比对。
         /// </summary>
         public static bool VerifyIntegrity(DualHash64 expectedHash)
         {
@@ -187,5 +218,61 @@ namespace FluxFormula.Core
             var actual = DualHash64.Compute(bytes);
             return actual.Equals(expectedHash);
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // FluxBlobHandle
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 单个 blob 加载的句柄——持有 pinned 内存、解压临时数组和条目追踪。
+    /// 通过 <see cref="FluxBlob.Load"/> 获取，通过 <see cref="FluxBlob.Unload"/> 或
+    /// <see cref="Dispose"/> 释放。
+    /// </summary>
+    public unsafe sealed class FluxBlobHandle : IDisposable
+    {
+        /// <summary>空句柄——表示加载了空 blob（无条目）</summary>
+        internal static readonly FluxBlobHandle Empty = new(null, default, null, 0,
+            new List<GCHandle>(), 0, Array.Empty<DualHash64>()) { IsLoaded = false };
+
+        internal readonly byte[] BlobData;
+        internal readonly GCHandle BlobHandle;
+        internal readonly unsafe byte* BlobPtr;
+        internal readonly int BlobLength;
+        internal readonly List<GCHandle> DecompressedHandles;
+        internal readonly DualHash64[] EntryKeys;
+
+        /// <summary>此 blob 中包含的公式条目数</summary>
+        public int EntryCount { get; }
+
+        /// <summary>此 blob 是否仍处于已加载状态</summary>
+        public bool IsLoaded { get; private set; }
+
+        internal unsafe FluxBlobHandle(
+            byte[] blobData,
+            GCHandle blobHandle,
+            byte* blobPtr,
+            int blobLength,
+            List<GCHandle> decompressedHandles,
+            int entryCount,
+            DualHash64[] entryKeys)
+        {
+            BlobData = blobData;
+            BlobHandle = blobHandle;
+            BlobPtr = blobPtr;
+            BlobLength = blobLength;
+            DecompressedHandles = decompressedHandles;
+            EntryCount = entryCount;
+            EntryKeys = entryKeys;
+            IsLoaded = true;
+        }
+
+        internal void MarkUnloaded()
+        {
+            IsLoaded = false;
+        }
+
+        /// <summary>释放此 blob 及其所有注册条目。等价于 <c>FluxBlob.Unload(this)</c>。</summary>
+        public void Dispose() => FluxBlob.Unload(this);
     }
 }

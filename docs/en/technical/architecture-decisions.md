@@ -27,22 +27,24 @@ The compile cache needs a content-addressed storage scheme. Single cryptographic
 
 ## ADR-2: Hashes in Offset Table, Not Blob
 
-**Date**: 2026-06-21
+**Date**: 2026-06-21 (updated 2026-07-08 with SG architecture)
 **Status**: Accepted
 
 ### Context
-Compiled formula bytecode is cached as `.ff` files. Hashes must be stored to verify integrity at runtime.
+Compiled formula bytecode is produced as `.ff` / `.vff` cache files, then concatenated by `FluxBlobBuilder` into a single `.bytes` binary blob. Each formula's hash must be stored for runtime lookup and verification.
 
 ### Options
 1. Embed hashes in blob (16-byte header per entry)
-2. Store hashes in Source Generator offset table (compiled into assembly)
+2. Source Generator reads the `.bytes` file at compile time and emits offset-table constants into the assembly
 
 ### Decision
-**Option 2**. Hashes inside the blob are self-verifying — an attacker modifying the blob can also modify the hash. The offset table is compiled IL; tampering requires decompilation and recompilation.
+**Option 2**. Hashes inside the blob are self-verifying — an attacker modifying the blob can also modify the hash. The SG-generated `BlobRegistry.g.cs` (implementing `IFluxBlobRegistry`) is compiled IL; tampering requires decompilation and recompilation. The `.bytes` file header contains the magic `FLXB` and entry table; the SG reads these at compile time and emits `BlobEntry[]` constants, retrieved at runtime via `GetEntries()`.
 
 ### Consequences
-- Offset table is compact (24 bytes per entry: offset + length + dualHash)
-- Runtime verification: get expected hash from offset table → read bytes from blob → compute → compare
+- 24 bytes per formula entry (`BlobEntry`: DualHash64 + offset + length), emitted into assembly data section
+- Runtime flow: `IFluxBlobRegistry.GetEntries()` → `FluxBlob.Load(blobData, entries)` → `FormulaCache.Put(hash, ptr, length)`
+- Multi-mod support: one `BlobRegistry` implementation per assembly, discovered by `FluxBlobScanner`
+- `.bytes` extension ensures Unity native TextAsset import; two loading paths (AssetBundle / Addressables)
 - Source Generator must run before Player Build's C# compilation
 
 ---

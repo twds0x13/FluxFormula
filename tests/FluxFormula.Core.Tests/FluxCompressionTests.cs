@@ -143,4 +143,47 @@ public class FluxCompressionTests
         Assert.That(algo, Is.AnyOf("None", "Brotli"),
             "算法名应为 None（回退）或 Brotli（压缩成功）");
     }
+
+    [Test]
+    public void GetAlgorithmName_BadAlgorithmByte_ReturnsUnknown()
+    {
+        // 有效 magic + header，但 algorithm byte 为非法值 99
+        var data = new byte[FluxCompression.HeaderSize];
+        data[0] = FluxCompression.Magic;  // 0xAB
+        data[1] = 99;                     // 非法算法号
+
+        string algo = FluxCompression.GetAlgorithmName(data);
+        Assert.That(algo, Is.EqualTo("Unknown"));
+    }
+
+    [Test]
+    public void Decompress_BadAlgorithm_Throws()
+    {
+        // 有效 header 结构，但算法号非法
+        var data = new byte[FluxCompression.HeaderSize + 4];
+        data[0] = FluxCompression.Magic;
+        data[1] = 99; // 非法算法
+
+        var ex = Assert.Throws<System.IO.InvalidDataException>(
+            () => FluxCompression.Decompress(data));
+        Assert.That(ex.Message, Does.Contain("unknown algorithm"));
+    }
+
+    [Test]
+    public void Decompress_TruncatedBrotli_Throws()
+    {
+        // 构建有效的 Brotli 压缩数据然后截断 payload
+        var raw = new byte[8192];
+        for (int i = 0; i < raw.Length; i++)
+            raw[i] = (byte)(i % 16);
+
+        byte[] compressed = FluxCompression.Compress(raw);
+        // 取 header + 少量字节（远少于原始数据）
+        byte[] truncated = new byte[FluxCompression.HeaderSize + 4];
+        System.Buffer.BlockCopy(compressed, 0, truncated, 0, truncated.Length);
+
+        // 修正 header 中的解压长度（保持原始值，但数据不足）
+        Assert.That(() => FluxCompression.Decompress(truncated),
+            Throws.Exception); // Brotli 解压肯定会失败
+    }
 }

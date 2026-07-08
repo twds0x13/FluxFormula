@@ -38,6 +38,11 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxConfig.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxCompression.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/VffFormat.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/BlobEntry.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/BlobFormat.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxBlobRegistry.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxBlobRegistryAssemblyAttribute.cs" />
+    <Compile Include="../../packages/fluxformula/Runtime/Unity/FluxBlob.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/CompiledFunc.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxExprCompiler.cs" />
@@ -73,6 +78,11 @@
     <Compile Include="FecExplicitStructTests.cs" />       <!-- FEC × Explicit struct -->
     <Compile Include="CustomLiteralScannerTests.cs" />    <!-- 自定义字面量扫描器 -->
     <Compile Include="LiteralTemplateTests.cs" />           <!-- 字面量模板系统 -->
+    <Compile Include="BlobEntryTests.cs" />              <!-- BlobEntry 结构体 -->
+    <Compile Include="BlobFormatTests.cs" />             <!-- BlobFormat 二进制格式 -->
+    <Compile Include="FormulaCacheRemoveTests.cs" />     <!-- FormulaCache.Remove -->
+    <Compile Include="FormulaCacheDeepTests.cs" />       <!-- FormulaCache 深度覆盖 -->
+    <Compile Include="FluxBlobTests.cs" />               <!-- FluxBlob Load/Unload -->
   </ItemGroup>
 
   <ItemGroup>

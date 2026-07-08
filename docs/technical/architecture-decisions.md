@@ -27,22 +27,24 @@
 
 ## ADR-2: 哈希存偏移表而非 Blob
 
-**日期**: 2026-06-21
+**日期**: 2026-06-21（2026-07-08 更新 SG 架构）
 **状态**: 已采纳
 
 ### 背景
-公式字节码经过编译后生成 `.ff` 缓存文件，需要存储其哈希以在运行时验证完整性。
+公式字节码经过编译后生成 `.ff` / `.vff` 缓存文件，由 `FluxBlobBuilder` 拼接为单一 `.bytes` 二进制 blob。需要存储每条公式的哈希以在运行时定位和验证。
 
 ### 选项
 1. 哈希嵌入 blob 文件内（每条公式前 16 字节头）
-2. 哈希存储在 Source Generator 输出的偏移表中（编译进 assembly）
+2. 哈希由 Source Generator 在编译期读取 `.bytes` 文件，生成编译进 assembly 的偏移表常量
 
 ### 选择
-**选项 2**。Blob 内存储哈希等同于"自己验证自己"：攻击者改 blob 时可同步改哈希。偏移表编译为 IL，篡改需反编译并重编译程序集。
+**选项 2**。Blob 内存储哈希等同于"自己验证自己"：攻击者改 blob 时可同步改哈希。SG 生成的 `BlobRegistry.g.cs`（实现 `IFluxBlobRegistry`）编译为 IL，篡改需反编译并重编译程序集。`.bytes` 文件 header 含 magic `FLXB` + entry table，SG 在编译期读取后写入 `BlobEntry[]` 常量，运行时通过 `GetEntries()` 获取。
 
 ### 后果
-- 偏移表体积小（每条公式 24 字节：offset + length + dualHash），编译器转为 data section 常量
-- 运行时验证：偏移表取期望哈希 → blob 取字节 → Compute → 比对
+- 每条公式 24 字节（`BlobEntry`：DualHash64 + offset + length），SG 写入 assembly data section
+- 运行时流程：`IFluxBlobRegistry.GetEntries()` → `FluxBlob.Load(blobData, entries)` → `FormulaCache.Put(hash, ptr, length)`
+- 多 mod 支持：每个程序集一个 `BlobRegistry` 实现，`FluxBlobScanner` 反射发现
+- `.bytes` 扩展名确保 Unity 原生导入为 TextAsset，两条加载路径（AssetBundle / Addressables）
 - Source Generator 必须在 Player Build 的 C# 编译前运行
 
 ---

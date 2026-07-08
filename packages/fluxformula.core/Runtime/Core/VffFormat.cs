@@ -13,7 +13,7 @@ namespace FluxFormula.Core
     /// </summary>
     /// <remarks>
     /// <para>VFF 不是独立资产类型：它是 blob 中的一种条目，通过 <c>"VFF\0"</c> magic 与公式条目区分。
-    /// VFF 条目和公式条目共存于同一个 blob，使用同一套 <see cref="FluxBlob.Entry"/> 偏移表。</para>
+    /// VFF 条目和公式条目共存于同一个 blob，使用同一套 <see cref="BlobEntry"/> 偏移表。</para>
     ///
     /// <para>字节布局：</para>
     /// <code>

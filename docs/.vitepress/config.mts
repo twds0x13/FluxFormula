@@ -30,6 +30,7 @@ export default withMermaid(
                 { text: "自定义运算符", link: "/guide/writing-a-definition" },
                 { text: "自定义字面量扫描器", link: "/guide/literal-scanner" },
                 { text: "高级用法", link: "/guide/advanced" },
+                { text: "Blob 注册表", link: "/guide/blob-registry" },
               ],
             },
             {
@@ -176,6 +177,7 @@ export default withMermaid(
                 { text: "Writing a Definition", link: "/en/guide/writing-a-definition" },
                 { text: "Custom Literal Scanner", link: "/en/guide/literal-scanner" },
                 { text: "Advanced Usage", link: "/en/guide/advanced" },
+                { text: "Blob Registry", link: "/en/guide/blob-registry" },
               ],
             },
             {

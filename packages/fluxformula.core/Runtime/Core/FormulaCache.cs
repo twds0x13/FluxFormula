@@ -210,14 +210,41 @@ namespace FluxFormula.Core
                     // 空槽位或墓碑——直接写入
                     bool wasTombstone = _valueLengths[insertSlot] == Tombstone;
                     WriteSlot(insertSlot, key, ptr, length);
-                    if (!wasTombstone) _count++;
-                    else               _tombstoneCount--;
+                    _count++;
+                    if (wasTombstone) _tombstoneCount--;
                 }
                 else
                 {
                     // 全表满（无空槽位/墓碑）——环形驱逐
                     EvictAndWrite(key, ptr, length);
                 }
+            }
+            finally { _rwLock.ExitWriteLock(); }
+        }
+
+        /// <summary>
+        /// 从缓存中移除指定 key 的条目。若 key 不存在则无操作。
+        /// 若条目持有自有内存（<see cref="PutBytes"/> 写入），释放 GCHandle。
+        /// blob 路径的条目（外部指针，<see cref="Put"/> 写入）仅清理槽位标记，不释放指针。
+        /// 移除后槽位标记为墓碑以保持探测链完整。
+        /// </summary>
+        public void Remove(DualHash64 key)
+        {
+            _rwLock.EnterWriteLock();
+            try
+            {
+                int slot = FindSlot(key);
+                if (slot < 0) return;
+
+                // 释放自有内存（若有）
+                if (_valueLengths[slot] >= 0 && _gcHandles[slot] != IntPtr.Zero)
+                    FreeGCHandle(_gcHandles[slot]);
+
+                // 标记为墓碑（探测链不中断）
+                _valueLengths[slot] = Tombstone;
+                _gcHandles[slot]    = IntPtr.Zero;
+                _count--;
+                _tombstoneCount++;
             }
             finally { _rwLock.ExitWriteLock(); }
         }
@@ -299,8 +326,8 @@ namespace FluxFormula.Core
                 {
                     bool wasTombstone = _valueLengths[insertSlot] == Tombstone;
                     WriteSlot(insertSlot, key, ptr, bytes.Length, gcHandle);
-                    if (!wasTombstone) _count++;
-                    else               _tombstoneCount--;
+                    _count++;
+                    if (wasTombstone) _tombstoneCount--;
                 }
                 else
                 {
@@ -367,8 +394,8 @@ namespace FluxFormula.Core
                 {
                     bool wasTombstone = _valueLengths[insertSlot] == Tombstone;
                     WriteSlot(insertSlot, delegateKey, gcHandle, DelegateSlot);
-                    if (!wasTombstone) _count++;
-                    else               _tombstoneCount--;
+                    _count++;
+                    if (wasTombstone) _tombstoneCount--;
                 }
                 else
                 {
@@ -477,10 +504,7 @@ namespace FluxFormula.Core
                     liveHandles[idx] = _gcHandles[i];
                     idx++;
                 }
-                else if (state == Tombstone)
-                {
-                    // Tombstone 无数据需释放，跳过
-                }
+                // Tombstone / Empty: 无需处理，跳过
             }
 
             // 清空全表

@@ -29,7 +29,8 @@ public static void Set(FluxConfig config)
 |------|------|------|------|
 | `FormulaCacheCapacity` | `int` | `2048` | `FormulaCache` 哈希表槽位数。增大可减少碰撞，但增加内存 |
 | `MergeThreshold` | `int` | `8` | 链式公式合并阈值：链长超过此值时 `ToAtomic()` 合并为原子公式 |
-| `BlobFilePath` | `string` | `null` | Blob 二进制文件路径。null 使用 `StreamingAssets/flux.blob` |
+| `BlobFilePath` | `string` | `null` | Blob 二进制文件路径。null 使用 `StreamingAssets/flux.bytes` |
+| `CompressBlob` | `bool` | `false` | 是否对 blob 中每条公式启用 Brotli 压缩。运行时由 `FluxBlob.Load()` 自动解压 |
 | `DiskCacheDirectory` | `string` | `null` | 磁盘缓存目录。null 使用 `Application.persistentDataPath` |
 
 所有配置项均使用 `init` 访问器，创建后不可修改。

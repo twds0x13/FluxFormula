@@ -32,7 +32,7 @@ namespace FluxFormula
         public int mergeThreshold = 8;
 
         [Header("File & Paths")]
-        [Tooltip("Blob 二进制文件路径。留空使用默认路径 (StreamingAssets/flux.blob)。")]
+        [Tooltip("Blob 二进制文件路径。留空使用默认路径 (StreamingAssets/flux.bytes)。")]
         public string blobFilePath;
 
         [Tooltip("磁盘缓存目录——编译产物/中间文件的持久化路径。留空使用 Application.persistentDataPath。")]
