@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="FluxFormula" width="160" />
+</p>
+
 # FluxFormula
 
 [中文](./README.md)
@@ -6,7 +10,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black?logo=unity)](https://unity.com/)
 [![Docs](https://img.shields.io/badge/docs-vitepress-green)](https://twds0x13.github.io/FluxFormula/)
-[![Coverage](https://img.shields.io/badge/coverage-97.9%25-brightgreen)](./docs/technical/test-coverage-boundary.md)
+[![Coverage](https://img.shields.io/badge/coverage-96.9%25-brightgreen)](./docs/technical/test-coverage-boundary.md)
 
 A high-performance linear formula compilation pipeline for Unity (zero-GC at runtime, one-time allocations at compile time). Define custom operator sets, compile infix expressions to compact bytecode, execute via interpreter or JIT backend
 

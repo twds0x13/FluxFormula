@@ -5,6 +5,9 @@ hero:
   name: "FluxFormula"
   text: Unity 公式编译与执行框架
   tagline: 自定义运算符集，中缀表达式编译为字节码，解释器或 JIT 双后端执行，零堆分配
+  image:
+    src: /logo.png
+    alt: FluxFormula
   actions:
     - theme: brand
       text: 快速入门

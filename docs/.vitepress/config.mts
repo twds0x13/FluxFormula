@@ -7,6 +7,17 @@ export default withMermaid(
     description: "High-performance, Zero-GC linear formula pipeline for Unity.",
     base: "/FluxFormula/",
 
+    head: [
+      ["meta", { property: "og:image", content: "https://twds0x13.github.io/FluxFormula/logo.png" }],
+      ["meta", { property: "og:image:width", content: "1254" }],
+      ["meta", { property: "og:image:height", content: "1254" }],
+      ["meta", { name: "twitter:card", content: "summary_large_image" }],
+      ["meta", { name: "twitter:image", content: "https://twds0x13.github.io/FluxFormula/logo.png" }],
+      ["style", {}, `.VPNavBarTitle .VPImage { height: 36px; border-radius: 50%; }`],
+      ["style", {}, `.VPHero .image-src { max-width: 250px; } .VPHero .image-container { position: relative; } .VPHero .image-container::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 260px; height: 260px; background: linear-gradient(to right, rgba(0, 194, 250, 0.8), rgba(0, 97, 240, 0.8)); border-radius: 50%; filter: blur(80px); z-index: -1; }`],
+      ["style", {}, `.VPHero .name { background: linear-gradient(to right, rgb(0, 194, 250), rgb(0, 97, 240)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }`],
+    ],
+
     mermaid: {
       htmlLabels: true,
       themeCSS: `
@@ -27,6 +38,7 @@ export default withMermaid(
         title: "FluxFormula",
         description: "高性能零GC线性公式管线 for Unity",
         themeConfig: {
+          logo: "/logo.png",
           nav: [
             { text: "首页", link: "/" },
             { text: "指南", link: "/guide/getting-started" },
@@ -184,6 +196,7 @@ export default withMermaid(
         title: "FluxFormula",
         description: "High-performance, Zero-GC linear formula pipeline for Unity.",
         themeConfig: {
+          logo: "/logo.png",
           nav: [
             { text: "Home", link: "/en/" },
             { text: "Guide", link: "/en/guide/getting-started" },

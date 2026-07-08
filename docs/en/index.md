@@ -5,6 +5,9 @@ hero:
   name: "FluxFormula"
   text: Unity Formula Compilation & Execution Framework
   tagline: Custom operator sets, infix-to-bytecode compilation, interpreter or JIT dual-backend execution, zero heap allocation
+  image:
+    src: /logo.png
+    alt: FluxFormula
   actions:
     - theme: brand
       text: Get Started
