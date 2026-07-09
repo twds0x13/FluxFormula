@@ -125,6 +125,33 @@ public class MyBehaviour { ... }
 public struct WeaponStats { public float Range; public int HP; }
 ```
 
+## 枚举标签
+
+v5.5+ 支持 `[LiteralTag]` 属性标注枚举成员，使模板可直接识别字符串标签:
+
+```csharp
+public enum Element : byte
+{
+    Physical = 0,
+    [LiteralTag("fire")]  Fire,
+    [LiteralTag("ice")]   Ice,
+    [LiteralTag("magic")] Magic,
+}
+
+[LiteralTemplate("<float Amount><optional>:<Element Element></optional>")]
+public struct ElemValue
+{
+    public float Amount;
+    public Element Element;
+}
+```
+
+生成的扫描器自动包含 `switch(new string(src.Slice(...)))` 分支，将 `"fire"` 映射到 `Element.Fire`。模板匹配 `42`、`-5`、`1.5:fire`、`100:ice`。
+
+::: tip
+`[LiteralTag]` 使手写委托不再是必需方案。大部分带标签后缀的字面量格式现在都可以用模板表达。
+:::
+
 ## 内置类型
 
 source generator 支持 12 种 C# 内置 unmanaged 类型，每个有对应的 `LiteralTemplateRegistry.Scan_Xxx` 方法:

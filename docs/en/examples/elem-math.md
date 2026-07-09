@@ -1,20 +1,25 @@
 # Example: Elemental Damage Formula
 
-Using a custom `ElemValue` struct and `LiteralScanner` for inline element tag syntax.
+Using `[LiteralTemplate]` + `[LiteralTag]` source generator for inline element tag syntax.
 
 ## Scenario
 
-Elemental damage formulas in games: `[atk] * 2.5:fire + [bonus] - [def]`. `2.5:fire` is a fire-typed multiplier. Magic damage against physical defense is true damage: subtraction ignores the right operand when elements differ.
+Elemental damage formulas in games: `[atk] * 2.5:fire + [bonus] - [def]`. `2.5:fire` is a fire-typed multiplier. Magic damage vs. physical defense is true damage: subtraction ignores the right operand when elements differ.
 
-::: tip Template-first
-For fixed-format literals, prefer `[LiteralTemplate]`. This example uses a delegate because the `:tag` suffix syntax cannot be expressed with a template.
-:::
+v5.5+ `[LiteralTag]` brings enum labels into the template system, eliminating manual `LiteralScanner` delegates.
 
 ## TData Struct
 
 ```csharp
-public enum Element : byte { Physical, Fire, Ice, Magic }
+public enum Element : byte
+{
+    Physical = 0,
+    [LiteralTag("fire")]  Fire,
+    [LiteralTag("ice")]   Ice,
+    [LiteralTag("magic")] Magic,
+}
 
+[LiteralTemplate("<float Amount><optional>:<Element Element></optional>")]
 public struct ElemValue : IEquatable<ElemValue>
 {
     public float Amount;
@@ -46,53 +51,52 @@ public struct ElemValue : IEquatable<ElemValue>
 }
 ```
 
-## LiteralScanner
+## Literal Scanning
 
-```csharp
-config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out ElemValue value) =>
-{
-    value = default;
-    if (pos >= src.Length) return pos;
-
-    bool isNeg = src[pos] == '-';
-    if (isNeg && pos + 1 < src.Length && !char.IsDigit(src[pos + 1])) return pos;
-    if (!char.IsDigit(src[pos]) && !isNeg) return pos;
-    int start = pos;
-    if (isNeg) pos++;
-    while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-    if (pos < src.Length && src[pos] == '.')
-    {
-        pos++;
-        while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-    }
-    float amount = float.Parse(src.Slice(start, pos - start), CultureInfo.InvariantCulture);
-
-    Element elem = Element.Physical;
-    if (pos < src.Length && src[pos] == ':')
-    {
-        pos++;
-        int tagStart = pos;
-        while (pos < src.Length && char.IsLetter(src[pos])) pos++;
-        elem = src.Slice(tagStart, pos - tagStart).ToString() switch
-        {
-            "fire"  => Element.Fire,
-            "ice"   => Element.Ice,
-            "magic" => Element.Magic,
-            _      => Element.Physical,
-        };
-    }
-    value = new ElemValue(amount, elem);
-    return pos;
-};
-```
+The `[LiteralTemplate]` + `[LiteralTag]` attributes trigger compile-time code generation.
+`LexerConfig.LiteralScanner` is not needed. Template `<float Amount><optional>:<Element Element></optional>` recognizes `42`, `1.5:fire`, `-3:ice`.
 
 ## Definition
 
 ```csharp
 public readonly struct ElemDef : IFluxExprDefinition<ElemValue>
 {
-    // ... standard GetArity/GetKind/GetPrecedence/GetPair/GetAssociativity/
-    //     GetFirstPosition/ResolveToken/GetOperatorName ...
+    public byte GetReturnOp() => (byte)ElemOp.Return;
+
+    public int GetArity(byte op) => ((ElemOp)op) switch
+    {
+        ElemOp.Add => 2, ElemOp.Sub => 2, ElemOp.Mul => 2,
+        ElemOp.Div => 2, ElemOp.Neg => 1, _ => 0,
+    };
+
+    public OpType GetKind(byte op) => ((ElemOp)op) switch
+    {
+        ElemOp.Const  => OpType.Immediate,
+        ElemOp.Return => OpType.Return,
+        _             => OpType.Instruction,
+    };
+
+    public int GetPrecedence(byte op) => ((ElemOp)op) switch
+    {
+        ElemOp.Add => 1, ElemOp.Sub => 1, ElemOp.Mul => 2,
+        ElemOp.Div => 2, ElemOp.Neg => 3, _ => 0,
+    };
+
+    public OpPair GetPair(byte op) => ((ElemOp)op) switch
+    {
+        ElemOp.LParen => new OpPair { PairRole = Pair.Left },
+        ElemOp.RParen => new OpPair { PairRole = Pair.Right, TargetLeft = (byte)ElemOp.LParen },
+        _ => new OpPair { PairRole = Pair.None },
+    };
+
+    public Associativity GetAssociativity(byte op) => Associativity.Left;
+    public OperandPosition GetFirstPosition(byte op) => OperandPosition.Left;
+
+    public byte ResolveToken(byte op, TokenContext ctx)
+        => op == (byte)ElemOp.Sub && ctx == TokenContext.OperandExpected
+            ? (byte)ElemOp.Neg : op;
+
+    public string GetOperatorName(byte op) => ((ElemOp)op).ToString();
 
     public ElemValue Compute(byte op, Instruction inst, Span<ElemValue> regs)
     {
@@ -127,15 +131,24 @@ public readonly struct ElemDef : IFluxExprDefinition<ElemValue>
 }
 ```
 
-## Operator Semantics
+## Lexer Configuration
 
-| Operator | Same element | Different element |
-|----------|-------------|-------------------|
-| Add | Sum Amount, keep left element | Same: amounts add, element follows left |
-| Sub | Full reduction: `a.Amount - b.Amount` | Ignore right: true damage |
-| Mul | Multiply Amount, keep right element (multiplier determines type) | Same |
-| Div | Divide Amount, keep right element | Same |
-| Neg | Negate Amount, keep element | — |
+```csharp
+var config = new LexerConfig<ElemValue>
+{
+    LiteralOper = (byte)ElemOp.Const,
+    // Scanner auto-injected by [LiteralTemplate] Source Generator
+    Operators =
+    {
+        new("+", (byte)ElemOp.Add, slots: new sbyte[] { -1, +1 }),
+        new("-", (byte)ElemOp.Sub, slots: new sbyte[] { -1, +1 }),
+        new("*", (byte)ElemOp.Mul, slots: new sbyte[] { -1, +1 }),
+        new("/", (byte)ElemOp.Div, slots: new sbyte[] { -1, +1 }),
+    },
+    Brackets = { new("(", ")", (byte)ElemOp.LParen, (byte)ElemOp.RParen) },
+    VariablePatterns = { new("[", "]") },
+};
+```
 
 ## Usage
 
@@ -150,15 +163,12 @@ var result = runner.Instantiate(f)
     .Set("bonus", new ElemValue(50f,  Element.Ice))
     .Set("def",   new ElemValue(30f,  Element.Fire))
     .Run();
-// 100:Physical * 2.5:Fire = 250:Fire (Mul: keep multiplier element)
-// 250:Fire + 50:Ice      = 300:Fire (Add: keep left element)
-// 300:Fire - 30:Fire     = 270:Fire (Sub: same element full reduction)
+// → 270.00:Fire
 ```
 
 ## Key Points
 
-- `LiteralScanner` receives `ReadOnlySpan<char>` and controls scan boundaries directly
-- Returning `pos` (no match) lets the lexer try other rules; returning `> pos` means characters consumed
-- The `unmanaged` constraint on `TData` excludes reference types; element tags must be enums
-- `:tag` only attaches to numbers (`1.5:fire`), never standalone
-- For fixed-format literals, prefer `[LiteralTemplate]`; manual delegates for irregular syntax
+- `[LiteralTemplate]` + `[LiteralTag]` replace manual delegates for `:tag` suffix syntax
+- Mul/Div preserve the multiplier/divisor element type; Add/Sub preserve the left operand element
+- JIT path uses `Expression.Call` to static methods, avoiding verbose `Expression.MemberInit`
+- Full source at `examples/ElemMath/`

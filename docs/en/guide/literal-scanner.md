@@ -125,6 +125,33 @@ Use `[LiteralTypeAlias]` to give built-in types domain-specific names. Purely co
 public struct WeaponStats { public float Range; public int HP; }
 ```
 
+## Enum Tags
+
+v5.5+ supports `[LiteralTag]` attribute on enum members, enabling templates to recognize string labels directly:
+
+```csharp
+public enum Element : byte
+{
+    Physical = 0,
+    [LiteralTag("fire")]  Fire,
+    [LiteralTag("ice")]   Ice,
+    [LiteralTag("magic")] Magic,
+}
+
+[LiteralTemplate("<float Amount><optional>:<Element Element></optional>")]
+public struct ElemValue
+{
+    public float Amount;
+    public Element Element;
+}
+```
+
+The generated scanner includes a `switch(new string(src.Slice(...)))` block mapping `"fire"` to `Element.Fire`. The template matches `42`, `-5`, `1.5:fire`, `100:ice`.
+
+::: tip
+`[LiteralTag]` eliminates manual delegates for most tagged literal formats.
+:::
+
 ## Built-in Types
 
 The source generator supports 12 C# built-in unmanaged types, each with a corresponding `LiteralTemplateRegistry.Scan_Xxx` method:

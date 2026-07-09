@@ -1,23 +1,25 @@
 # 示例：元素伤害公式
 
-使用自定义 `ElemValue` 结构体和 `LiteralScanner` 实现带元素标签的字面量语法。
+使用 `[LiteralTemplate]` + `[LiteralTag]` Source Generator 实现带元素标签的字面量语法。
 
 ## 场景
 
 游戏中的元素伤害公式: `[atk] * 2.5:fire + [bonus] - [def]`。`2.5:fire` 是一个火元素倍率。纯魔法攻击对纯物理防御是真实伤害：减法中元素不相等则忽略减值。
 
-这就需要两个自定义能力：词法层的 `:tag` 立即数语法，以及运算符层的元素感知求值逻辑。
-
-::: tip 模板优先
-对于格式固定的字面量（如 `<float X> <float Y>`），优先使用 `[LiteralTemplate]`。
-本示例使用委托是因为 `:tag` 后缀语法无法用模板表达。
-:::
+v5.5+ 的 `[LiteralTag]` 使枚举标签纳入模板系统，无需手写 `LiteralScanner` 委托。
 
 ## TData 结构体
 
 ```csharp
-public enum Element : byte { Physical, Fire, Ice, Magic }
+public enum Element : byte
+{
+    Physical = 0,
+    [LiteralTag("fire")]  Fire,
+    [LiteralTag("ice")]   Ice,
+    [LiteralTag("magic")] Magic,
+}
 
+[LiteralTemplate("<float Amount><optional>:<Element Element></optional>")]
 public struct ElemValue : IEquatable<ElemValue>
 {
     public float Amount;
@@ -49,55 +51,10 @@ public struct ElemValue : IEquatable<ElemValue>
 }
 ```
 
-## 操作符枚举
+## 字面量扫描
 
-```csharp
-public enum ElemOp : byte
-{
-    Const, Add, Sub, Mul, Div, Neg,
-    LParen, RParen, Return = 255,
-}
-```
-
-## LiteralScanner
-
-```csharp
-config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out ElemValue value) =>
-{
-    value = default;
-    if (pos >= src.Length) return pos;
-
-    bool isNeg = src[pos] == '-';
-    if (isNeg && pos + 1 < src.Length && !char.IsDigit(src[pos + 1])) return pos;
-    if (!char.IsDigit(src[pos]) && !isNeg) return pos;
-    int start = pos;
-    if (isNeg) pos++;
-    while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-    if (pos < src.Length && src[pos] == '.')
-    {
-        pos++;
-        while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-    }
-    float amount = float.Parse(src.Slice(start, pos - start), CultureInfo.InvariantCulture);
-
-    Element elem = Element.Physical;
-    if (pos < src.Length && src[pos] == ':')
-    {
-        pos++;
-        int tagStart = pos;
-        while (pos < src.Length && char.IsLetter(src[pos])) pos++;
-        elem = src.Slice(tagStart, pos - tagStart).ToString() switch
-        {
-            "fire"  => Element.Fire,
-            "ice"   => Element.Ice,
-            "magic" => Element.Magic,
-            _      => Element.Physical,
-        };
-    }
-    value = new ElemValue(amount, elem);
-    return pos;
-};
-```
+`[LiteralTemplate]` + `[LiteralTag]` 属性由 Source Generator 在编译期自动生成扫描代码。
+`LexerConfig.LiteralScanner` 无需设置。模板 `<float Amount><optional>:<Element Element></optional>` 识别 `42`、`1.5:fire`、`-3:ice`。
 
 ## 定义体
 
@@ -174,15 +131,24 @@ public readonly struct ElemDef : IFluxExprDefinition<ElemValue>
 }
 ```
 
-## 运算符语义
+## Lexer 配置
 
-| 操作符 | 同元素 | 异元素 |
-|--------|--------|--------|
-| Add | 叠加 Amount，保留左元素 | 保留左元素，数值直接累加 |
-| Sub | 全额减免: `a.Amount - b.Amount` | 忽略右操作数: 纯魔法对物理防御是真实伤害 |
-| Mul | 乘 Amount，保留右元素（乘数决定攻击属性） | 同左 |
-| Div | 除 Amount，保留右元素 | 同左 |
-| Neg | 取反 Amount，保留元素 | — |
+```csharp
+var config = new LexerConfig<ElemValue>
+{
+    LiteralOper = (byte)ElemOp.Const,
+    // 扫描器由 [LiteralTemplate] Source Generator 自动注入
+    Operators =
+    {
+        new("+", (byte)ElemOp.Add, slots: new sbyte[] { -1, +1 }),
+        new("-", (byte)ElemOp.Sub, slots: new sbyte[] { -1, +1 }),
+        new("*", (byte)ElemOp.Mul, slots: new sbyte[] { -1, +1 }),
+        new("/", (byte)ElemOp.Div, slots: new sbyte[] { -1, +1 }),
+    },
+    Brackets = { new("(", ")", (byte)ElemOp.LParen, (byte)ElemOp.RParen) },
+    VariablePatterns = { new("[", "]") },
+};
+```
 
 ## 使用
 
@@ -191,21 +157,19 @@ var def    = new ElemDef();
 var runner = new FluxAssembler<ElemValue, ElemDef>(def);
 var lexer  = new FluxLexer<ElemValue>(config);
 
+// [atk] * 2.5:fire + [bonus] - [def]
 var f = runner.Compile(lexer.Lex("[atk] * 2.5:fire + [bonus] - [def]"));
 var result = runner.Instantiate(f)
     .Set("atk",   new ElemValue(100f, Element.Physical))
     .Set("bonus", new ElemValue(50f,  Element.Ice))
     .Set("def",   new ElemValue(30f,  Element.Fire))
     .Run();
-// 100:Physical * 2.5:Fire = 250:Fire (Mul: 保留乘数元素)
-// 250:Fire + 50:Ice      = 300:Fire (Add: 保留左元素)
-// 300:Fire - 30:Fire     = 270:Fire (Sub: 同元素全额减免)
+// → 270.00:Fire
 ```
 
 ## 要点
 
-- `LiteralScanner` 接收 `ReadOnlySpan<char>`，可控制扫描边界，支持任意语法
-- 返回 `pos`（未匹配）让词法器继续尝试其他规则；返回 `> pos` 表示消费字符
-- `TData` 的 `unmanaged` 约束排除了 `string` 等引用类型，元素标签必须编码为枚举
-- `:tag` 仅附加在数字后面（`1.5:fire`），不独立出现（`[bonus]:ice` 中的 `:ice` 不会被解析为立即数）
-- 格式固定的字面量优先用 `[LiteralTemplate]`；手动委托适用于不规则语法
+- `[LiteralTemplate]` + `[LiteralTag]` 替代手写委托，模板直接表达 `:tag` 后缀语法
+- Mul/Div 保留乘数/除数的元素类型，Add/Sub 保留左操作数的元素类型
+- JIT 路径通过 `Expression.Call` 调用静态方法，避免繁琐的 `Expression.MemberInit`
+- 完整源码见 `examples/ElemMath/`
