@@ -1,3 +1,14 @@
+## [5.4.0](https://github.com/twds0x13/FluxFormula/compare/v5.3.1...v5.4.0) (2026-07-09)
+
+### Features
+
+* add FluxCurryEvaluator and FluxStepEvaluator ([e105a8c](https://github.com/twds0x13/FluxFormula/commit/e105a8c9994c887b41a2cddd913f361826b3bd59))
+
+### Bug Fixes
+
+* add GetFirstPosition override to Unity TestDefinition and register new evaluators in benchmark project ([3393135](https://github.com/twds0x13/FluxFormula/commit/3393135ba1cbaf0d80a2c9c3efaf99297ee162ee))
+* unconditional SlotIndex decrement in ToModifier and propagate user variables in JIT chain ([6419e37](https://github.com/twds0x13/FluxFormula/commit/6419e378076b91166c8f14878b6716cd69b65385))
+
 ## [5.3.1](https://github.com/twds0x13/FluxFormula/compare/v5.3.0...v5.3.1) (2026-07-09)
 
 ### Bug Fixes
