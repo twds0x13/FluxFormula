@@ -202,7 +202,7 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
             a.StartIndex);
     }
 
-    // JIT 路径：通过 ref 参数写入 R0，Expression 树编译器映射为寄存器写入
+    // JIT 路径：通过 ref 参数写入 R0，表达式树编译器映射为寄存器写入
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static SpellContext EvaluateAddJit(SpellContext a, SpellContext b, ref SpellContext r0)
     {

@@ -15,7 +15,7 @@ public enum FloatOp : byte
 
 ## 定义体声明
 
-同时实现 `IFluxILDefinition<float>`（EmitOp 内联 内联）和 `IFluxExprDefinition<float>`（Expression 树回退 + 解释器）：
+同时实现 `IFluxILDefinition<float>`（EmitOp 内联 内联）和 `IFluxExprDefinition<float>`（表达式树回退 + 解释器）：
 
 ```csharp
 public readonly struct FloatMathILDef : IFluxILDefinition<float>, IFluxExprDefinition<float>
@@ -145,5 +145,5 @@ stelem 期望栈: [ ..., array, index, value ]  ← 栈顶 = value
 
 - EmitOp 中声明的 IL 指令使用 `inst.Arg0..5` 获取操作数寄存器索引、`inst.Dest` 获取目标寄存器索引。这些索引在 IL 编译器 Pass 2（寄存器计数阶段）已确认在数组范围内。
 - `ILGenerator` 的求值栈深度由 CLR 自动管理；`stelem` 弹出 3 个元素、`ldelem` 弹出 2 个推入 1 个、`add` 弹出 2 个推入 1 个。
-- EmitOp 内联 内联仅影响 IL 发射路径（Mono/CoreCLR）。IL2CPP 平台走 Expression 树路径，EmitOp 不会被调用。
+- EmitOp 内联 内联仅影响 IL 发射路径（Mono/CoreCLR）。IL2CPP 平台走 表达式树路径，EmitOp 不会被调用。
 - 内联过深（如 Sum6）的 IL 代码可读性迅速下降。建议仅对高频简单操作符使用 EmitOp 内联，其余操作符返回 false 走 Compute 指针调用。

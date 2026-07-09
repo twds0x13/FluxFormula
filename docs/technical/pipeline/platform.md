@@ -25,7 +25,7 @@ internal static class FluxPlatform
 | 标志 | 含义 | 检测方式 | 控制范围 |
 |------|------|---------|---------|
 | `IsIlSupported` | DynamicMethod 可用 | `RuntimeFeature.IsDynamicCodeSupported` | IL 发射路径 |
-| `IsJitDisabled` | Expression.Compile() 已失效 | 运行时异常触发 `DisableJit()` | Expression 树路径 |
+| `IsJitDisabled` | Expression.Compile() 已失效 | 运行时异常触发 `DisableJit()` | 表达式树路径 |
 
 `IsIlSupported` **预先检测**（进程启动时结果已确定，无运行时开销），`IsJitDisabled` **运行时标记**（首次 JIT 失败后置位）。
 
@@ -43,7 +43,7 @@ if (FluxPlatform.IsIlSupported)
 {
     // IL 路径仅在 Mono/CoreCLR 上进入
 }
-// IL2CPP 直接跳过，走 Expression 树
+// IL2CPP 直接跳过，走 表达式树
 ```
 
 ## JIT 不可用的平台
@@ -62,7 +62,7 @@ if (FluxPlatform.IsIlSupported)
 
 - **`volatile`**：确保多线程可见性。虽然在 Unity 主线程场景下不关键，但为潜在的异步编译场景预留。
 - **不可逆**：一旦检测到 JIT 不可用，整个进程生命周期内不再尝试。没有 `EnableJit()`，JIT 能力不会在运行时恢复。
-- **手动触发**：`DisableJit()` 由 `CompileDelegate` 在 Expression 树编译失败时调用。也可以由用户主动调用（如在已知 AOT 平台上跳过不必要的一次尝试）。
+- **手动触发**：`DisableJit()` 由 `CompileDelegate` 在 表达式树编译失败时调用。也可以由用户主动调用（如在已知 AOT 平台上跳过不必要的一次尝试）。
 
 ## 三阶降级触发链
 
@@ -72,7 +72,7 @@ FluxAssembler.Instantiate(jit: true)
        └→ CompileDelegate (编译器选择器)
             ├─ (1) FluxILCompiler.Compile()       ← IL 发射 (IsIlSupported 为 true 时)
             │    └→ PlatformNotSupportedException → 降级到 (2)
-            └─ (2) FluxExprCompiler.Compile()      ← Expression 树 (全平台回退)
+            └─ (2) FluxExprCompiler.Compile()      ← 表达式树 (全平台回退)
                  └→ PlatformNotSupportedException → FluxPlatform.DisableJit()
                       └→ (3) 回退到解释器路径
 ```

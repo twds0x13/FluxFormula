@@ -154,7 +154,7 @@ export default withMermaid(
                     { text: "8 字节指令布局", link: "/technical/pipeline/instruction" },
                     { text: "解释器执行循环", link: "/technical/pipeline/evaluator" },
                     { text: "IL 发射编译器", link: "/technical/pipeline/il-compiler" },
-                    { text: "Expression 树编译", link: "/technical/pipeline/jit" },
+                    { text: "表达式树编译", link: "/technical/pipeline/jit" },
                     { text: "平台适配", link: "/technical/pipeline/platform" },
                     { text: "数据注入器", link: "/technical/pipeline/injector" },
                   ],

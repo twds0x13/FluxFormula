@@ -81,7 +81,7 @@ FluxFormula 的编译与执行管线分为四个阶段：**Lex（词法分析）
 - Instantiate 返回 ref struct，生命周期受限于栈帧。分离避免了长生命周期的 Formula 被栈约束
 
 **JIT 自动降级机制**
-- JIT 委托编译包含两条路径：IL 发射（`FluxILCompiler`，Mono/CoreCLR 优先）和 Expression 树（`FluxExprCompiler`，全平台回退）
+- JIT 委托编译包含两条路径：IL 发射（`FluxILCompiler`，Mono/CoreCLR 优先）和 表达式树（`FluxExprCompiler`，全平台回退）
 - IL2CPP / AOT 平台不支持 `Expression.Compile()` 和 `DynamicMethod`
 - `CompileDelegate` 按 IL → Expression → 解释器三阶降级
 - 首次失败后 `FluxPlatform.DisableJit()` 置位，同进程后续调用跳过 JIT
@@ -94,7 +94,7 @@ FluxFormula 的编译与执行管线分为四个阶段：**Lex（词法分析）
 - 逐条指令循环，R0 非 default 时短路返回
 
 **JIT 路径**：
-- 委托已预编译（IL 发射或 Expression 树，从缓存获取）
+- 委托已预编译（IL 发射或 表达式树，从缓存获取）
 - 传入注入后的 payload 数组
 - 无循环、无分支预测失败，仅一次委托调用
 

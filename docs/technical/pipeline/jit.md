@@ -1,8 +1,8 @@
-# Expression 树编译
+# 表达式树编译
 
-FluxFormula 提供两条 JIT 编译路径：**IL 发射**（`FluxILCompiler`，Mono/CoreCLR 优先）和 **Expression 树**（`FluxExprCompiler`，全平台回退）。本文档覆盖 Expression 树路径；IL 路径详见 [IL 发射编译器](./il-compiler.md)。两条路径共享同一委托类型 `CompiledFunc<TData>` 和同一缓存入口 `FormulaCache`，调用方不感知委托来源。
+FluxFormula 提供两条 JIT 编译路径：**IL 发射**（`FluxILCompiler`，Mono/CoreCLR 优先）和 **表达式树**（`FluxExprCompiler`，全平台回退）。本文档覆盖表达式树路径；IL 路径详见 [IL 发射编译器](./il-compiler.md)。两条路径共享同一委托类型 `CompiledFunc<TData>` 和同一缓存入口 `FormulaCache`，调用方不感知委托来源。
 
-## Expression 树编译流程
+## 表达式树编译流程
 
 `FluxExprCompiler<TData, TDef>` 将 `Instruction[]` 字节码编译为 LINQ Expression Tree，再编译为可执行委托。它的核心设计问题：**如何将动态操作码（Definition 定义的任意 byte 值）编译为静态类型的委托，同时保持 2ns 的执行延迟？**
 
@@ -92,7 +92,7 @@ cache.PutDelegate(hash, GCHandle.ToIntPtr(handle));
 
 `DualHash64` 作为缓存键。相同字节码的后续 `Instantiate` 调用直接从缓存获取委托，跳过编译。缓存容量由 `FluxConfig.FormulaCacheCapacity` 控制（默认 256）。这是 JIT 路径能达到 2ns 执行延迟的关键：编译只发生一次，后续都是委托调用。
 
-`CompiledFunc<TData>` 委托类型和 `FormulaCache` 被 IL 发射路径和 Expression 树路径共享。同一字节码仅首次编译时取所选路径；后续命中缓存直接复用已编译委托，不关心来源。
+`CompiledFunc<TData>` 委托类型和 `FormulaCache` 被 IL 发射路径和 表达式树路径共享。同一字节码仅首次编译时取所选路径；后续命中缓存直接复用已编译委托，不关心来源。
 
 ## Per-link 链式 JIT
 
@@ -119,4 +119,4 @@ for (int i = 0; i < _chainFuncs.Length; i++)
 
 ## JIT 降级
 
-平台降级逻辑统一由 `FluxPlatform` 和 `CompileDelegate` 管理，详见 [平台适配](./platform.md)。Expression 树路径在 IL2CPP/AOT 平台抛出 `PlatformNotSupportedException` 后，`CompileDelegate` 内部已先行尝试 IL 路径（如平台支持），Expression 是第二条防线；两次均失败后最终降级到解释器。
+平台降级逻辑统一由 `FluxPlatform` 和 `CompileDelegate` 管理，详见 [平台适配](./platform.md)。表达式树路径在 IL2CPP/AOT 平台抛出 `PlatformNotSupportedException` 后，`CompileDelegate` 内部已先行尝试 IL 路径（如平台支持），Expression 是第二条防线；两次均失败后最终降级到解释器。
