@@ -182,7 +182,7 @@ def main():
     parser.add_argument('--json', '-j', action='store_true', help='Output as JSON')
     parser.add_argument('--fail-under', '-f', type=float, metavar='PCT',
                         help='Exit with code 1 if overall coverage is below PCT%%')
-    parser.add_argument('--framework', default='net8.0', help='Target framework for test (default net8.0)')
+    parser.add_argument('--framework', default='net9.0', help='Target framework for test (default net9.0)')
     parser.add_argument('--project', default='tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj',
                         help='Test project path')
     args = parser.parse_args()

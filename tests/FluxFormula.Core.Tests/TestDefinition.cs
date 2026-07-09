@@ -151,6 +151,16 @@ public readonly struct FloatMathDef : IFluxExprDefinition<float>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public OperandPosition GetFirstPosition(byte op) => (FloatOp)op switch
+    {
+        FloatOp.Add => OperandPosition.Left,
+        FloatOp.Sub => OperandPosition.Left,
+        FloatOp.Mul => OperandPosition.Left,
+        FloatOp.Div => OperandPosition.Left,
+        _           => OperandPosition.Right,
+    };
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public byte ResolveToken(byte oper, TokenContext context)
     {
         if ((FloatOp)oper == FloatOp.Sub && context == TokenContext.OperandExpected)
