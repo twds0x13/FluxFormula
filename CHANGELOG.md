@@ -1,3 +1,9 @@
+## [5.7.0](https://github.com/twds0x13/FluxFormula/compare/v5.6.0...v5.7.0) (2026-07-09)
+
+### Features
+
+* add LiteralTag attribute for enum-based literal scanning ([4cd8d7b](https://github.com/twds0x13/FluxFormula/commit/4cd8d7b1c7e3b852fcd2bd4f6e0963161defdf84))
+
 ## [5.6.0](https://github.com/twds0x13/FluxFormula/compare/v5.5.0...v5.6.0) (2026-07-09)
 
 ### Features
