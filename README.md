@@ -110,90 +110,126 @@ Core 包（`fluxformula.core`）目标框架为 netstandard2.1，兼容 .NET Cor
 
 ```csharp
 using FluxFormula.Core;
+using System;
 using System.Globalization;
+using System.Linq.Expressions;
 
 // 1. 定义操作符枚举（底层类型必须为 : byte）
-public enum FloatOp : byte
+public enum MathOp : byte
 {
     Const, Add, Sub, Mul, Div, Neg,
-    LParen, RParen, Return,
+    LParen, RParen, Return = 255,
 }
 
 // 2. 实现 IFluxExprDefinition<float>
-public readonly struct FloatMathDef : IFluxExprDefinition<float>
+public readonly struct MathDef : IFluxExprDefinition<float>
 {
-    public byte GetReturnOp() => (byte)FloatOp.Return;
+    public byte GetReturnOp() => (byte)MathOp.Return;
 
-    public int GetArity(byte op) => ((FloatOp)op) switch
+    public int GetArity(byte op) => ((MathOp)op) switch
     {
-        FloatOp.Add => 2, FloatOp.Sub => 2, FloatOp.Mul => 2,
-        FloatOp.Div => 2, FloatOp.Neg => 1, _ => 0,
+        MathOp.Add => 2, MathOp.Sub => 2, MathOp.Mul => 2,
+        MathOp.Div => 2, MathOp.Neg => 1, _ => 0,
     };
 
-    public OpType GetKind(byte op) => ((FloatOp)op) switch
+    public OpType GetKind(byte op) => ((MathOp)op) switch
     {
-        FloatOp.Const  => OpType.Immediate,
-        FloatOp.Return => OpType.Return,
-        _              => OpType.Instruction,
+        MathOp.Const  => OpType.Immediate,
+        MathOp.Return => OpType.Return,
+        _             => OpType.Instruction,
     };
 
-    public int GetPrecedence(byte op) => ((FloatOp)op) switch
+    public int GetPrecedence(byte op) => ((MathOp)op) switch
     {
-        FloatOp.Add => 1, FloatOp.Sub => 1, FloatOp.Mul => 2,
-        FloatOp.Div => 2, FloatOp.Neg => 3, _ => 0,
+        MathOp.Add => 1, MathOp.Sub => 1,
+        MathOp.Mul => 2, MathOp.Div => 2,
+        MathOp.Neg => 3,
+        _          => 0,
+    };
+
+    public OpPair GetPair(byte op) => ((MathOp)op) switch
+    {
+        MathOp.LParen => new OpPair { PairRole = Pair.Left },
+        MathOp.RParen => new OpPair
+        {
+            PairRole   = Pair.Right,
+            TargetLeft = (byte)MathOp.LParen,
+        },
+        _ => new OpPair { PairRole = Pair.None },
+    };
+
+    public Associativity GetAssociativity(byte op) => ((MathOp)op) switch
+    {
+        MathOp.Neg => Associativity.Right,
+        _          => Associativity.Left,
+    };
+
+    public OperandPosition GetFirstPosition(byte op) => (MathOp)op switch
+    {
+        MathOp.Add => OperandPosition.Left,
+        MathOp.Sub => OperandPosition.Left,
+        MathOp.Mul => OperandPosition.Left,
+        MathOp.Div => OperandPosition.Left,
+        _          => OperandPosition.Right,
     };
 
     public byte ResolveToken(byte oper, TokenContext ctx)
-        => oper == (byte)FloatOp.Sub && ctx == TokenContext.OperandExpected
-            ? (byte)FloatOp.Neg : oper;
-
-    public OperandPosition GetFirstPosition(byte op) => ((FloatOp)op) switch
     {
-        FloatOp.Add => OperandPosition.Left,
-        FloatOp.Sub => OperandPosition.Left,
-        FloatOp.Mul => OperandPosition.Left,
-        FloatOp.Div => OperandPosition.Left,
-        _           => OperandPosition.Right,
-    };
+        if (oper == (byte)MathOp.Sub && ctx == TokenContext.OperandExpected)
+            return (byte)MathOp.Neg;
+        return oper;
+    }
+
+    public string GetOperatorName(byte op) => ((MathOp)op).ToString();
 
     public float Compute(byte op, Instruction inst, Span<float> regs)
-        => ((FloatOp)op) switch
+    {
+        return ((MathOp)op) switch
         {
-            FloatOp.Add => regs[inst.Arg0] + regs[inst.Arg1],
-            FloatOp.Mul => regs[inst.Arg0] * regs[inst.Arg1],
-            FloatOp.Sub => regs[inst.Arg0] - regs[inst.Arg1],
-            FloatOp.Div => regs[inst.Arg0] / regs[inst.Arg1],
-            FloatOp.Neg => -regs[inst.Arg0],
+            MathOp.Add => regs[inst.Arg0] + regs[inst.Arg1],
+            MathOp.Sub => regs[inst.Arg0] - regs[inst.Arg1],
+            MathOp.Mul => regs[inst.Arg0] * regs[inst.Arg1],
+            MathOp.Div => Math.Abs(regs[inst.Arg1]) < float.Epsilon
+                ? float.NaN
+                : regs[inst.Arg0] / regs[inst.Arg1],
+            MathOp.Neg => -regs[inst.Arg0],
             _ => 0f,
         };
+    }
 
     public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
-        => ((FloatOp)op) switch
+    {
+        var zero = Expression.Constant(0f);
+        var nan  = Expression.Constant(float.NaN);
+        return ((MathOp)op) switch
         {
-            FloatOp.Add => Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Mul => Expression.Multiply(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Sub => Expression.Subtract(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Div => Expression.Divide(regs[inst.Arg0], regs[inst.Arg1]),
-            FloatOp.Neg => Expression.Negate(regs[inst.Arg0]),
+            MathOp.Add => Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Sub => Expression.Subtract(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Mul => Expression.Multiply(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Div => Expression.Condition(
+                Expression.Equal(regs[inst.Arg1], zero),
+                nan,
+                Expression.Divide(regs[inst.Arg0], regs[inst.Arg1])),
+            MathOp.Neg => Expression.Negate(regs[inst.Arg0]),
             _ => Expression.Constant(0f),
         };
-    // 括号与结合性配置省略，详见文档
+    }
 }
 
 // 3. 配置 Lexer，编译公式，注入变量，执行
 var config = new LexerConfig<float>
 {
-    LiteralOper    = FloatOp.Const,
+    LiteralOper    = (byte)MathOp.Const,
     LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s, CultureInfo.InvariantCulture)),
-    Operators      = { new("+", FloatOp.Add), new("-", FloatOp.Sub),
-                       new("*", FloatOp.Mul), new("/", FloatOp.Div) },
-    Brackets       = { new("(", ")", FloatOp.LParen, FloatOp.RParen) },
+    Operators      = { new("+", (byte)MathOp.Add), new("-", (byte)MathOp.Sub),
+                       new("*", (byte)MathOp.Mul), new("/", (byte)MathOp.Div) },
+    Brackets       = { new("(", ")", (byte)MathOp.LParen, (byte)MathOp.RParen) },
     VariablePatterns = { new("[", "]") },
-    ImplicitOperators = { FloatOp.Mul },
+    ImplicitOperators = { (byte)MathOp.Mul },
 };
 
-var def    = new FloatMathDef();
-var runner = new FluxAssembler<float, FloatMathDef>(def);
+var def    = new MathDef();
+var runner = new FluxAssembler<float, MathDef>(def);
 var lexResult = new FluxLexer<float>(config).Lex("([atk] * 2 + [bonus]) / 100");
 
 float result = runner.Instantiate(runner.Compile(lexResult))
