@@ -14,6 +14,8 @@
     <!-- 核心 Runtime 源码（monorepo: packages/fluxformula.core/Runtime/） -->
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxDefinition.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxEvaluator.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxCurryEvaluator.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxStepEvaluator.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxFormula.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxChain.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxModifier.cs" />

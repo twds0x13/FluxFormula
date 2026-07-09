@@ -79,6 +79,21 @@ public readonly struct FloatMathDef : IFluxExprDefinition<float>
     }; }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public OperandPosition GetFirstPosition(byte op) => (FloatOp)op switch
+    {
+        FloatOp.Add  => OperandPosition.Left,
+        FloatOp.Sub  => OperandPosition.Left,
+        FloatOp.Mul  => OperandPosition.Left,
+        FloatOp.Div  => OperandPosition.Left,
+        FloatOp.Neg  => OperandPosition.Right,
+        FloatOp.Select => OperandPosition.Right,
+        FloatOp.Lerp   => OperandPosition.Right,
+        FloatOp.Sum6   => OperandPosition.Right,
+        FloatOp.Question => OperandPosition.Left,
+        _ => OperandPosition.Left,
+    };
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public float Compute(byte op, Instruction inst, Span<float> regs)
     {
         return (FloatOp)op switch
