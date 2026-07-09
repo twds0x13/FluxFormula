@@ -72,6 +72,10 @@ var config = new LexerConfig<SpellContext>
     {
         new("(", ")", (byte)SpellOp.LParen, (byte)SpellOp.RParen),
     },
+    VariablePatterns =
+    {
+        new("[", "]"),
+    },
 };
 
 var def    = new SpellDef();
@@ -82,12 +86,12 @@ var lexer  = new FluxLexer<SpellContext>(config);
 // 卡1: +10 伤害修正, 0 抽（仅消耗施法成本）
 // 卡2: +7 伤害修正,  0 抽
 // 卡3: +5 伤害修正,  0 抽
-var mod1 = runner.Compile(lexer.Lex("[prev] + 10|idx:0"));
-var mod2 = runner.Compile(lexer.Lex("[prev] + 7|idx:1"));
-var mod3 = runner.Compile(lexer.Lex("[prev] + 5|idx:2"));
+var card1 = runner.Compile(lexer.Lex("[prev] + 10|idx:0"));       // Formula（链首）
+var mod2  = runner.Compile(lexer.Lex("[prev] + 7|idx:1")).ToModifier();
+var mod3  = runner.Compile(lexer.Lex("[prev] + 5|idx:2")).ToModifier();
 
 // 所有卡串联为一条链
-var chain = mod1.ToModifier().Connect(mod2.ToModifier()).Connect(mod3.ToModifier());
+var chain = card1.Connect(mod2).Connect(mod3);
 
 // 追踪公式：Track [prev]
 var trackerDef    = new TrackerDef();
@@ -96,6 +100,7 @@ var trackerConfig = new LexerConfig<SpellTracker>
     LiteralOper = (byte)TrackerOp.Const,
     LiteralScanner = LexerConfig<SpellTracker>.CreateDefaultNumberScanner(_ => default),
     Operators = { new("Track", (byte)TrackerOp.Track) },
+    VariablePatterns = { new("[", "]") },
 };
 var trackerLexer = new FluxLexer<SpellTracker>(trackerConfig);
 var tracker      = new FluxAssembler<SpellTracker, TrackerDef>(trackerDef);
