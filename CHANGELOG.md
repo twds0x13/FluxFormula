@@ -1,3 +1,20 @@
+## [5.5.0](https://github.com/twds0x13/FluxFormula/compare/v5.4.0...v5.5.0) (2026-07-09)
+
+### Features
+
+* add CardDraw example with SpellContext and SpellTracker definitions ([5f185bb](https://github.com/twds0x13/FluxFormula/commit/5f185bb2276ebfe0eefe4c7d44b3b3bde9db0c44))
+* add Cross, Norm, Dot operators to Vector3 example ([05c308e](https://github.com/twds0x13/FluxFormula/commit/05c308ef3b3d1b182331388046f172024fc94061))
+* add syntax view model with Slots and Aux to OperatorRule ([5e71140](https://github.com/twds0x13/FluxFormula/commit/5e711401515e1aafd0cddf3a12a89a4a5e20b90c))
+* add Vector3 example with lexer-based workflow ([13a80cd](https://github.com/twds0x13/FluxFormula/commit/13a80cdb9483b5cbfbd6ca030ddafc633e66022a))
+* build opcode-to-arity lookup in Compiler from syntax ([08dd9c5](https://github.com/twds0x13/FluxFormula/commit/08dd9c53cc3562b2d6cc2947d53a690378520fea))
+* declare complete syntax for Vector3 operators ([f55f466](https://github.com/twds0x13/FluxFormula/commit/f55f4666079688a07db694e1d0b8850644d2385c))
+* migrate FloatMath, AdvMath, and CardDraw to Slots declarations ([f28f267](https://github.com/twds0x13/FluxFormula/commit/f28f26702db4257766388eb201ed8ab0ff117ce5))
+* switch CardDraw to LiteralTemplate source generator ([25347f3](https://github.com/twds0x13/FluxFormula/commit/25347f3441896223b68160c87f5eeec3e6e0d9ce))
+
+### Bug Fixes
+
+* correct CardDraw chain structure and lexer configuration ([1f72914](https://github.com/twds0x13/FluxFormula/commit/1f72914b9df0f44c484c3ed91c7b24239676fb25))
+
 ## [5.4.0](https://github.com/twds0x13/FluxFormula/compare/v5.3.1...v5.4.0) (2026-07-09)
 
 ### Features
