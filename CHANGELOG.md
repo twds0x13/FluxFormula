@@ -1,3 +1,9 @@
+## [5.7.1](https://github.com/twds0x13/FluxFormula/compare/v5.7.0...v5.7.1) (2026-07-09)
+
+### Performance Improvements
+
+* split FluxJITInjector from FluxInjector for JIT hot path ([769d4fa](https://github.com/twds0x13/FluxFormula/commit/769d4fac9fc5d38a214655ff4a7839a9025e61b9))
+
 ## [5.7.0](https://github.com/twds0x13/FluxFormula/compare/v5.6.0...v5.7.0) (2026-07-09)
 
 ### Features
