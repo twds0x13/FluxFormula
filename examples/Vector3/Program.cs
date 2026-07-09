@@ -9,12 +9,21 @@ var config = new LexerConfig<Vector3f>
         s => new Vector3f(float.Parse(s, CultureInfo.InvariantCulture), 0, 0)),
     Operators =
     {
-        new("+", (byte)Vector3Op.Add),
-        new("-", (byte)Vector3Op.Sub),
-        new("*", (byte)Vector3Op.Scale),
-        new("x", (byte)Vector3Op.Cross),
-        new("norm", (byte)Vector3Op.Norm, "(", ")"),
-        new("dot", (byte)Vector3Op.Dot, "(", ")"),
+        // 中缀 (标准二元)
+        new("+", (byte)Vector3Op.Add, slots: new sbyte[] { -1, +1 }),
+        new("-", (byte)Vector3Op.Sub, slots: new sbyte[] { -1, +1 }),
+        new("*", (byte)Vector3Op.Scale, slots: new sbyte[] { -1, +1 }),
+        new("x", (byte)Vector3Op.Cross, slots: new sbyte[] { -1, +1 }),
+        // 函数式 (前缀 + 括号 + 逗号分隔)
+        new("cross", (byte)Vector3Op.Cross,
+            slots: new sbyte[] { +2, +4 },
+            aux: new AuxRule[] { new(+1, "("), new(+3, ","), new(+5, ")") }),
+        new("dot", (byte)Vector3Op.Dot,
+            slots: new sbyte[] { +2, +4 },
+            aux: new AuxRule[] { new(+1, "("), new(+3, ","), new(+5, ")") }),
+        new("norm", (byte)Vector3Op.Norm,
+            slots: new sbyte[] { +2 },
+            aux: new AuxRule[] { new(+1, "("), new(+3, ")") }),
         new(",", (byte)Vector3Op.Comma),
     },
     Brackets =

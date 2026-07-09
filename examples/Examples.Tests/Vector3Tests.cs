@@ -16,12 +16,19 @@ public class Vector3Tests
                 s => new Vector3f(float.Parse(s, CultureInfo.InvariantCulture), 0, 0)),
             Operators =
             {
-                new("+", (byte)Vector3Op.Add),
-                new("-", (byte)Vector3Op.Sub),
-                new("*", (byte)Vector3Op.Scale),
-                new("x", (byte)Vector3Op.Cross),
-                new("norm", (byte)Vector3Op.Norm, "(", ")"),
-                new("dot", (byte)Vector3Op.Dot, "(", ")"),
+                new("+", (byte)Vector3Op.Add, slots: new sbyte[] { -1, +1 }),
+                new("-", (byte)Vector3Op.Sub, slots: new sbyte[] { -1, +1 }),
+                new("*", (byte)Vector3Op.Scale, slots: new sbyte[] { -1, +1 }),
+                new("x", (byte)Vector3Op.Cross, slots: new sbyte[] { -1, +1 }),
+                new("cross", (byte)Vector3Op.Cross,
+                    slots: new sbyte[] { +2, +4 },
+                    aux: new AuxRule[] { new(+1, "("), new(+3, ","), new(+5, ")") }),
+                new("dot", (byte)Vector3Op.Dot,
+                    slots: new sbyte[] { +2, +4 },
+                    aux: new AuxRule[] { new(+1, "("), new(+3, ","), new(+5, ")") }),
+                new("norm", (byte)Vector3Op.Norm,
+                    slots: new sbyte[] { +2 },
+                    aux: new AuxRule[] { new(+1, "("), new(+3, ")") }),
                 new(",", (byte)Vector3Op.Comma),
             },
             Brackets =
@@ -74,6 +81,14 @@ public class Vector3Tests
     [Test]
     public void Cross_Infix()
         => AssertVec(Eval("[a] x [b]",
+            jit: false,
+            a: new(1, 0, 0),
+            b: new(0, 1, 0)),
+            0, 0, 1);
+
+    [Test]
+    public void Cross_FunctionSyntax()
+        => AssertVec(Eval("cross([a], [b])",
             jit: false,
             a: new(1, 0, 0),
             b: new(0, 1, 0)),
