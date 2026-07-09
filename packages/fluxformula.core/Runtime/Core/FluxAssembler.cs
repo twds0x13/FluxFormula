@@ -58,9 +58,11 @@ namespace FluxFormula.Core
                     byte resolved = _definition.ResolveToken(firstOper, TokenContext.OperandExpected);
                     if (resolved != 0)
                     {
+                        // 仅在真正做了别名解析时才跳过 syntax-based 检查。
+                        // 恒等映射（resolved == firstOper）不应屏蔽 syntax 声明。
+                        wasResolved = (resolved != firstOper);
                         firstOper = resolved;
                         kind      = _definition.GetKind(firstOper);
-                        wasResolved = true;
                     }
                 }
 
@@ -135,7 +137,7 @@ namespace FluxFormula.Core
                 // ── JIT 原子路径 ──
                 if (TryResolveJitDelegate(formula, out var func, out var payload))
                 {
-                    var injector = new FluxInjector<TData>(payload, null, formula.VariableSlots);
+                    var injector = new FluxJITInjector<TData>(payload);
                     return new FluxInstance<TData, TDef>(
                         _definition, formula, injector, func, true);
                 }
@@ -367,7 +369,7 @@ namespace FluxFormula.Core
         {
             var links = chain.GetLinks();
             var funcs = new CompiledFunc<TData>[links.Length];
-            var injectors = new FluxInjector<TData>[links.Length];
+            var injectors = new FluxJITInjector<TData>[links.Length];
             var chainUserGlobalSlots = new int[links.Length][];
             var chainUserLocalSlots  = new int[links.Length][];
             int globalImmBase = 0;
@@ -413,7 +415,7 @@ namespace FluxFormula.Core
                 }
 
                 funcs[i] = func;
-                injectors[i] = new FluxInjector<TData>(payload, null, localSlots);
+                injectors[i] = new FluxJITInjector<TData>(payload);
                 globalImmBase += links[i].ImmediateCount;
             }
 

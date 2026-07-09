@@ -22,6 +22,7 @@
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxToken.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxAssembler.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxInjector.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxJITInjector.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxLexer.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/DualHash64.cs" />

@@ -17,12 +17,16 @@ namespace FluxFormula.Core
         private readonly FluxFormula<TData, TDef> _formula;
         private readonly CompiledFunc<TData> _jitFunc;
         private readonly bool _isJit;
+        private readonly bool _isAtomicJIT;
 
         private FluxInjector<TData> _injector;
 
+        // ── 原子 JIT ──
+        private FluxJITInjector<TData> _jitInjector;
+
         // ── 链式 JIT ──
         private readonly CompiledFunc<TData>[] _chainFuncs;
-        private readonly FluxInjector<TData>[] _chainInjectors;
+        private readonly FluxJITInjector<TData>[] _chainJITInjectors;
         /// <summary>[linkIndex][varIndex] = 全局 SlotIndex，用于从 merged injector 读取用户变量值</summary>
         private readonly int[][] _chainUserGlobalSlots;
         /// <summary>[linkIndex][varIndex] = per-link payload 内的局部 slot，用于 SetIndex 写入</summary>
@@ -45,8 +49,33 @@ namespace FluxFormula.Core
             _injector       = injector;
             _jitFunc        = jitFunc;
             _isJit          = isJit;
+            _isAtomicJIT    = false;
+            _jitInjector    = default;
             _chainFuncs     = null;
-            _chainInjectors = null;
+            _chainJITInjectors = null;
+            _chainUserGlobalSlots = null;
+            _chainUserLocalSlots  = null;
+            _chain          = default;
+        }
+
+        // ── 原子 JIT 构造器 ──
+
+        internal FluxInstance(
+            TDef definition,
+            FluxFormula<TData, TDef> formula,
+            FluxJITInjector<TData> jitInjector,
+            CompiledFunc<TData> jitFunc,
+            bool isJit)
+        {
+            _definition     = definition;
+            _formula        = formula;
+            _injector       = default;
+            _jitFunc        = jitFunc;
+            _isJit          = isJit;
+            _isAtomicJIT    = true;
+            _jitInjector    = jitInjector;
+            _chainFuncs     = null;
+            _chainJITInjectors = null;
             _chainUserGlobalSlots = null;
             _chainUserLocalSlots  = null;
             _chain          = default;
@@ -59,7 +88,7 @@ namespace FluxFormula.Core
             FluxFormula<TData, TDef> mergedFormula,
             FluxInjector<TData> mergedInjector,
             CompiledFunc<TData>[] chainFuncs,
-            FluxInjector<TData>[] chainInjectors,
+            FluxJITInjector<TData>[] chainJITInjectors,
             int[][] chainUserGlobalSlots,
             int[][] chainUserLocalSlots,
             FluxChain<TData, TDef> chain)
@@ -69,8 +98,10 @@ namespace FluxFormula.Core
             _injector       = mergedInjector;
             _jitFunc        = null;
             _isJit          = true;
+            _isAtomicJIT    = false;
+            _jitInjector    = default;
             _chainFuncs     = chainFuncs;
-            _chainInjectors = chainInjectors;
+            _chainJITInjectors = chainJITInjectors;
             _chainUserGlobalSlots = chainUserGlobalSlots;
             _chainUserLocalSlots  = chainUserLocalSlots;
             _chain          = chain;
@@ -91,8 +122,10 @@ namespace FluxFormula.Core
             _injector       = injector;
             _jitFunc        = jitFunc;
             _isJit          = isJit;
+            _isAtomicJIT    = false;
+            _jitInjector    = default;
             _chainFuncs     = null;
-            _chainInjectors = null;
+            _chainJITInjectors = null;
             _chainUserGlobalSlots = null;
             _chainUserLocalSlots  = null;
             _chain          = chain;
@@ -103,14 +136,28 @@ namespace FluxFormula.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FluxInstance<TData, TDef> SetIndex(int index, TData value)
         {
-            _injector = _injector.SetIndex(index, value);
+            if (_isAtomicJIT)
+                _jitInjector = _jitInjector.SetIndex(index, value);
+            else
+                _injector = _injector.SetIndex(index, value);
             return this;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FluxInstance<TData, TDef> Set(string name, TData value)
         {
-            _injector = _injector.Set(name, value);
+            if (_isAtomicJIT)
+            {
+                // 线性扫描 VariableSlots（公式变量数通常 3~5）
+                var slots = _formula.VariableSlots;
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    if (slots[i].Name == name)
+                        _jitInjector = _jitInjector.SetIndex(slots[i].SlotIndex, value);
+                }
+            }
+            else
+                _injector = _injector.Set(name, value);
             return this;
         }
 
@@ -127,7 +174,7 @@ namespace FluxFormula.Core
             }
             else if (_isJit)
             {
-                return _jitFunc(_injector.GetBuffer());
+                return _jitFunc(_jitInjector.GetBuffer());
             }
             else if (_chain.Length > 0)
             {
@@ -150,7 +197,7 @@ namespace FluxFormula.Core
 
             for (int i = 0; i < _chainFuncs.Length; i++)
             {
-                var injector = _chainInjectors[i];
+                var injector = _chainJITInjectors[i];
 
                 // 从 merged injector 传播用户变量值到 per-link injector
                 var globalSlots = _chainUserGlobalSlots[i];
@@ -235,6 +282,7 @@ namespace FluxFormula.Core
             return buffer;
         }
 
-        internal readonly Instruction[] GetBuffer() => _injector.GetBuffer();
+        internal readonly Instruction[] GetBuffer() =>
+            _isAtomicJIT ? _jitInjector.GetBuffer() : _injector.GetBuffer();
     }
 }
