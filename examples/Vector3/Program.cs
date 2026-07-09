@@ -12,6 +12,10 @@ var config = new LexerConfig<Vector3f>
         new("+", (byte)Vector3Op.Add),
         new("-", (byte)Vector3Op.Sub),
         new("*", (byte)Vector3Op.Scale),
+        new("x", (byte)Vector3Op.Cross),
+        new("norm", (byte)Vector3Op.Norm, "(", ")"),
+        new("dot", (byte)Vector3Op.Dot, "(", ")"),
+        new(",", (byte)Vector3Op.Comma),
     },
     Brackets =
     {
@@ -27,21 +31,44 @@ var lexer  = new FluxLexer<Vector3f>(config);
 var def    = new Vector3Def();
 var runner = new FluxAssembler<Vector3f, Vector3Def>(def);
 
+float F(float v) => v;  // shorthand for readable test output
+
 // P = P0 + V0 * t
 var formula = runner.Compile(lexer.Lex("[P0] + [V0] * [t]"));
-var result = runner.Instantiate(formula)
+var r1 = runner.Instantiate(formula)
     .Set("P0", new Vector3f(10f, 5f, 0f))
     .Set("V0", new Vector3f(5f, 2f, 0f))
-    .Set("t", new Vector3f(3f, 0f, 0f))
+    .Set("t",  new Vector3f(3f, 0f, 0f))
     .Run();
+Console.WriteLine($"P0 + V0 * t = {r1}");
 
-Console.WriteLine(result); // → (25.00, 11.00, 0.00)
-
-// JIT verification
-var jitResult = runner.Instantiate(formula, jit: true)
-    .Set("P0", new Vector3f(10f, 5f, 0f))
-    .Set("V0", new Vector3f(5f, 2f, 0f))
-    .Set("t", new Vector3f(3f, 0f, 0f))
+// Cross: a x b
+var cross = runner.Instantiate(runner.Compile(lexer.Lex("[a] x [b]")))
+    .Set("a", new Vector3f(1, 0, 0))
+    .Set("b", new Vector3f(0, 1, 0))
     .Run();
+Console.WriteLine($"(1,0,0) x (0,1,0) = {cross}");  // → (0, 0, 1)
 
-Console.WriteLine($"JIT matches: {result.Equals(jitResult)}");
+// Norm: normalize a vector
+var norm = runner.Instantiate(runner.Compile(lexer.Lex("norm([v])")))
+    .Set("v", new Vector3f(3, 4, 0))
+    .Run();
+Console.WriteLine($"norm(3,4,0) = {norm}");  // → (0.60, 0.80, 0.00)
+
+// Dot: dot product (result in X component)
+var dot = runner.Instantiate(runner.Compile(lexer.Lex("dot([a], [b])")))
+    .Set("a", new Vector3f(1, 2, 3))
+    .Set("b", new Vector3f(4, 5, 6))
+    .Run();
+Console.WriteLine($"dot((1,2,3), (4,5,6)) = {dot.X}");  // → 32
+
+// JIT consistency
+var jit = runner.Instantiate(runner.Compile(lexer.Lex("cross(norm([a]), [b])")), jit: true)
+    .Set("a", new Vector3f(3, 4, 0))
+    .Set("b", new Vector3f(0, 0, 1))
+    .Run();
+var interp = runner.Instantiate(runner.Compile(lexer.Lex("cross(norm([a]), [b])")), jit: false)
+    .Set("a", new Vector3f(3, 4, 0))
+    .Set("b", new Vector3f(0, 0, 1))
+    .Run();
+Console.WriteLine($"JIT matches interp: {jit.Equals(interp)}");

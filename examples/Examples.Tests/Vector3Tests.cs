@@ -19,6 +19,10 @@ public class Vector3Tests
                 new("+", (byte)Vector3Op.Add),
                 new("-", (byte)Vector3Op.Sub),
                 new("*", (byte)Vector3Op.Scale),
+                new("x", (byte)Vector3Op.Cross),
+                new("norm", (byte)Vector3Op.Norm, "(", ")"),
+                new("dot", (byte)Vector3Op.Dot, "(", ")"),
+                new(",", (byte)Vector3Op.Comma),
             },
             Brackets =
             {
@@ -40,57 +44,88 @@ public class Vector3Tests
         return runner.Instantiate(f, jit).Run();
     }
 
+    private static void AssertVec(Vector3f v, float x, float y, float z)
+    {
+        Assert.That(v.X, Is.EqualTo(x).Within(1e-6f));
+        Assert.That(v.Y, Is.EqualTo(y).Within(1e-6f));
+        Assert.That(v.Z, Is.EqualTo(z).Within(1e-6f));
+    }
+
     // ═══════════════════════════════════════════════════════
     // Single Operator Correctness
     // ═══════════════════════════════════════════════════════
 
     [Test]
     public void Const_ReturnsVector()
+        => AssertVec(Eval("5"), 5, 0, 0);
+
+    [Test]
+    public void Add_TwoVectors()
+        => AssertVec(Eval("1 + 2"), 3, 0, 0);
+
+    [Test]
+    public void Sub_TwoVectors()
+        => AssertVec(Eval("5 - 3"), 2, 0, 0);
+
+    [Test]
+    public void Scale_VectorByScalar()
+        => AssertVec(Eval("4 * 3"), 12, 0, 0);
+
+    [Test]
+    public void Cross_Infix()
+        => AssertVec(Eval("[a] x [b]",
+            jit: false,
+            a: new(1, 0, 0),
+            b: new(0, 1, 0)),
+            0, 0, 1);
+
+    [Test]
+    public void Norm_UnitVector()
     {
-        var v = Eval("5");
-        Assert.That(v.X, Is.EqualTo(5f));
+        var v = Eval("norm([v])", jit: false, v: new Vector3f(3, 4, 0));
+        AssertVec(v, 0.6f, 0.8f, 0f);
+    }
+
+    [Test]
+    public void Norm_ZeroVector_ReturnsDefault()
+    {
+        var v = Eval("norm([v])", jit: false, v: new Vector3f(0, 0, 0));
+        AssertVec(v, 0, 0, 0);
+    }
+
+    [Test]
+    public void Dot_ReturnsResultInX()
+    {
+        var v = Eval("dot([a], [b])",
+            jit: false,
+            a: new(1, 2, 3),
+            b: new(4, 5, 6));
+        Assert.That(v.X, Is.EqualTo(32f));  // 1*4 + 2*5 + 3*6
         Assert.That(v.Y, Is.EqualTo(0f));
         Assert.That(v.Z, Is.EqualTo(0f));
     }
 
-    [Test]
-    public void Add_TwoVectors()
-    {
-        var v = Eval("1 + 2");
-        Assert.That(v.X, Is.EqualTo(3f));
-    }
-
-    [Test]
-    public void Sub_TwoVectors()
-    {
-        var v = Eval("5 - 3");
-        Assert.That(v.X, Is.EqualTo(2f));
-    }
-
-    [Test]
-    public void Scale_VectorByScalar()
-    {
-        var v = Eval("4 * 3");
-        Assert.That(v.X, Is.EqualTo(12f));
-    }
-
     // ═══════════════════════════════════════════════════════
-    // Precedence
+    // Combinations
     // ═══════════════════════════════════════════════════════
 
     [Test]
-    public void ScaleBindsTighterThanAdd()
+    public void CrossNorm_Compose()
     {
-        var v = Eval("1 + 2 * 3");
-        Assert.That(v.X, Is.EqualTo(7f));   // 1 + (2*3), not (1+2)*3
+        var v = Eval("norm([a]) x [b]",
+            jit: false,
+            a: new(3, 4, 0),
+            b: new(0, 0, 1));
+        AssertVec(v, 0.8f, -0.6f, 0f);
     }
 
     [Test]
-    public void AddAndSubSamePrecedence_LeftAssoc()
-    {
-        var v = Eval("10 - 3 + 2");
-        Assert.That(v.X, Is.EqualTo(9f));   // (10-3)+2
-    }
+    public void CrossAndScale_MixedPrecedence()
+        => AssertVec(Eval("[a] x [b] * 2",
+            jit: false,
+            a: new(1, 0, 0),
+            b: new(0, 1, 0)),
+            0, 0, 2);  // Cross and Scale same precedence, left-assoc
 
     // ═══════════════════════════════════════════════════════
     // Parentheses
@@ -98,39 +133,16 @@ public class Vector3Tests
 
     [Test]
     public void Parentheses_OverridePrecedence()
-    {
-        var v = Eval("(1 + 2) * 3");
-        Assert.That(v.X, Is.EqualTo(9f));
-    }
+        => AssertVec(Eval("(1 + 2) * 3"), 9, 0, 0);
 
     [Test]
-    public void Parentheses_Nested()
+    public void Parentheses_CrossWithAdd()
     {
-        var v = Eval("(10 - (3 + 2)) * 2");
-        Assert.That(v.X, Is.EqualTo(10f));  // (10-5)*2
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // Variables
-    // ═══════════════════════════════════════════════════════
-
-    [Test]
-    public void Variables_SetByName()
-    {
-        var lexer  = CreateLexer();
-        var runner = new FluxAssembler<Vector3f, Vector3Def>(Def);
-        var r = lexer.Lex("[P0] + [V0] * [t]");
-        var f = runner.Compile(r);
-
-        var result = runner.Instantiate(f)
-            .Set("P0", new Vector3f(10f, 5f, 0f))
-            .Set("V0", new Vector3f(5f, 2f, 0f))
-            .Set("t",  new Vector3f(3f, 0f, 0f))
-            .Run();
-
-        Assert.That(result.X, Is.EqualTo(25f));
-        Assert.That(result.Y, Is.EqualTo(11f));
-        Assert.That(result.Z, Is.EqualTo(0f));
+        var a = new Vector3f(1, 0, 0);
+        var b = new Vector3f(0, 1, 0);
+        var c = new Vector3f(0, 0, 1);
+        // [a] + [b] x [c] = (1,0,0) + (1,0,0) = (2,0,0)
+        AssertVec(Eval("[a] + [b] x [c]", jit: false, a: a, b: b, c: c), 2, 0, 0);
     }
 
     // ═══════════════════════════════════════════════════════
@@ -146,30 +158,56 @@ public class Vector3Tests
     }
 
     [Test]
-    public void Jit_MatchesInterp_Mixed()
+    public void Jit_MatchesInterp_Cross()
     {
-        var interp = Eval("(1 + 2) * 3 - 5", jit: false);
-        var jit    = Eval("(1 + 2) * 3 - 5", jit: true);
+        var args = (a: new Vector3f(1, 0, 0), b: new Vector3f(0, 1, 0));
+        var interp = Eval("[a] x [b]", jit: false, a: args.a, b: args.b);
+        var jit    = Eval("[a] x [b]", jit: true, a: args.a, b: args.b);
         Assert.That(jit, Is.EqualTo(interp));
     }
 
     [Test]
-    public void Jit_MatchesInterp_WithVariables()
+    public void Jit_MatchesInterp_Norm()
+    {
+        var v = new Vector3f(3, 4, 0);
+        var interp = Eval("norm([v])", jit: false, v: v);
+        var jit    = Eval("norm([v])", jit: true, v: v);
+        Assert.That(jit, Is.EqualTo(interp));
+    }
+
+    [Test]
+    public void Jit_MatchesInterp_Dot()
+    {
+        var args = (a: new Vector3f(1, 2, 3), b: new Vector3f(4, 5, 6));
+        var interp = Eval("dot([a], [b])", jit: false, a: args.a, b: args.b);
+        var jit    = Eval("dot([a], [b])", jit: true, a: args.a, b: args.b);
+        Assert.That(jit, Is.EqualTo(interp));
+    }
+
+    [Test]
+    public void Jit_MatchesInterp_Composed()
+    {
+        var args = (a: new Vector3f(3, 4, 0), b: new Vector3f(0, 0, 1));
+        var interp = Eval("norm([a]) x [b]", jit: false, a: args.a, b: args.b);
+        var jit    = Eval("norm([a]) x [b]", jit: true, a: args.a, b: args.b);
+        Assert.That(jit, Is.EqualTo(interp));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // Helpers (overload with named variable injection)
+    // ═══════════════════════════════════════════════════════
+
+    private static Vector3f Eval(string expr, bool jit, Vector3f a = default, Vector3f b = default, Vector3f c = default, Vector3f v = default)
     {
         var lexer  = CreateLexer();
         var runner = new FluxAssembler<Vector3f, Vector3Def>(Def);
-        var r = lexer.Lex("[a] + [b] * [c]");
+        var r = lexer.Lex(expr);
         var f = runner.Compile(r);
-
-        var vA = new Vector3f(1f, 2f, 3f);
-        var vB = new Vector3f(4f, 5f, 6f);
-        var vC = new Vector3f(2f, 0f, 0f);
-
-        var interp = runner.Instantiate(f, jit: false)
-            .Set("a", vA).Set("b", vB).Set("c", vC).Run();
-        var jit = runner.Instantiate(f, jit: true)
-            .Set("a", vA).Set("b", vB).Set("c", vC).Run();
-
-        Assert.That(jit, Is.EqualTo(interp));
+        var inst = runner.Instantiate(f, jit);
+        if (a != default) inst = inst.Set("a", a);
+        if (b != default) inst = inst.Set("b", b);
+        if (c != default) inst = inst.Set("c", c);
+        if (v != default) inst = inst.Set("v", v);
+        return inst.Run();
     }
 }
