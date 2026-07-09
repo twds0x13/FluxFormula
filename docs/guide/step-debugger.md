@@ -1,0 +1,86 @@
+# 单步调试器
+
+`FluxStepEvaluator` 提供逐指令执行能力，每次 `Step()` 推进一条指令并返回寄存器快照。
+适用于调试编译器输出、可视化公式执行过程、教学演示等场景。
+
+## 创建
+
+```csharp
+var assembler = new FluxAssembler<float, FloatMathDef>(definition);
+var formula = assembler.Compile(new[] { C(3f), Op(FloatOp.Mul), C(4f) });
+
+var step = assembler.StepDebug(formula);
+// 等价于: FluxStepEvaluator<float, FloatMathDef>.Create(definition, formula)
+```
+
+`C()` 和 `Op()` 是测试辅助方法，分别生成 Const 立即数和 Instruction 操作符 token。
+
+## API
+
+### 属性
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `IsCompleted` | `bool` | 所有指令已执行完毕时为 `true` |
+| `Result` | `TData` | 最终结果（仅在 `IsCompleted` 时有意义） |
+| `CurrentIP` | `int` | 当前指令指针（字节码数组中的索引） |
+| `CurrentOpCode` | `byte` | 当前指令的操作码字节 |
+| `CurrentInstruction` | `Instruction` | 当前指令的完整结构体 |
+| `Regs` | `ReadOnlySpan<TData>` | 寄存器文件只读快照 |
+| `InstructionCount` | `int` | 字节码中的指令总数 |
+
+### 方法
+
+```csharp
+public FluxStepEvaluator<TData, TDef> Step()
+```
+
+执行一条指令，返回新实例。已完成时返回 `this`（无操作）。
+
+```csharp
+public FluxStepEvaluator<TData, TDef> RunToEnd()
+```
+
+循环 `Step()` 直到完成，返回最终状态。
+
+## 用法
+
+### 手动单步
+
+```csharp
+var step = assembler.StepDebug(formula);
+Console.WriteLine(step.CurrentIP);     // 0
+Console.WriteLine(step.CurrentOpCode); // Const
+
+step = step.Step();  // 加载立即数到寄存器
+step = step.Step();  // 执行乘法
+step = step.Step();  // Return: 完成
+
+Assert.That(step.IsCompleted, Is.True);
+Assert.That(step.Result, Is.EqualTo(12f));
+```
+
+### 统计指令数
+
+```csharp
+var step = assembler.StepDebug(formula);
+int steps = 0;
+while (!step.IsCompleted) { step = step.Step(); steps++; }
+// steps == 3 (Const + Mul + Return)
+```
+
+### 检查寄存器
+
+```csharp
+var step = assembler.StepDebug(formula);
+step = step.Step();  // 执行第一条指令
+var snapshot = step.Regs;
+Console.WriteLine(snapshot.Length);  // 寄存器数量
+```
+
+## 注意事项
+
+- `ReadOnlySpan<TData>` 寄存器快照仅当次有效 — 每次 `Step()` 返回新的只读视图
+- 非 `ref struct` — 可保存到数组或字段
+- 单步调试不走 JIT — 始终解释执行
+- 与 `FluxCurryEvaluator` 类似，每次 `Step()` 分配新数组
