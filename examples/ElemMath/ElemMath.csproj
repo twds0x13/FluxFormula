@@ -24,6 +24,7 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxLexer.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTemplateAttribute.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTagAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTemplateRegistry.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralScanners.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/ExternalLiteralTemplateAttribute.cs" />
@@ -51,6 +52,12 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/IFluxILDefinition.cs" />
     <Compile Include="ElemMathDef.cs" />
     <Compile Include="Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../packages/fluxformula.core/SourceGenerator/FluxFormula.LiteralScanner.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

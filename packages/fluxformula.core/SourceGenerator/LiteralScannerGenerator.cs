@@ -15,6 +15,8 @@ namespace FluxFormula.LiteralScanner.Generator
             "short", "ushort", "byte", "sbyte", "bool", "char",
         };
 
+        private static readonly HashSet<string> _knownEnumTypes = new(StringComparer.Ordinal);
+
         private static readonly DiagnosticDescriptor CircularDependencyError = new(
             "FLX002", "Circular template dependency",
             "Struct '{0}' has a circular dependency via template field types: {1}",
@@ -64,15 +66,27 @@ namespace FluxFormula.LiteralScanner.Generator
                 .Select((a, _) => a!.Value)
                 .Collect();
 
+            // Pipeline D: enum members with [LiteralTag] — auto-generated tag scanners
+            var enumTags = context.SyntaxProvider
+                .ForAttributeWithMetadataName(
+                    "FluxFormula.Core.LiteralTagAttribute",
+                    predicate: (node, _) => node is EnumMemberDeclarationSyntax,
+                    transform: (ctx, _) => GetEnumTagInfo(ctx))
+                .Where(info => info.HasValue)
+                .Select((info, _) => info!.Value)
+                .Collect();
+
             var combined = structDeclarations.Collect()
                 .Combine(externalDeclarations.Collect())
-                .Combine(typeAliases);
-            context.RegisterSourceOutput(combined, (spc, triple) =>
+                .Combine(typeAliases)
+                .Combine(enumTags);
+            context.RegisterSourceOutput(combined, (spc, quad) =>
             {
-                var ((builtin, external), aliases) = triple;
+                var (((builtin, external), aliases), tags) = quad;
                 var merged = MergeDeclarations(builtin, external);
-                // Pass type aliases for the emitter to use
-                GenerateSource(spc, merged, aliases);
+                var enumTagMap = BuildEnumTagMap(tags);
+                foreach (var k in enumTagMap.Keys) _knownEnumTypes.Add(k);
+                GenerateSource(spc, merged, aliases, enumTagMap);
             });
         }
 
@@ -170,6 +184,43 @@ namespace FluxFormula.LiteralScanner.Generator
             return null;
         }
 
+        /// <summary>从 [LiteralTag("tag")] 提取枚举标签映射</summary>
+        private static (string EnumName, string EnumFullName, string MemberName, string Tag)? GetEnumTagInfo(GeneratorAttributeSyntaxContext ctx)
+        {
+            var memberSymbol = ctx.TargetSymbol as IFieldSymbol;
+            if (memberSymbol == null) return null;
+
+            var enumType = memberSymbol.ContainingType;
+            if (enumType == null || enumType.TypeKind != TypeKind.Enum) return null;
+
+            foreach (var attr in ctx.Attributes)
+            {
+                if (attr.AttributeClass == null
+                    || attr.AttributeClass.Name != "LiteralTagAttribute"
+                    || attr.ConstructorArguments.Length < 1)
+                    continue;
+
+                var tag = attr.ConstructorArguments[0].Value as string;
+                if (!string.IsNullOrEmpty(tag))
+                    return (enumType.Name, enumType.ToDisplayString(), memberSymbol.Name, tag!);
+            }
+            return null;
+        }
+
+        /// <summary>将枚举标签列表按类型分组</summary>
+        private static Dictionary<string, List<(string MemberName, string Tag)>> BuildEnumTagMap(
+            System.Collections.Immutable.ImmutableArray<(string EnumName, string EnumFullName, string MemberName, string Tag)> tags)
+        {
+            var map = new Dictionary<string, List<(string, string)>>(StringComparer.Ordinal);
+            foreach (var (name, _, member, tag) in tags)
+            {
+                if (!map.ContainsKey(name))
+                    map[name] = new List<(string, string)>();
+                map[name].Add((member, tag));
+            }
+            return map;
+        }
+
         /// <summary>从 [LiteralTypeAlias("alias", "type")] 提取别名映射</summary>
         private static (string Alias, string CSharpType)? GetTypeAlias(GeneratorAttributeSyntaxContext ctx)
         {
@@ -206,7 +257,8 @@ namespace FluxFormula.LiteralScanner.Generator
         }
 
         private static void GenerateSource(SourceProductionContext context, List<StructTemplateInfo> structs,
-            System.Collections.Immutable.ImmutableArray<(string Alias, string CSharpType)> typeAliases)
+            System.Collections.Immutable.ImmutableArray<(string Alias, string CSharpType)> typeAliases,
+            Dictionary<string, List<(string MemberName, string Tag)>>? enumTagMap = null)
         {
             if (structs.Count == 0) return;
 
@@ -257,7 +309,7 @@ namespace FluxFormula.LiteralScanner.Generator
                 foreach (var (alias, csharpType) in typeAliases)
                     aliasMap[alias] = csharpType;
 
-                string source = CodeEmitter.EmitAll(emitList, emitDepGraph, aliasMap);
+                string source = CodeEmitter.EmitAll(emitList, emitDepGraph, aliasMap, enumTagMap);
                 context.AddSource("LiteralScanners.g.cs", source);
             }
             catch (FormatException ex)
@@ -296,6 +348,10 @@ namespace FluxFormula.LiteralScanner.Generator
 
                     // 别名映射到内置类型，不是真正的依赖
                     if (aliasBackingTypes.Contains(refType))
+                        continue;
+
+                    // 枚举标签类型，由 Pipeline D 自动生成
+                    if (_knownEnumTypes.Contains(refType))
                         continue;
 
                     if (allNames.Contains(refType))

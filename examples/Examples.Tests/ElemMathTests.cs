@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using FluxFormula.Core;
 using NUnit.Framework;
 
@@ -12,41 +11,7 @@ public class ElemMathTests
         return new FluxLexer<ElemValue>(new LexerConfig<ElemValue>
         {
             LiteralOper = (byte)ElemOp.Const,
-            LiteralScanner = (ReadOnlySpan<char> src, int pos, out ElemValue value) =>
-            {
-                value = default;
-                if (pos >= src.Length) return pos;
-
-                bool isNeg = src[pos] == '-';
-                if (isNeg && pos + 1 < src.Length && !char.IsDigit(src[pos + 1])) return pos;
-                if (!char.IsDigit(src[pos]) && !isNeg) return pos;
-                int start = pos;
-                if (isNeg) pos++;
-                while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-                if (pos < src.Length && src[pos] == '.')
-                {
-                    pos++;
-                    while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-                }
-                float amount = float.Parse(src.Slice(start, pos - start), CultureInfo.InvariantCulture);
-
-                Element elem = Element.Physical;
-                if (pos < src.Length && src[pos] == ':')
-                {
-                    pos++;
-                    int tagStart = pos;
-                    while (pos < src.Length && char.IsLetter(src[pos])) pos++;
-                    elem = src.Slice(tagStart, pos - tagStart).ToString() switch
-                    {
-                        "fire"  => Element.Fire,
-                        "ice"   => Element.Ice,
-                        "magic" => Element.Magic,
-                        _      => Element.Physical,
-                    };
-                }
-                value = new ElemValue(amount, elem);
-                return pos;
-            },
+            // [LiteralTemplate] Source Generator 自动注入扫描器
             Operators =
             {
                 new("+", (byte)ElemOp.Add, slots: new sbyte[] { -1, +1 }),

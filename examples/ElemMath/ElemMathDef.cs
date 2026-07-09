@@ -2,8 +2,15 @@ using System;
 using System.Linq.Expressions;
 using FluxFormula.Core;
 
-public enum Element : byte { Physical, Fire, Ice, Magic }
+public enum Element : byte
+{
+    Physical = 0,
+    [LiteralTag("fire")]  Fire,
+    [LiteralTag("ice")]   Ice,
+    [LiteralTag("magic")] Magic,
+}
 
+[LiteralTemplate("<float Amount><optional>:<Element Element></optional>")]
 public struct ElemValue : IEquatable<ElemValue>
 {
     public float Amount;
