@@ -70,4 +70,10 @@
     <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../../packages/fluxformula.core/SourceGenerator/FluxFormula.LiteralScanner.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
 </Project>

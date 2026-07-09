@@ -1,86 +1,15 @@
 using System;
-using System.Globalization;
 using FluxFormula.Core;
 
 // ═══════════════════════════════════════════════════════
-// Lexer 配置：命名字段立即数格式 damage|draw N|idx:N
+// SpellContext 的 [LiteralTemplate] 属性（CardDrawDef.cs）由 Source Generator
+// 自动生成字面量扫描器，Lexer 构造函数自动发现并使用，无需手动设置
+// LiteralScanner。手动实现版本参见文档 docs/examples/card-draw.md。
 // ═══════════════════════════════════════════════════════
-//
-// ╔═ 模板优先（推荐）══════════════════════════════════╗
-// ║ SpellContext 可通过 [LiteralTemplate] 自动生成     ║
-// ║ 扫描器，无需手写委托。需在 csproj 中引用           ║
-// ║ Source Generator（参见 Core.Tests.csproj）。       ║
-// ║ 属性声明见 CardDrawDef.cs：                        ║
-// ║                                                    ║
-// ║ [LiteralTemplate(                                  ║
-// ║   "<float Damage>|                                 ║
-// ║    <optional>draw <int DrawsProvide></optional>|    ║
-// ║    idx:<int StartIndex>")]                          ║
-// ║ public struct SpellContext : IEquatable<...> { }    ║
-// ║                                                    ║
-// ║ 生成后去掉下文的 LiteralScanner = 赋值即可。        ║
-// ╚═════════════════════════════════════════════════════╝
-//
-// 下方手写委托保留，供理解 LiteralScanner 接口机制参考。
 
 var config = new LexerConfig<SpellContext>
 {
     LiteralOper   = (byte)SpellOp.Const,
-    LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value) =>
-    {
-        value = default;
-        if (pos >= src.Length || !(char.IsDigit(src[pos]) || src[pos] == '-')) return pos;
-
-        // 扫描浮点数（Damage）
-        int start = pos;
-        if (src[pos] == '-') pos++;
-        while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-        if (pos < src.Length && src[pos] == '.')
-        {
-            pos++;
-            while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-        }
-        float damage = float.Parse(src.Slice(start, pos - start), CultureInfo.InvariantCulture);
-
-        // 期望 '|' 分隔符
-        if (pos >= src.Length || src[pos] != '|') { value = new SpellContext(damage, 0); return pos; }
-        pos++;
-
-        // 可选 'draw' 字段
-        int draws = 0;
-        if (src.Slice(pos).StartsWith("draw "))
-        {
-            pos += 5;
-            bool neg = false;
-            if (pos < src.Length && src[pos] == '-') { neg = true; pos++; }
-            while (pos < src.Length && char.IsDigit(src[pos]))
-            {
-                draws = draws * 10 + (src[pos] - '0');
-                pos++;
-            }
-            if (neg) draws = -draws;
-
-            // 消费 '|' 分隔符
-            if (pos < src.Length && src[pos] == '|') pos++;
-        }
-
-        // 必填 'idx:' 字段
-        if (!src.Slice(pos).StartsWith("idx:"))
-        {
-            value = new SpellContext(damage, draws);
-            return pos;
-        }
-        pos += 4;
-        int index = 0;
-        while (pos < src.Length && char.IsDigit(src[pos]))
-        {
-            index = index * 10 + (src[pos] - '0');
-            pos++;
-        }
-
-        value = new SpellContext(damage, draws, 0, index);
-        return pos;
-    },
     Operators =
     {
         new("+", (byte)SpellOp.Add),

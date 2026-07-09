@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using FluxFormula.Core;
 using NUnit.Framework;
 
@@ -12,59 +11,12 @@ public class CardDrawTests
     // Lexer 工厂
     // ═══════════════════════════════════════════════════════
 
+    // SpellContext 的 LiteralScanner 由 [LiteralTemplate] Source Generator 自动生成
     private static FluxLexer<SpellContext> CreateSpellLexer()
     {
         return new FluxLexer<SpellContext>(new LexerConfig<SpellContext>
         {
             LiteralOper = (byte)SpellOp.Const,
-            LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value) =>
-            {
-                value = default;
-                if (pos >= src.Length || !(char.IsDigit(src[pos]) || src[pos] == '-')) return pos;
-
-                int start = pos;
-                if (src[pos] == '-') pos++;
-                while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-                if (pos < src.Length && src[pos] == '.')
-                {
-                    pos++;
-                    while (pos < src.Length && char.IsDigit(src[pos])) pos++;
-                }
-                float damage = float.Parse(src.Slice(start, pos - start), CultureInfo.InvariantCulture);
-
-                if (pos >= src.Length || src[pos] != '|') { value = new SpellContext(damage, 0); return pos; }
-                pos++;
-
-                int draws = 0;
-                if (src.Slice(pos).StartsWith("draw "))
-                {
-                    pos += 5;
-                    bool neg = false;
-                    if (pos < src.Length && src[pos] == '-') { neg = true; pos++; }
-                    while (pos < src.Length && char.IsDigit(src[pos]))
-                    {
-                        draws = draws * 10 + (src[pos] - '0');
-                        pos++;
-                    }
-                    if (neg) draws = -draws;
-                    if (pos < src.Length && src[pos] == '|') pos++;
-                }
-
-                if (!src.Slice(pos).StartsWith("idx:"))
-                {
-                    value = new SpellContext(damage, draws);
-                    return pos;
-                }
-                pos += 4;
-                int index = 0;
-                while (pos < src.Length && char.IsDigit(src[pos]))
-                {
-                    index = index * 10 + (src[pos] - '0');
-                    pos++;
-                }
-                value = new SpellContext(damage, draws, 0, index);
-                return pos;
-            },
             Operators =
             {
                 new("+", (byte)SpellOp.Add),

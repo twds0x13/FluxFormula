@@ -5,6 +5,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DefineConstants>FLUX_FAST_EXPRESSION_COMPILER</DefineConstants>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
@@ -59,6 +60,12 @@
     <PackageReference Include="FastExpressionCompiler" Version="5.4.1" />
     <PackageReference Include="System.IO.Hashing" Version="9.0.4" />
     <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../packages/fluxformula.core/SourceGenerator/FluxFormula.LiteralScanner.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>
