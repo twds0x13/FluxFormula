@@ -152,4 +152,55 @@ public class FluxInstanceTests
         Assert.That(result, Is.EqualTo(24f).Within(1e-6f),
             "2*3*4 = 24");
     }
+
+    // ═══════════════════════════════════════════════════════
+    // JIT 链式 + 变量
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void JitChain_ConstantBeforeVariable_PropagatesValue()
+    {
+        // JIT 链式路径中，常量在变量之前时，用户 Set 的值应正确注入
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var fA = runner.Compile(lexer.Lex("1 + [x]"));
+        var fB = runner.Compile(lexer.Lex("[y] + 2")).ToModifier();
+        var chain = fA.Connect(fB);  // (1 + [x]) + 2
+
+        float result = runner.Instantiate(chain, jit: true).Set("x", 3f).Run();
+        Assert.That(result, Is.EqualTo(6f).Within(1e-6f),
+            "JIT: (1+3)+2 = 6");
+    }
+
+    [Test]
+    public void JitChain_MatchesInterpreter_WithUserVariables()
+    {
+        // JIT 链式与解释器链式在设置用户变量时应产出相同结果
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var fA = runner.Compile(lexer.Lex("1 + [x]"));
+        var fB = runner.Compile(lexer.Lex("[y] + 2")).ToModifier();
+        var chain = fA.Connect(fB);
+
+        float jitResult = runner.Instantiate(chain, jit: true).Set("x", 3f).Run();
+        float intResult = runner.Instantiate(chain, jit: false).Set("x", 3f).Run();
+        Assert.That(jitResult, Is.EqualTo(intResult).Within(1e-6f),
+            "JIT 和解释器链式求值结果应一致");
+    }
+
+    [Test]
+    public void JitChain_AllVariables_PropagatesValues()
+    {
+        // JIT 链式全变量路径
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var fA = runner.Compile(lexer.Lex("[a] * [b]"));
+        var fB = runner.Compile(lexer.Lex("[d] * [c]")).ToModifier();
+        var chain = fA.Connect(fB);
+
+        float result = runner.Instantiate(chain, jit: true)
+            .Set("a", 2f).Set("b", 3f).Set("c", 4f).Run();
+        Assert.That(result, Is.EqualTo(24f).Within(1e-6f),
+            "JIT: 2*3*4 = 24");
+    }
 }

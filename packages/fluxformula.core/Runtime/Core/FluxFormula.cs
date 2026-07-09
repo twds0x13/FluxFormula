@@ -161,17 +161,26 @@ namespace FluxFormula.Core
                 }
             }
 
-            // 调整变量槽：移除第一个变量（如果有）
+            // 调整变量槽：移除属于被删 Immediate 的 VarSlot，其余 SlotIndex 无条件减 1
             int newImmCount = ImmediateCount - 1;
             VariableSlot[] newSlots;
-            if (VariableSlots.Length > 0 && VariableSlots[0].SlotIndex == 0)
+            if (VariableSlots.Length > 0)
             {
-                // 第一个变量槽属于被移除的操作数：移除它，其余 SlotIndex 减 1
-                newSlots = new VariableSlot[VariableSlots.Length - 1];
-                for (int i = 1; i < VariableSlots.Length; i++)
-                    newSlots[i - 1] = new VariableSlot(
+                int removedCount = 0;
+                for (int i = 0; i < VariableSlots.Length; i++)
+                    if (VariableSlots[i].SlotIndex == 0)
+                        removedCount++;
+
+                newSlots = new VariableSlot[VariableSlots.Length - removedCount];
+                int writeIdx = 0;
+                for (int i = 0; i < VariableSlots.Length; i++)
+                {
+                    if (VariableSlots[i].SlotIndex == 0)
+                        continue;
+                    newSlots[writeIdx++] = new VariableSlot(
                         VariableSlots[i].Name,
                         VariableSlots[i].SlotIndex - 1);
+                }
             }
             else
             {

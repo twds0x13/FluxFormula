@@ -65,11 +65,10 @@ namespace FluxFormula.Core
                 {
                     var pairInfo = _definition.GetPair(firstOper);
 
-                    if (pairInfo.PairRole != Pair.Left)
+                    if (pairInfo.PairRole != Pair.Left
+                        && _definition.GetFirstPosition(firstOper) == OperandPosition.Left)
                     {
-                        int arity = _definition.GetArity(firstOper);
-                        if (arity != 1 && arity < 3)
-                            type = FluxType.Modifier;
+                        type = FluxType.Modifier;
                     }
                 }
             }
@@ -336,16 +335,53 @@ namespace FluxFormula.Core
             var links = chain.GetLinks();
             var funcs = new CompiledFunc<TData>[links.Length];
             var injectors = new FluxInjector<TData>[links.Length];
+            var chainUserGlobalSlots = new int[links.Length][];
+            var chainUserLocalSlots  = new int[links.Length][];
+            int globalImmBase = 0;
 
             for (int i = 0; i < links.Length; i++)
             {
-                var linkFormula = LinkToFormula(links[i], i > 0 || links[i].Type == FluxType.Modifier);
+                bool adapt = i > 0 || links[i].Type == FluxType.Modifier;
+                var linkFormula = LinkToFormula(links[i], adapt);
 
                 if (!TryResolveJitDelegate(linkFormula, out var func, out var payload))
                     return Instantiate(chain.ToAtomic(), jit: false);
 
+                // 构建局部 SlotIndex 的 VarSlots，并生成全局→局部映射
+                bool hasInternalVar = linkFormula.VariableSlots.Length > 0
+                    && linkFormula.VariableSlots[0].Name.StartsWith(ChainReserved.InternalPrefix);
+                var localSlots  = new VariableSlot[linkFormula.VariableSlots.Length];
+                int userVarCount = hasInternalVar ? linkFormula.VariableSlots.Length - 1
+                                                  : linkFormula.VariableSlots.Length;
+                chainUserGlobalSlots[i] = userVarCount > 0 ? new int[userVarCount] : Array.Empty<int>();
+                chainUserLocalSlots[i]  = userVarCount > 0 ? new int[userVarCount] : Array.Empty<int>();
+                int userIdx = 0;
+
+                for (int j = 0; j < linkFormula.VariableSlots.Length; j++)
+                {
+                    var vs = linkFormula.VariableSlots[j];
+                    if (hasInternalVar && j == 0)
+                    {
+                        // INTERNAL_* 变量——ToFormula 插入的首 Immediate，局部位置为 0
+                        localSlots[j] = vs;
+                    }
+                    else
+                    {
+                        int globalSlot = hasInternalVar ? vs.SlotIndex - 1 : vs.SlotIndex;
+                        int localSlot  = globalSlot - globalImmBase;
+                        if (hasInternalVar) localSlot += 1;
+
+                        chainUserGlobalSlots[i][userIdx] = globalSlot;
+                        chainUserLocalSlots[i][userIdx]  = localSlot;
+                        userIdx++;
+
+                        localSlots[j] = new VariableSlot(vs.Name, localSlot);
+                    }
+                }
+
                 funcs[i] = func;
-                injectors[i] = new FluxInjector<TData>(payload, null, linkFormula.VariableSlots);
+                injectors[i] = new FluxInjector<TData>(payload, null, localSlots);
+                globalImmBase += links[i].ImmediateCount;
             }
 
             // per-link injector 用于 Set/SetIndex 场景：基于合并后的原子公式
@@ -353,7 +389,8 @@ namespace FluxFormula.Core
             var mergedInjector = CreateInjector(mergedFormula);
 
             return new FluxInstance<TData, TDef>(
-                _definition, mergedFormula, mergedInjector, funcs, injectors, chain);
+                _definition, mergedFormula, mergedInjector,
+                funcs, injectors, chainUserGlobalSlots, chainUserLocalSlots, chain);
         }
 
         /// <summary>

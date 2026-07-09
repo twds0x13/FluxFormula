@@ -23,6 +23,10 @@ namespace FluxFormula.Core
         // ── 链式 JIT ──
         private readonly CompiledFunc<TData>[] _chainFuncs;
         private readonly FluxInjector<TData>[] _chainInjectors;
+        /// <summary>[linkIndex][varIndex] = 全局 SlotIndex，用于从 merged injector 读取用户变量值</summary>
+        private readonly int[][] _chainUserGlobalSlots;
+        /// <summary>[linkIndex][varIndex] = per-link payload 内的局部 slot，用于 SetIndex 写入</summary>
+        private readonly int[][] _chainUserLocalSlots;
 
         // ── 链式表示（解释器链式路径或 JIT 降级）──
         private readonly FluxChain<TData, TDef> _chain;
@@ -43,6 +47,8 @@ namespace FluxFormula.Core
             _isJit          = isJit;
             _chainFuncs     = null;
             _chainInjectors = null;
+            _chainUserGlobalSlots = null;
+            _chainUserLocalSlots  = null;
             _chain          = default;
         }
 
@@ -54,6 +60,8 @@ namespace FluxFormula.Core
             FluxInjector<TData> mergedInjector,
             CompiledFunc<TData>[] chainFuncs,
             FluxInjector<TData>[] chainInjectors,
+            int[][] chainUserGlobalSlots,
+            int[][] chainUserLocalSlots,
             FluxChain<TData, TDef> chain)
         {
             _definition     = definition;
@@ -63,6 +71,8 @@ namespace FluxFormula.Core
             _isJit          = true;
             _chainFuncs     = chainFuncs;
             _chainInjectors = chainInjectors;
+            _chainUserGlobalSlots = chainUserGlobalSlots;
+            _chainUserLocalSlots  = chainUserLocalSlots;
             _chain          = chain;
         }
 
@@ -83,6 +93,8 @@ namespace FluxFormula.Core
             _isJit          = isJit;
             _chainFuncs     = null;
             _chainInjectors = null;
+            _chainUserGlobalSlots = null;
+            _chainUserLocalSlots  = null;
             _chain          = chain;
         }
 
@@ -139,6 +151,16 @@ namespace FluxFormula.Core
             for (int i = 0; i < _chainFuncs.Length; i++)
             {
                 var injector = _chainInjectors[i];
+
+                // 从 merged injector 传播用户变量值到 per-link injector
+                var globalSlots = _chainUserGlobalSlots[i];
+                var localSlots  = _chainUserLocalSlots[i];
+                for (int v = 0; v < globalSlots.Length; v++)
+                {
+                    TData value = _injector.GetValue(globalSlots[v]);
+                    injector = injector.SetIndex(localSlots[v], value);
+                }
+
                 if (i > 0)
                 {
                     injector = injector.SetIndex(0, prevResult);
