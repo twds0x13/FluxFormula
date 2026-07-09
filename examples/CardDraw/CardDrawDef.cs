@@ -8,6 +8,7 @@ using FluxFormula.Core;
 // TData 结构体
 // ═══════════════════════════════════════════════════════
 
+[LiteralTemplate("<float Damage>|<optional>draw <byte DrawsProvide></optional>|idx:<byte StartIndex>")]
 public struct SpellContext : IEquatable<SpellContext>
 {
     public float Damage;              // 累积伤害

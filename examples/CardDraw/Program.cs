@@ -5,6 +5,23 @@ using FluxFormula.Core;
 // ═══════════════════════════════════════════════════════
 // Lexer 配置：命名字段立即数格式 damage|draw N|idx:N
 // ═══════════════════════════════════════════════════════
+//
+// ╔═ 模板优先（推荐）══════════════════════════════════╗
+// ║ SpellContext 可通过 [LiteralTemplate] 自动生成     ║
+// ║ 扫描器，无需手写委托。需在 csproj 中引用           ║
+// ║ Source Generator（参见 Core.Tests.csproj）。       ║
+// ║ 属性声明见 CardDrawDef.cs：                        ║
+// ║                                                    ║
+// ║ [LiteralTemplate(                                  ║
+// ║   "<float Damage>|                                 ║
+// ║    <optional>draw <int DrawsProvide></optional>|    ║
+// ║    idx:<int StartIndex>")]                          ║
+// ║ public struct SpellContext : IEquatable<...> { }    ║
+// ║                                                    ║
+// ║ 生成后去掉下文的 LiteralScanner = 赋值即可。        ║
+// ╚═════════════════════════════════════════════════════╝
+//
+// 下方手写委托保留，供理解 LiteralScanner 接口机制参考。
 
 var config = new LexerConfig<SpellContext>
 {
