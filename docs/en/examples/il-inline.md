@@ -93,7 +93,7 @@ When EmitOp returns false, the compiler automatically generates the Compute poin
 
 ## Full Source
 
-`samples/ILInlineExample/FloatMathILDef.cs` contains the complete, compilable Definition with EmitOp inline inlining for Add/Mul and Compute pointer call fallback for the remaining opcodes.
+The code shown in the sections above constitutes a complete, compilable Definition. Place it in a csproj that references `fluxformula.core`, following the project configuration of `examples/FloatMath/`.
 
 ## Usage
 

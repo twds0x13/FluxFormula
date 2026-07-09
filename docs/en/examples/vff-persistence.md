@@ -9,10 +9,27 @@ The `MathDef` used below is defined in [Float Arithmetic](/en/examples/float-mat
 Compile two formulas and insert them into `FormulaCache` so VFF deserialization can look up referenced bytecodes by hash:
 
 ```csharp
+using System;
+using System.Globalization;
 using FluxFormula.Core;
 
-var lexer = CreateMathLexer();
-var assembler = new FluxAssembler<float, MathDef>(Def);
+var config = new LexerConfig<float>
+{
+    LiteralOper = (byte)MathOp.Const,
+    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
+        s => float.Parse(s, CultureInfo.InvariantCulture)),
+    Operators =
+    {
+        new("+", (byte)MathOp.Add), new("-", (byte)MathOp.Sub),
+        new("*", (byte)MathOp.Mul), new("/", (byte)MathOp.Div),
+    },
+    Brackets = { new("(", ")", (byte)MathOp.LParen, (byte)MathOp.RParen) },
+    VariablePatterns = { new("[", "]") },
+};
+
+var lexer     = new FluxLexer<float>(config);
+var def       = new MathDef();
+var assembler = new FluxAssembler<float, MathDef>(def);
 
 // Compile two independent formulas
 var damage   = assembler.Compile(lexer.Lex("[atk] * [mult]"));    // Formula

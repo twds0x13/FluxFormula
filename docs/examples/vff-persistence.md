@@ -9,10 +9,27 @@
 编译两条公式并注入 `FormulaCache`，使 VFF 反序列化时能按哈希查找被引用的字节码：
 
 ```csharp
+using System;
+using System.Globalization;
 using FluxFormula.Core;
 
-var lexer = CreateMathLexer();
-var assembler = new FluxAssembler<float, MathDef>(Def);
+var config = new LexerConfig<float>
+{
+    LiteralOper = (byte)MathOp.Const,
+    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
+        s => float.Parse(s, CultureInfo.InvariantCulture)),
+    Operators =
+    {
+        new("+", (byte)MathOp.Add), new("-", (byte)MathOp.Sub),
+        new("*", (byte)MathOp.Mul), new("/", (byte)MathOp.Div),
+    },
+    Brackets = { new("(", ")", (byte)MathOp.LParen, (byte)MathOp.RParen) },
+    VariablePatterns = { new("[", "]") },
+};
+
+var lexer     = new FluxLexer<float>(config);
+var def       = new MathDef();
+var assembler = new FluxAssembler<float, MathDef>(def);
 
 // 编译两条独立公式
 var damage   = assembler.Compile(lexer.Lex("[atk] * [mult]"));    // Formula

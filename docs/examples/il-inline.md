@@ -93,7 +93,7 @@ return false;
 
 ## 完整代码
 
-`samples/ILInlineExample/FloatMathILDef.cs` 包含可直接编译运行的完整 Definition，覆盖了 Add/Mul 的 EmitOp 内联 内联和其余操作码的 Compute 指针调用 回退。
+以上各节代码组合即为可直接编译运行的完整 Definition。将其放入引用了 `fluxformula.core` 的 csproj 项目中，参照 `examples/FloatMath/` 的项目配置即可运行。
 
 ## 使用方法
 

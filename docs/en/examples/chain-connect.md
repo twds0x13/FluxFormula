@@ -9,10 +9,27 @@ The following examples demonstrate the chaining behavior of `Connect()`. ChainLi
 `Connect()`'s type signature only accepts `FluxModifier`. Call `.ToModifier()` first to strip the first operand:
 
 ```csharp
+using System;
+using System.Globalization;
 using FluxFormula.Core;
 
-var lexer = CreateMathLexer();
-var runner = new FluxAssembler<float, MathDef>(Def);
+var config = new LexerConfig<float>
+{
+    LiteralOper = (byte)AdvMathOp.Const,
+    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
+        s => float.Parse(s, CultureInfo.InvariantCulture)),
+    Operators =
+    {
+        new("+", (byte)AdvMathOp.Add), new("-", (byte)AdvMathOp.Sub),
+        new("*", (byte)AdvMathOp.Mul), new("/", (byte)AdvMathOp.Div),
+    },
+    Brackets = { new("(", ")", (byte)AdvMathOp.LParen, (byte)AdvMathOp.RParen) },
+    VariablePatterns = { new("[", "]") },
+};
+
+var lexer  = new FluxLexer<float>(config);
+var def    = new AdvMathDef();
+var runner = new FluxAssembler<float, AdvMathDef>(def);
 
 var fA = runner.Compile(lexer.Lex("10 + 5"));                // Formula (has first operand 10)
 var fB = runner.Compile(lexer.Lex("2 * 3"));                 // Formula (has first operand 2)
@@ -80,7 +97,7 @@ Console.WriteLine(perLinkResult == atomicResult); // True
 When chain length exceeds `FluxConfig.MergeThreshold` (default 8), `Instantiate` automatically calls `ToAtomic` before evaluation:
 
 ```csharp
-FluxChain<float, MathDef> chain = runner.Compile(lexer.Lex("1 + 1"))
+FluxChain<float, AdvMathDef> chain = runner.Compile(lexer.Lex("1 + 1"))
     .Connect(runner.Compile(lexer.Lex("2 * 1")).ToModifier());
 for (int i = 0; i < 9; i++)
     chain = chain.Connect(
@@ -116,7 +133,7 @@ In v3.0.0, `FluxModifier<TData, TDef>` has no `Instantiate()` method — any cod
 
 ## Cross-Definition Type Safety
 
-`FluxFormula<TData, TDef>` binds to a specific definition via the `TDef` generic parameter. `FluxFormula<float, MathDef>` and `FluxFormula<float, GameDef>` are different compile-time types — any accidental cross-connection won't compile.
+`FluxFormula<TData, TDef>` binds to a specific definition via the `TDef` generic parameter. `FluxFormula<float, AdvMathDef>` and `FluxFormula<float, GameDef>` are different compile-time types — any accidental cross-connection won't compile.
 
 ## Notes
 

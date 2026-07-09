@@ -9,10 +9,27 @@
 `Connect()` 的类型签名只接受 `FluxModifier`。必须先调用 `.ToModifier()` 剥离首操作数：
 
 ```csharp
+using System;
+using System.Globalization;
 using FluxFormula.Core;
 
-var lexer = CreateMathLexer();
-var runner = new FluxAssembler<float, MathDef>(Def);
+var config = new LexerConfig<float>
+{
+    LiteralOper = (byte)AdvMathOp.Const,
+    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
+        s => float.Parse(s, CultureInfo.InvariantCulture)),
+    Operators =
+    {
+        new("+", (byte)AdvMathOp.Add), new("-", (byte)AdvMathOp.Sub),
+        new("*", (byte)AdvMathOp.Mul), new("/", (byte)AdvMathOp.Div),
+    },
+    Brackets = { new("(", ")", (byte)AdvMathOp.LParen, (byte)AdvMathOp.RParen) },
+    VariablePatterns = { new("[", "]") },
+};
+
+var lexer  = new FluxLexer<float>(config);
+var def    = new AdvMathDef();
+var runner = new FluxAssembler<float, AdvMathDef>(def);
 
 var fA = runner.Compile(lexer.Lex("10 + 5"));                // Formula（有首操作数 10）
 var fB = runner.Compile(lexer.Lex("2 * 3"));                 // Formula（有首操作数 2）
@@ -80,7 +97,7 @@ Console.WriteLine(perLinkResult == atomicResult); // True
 链长超过 `FluxConfig.MergeThreshold`（默认 8）时，`Instantiate` 自动调用 `ToAtomic` 合并后求值：
 
 ```csharp
-FluxChain<float, MathDef> chain = runner.Compile(lexer.Lex("1 + 1"))
+FluxChain<float, AdvMathDef> chain = runner.Compile(lexer.Lex("1 + 1"))
     .Connect(runner.Compile(lexer.Lex("2 * 1")).ToModifier());
 for (int i = 0; i < 9; i++)
     chain = chain.Connect(
@@ -116,7 +133,7 @@ v3.0.0 中 `FluxModifier<TData, TDef>` 没有 `Instantiate()` 方法，任何尝
 
 ## 跨定义类型安全
 
-`FluxFormula<TData, TDef>` 通过 `TDef` 泛型参数绑定到具体定义体。`FluxFormula<float, MathDef>` 和 `FluxFormula<float, GameDef>` 是不同的编译期类型，任何误连的代码编译不过。
+`FluxFormula<TData, TDef>` 通过 `TDef` 泛型参数绑定到具体定义体。`FluxFormula<float, AdvMathDef>` 和 `FluxFormula<float, GameDef>` 是不同的编译期类型，任何误连的代码编译不过。
 
 ## 注意事项
 
