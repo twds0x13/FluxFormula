@@ -22,15 +22,29 @@ namespace FluxFormula.Core
         }
     }
 
-    /// <summary>运算符符号 → byte 操作码映射规则</summary>
+    /// <summary>辅助符号约束: 在中轴附近某偏移位置必须出现的符号</summary>
+    public readonly struct AuxRule
+    {
+        public readonly sbyte Offset;
+        public readonly string Symbol;
+        public AuxRule(sbyte offset, string symbol) { Offset = offset; Symbol = symbol; }
+    }
+
+    /// <summary>运算符语法视图: 一个 opcode 的一种源码拼写形式</summary>
     public readonly struct OperatorRule
     {
+        /// <summary>中轴符号 (如 "x", "cross", "?")</summary>
         public readonly string Symbol;
+        /// <summary>后端 opcode</summary>
         public readonly byte Oper;
         /// <summary>函数调用左括号符号，如 "("。null 表示不使用括号语法。</summary>
         public readonly string BracketOpen;
         /// <summary>函数调用右括号符号，如 ")"。</summary>
         public readonly string BracketClose;
+        /// <summary>操作数位置偏移数组 (中轴=0)。null = 使用 IFluxDefinition 默认。</summary>
+        public readonly sbyte[] Slots;
+        /// <summary>辅助符号约束 (括号/分隔符)。null = 无额外约束。</summary>
+        public readonly AuxRule[] Aux;
 
         public OperatorRule(string symbol, byte oper, string bracketOpen = null, string bracketClose = null)
         {
@@ -38,7 +52,38 @@ namespace FluxFormula.Core
             Oper         = oper;
             BracketOpen  = bracketOpen;
             BracketClose = bracketClose;
+            Slots        = null;
+            Aux          = null;
         }
+
+        public OperatorRule(string symbol, byte oper, sbyte[] slots, AuxRule[] aux = null,
+            string bracketOpen = null, string bracketClose = null)
+        {
+            Symbol       = symbol;
+            Oper         = oper;
+            BracketOpen  = bracketOpen;
+            BracketClose = bracketClose;
+            Slots        = slots;
+            Aux          = aux;
+        }
+    }
+
+    /// <summary>逐 token 的语法视图元数据（来自 OperatorRule）</summary>
+    internal readonly struct TokenSyntax
+    {
+        /// <summary>操作数偏移，null = 回退到 IFluxDefinition</summary>
+        public readonly sbyte[] Slots;
+        /// <summary>辅助符号约束，null = 无</summary>
+        public readonly AuxRule[] Aux;
+        public TokenSyntax(sbyte[] slots, AuxRule[] aux = null) { Slots = slots; Aux = aux; }
+    }
+
+    /// <summary>内部: 预解析的语法视图, 避免 Lex() 中访问交错数组</summary>
+    internal readonly struct SyntaxView
+    {
+        public readonly sbyte[] Slots;
+        public readonly AuxRule[] Aux;
+        public SyntaxView(sbyte[] slots, AuxRule[] aux) { Slots = slots; Aux = aux; }
     }
 
     /// <summary>括号对映射规则</summary>
@@ -175,11 +220,20 @@ namespace FluxFormula.Core
     {
         public readonly FluxToken<TData>[] Tokens;
         public readonly string[] VarNames;
+        internal readonly TokenSyntax[] Syntax;
 
         public LexResult(FluxToken<TData>[] tokens, string[] varNames)
         {
             Tokens = tokens;
             VarNames = varNames;
+            Syntax = Array.Empty<TokenSyntax>();
+        }
+
+        internal LexResult(FluxToken<TData>[] tokens, string[] varNames, TokenSyntax[] syntax)
+        {
+            Tokens = tokens;
+            VarNames = varNames;
+            Syntax = syntax ?? Array.Empty<TokenSyntax>();
         }
     }
 
@@ -199,6 +253,7 @@ namespace FluxFormula.Core
         private readonly VariablePatternRule[] _varRules;
         private readonly string[] _opSymbols;
         private readonly byte[] _opOpers;
+        private readonly SyntaxView[] _opViews;    // 每个运算符的 Slots + Aux
         private readonly string[] _brOpen, _brClose;
         private readonly byte[] _brLeftOpers, _brRightOpers;
 
@@ -231,10 +286,12 @@ namespace FluxFormula.Core
             config.Operators.Sort((a, b) => b.Symbol.Length.CompareTo(a.Symbol.Length));
             _opSymbols = new string[config.Operators.Count];
             _opOpers   = new byte[config.Operators.Count];
+            _opViews   = new SyntaxView[config.Operators.Count];
             for (int i = 0; i < config.Operators.Count; i++)
             {
                 _opSymbols[i] = config.Operators[i].Symbol;
                 _opOpers[i]   = config.Operators[i].Oper;
+                _opViews[i]   = new SyntaxView(config.Operators[i].Slots, config.Operators[i].Aux);
             }
 
             // ── 括号 ──
@@ -264,6 +321,7 @@ namespace FluxFormula.Core
             int maxTokens = source.Length;
             var tokens   = new FluxToken<TData>[maxTokens];
             var varNames = new string[maxTokens];
+            var syntaxes = new TokenSyntax[maxTokens];
             int tokenCount = 0;
             int pos = 0;
             ReadOnlySpan<char> src = source.AsSpan();
@@ -298,11 +356,13 @@ namespace FluxFormula.Core
                 }
 
                 // ── 尝试匹配运算符（已按长度降序排列）──
-                int opEnd = TryScanOperator(src, pos, out byte op);
+                int opEnd = TryScanOperator(src, pos, out byte op, out SyntaxView view);
                 if (opEnd > pos)
                 {
                     tokens[tokenCount] = new FluxToken<TData> { Oper = op };
                     varNames[tokenCount] = null;
+                    if (view.Slots != null || view.Aux != null)
+                        syntaxes[tokenCount] = new TokenSyntax(view.Slots, view.Aux);
                     tokenCount++;
                     pos = opEnd;
                     continue;
@@ -327,8 +387,10 @@ namespace FluxFormula.Core
 
             var resultTokens   = new FluxToken<TData>[tokenCount];
             var resultVarNames = new string[tokenCount];
+            var resultSyntax   = new TokenSyntax[tokenCount];
             Array.Copy(tokens, resultTokens, tokenCount);
             Array.Copy(varNames, resultVarNames, tokenCount);
+            Array.Copy(syntaxes, resultSyntax, tokenCount);
 
             // ── 隐式运算符插入 ────────────────────────
             if (_config.ImplicitOperators.Count > 0)
@@ -336,11 +398,13 @@ namespace FluxFormula.Core
                 int maxResolved = resultTokens.Length * 2;
                 var resolvedTokens   = new FluxToken<TData>[maxResolved];
                 var resolvedVarNames = new string[maxResolved];
+                var resolvedSyntax   = new TokenSyntax[maxResolved];
                 int resolvedCount = 0;
                 for (int i = 0; i < resultTokens.Length; i++)
                 {
                     resolvedTokens[resolvedCount]   = resultTokens[i];
                     resolvedVarNames[resolvedCount] = resultVarNames[i];
+                    resolvedSyntax[resolvedCount]   = resultSyntax[i];
                     resolvedCount++;
                     if (i + 1 >= resultTokens.Length) break;
 
@@ -351,6 +415,7 @@ namespace FluxFormula.Core
                             resolvedTokens[resolvedCount] = new FluxToken<TData>
                                 { Oper = _config.ImplicitOperators[0] };
                             resolvedVarNames[resolvedCount] = null;
+                            resolvedSyntax[resolvedCount] = new TokenSyntax(null);
                             resolvedCount++;
                         }
                         else
@@ -363,11 +428,13 @@ namespace FluxFormula.Core
                 }
                 resultTokens   = new FluxToken<TData>[resolvedCount];
                 resultVarNames = new string[resolvedCount];
+                resultSyntax   = new TokenSyntax[resolvedCount];
                 Array.Copy(resolvedTokens, resultTokens, resolvedCount);
                 Array.Copy(resolvedVarNames, resultVarNames, resolvedCount);
+                Array.Copy(resolvedSyntax, resultSyntax, resolvedCount);
             }
 
-            return new LexResult<TData>(resultTokens, resultVarNames);
+            return new LexResult<TData>(resultTokens, resultVarNames, resultSyntax);
         }
 
         // ── 扫描辅助方法 ────────────────────────────
@@ -422,15 +489,17 @@ namespace FluxFormula.Core
             return pos;
         }
 
-        /// <summary>尝试匹配一个运算符（已按长度降序）</summary>
-        private int TryScanOperator(ReadOnlySpan<char> src, int pos, out byte op)
+        /// <summary>尝试匹配一个运算符（已按长度降序），同时返回语法视图元数据</summary>
+        private int TryScanOperator(ReadOnlySpan<char> src, int pos, out byte op, out SyntaxView view)
         {
             op = 0;
+            view = default;
             for (int i = 0; i < _opSymbols.Length; i++)
             {
                 if (src.Slice(pos).StartsWith(_opSymbols[i].AsSpan()))
                 {
                     op = _opOpers[i];
+                    view = _opViews[i];
                     return pos + _opSymbols[i].Length;
                 }
             }

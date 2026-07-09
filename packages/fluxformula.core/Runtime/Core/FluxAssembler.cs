@@ -25,7 +25,7 @@ namespace FluxFormula.Core
         /// </summary>
         public FluxFormula<TData, TDef> Compile(LexResult<TData> lexResult)
         {
-            return Compile(lexResult.Tokens, lexResult.VarNames);
+            return Compile(lexResult.Tokens, lexResult.VarNames, lexResult.Syntax);
         }
 
         /// <summary>
@@ -33,7 +33,8 @@ namespace FluxFormula.Core
         /// </summary>
         internal FluxFormula<TData, TDef> Compile(
             ReadOnlySpan<FluxToken<TData>> tokens,
-            string[] varNames = null)
+            string[] varNames = null,
+            TokenSyntax[] syntax = null)
         {
             int dataSlots = FormulaFormat.DataSlots<TData>();
             var buffer = new Instruction[tokens.Length * (1 + dataSlots) + 1];
@@ -42,7 +43,7 @@ namespace FluxFormula.Core
             if (varNames != null)
                 varSlots = new VariableSlot[varNames.Length];
 
-            var compiler = new FluxCompiler<TData, TDef>(_definition);
+            var compiler = new FluxCompiler<TData, TDef>(_definition, tokens, syntax);
             int count = compiler.Compile(tokens, buffer, out int immCount, out int varSlotCount, out byte maxRegister, varNames, varSlots);
 
             FluxType type = FluxType.Formula;
@@ -50,6 +51,7 @@ namespace FluxFormula.Core
             {
                 byte firstOper = tokens[0].Oper;
                 OpType kind = _definition.GetKind(firstOper);
+                bool wasResolved = false;
 
                 if (kind == OpType.Instruction)
                 {
@@ -58,6 +60,7 @@ namespace FluxFormula.Core
                     {
                         firstOper = resolved;
                         kind      = _definition.GetKind(firstOper);
+                        wasResolved = true;
                     }
                 }
 
@@ -65,8 +68,18 @@ namespace FluxFormula.Core
                 {
                     var pairInfo = _definition.GetPair(firstOper);
 
-                    if (pairInfo.PairRole != Pair.Left
-                        && _definition.GetFirstPosition(firstOper) == OperandPosition.Left)
+                    bool hasLeftOperand;
+                    if (!wasResolved && syntax != null && syntax.Length > 0 && syntax[0].Slots != null)
+                    {
+                        var slots = syntax[0].Slots;
+                        hasLeftOperand = slots.Length > 0 && slots[0] < 0;
+                    }
+                    else
+                    {
+                        hasLeftOperand = _definition.GetFirstPosition(firstOper) == OperandPosition.Left;
+                    }
+
+                    if (pairInfo.PairRole != Pair.Left && hasLeftOperand)
                     {
                         type = FluxType.Modifier;
                     }
