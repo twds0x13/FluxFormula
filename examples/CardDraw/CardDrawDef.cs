@@ -203,7 +203,12 @@ public readonly struct TrackerDef : IFluxExprDefinition<SpellTracker>
     public OpPair GetPair(byte op) => new OpPair { PairRole = Pair.None };
 
     public Associativity GetAssociativity(byte op) => Associativity.Left;
-    public OperandPosition GetFirstPosition(byte op) => OperandPosition.Left;
+
+    public OperandPosition GetFirstPosition(byte op) => ((TrackerOp)op) switch
+    {
+        TrackerOp.Track => OperandPosition.Right,  // 前缀运算符: Track [prev]
+        _               => OperandPosition.Left,
+    };
 
     public byte ResolveToken(byte op, TokenContext ctx) => op;
 
