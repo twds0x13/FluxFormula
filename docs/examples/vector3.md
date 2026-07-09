@@ -1,10 +1,10 @@
-# 示例：Vector3 运算
+# 示例: Vector3 运算
 
-演示使用自定义 `TData` 结构体进行三维向量运算。
+使用自定义 `Vector3f` 结构体进行三维向量运算，演示函数式前缀语法、中缀语法、双语法视图。
 
 ## 场景
 
-3D 空间中的位置计算：`P = P0 + V0 * t + 0.5 * G * t^2`（初位置 + 速度 × 时间 + 0.5 × 重力加速度 × 时间的平方）。
+3D 空间中的向量运算：叉积表示为 `a x b`（中缀）或 `cross(a, b)`（函数式），归一化为 `norm(v)`，点积为 `dot(a, b)`。初速度 × 标量时间：`P0 + V0 * t`。
 
 ## TData 结构体
 
@@ -24,6 +24,18 @@ public struct Vector3f : IEquatable<Vector3f>
     public static Vector3f operator *(Vector3f a, float s)
         => new(a.X * s, a.Y * s, a.Z * s);
 
+    public static Vector3f Cross(Vector3f a, Vector3f b)
+        => new(a.Y * b.Z - a.Z * b.Y, a.Z * b.X - a.X * b.Z, a.X * b.Y - a.Y * b.X);
+
+    public static float Dot(Vector3f a, Vector3f b)
+        => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+
+    public static Vector3f Normalize(Vector3f v)
+    {
+        float mag = MathF.Sqrt(v.X * v.X + v.Y * v.Y + v.Z * v.Z);
+        return mag < 1e-12f ? default : new(v.X / mag, v.Y / mag, v.Z / mag);
+    }
+
     public readonly bool Equals(Vector3f other)
         => X == other.X && Y == other.Y && Z == other.Z;
 
@@ -32,22 +44,27 @@ public struct Vector3f : IEquatable<Vector3f>
 }
 ```
 
-`Vector3f` 满足 `unmanaged` 约束（仅含三个 blittable float 字段，无引用类型）。`sizeof(Vector3f) = 12` 字节，在字节码的 Immediate 指令中占用 2 个 Instruction 槽。
+`sizeof(Vector3f) = 12` 字节，在字节码的 Immediate 指令中占用 2 个 Instruction 槽。
 
 ## 操作符枚举
 
 ```csharp
 public enum Vector3Op : byte
 {
-    Const,       // 立即数
-    Add, Sub,    // 向量加减
-    Scale,       // 向量 × 标量（双目：左侧向量，右侧标量）
-    LParen, RParen,
-    Return,
+    Const, Add, Sub, Scale,
+    Cross, Norm, Dot,
+    Comma, LParen, RParen, Return = 255,
 }
 ```
 
-本例中公式为 `P0 + V0 * t`，其中 `*` 是标量乘法。设计思路：`V0 * t` 编译为 `V0` 和标量 `t` 两个 Const 立即数，后跟 `Scale` 操作符。`Scale` 的 arity 为 2：它取两个操作数，左侧向量（`V0`）和右侧标量（`t`）。标量以 Const 立即数形式嵌入字节码，运行时可通过 `SetIndex` 覆盖对应 immediate 槽位来修改标量值。
+| 操作符 | 元数 | 优先级 | 说明 |
+|--------|------|--------|------|
+| Add | 2 | 1 | 向量加法: `a + b` |
+| Sub | 2 | 1 | 向量减法: `a - b` |
+| Scale | 2 | 2 | 标量乘法: `v * s`（标量通过 X 分量传递） |
+| Cross | 2 | 2 | 叉积: `a x b` 或 `cross(a, b)` |
+| Dot | 2 | 2 | 点积: `dot(a, b)`，结果存于 X 分量 |
+| Norm | 1 | 3 | 归一化: `norm(v)` |
 
 ## 定义体
 
@@ -58,9 +75,9 @@ public readonly struct Vector3Def : IFluxExprDefinition<Vector3f>
 
     public int GetArity(byte op) => ((Vector3Op)op) switch
     {
-        Vector3Op.Add   => 2,
-        Vector3Op.Sub   => 2,
-        Vector3Op.Scale => 2,  // 双操作数：向量 + 标量
+        Vector3Op.Add   => 2, Vector3Op.Sub   => 2,
+        Vector3Op.Scale => 2, Vector3Op.Cross => 2,
+        Vector3Op.Dot   => 2, Vector3Op.Norm  => 1,
         _ => 0,
     };
 
@@ -73,9 +90,10 @@ public readonly struct Vector3Def : IFluxExprDefinition<Vector3f>
 
     public int GetPrecedence(byte op) => ((Vector3Op)op) switch
     {
-        Vector3Op.Add   => 1,
-        Vector3Op.Sub   => 1,
-        Vector3Op.Scale => 2,  // 标量乘法优先级高于加减
+        Vector3Op.Add   => 1, Vector3Op.Sub   => 1,
+        Vector3Op.Scale => 2, Vector3Op.Cross => 2,
+        Vector3Op.Dot   => 2,
+        Vector3Op.Norm  => 3,
         _               => 0,
     };
 
@@ -87,39 +105,101 @@ public readonly struct Vector3Def : IFluxExprDefinition<Vector3f>
             PairRole   = Pair.Right,
             TargetLeft = (byte)Vector3Op.LParen,
         },
+        Vector3Op.Comma => new OpPair
+        {
+            PairRole    = Pair.Right,
+            TargetLeft  = (byte)Vector3Op.LParen,
+            IsSeparator = true,
+        },
         _ => new OpPair { PairRole = Pair.None },
     };
 
-    public Associativity GetAssociativity(byte op) => Associativity.Left;
-    public OperandPosition GetFirstPosition(byte op) => OperandPosition.Left;
+    public Associativity GetAssociativity(byte op) => ((Vector3Op)op) switch
+    {
+        Vector3Op.Norm => Associativity.Right,
+        _              => Associativity.Left,
+    };
+
+    public OperandPosition GetFirstPosition(byte op) => ((Vector3Op)op) switch
+    {
+        Vector3Op.Add   => OperandPosition.Left,
+        Vector3Op.Sub   => OperandPosition.Left,
+        Vector3Op.Scale => OperandPosition.Left,
+        Vector3Op.Cross => OperandPosition.Left,
+        _               => OperandPosition.Right,
+    };
 
     public byte ResolveToken(byte op, TokenContext ctx) => op;
 
+    public string GetOperatorName(byte op) => ((Vector3Op)op).ToString();
+
     public Vector3f Compute(byte op, Instruction inst, Span<Vector3f> regs)
     {
+        var a = regs[inst.Arg0];
+        var b = regs[inst.Arg1];
         return ((Vector3Op)op) switch
         {
-            Vector3Op.Add   => regs[inst.Arg0] + regs[inst.Arg1],
-            Vector3Op.Sub   => regs[inst.Arg0] - regs[inst.Arg1],
-            Vector3Op.Scale => regs[inst.Arg0] * regs[inst.Arg1].X,  // 标量借 X 分量传递
+            Vector3Op.Add   => a + b,
+            Vector3Op.Sub   => a - b,
+            Vector3Op.Scale => a * b.X,
+            Vector3Op.Cross => Vector3f.Cross(a, b),
+            Vector3Op.Norm  => Vector3f.Normalize(a),
+            Vector3Op.Dot   => new Vector3f(Vector3f.Dot(a, b), 0, 0),
             _               => default,
         };
     }
 
     public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
     {
-        var arg0 = regs[inst.Arg0];
-        var arg1 = regs[inst.Arg1];
+        var t = typeof(Vector3f);
+        var a = regs[inst.Arg0];
+        var b = regs[inst.Arg1];
         return ((Vector3Op)op) switch
         {
-            Vector3Op.Add   => Expression.Add(arg0, arg1),
-            Vector3Op.Sub   => Expression.Subtract(arg0, arg1),
-            Vector3Op.Scale => Expression.Multiply(arg0,
-                Expression.PropertyOrField(arg1, "X")),
+            Vector3Op.Add   => Expression.Add(a, b),
+            Vector3Op.Sub   => Expression.Subtract(a, b),
+            Vector3Op.Scale => Expression.Multiply(a, Expression.PropertyOrField(b, "X")),
+            Vector3Op.Cross => Expression.Call(a, t.GetMethod(nameof(Vector3f.Cross))!, a, b),
+            Vector3Op.Norm  => Expression.Call(a, t.GetMethod(nameof(Vector3f.Normalize))!, a),
+            Vector3Op.Dot   => Expression.New(t.GetConstructor(new[] { typeof(float), typeof(float), typeof(float) })!,
+                Expression.Call(a, t.GetMethod(nameof(Vector3f.Dot))!, a, b),
+                Expression.Constant(0f), Expression.Constant(0f)),
             _               => Expression.Constant(default(Vector3f)),
         };
     }
 }
+```
+
+## Lexer 配置
+
+```csharp
+var config = new LexerConfig<Vector3f>
+{
+    LiteralOper = (byte)Vector3Op.Const,
+    LiteralScanner = LexerConfig<Vector3f>.CreateDefaultNumberScanner(
+        s => new Vector3f(float.Parse(s, CultureInfo.InvariantCulture), 0, 0)),
+    Operators =
+    {
+        // 中缀
+        new("+", (byte)Vector3Op.Add, slots: new sbyte[] { -1, +1 }),
+        new("-", (byte)Vector3Op.Sub, slots: new sbyte[] { -1, +1 }),
+        new("*", (byte)Vector3Op.Scale, slots: new sbyte[] { -1, +1 }),
+        new("x", (byte)Vector3Op.Cross, slots: new sbyte[] { -1, +1 }),
+        // 函数式 (前缀 + 括号 + 逗号分隔)
+        new("cross", (byte)Vector3Op.Cross,
+            slots: new sbyte[] { +2, +4 },
+            aux: new AuxRule[] { new(+1, "("), new(+3, ","), new(+5, ")") }),
+        new("dot", (byte)Vector3Op.Dot,
+            slots: new sbyte[] { +2, +4 },
+            aux: new AuxRule[] { new(+1, "("), new(+3, ","), new(+5, ")") }),
+        new("norm", (byte)Vector3Op.Norm,
+            slots: new sbyte[] { +2 },
+            aux: new AuxRule[] { new(+1, "("), new(+3, ")") }),
+        new(",", (byte)Vector3Op.Comma),
+    },
+    Brackets = { new("(", ")", (byte)Vector3Op.LParen, (byte)Vector3Op.RParen) },
+    VariablePatterns = { new("[", "]") },
+};
 ```
 
 ## 使用
@@ -127,29 +207,43 @@ public readonly struct Vector3Def : IFluxExprDefinition<Vector3f>
 ```csharp
 var def    = new Vector3Def();
 var runner = new FluxAssembler<Vector3f, Vector3Def>(def);
+var lexer  = new FluxLexer<Vector3f>(config);
 
-// 公式: P0 + V0 * t
-// Token: Const(P0), Const(V0), Const(t), Scale, Add
-var formula = runner.Compile(new FluxToken<Vector3f>[]
-{
-    new() { Oper = (byte)Vector3Op.Const, Data = new Vector3f(0f, 0f, 0f) },    // P0 （slot 0）
-    new() { Oper = (byte)Vector3Op.Const, Data = new Vector3f(5f, 2f, 0f) },    // V0  （slot 1）
-    new() { Oper = (byte)Vector3Op.Const, Data = new Vector3f(3f, 0f, 0f) },    // t   （slot 2，标量借 X 分量）
-    new() { Oper = (byte)Vector3Op.Scale },  // V0 * t
-    new() { Oper = (byte)Vector3Op.Add },     // P0 + (V0 * t)
-});
-
-// 运行时覆盖初位置和速度，标量 t 使用编译时嵌入的立即数（需要修改时可 SetIndex(2, ...) 覆盖）
-Vector3f result = runner.Instantiate(formula)
-    .SetIndex(0, new Vector3f(10f, 5f, 0f))       // P0
-    .SetIndex(1, new Vector3f(5f, 2f, 0f))         // V0
+// 标量乘法: P = P0 + V0 * t
+var f = runner.Compile(lexer.Lex("[P0] + [V0] * [t]"));
+var r = runner.Instantiate(f)
+    .Set("P0", new Vector3f(10f, 5f, 0f))
+    .Set("V0", new Vector3f(5f, 2f, 0f))
+    .Set("t",  new Vector3f(3f, 0f, 0f))
     .Run();
-// → (25.00, 11.00, 0.00) = P0 + V0 * t
+// → (25.00, 11.00, 0.00)
+
+// 叉积: 中缀语法
+var cross = runner.Instantiate(runner.Compile(lexer.Lex("[a] x [b]")))
+    .Set("a", new Vector3f(1, 0, 0))
+    .Set("b", new Vector3f(0, 1, 0))
+    .Run();
+// → (0.00, 0.00, 1.00)
+
+// 归一化
+var norm = runner.Instantiate(runner.Compile(lexer.Lex("norm([v])")))
+    .Set("v", new Vector3f(3, 4, 0))
+    .Run();
+// → (0.60, 0.80, 0.00)
+
+// 点积
+var dot = runner.Instantiate(runner.Compile(lexer.Lex("dot([a], [b])")))
+    .Set("a", new Vector3f(1, 2, 3))
+    .Set("b", new Vector3f(4, 5, 6))
+    .Run();
+// dot.X → 32
 ```
 
 ## 要点
 
-- `TData` 必须满足 `unmanaged` 约束。含引用类型的 struct 不可用
-- `sizeof(TData)` 越大，每个 Immediate 消耗的 Instruction 槽位越多。`Vector3f`（12 字节）= 2 槽
-- 标量以 Const 立即数形式嵌入字节码，通过 X 分量承载 float 值。`Compute` 中通过 `regs[inst.Arg1].X` 读取
-- 更复杂的向量运算（点积、叉积）可通过增加更多操作符枚举值实现
+- 标量通过 `Vector3f(s, 0, 0)` 封装，`Compute` 中通过 `.X` 提取
+- 函数式运算符 (`cross`/`dot`/`norm`) 使用 `Slots + Aux` 声明完整 token 模式
+- 中缀运算符 (`+`/`-`/`*`/`x`) 使用 `Slots [-1, +1]`
+- `Cross` 支持双语法：中缀 `a x b` 和函数式 `cross(a, b)`
+- `Dot` 结果封装在 X 分量返回，调用方可读取 `result.X` 获得标量值
+- `sizeo(Vector3f) = 12`，每个 Immediate 消耗 2 Instruction 槽

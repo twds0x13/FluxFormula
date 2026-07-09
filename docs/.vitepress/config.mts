@@ -121,7 +121,7 @@ export default withMermaid(
                   collapsed: false,
                   items: [
                     { text: "浮点四则运算", link: "/examples/float-math" },
-                    { text: "自定义立即数语法", link: "/examples/custom-literal" },
+                    { text: "元素伤害公式", link: "/examples/elem-math" },
                     { text: "Vector3 运算", link: "/examples/vector3" },
                     { text: "高级函数与三元", link: "/examples/adv-math" },
                     { text: "法术上下文", link: "/examples/card-draw" },
@@ -279,7 +279,7 @@ export default withMermaid(
                   collapsed: false,
                   items: [
                     { text: "Float Arithmetic", link: "/en/examples/float-math" },
-                    { text: "Custom Literal Syntax", link: "/en/examples/custom-literal" },
+                    { text: "Elemental Damage Formula", link: "/en/examples/elem-math" },
                     { text: "Vector3 Operations", link: "/en/examples/vector3" },
                     { text: "Advanced Functions & Ternary", link: "/en/examples/adv-math" },
                     { text: "Spell Context", link: "/en/examples/card-draw" },
