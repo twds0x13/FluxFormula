@@ -12,6 +12,10 @@ standalone-tests/obj/
 tests/FluxFormula.Core.Tests/bin/
 tests/FluxFormula.Core.Tests/obj/
 
+# ===== Examples =====
+examples/*/bin/
+examples/*/obj/
+
 # ===== Node / VitePress =====
 node_modules/
 docs/.vitepress/dist/

@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>FLUX_FAST_EXPRESSION_COMPILER</DefineConstants>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 核心 Runtime 源码 (monorepo) -->
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxDefinition.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxEvaluator.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxCurryEvaluator.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxStepEvaluator.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxFormula.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxChain.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxModifier.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxToken.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxAssembler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInjector.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxLexer.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTemplateAttribute.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTemplateRegistry.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralScanners.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/ExternalLiteralTemplateAttribute.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTypeAliasAttribute.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/DualHash64.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FormulaCache.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxCacheProvider.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/BinaryFormat.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxArtifactKind.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxFileFormatter.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FormulaFormat.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Registers.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxConfig.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxCompression.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/VffFormat.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/BlobEntry.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/BlobFormat.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxBlobRegistry.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxBlobRegistryAssemblyAttribute.cs" />
+    <Compile Include="../../packages/fluxformula/Runtime/Unity/FluxBlob.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxCompiler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/CompiledFunc.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxExprCompiler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxILCompiler.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/IFluxILDefinition.cs" />
+    <!-- 示例源文件 -->
+    <Compile Include="AdvMathDef.cs" />
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FastExpressionCompiler" Version="5.4.1" />
+    <PackageReference Include="System.IO.Hashing" Version="9.0.4" />
+    <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
+  </ItemGroup>
+
+</Project>
