@@ -1,3 +1,9 @@
+## [5.3.1](https://github.com/twds0x13/FluxFormula/compare/v5.3.0...v5.3.1) (2026-07-09)
+
+### Bug Fixes
+
+* use SlotIndex matching in BuildLinkBuffer instead of sequential varIdx consumption ([5c33899](https://github.com/twds0x13/FluxFormula/commit/5c3389964eb7e0972b835c99b082c35a2877a4b0))
+
 ## [5.3.0](https://github.com/twds0x13/FluxFormula/compare/v5.2.0...v5.3.0) (2026-07-08)
 
 ### Features
