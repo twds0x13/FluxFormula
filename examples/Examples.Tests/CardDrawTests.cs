@@ -19,7 +19,7 @@ public class CardDrawTests
             LiteralOper = (byte)SpellOp.Const,
             Operators =
             {
-                new("+", (byte)SpellOp.Add),
+                new("+", (byte)SpellOp.Add, slots: new sbyte[] { -1, +1 }),
             },
             Brackets =
             {

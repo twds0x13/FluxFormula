@@ -9,10 +9,10 @@ var config = new LexerConfig<float>
         s => float.Parse(s, CultureInfo.InvariantCulture)),
     Operators =
     {
-        new("+", (byte)MathOp.Add),
-        new("-", (byte)MathOp.Sub),
-        new("*", (byte)MathOp.Mul),
-        new("/", (byte)MathOp.Div),
+        new("+", (byte)MathOp.Add, slots: new sbyte[] { -1, +1 }),
+        new("-", (byte)MathOp.Sub, slots: new sbyte[] { -1, +1 }),
+        new("*", (byte)MathOp.Mul, slots: new sbyte[] { -1, +1 }),
+        new("/", (byte)MathOp.Div, slots: new sbyte[] { -1, +1 }),
     },
     Brackets =
     {
