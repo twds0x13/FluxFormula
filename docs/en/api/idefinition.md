@@ -68,30 +68,65 @@ public interface IFluxExprDefinition<TData> : IFluxDefinition<TData>
 ## Implementation Requirements
 
 - The implementing type should be a `readonly struct`; if used as the `TDef` generic parameter, it must satisfy `unmanaged`
-- Mark all methods with `[MethodImpl(AggressiveInlining)]`
+- Hot-path methods may use `[MethodImpl(AggressiveInlining)]` to reduce call overhead
 - `GetExpression` and `Compute` must be semantically consistent: same input produces same output
 
 ## Complete Implementation Example
 
 ```csharp
-enum MathOp : byte { Const = 0, Add, Sub, Mul, Div, Neg, Return = 255 }
+using System;
+using System.Linq.Expressions;
+using FluxFormula.Core;
+
+enum MathOp : byte
+{
+    Const, Add, Sub, Mul, Div, Neg,
+    LParen, RParen, Return = 255,
+}
 
 readonly struct MathDef : IFluxExprDefinition<float>
 {
     public byte GetReturnOp() => (byte)MathOp.Return;
+
     public int GetArity(byte op) => ((MathOp)op) switch
     {
-        MathOp.Const => 0, MathOp.Return => 0,
-        MathOp.Neg => 1, _ => 2
+        MathOp.Add => 2, MathOp.Sub => 2, MathOp.Mul => 2,
+        MathOp.Div => 2, MathOp.Neg => 1, _ => 0,
     };
-    public OpType GetKind(byte op) => op == (byte)MathOp.Const ? OpType.Immediate
-        : op == (byte)MathOp.Return ? OpType.Return : OpType.Instruction;
+
+    public OpType GetKind(byte op) => ((MathOp)op) switch
+    {
+        MathOp.Const  => OpType.Immediate,
+        MathOp.Return => OpType.Return,
+        _             => OpType.Instruction,
+    };
+
     public int GetPrecedence(byte op) => ((MathOp)op) switch
     {
-        MathOp.Add or MathOp.Sub => 1, MathOp.Mul or MathOp.Div => 2, _ => 0
+        MathOp.Add => 1, MathOp.Sub => 1,
+        MathOp.Mul => 2, MathOp.Div => 2,
+        MathOp.Neg => 3,
+        _          => 0,
     };
-    public Associativity GetAssociativity(byte op) => Associativity.Left;
-    public OperandPosition GetFirstPosition(byte op) => ((MathOp)op) switch
+
+    public OpPair GetPair(byte op) => ((MathOp)op) switch
+    {
+        MathOp.LParen => new OpPair { PairRole = Pair.Left },
+        MathOp.RParen => new OpPair
+        {
+            PairRole   = Pair.Right,
+            TargetLeft = (byte)MathOp.LParen,
+        },
+        _ => new OpPair { PairRole = Pair.None },
+    };
+
+    public Associativity GetAssociativity(byte op) => ((MathOp)op) switch
+    {
+        MathOp.Neg => Associativity.Right,
+        _          => Associativity.Left,
+    };
+
+    public OperandPosition GetFirstPosition(byte op) => (MathOp)op switch
     {
         MathOp.Add => OperandPosition.Left,
         MathOp.Sub => OperandPosition.Left,
@@ -99,31 +134,48 @@ readonly struct MathDef : IFluxExprDefinition<float>
         MathOp.Div => OperandPosition.Left,
         _          => OperandPosition.Right,
     };
-    public OpPair GetPair(byte op) => default;
-    public byte ResolveToken(byte oper, TokenContext ctx) => oper;
+
+    public byte ResolveToken(byte oper, TokenContext ctx)
+    {
+        if (oper == (byte)MathOp.Sub && ctx == TokenContext.OperandExpected)
+            return (byte)MathOp.Neg;
+        return oper;
+    }
+
     public string GetOperatorName(byte op) => ((MathOp)op).ToString();
 
     public float Compute(byte op, Instruction inst, Span<float> regs)
-        => ((MathOp)op) switch
+    {
+        return ((MathOp)op) switch
         {
             MathOp.Add => regs[inst.Arg0] + regs[inst.Arg1],
             MathOp.Sub => regs[inst.Arg0] - regs[inst.Arg1],
             MathOp.Mul => regs[inst.Arg0] * regs[inst.Arg1],
-            MathOp.Div => regs[inst.Arg0] / regs[inst.Arg1],
+            MathOp.Div => Math.Abs(regs[inst.Arg1]) < float.Epsilon
+                ? float.NaN
+                : regs[inst.Arg0] / regs[inst.Arg1],
             MathOp.Neg => -regs[inst.Arg0],
-            _ => default
+            _ => 0f,
         };
+    }
 
     public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
-        => ((MathOp)op) switch
+    {
+        var zero = Expression.Constant(0f);
+        var nan  = Expression.Constant(float.NaN);
+        return ((MathOp)op) switch
         {
             MathOp.Add => Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
             MathOp.Sub => Expression.Subtract(regs[inst.Arg0], regs[inst.Arg1]),
             MathOp.Mul => Expression.Multiply(regs[inst.Arg0], regs[inst.Arg1]),
-            MathOp.Div => Expression.Divide(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Div => Expression.Condition(
+                Expression.Equal(regs[inst.Arg1], zero),
+                nan,
+                Expression.Divide(regs[inst.Arg0], regs[inst.Arg1])),
             MathOp.Neg => Expression.Negate(regs[inst.Arg0]),
-            _ => Expression.Default(typeof(float))
+            _ => Expression.Constant(0f),
         };
+    }
 }
 ```
 
