@@ -15,6 +15,7 @@ Noita-style spell correction system. Each spell card has two attributes:
 ## TData Struct
 
 ```csharp
+[LiteralTemplate("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
 public struct SpellContext : IEquatable<SpellContext>
 {
     public float Damage;              // Accumulated damage
@@ -53,13 +54,17 @@ public enum SpellOp : byte
 
 ## LiteralScanner: `damage|draw N|idx:N` Named-Field Format
 
+> **v5.2+ recommendation**: Prefer the `[LiteralTemplate]` source generator (see attribute on the struct declaration above). After adding the `FluxFormula.LiteralScanner.Generator` analyzer to your csproj, omit the `LiteralScanner` field from `LexerConfig` — the `FluxLexer` constructor automatically injects the generated scanner. The template-first approach eliminates manual delegate maintenance.
+
+The manual implementation is preserved below for reference:
+
 ```csharp
+// Manual delegate (alternative when source generator is unavailable)
 config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value) =>
 {
     value = default;
     if (pos >= src.Length || !(char.IsDigit(src[pos]) || src[pos] == '-')) return pos;
 
-    // Scan float (Damage)
     int start = pos;
     if (src[pos] == '-') pos++;
     while (pos < src.Length && char.IsDigit(src[pos])) pos++;
@@ -68,13 +73,11 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value
         pos++;
         while (pos < src.Length && char.IsDigit(src[pos])) pos++;
     }
-    float damage = float.Parse(src.Slice(start, pos - start));
+    float damage = float.Parse(src.Slice(start, pos - start), CultureInfo.InvariantCulture);
 
-    // Expect '|' separator
     if (pos >= src.Length || src[pos] != '|') { value = new SpellContext(damage, 0); return pos; }
     pos++;
 
-    // Optional 'draw' field
     int draws = 0;
     if (src.Slice(pos).StartsWith("draw "))
     {
@@ -87,12 +90,9 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value
             pos++;
         }
         if (neg) draws = -draws;
-
-        // Consume '|' separator
         if (pos < src.Length && src[pos] == '|') pos++;
     }
 
-    // Required 'idx:' field
     if (!src.Slice(pos).StartsWith("idx:"))
     {
         value = new SpellContext(damage, draws);
@@ -105,7 +105,6 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value
         index = index * 10 + (src[pos] - '0');
         pos++;
     }
-
     value = new SpellContext(damage, draws, 0, index);
     return pos;
 };

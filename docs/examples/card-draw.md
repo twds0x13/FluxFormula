@@ -15,6 +15,7 @@ Noita 式法术修正系统。每张法术卡有两个属性：
 ## TData 结构体
 
 ```csharp
+[LiteralTemplate("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
 public struct SpellContext : IEquatable<SpellContext>
 {
     public float Damage;              // 累积伤害
@@ -53,13 +54,17 @@ public enum SpellOp : byte
 
 ## LiteralScanner：`damage|draw N|idx:N` 命名字段格式
 
+> **v5.2+ 推荐**：优先使用 `[LiteralTemplate]` Source Generator 自动生成扫描器（见 TData 结构体上的属性声明）。在 csproj 中引用 `FluxFormula.LiteralScanner.Generator` analyzer 后，`LexerConfig` 无需设置 `LiteralScanner` 字段，`FluxLexer` 构造函数自动注入生成的扫描器。模板优先方案消除手写委托的维护成本。
+
+手动实现版本保留以下供参考：
+
 ```csharp
+// 手动委托（替代方案，Source Generator 不可用时使用）
 config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value) =>
 {
     value = default;
     if (pos >= src.Length || !(char.IsDigit(src[pos]) || src[pos] == '-')) return pos;
 
-    // 扫描浮点数（Damage）
     int start = pos;
     if (src[pos] == '-') pos++;
     while (pos < src.Length && char.IsDigit(src[pos])) pos++;
@@ -68,13 +73,11 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value
         pos++;
         while (pos < src.Length && char.IsDigit(src[pos])) pos++;
     }
-    float damage = float.Parse(src.Slice(start, pos - start));
+    float damage = float.Parse(src.Slice(start, pos - start), CultureInfo.InvariantCulture);
 
-    // 期望 '|' 分隔符
     if (pos >= src.Length || src[pos] != '|') { value = new SpellContext(damage, 0); return pos; }
     pos++;
 
-    // 可选 'draw' 字段
     int draws = 0;
     if (src.Slice(pos).StartsWith("draw "))
     {
@@ -87,12 +90,9 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value
             pos++;
         }
         if (neg) draws = -draws;
-
-        // 消费 '|' 分隔符
         if (pos < src.Length && src[pos] == '|') pos++;
     }
 
-    // 必填 'idx:' 字段
     if (!src.Slice(pos).StartsWith("idx:"))
     {
         value = new SpellContext(damage, draws);
@@ -105,7 +105,6 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value
         index = index * 10 + (src[pos] - '0');
         pos++;
     }
-
     value = new SpellContext(damage, draws, 0, index);
     return pos;
 };
