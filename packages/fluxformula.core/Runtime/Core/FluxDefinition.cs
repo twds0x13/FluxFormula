@@ -27,6 +27,17 @@ namespace FluxFormula.Core
         Right,
     }
 
+    /// <summary>
+    /// 首个操作数相对于操作符的位置。
+    /// Left（中缀 a + b）：表达式以本操作符开头视为缺左操作数（Modifier）。
+    /// Right（前缀 -x、max(a,b)）：表达式以本操作符开头为合法 Formula。
+    /// </summary>
+    public enum OperandPosition
+    {
+        Left,
+        Right,
+    }
+
     public enum Pair : byte
     {
         None,
@@ -102,6 +113,14 @@ namespace FluxFormula.Core
         int GetPrecedence(byte op);
         OpPair GetPair(byte op);
         Associativity GetAssociativity(byte op);
+
+        /// <summary>
+        /// 首个操作数相对于操作符的位置。默认 <see cref="OperandPosition.Left"/>（中缀）。
+        /// 覆写为 <see cref="OperandPosition.Right"/> 表示前缀调用（如 max(a,b)、-x），
+        /// 此时表达式以本操作符开头不被视为缺左操作数。
+        /// </summary>
+        OperandPosition GetFirstPosition(byte op) => OperandPosition.Left;
+
         /// <summary>
         /// 执行操作符。默认实现从 <paramref name="registers"/> 读取操作数并返回结果。
         /// 若要触发 R0 短路（提前终止求值），写入 <c>registers[Registers.Error]</c> 为非 default 值。

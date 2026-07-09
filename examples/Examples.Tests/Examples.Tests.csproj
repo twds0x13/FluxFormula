@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 核心 Runtime 源码 (monorepo: packages/fluxformula.core/Runtime/) -->
+    <!-- 核心 Runtime 源码 (monorepo) -->
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxDefinition.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxEvaluator.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxCurryEvaluator.cs" />
@@ -50,43 +50,13 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxExprCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxILCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/IFluxILDefinition.cs" />
-    <!-- 测试文件 (按模块分类) -->
-    <Compile Include="TestDefinition.cs" />            <!-- 基础定义 -->
-    <Compile Include="SmokeTest.cs" />                <!-- 冒烟测试 -->
-    <Compile Include="ArithmeticTests.cs" />          <!-- 算术正确性 -->
-    <Compile Include="JitConsistencyTests.cs" />      <!-- JIT vs 解释器一致性 -->
-    <Compile Include="ConnectTests.cs" />             <!-- Connect 组合 -->
-    <Compile Include="FluxInstanceTests.cs" />        <!-- FluxInstance -->
-    <Compile Include="FluxInjectorTests.cs" />        <!-- FluxInjector -->
-    <Compile Include="FluxEvaluatorTests.cs" />       <!-- FluxEvaluator 边界 -->
-    <Compile Include="FluxConfigTests.cs" />          <!-- FluxConfig -->
-    <Compile Include="FluxExprCompilerTests.cs" />     <!-- FluxExprCompiler -->
-    <Compile Include="LexerTests.cs" />               <!-- FluxLexer 核心 -->
-    <Compile Include="LexerConfigTests.cs" />         <!-- LexerConfig -->
-    <Compile Include="LexerEdgeTests.cs" />           <!-- FluxLexer 内部方法 -->
-    <Compile Include="PersistenceTests.cs" />         <!-- 序列化 -->
-    <Compile Include="DualHashTests.cs" />            <!-- DualHash64 -->
-    <Compile Include="DataStructsTests.cs" />         <!-- Instruction/OpPair/VariableSlot -->
-    <Compile Include="BinaryFormatTests.cs" />        <!-- BinaryFormat -->
-    <Compile Include="FormulaFormatTests.cs" />       <!-- FormulaFormat -->
-    <Compile Include="FormulaCacheTests.cs" />        <!-- FormulaCache 核心 -->
-    <Compile Include="FormulaCacheAndChainTests.cs" /> <!-- FormulaCache + Chain -->
-    <Compile Include="FormulaCacheEdgeTests.cs" />    <!-- FormulaCache 边界 -->
-    <Compile Include="ModifierFormulaTests.cs" />     <!-- Modifier/Formula 互转 -->
-    <Compile Include="VffStructsTests.cs" />          <!-- VffHeader/LinkEntry/Override -->
-    <Compile Include="VffFormatTests.cs" />           <!-- VffFormat 完整测试 -->
-    <Compile Include="FileFluxFileFormatterTests.cs" /> <!-- FileFluxFileFormatter -->
-    <Compile Include="FluxCompressionTests.cs" />       <!-- FluxCompression -->
-    <Compile Include="FecExplicitStructTests.cs" />       <!-- FEC × Explicit struct -->
-    <Compile Include="CustomLiteralScannerTests.cs" />    <!-- 自定义字面量扫描器 -->
-    <Compile Include="LiteralTemplateTests.cs" />           <!-- 字面量模板系统 -->
-    <Compile Include="BlobEntryTests.cs" />              <!-- BlobEntry 结构体 -->
-    <Compile Include="BlobFormatTests.cs" />             <!-- BlobFormat 二进制格式 -->
-    <Compile Include="FormulaCacheRemoveTests.cs" />     <!-- FormulaCache.Remove -->
-    <Compile Include="FormulaCacheDeepTests.cs" />       <!-- FormulaCache 深度覆盖 -->
-    <Compile Include="FluxBlobTests.cs" />               <!-- FluxBlob Load/Unload -->
-    <Compile Include="CurryEvaluatorTests.cs" />        <!-- 柯里化求值器 -->
-    <Compile Include="StepEvaluatorTests.cs" />         <!-- 单步调试求值器 -->
+    <!-- 示例源文件（复用，不重复定义） -->
+    <Compile Include="../FloatMath/MathDef.cs" />
+    <Compile Include="../AdvMath/AdvMathDef.cs" />
+    <!-- 测试文件 -->
+    <Compile Include="FloatMathTests.cs" />
+    <Compile Include="AdvMathTests.cs" />
+    <Compile Include="ChainConnectTests.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -96,12 +66,6 @@
     <PackageReference Include="FastExpressionCompiler" Version="5.4.1" />
     <PackageReference Include="System.IO.Hashing" Version="9.0.4" />
     <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="../../packages/fluxformula.core/SourceGenerator/FluxFormula.LiteralScanner.Generator.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

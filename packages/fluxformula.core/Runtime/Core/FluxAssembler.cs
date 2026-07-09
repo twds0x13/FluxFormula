@@ -84,6 +84,26 @@ namespace FluxFormula.Core
         }
 
         // ═══════════════════════════════════════════════════════
+        // Curry / Step：非热路径求值器
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 创建柯里化求值器：按顺序渐进绑定变量，支持中途分叉。
+        /// </summary>
+        public FluxCurryEvaluator<TData, TDef> Curry(FluxFormula<TData, TDef> formula)
+        {
+            return FluxCurryEvaluator<TData, TDef>.Create(_definition, formula);
+        }
+
+        /// <summary>
+        /// 创建单步调试求值器：逐条指令执行，暴露 IP 和寄存器快照。
+        /// </summary>
+        public FluxStepEvaluator<TData, TDef> StepDebug(FluxFormula<TData, TDef> formula)
+        {
+            return FluxStepEvaluator<TData, TDef>.Create(_definition, formula);
+        }
+
+        // ═══════════════════════════════════════════════════════
         // Instantiate：原子公式
         // ═══════════════════════════════════════════════════════
 
