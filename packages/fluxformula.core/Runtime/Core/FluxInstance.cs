@@ -157,13 +157,15 @@ namespace FluxFormula.Core
             var links  = _chain.GetLinks();
             var kernel = new FluxEvaluator<TData, TDef>(_definition);
             TData prevResult = default;
+            int globalImmBase = 0;
 
             for (int i = 0; i < links.Length; i++)
             {
-                var buffer = BuildLinkBuffer(links[i]);
+                var buffer = BuildLinkBuffer(links[i], globalImmBase);
                 prevResult = (i == 0)
                     ? kernel.Compute(buffer, maxRegister: links[i].MaxRegister)
                     : kernel.Compute(buffer, prevResult, maxRegister: links[i].MaxRegister);
+                globalImmBase += links[i].ImmediateCount;
             }
 
             return prevResult;
@@ -171,8 +173,10 @@ namespace FluxFormula.Core
 
         /// <summary>
         /// 为单个 chain link 构建求值用 Instruction[]，从 injector 回读变量值注入。
+        /// <paramref name="globalImmBase"/> 是之前所有 link 的 Immediate 总数，
+        /// 用于将 VarSlot 的全局 SlotIndex 转换回 link 内的局部位置。
         /// </summary>
-        private readonly Instruction[] BuildLinkBuffer(ChainLink link)
+        private readonly Instruction[] BuildLinkBuffer(ChainLink link, int globalImmBase)
         {
             var buffer = new Instruction[link.InstructionCount];
             Array.Copy(link.Bytecode, 0, buffer, 0, link.InstructionCount);
@@ -181,17 +185,22 @@ namespace FluxFormula.Core
             {
                 int dataSlotsPerParam = FormulaFormat.DataSlots<TData>();
                 int varIdx = 0;
+                int localImmIdx = 0;
                 for (int ip = 0; ip < link.InstructionCount && varIdx < link.VarSlots.Length; )
                 {
                     if (_definition.GetKind(buffer[ip].OpCode) == OpType.Immediate)
                     {
-                        TData value = _injector.GetValue(link.VarSlots[varIdx].SlotIndex);
-                        unsafe
+                        if (link.VarSlots[varIdx].SlotIndex == globalImmBase + localImmIdx)
                         {
-                            fixed (Instruction* pBase = buffer)
-                                *(TData*)(pBase + ip + 1) = value;
+                            TData value = _injector.GetValue(link.VarSlots[varIdx].SlotIndex);
+                            unsafe
+                            {
+                                fixed (Instruction* pBase = buffer)
+                                    *(TData*)(pBase + ip + 1) = value;
+                            }
+                            varIdx++;
                         }
-                        varIdx++;
+                        localImmIdx++;
                         ip += 1 + dataSlotsPerParam;
                     }
                     else

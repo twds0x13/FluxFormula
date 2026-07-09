@@ -98,4 +98,58 @@ public class FluxInstanceTests
             .Instantiate(chain);
         Assert.That(inst.Run(), Is.EqualTo(50f).Within(1e-6f));
     }
+
+    [Test]
+    public void ChainInterpreter_ConstantBeforeVariable_InjectCorrectly()
+    {
+        // 常量在变量之前：BuildLinkBuffer 不能把常量误认为变量
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        // fA: 1 + [x] → Immediates=2 (常量1, 变量x), VarSlots=[{"x", SlotIndex=1}]
+        var fA = runner.Compile(lexer.Lex("1 + [x]"));
+        // fB_raw: [y] + 2 → ToModifier 移除首 Immediate [y]，剩余 + 2 (VarSlots=[])
+        var fB = runner.Compile(lexer.Lex("[y] + 2")).ToModifier();
+        var chain = fA.Connect(fB);  // (1 + [x]) + 2
+
+        // Bug 表现: 旧代码常数 1 被 Set("x", 3) 的值 3 覆盖 → (3+0)+2=5
+        // 修复后: 常数 1 保持原值 → (1+3)+2=6
+        float result = runner.Instantiate(chain).Set("x", 3f).Run();
+        Assert.That(result, Is.EqualTo(6f).Within(1e-6f),
+            "常量不应被变量值覆盖: (1+3)+2 = 6");
+    }
+
+    [Test]
+    public void ChainInterpreter_VariableBeforeConstant_StillWorks()
+    {
+        // 变量在常量之前：回归测试，确保修复不破坏原有正确行为
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        // fA: [x] + 1 → Immediates=2 (变量x, 常量1), VarSlots=[{"x", SlotIndex=0}]
+        var fA = runner.Compile(lexer.Lex("[x] + 1"));
+        // fB: 2 * 5 → ToModifier → * 5
+        var fB = runner.Compile(lexer.Lex("2 * 5")).ToModifier();
+        var chain = fA.Connect(fB);  // ([x] + 1) * 5
+
+        float result = runner.Instantiate(chain).Set("x", 5f).Run();
+        Assert.That(result, Is.EqualTo(30f).Within(1e-6f),
+            "(5+1)*5 = 30");
+    }
+
+    [Test]
+    public void ChainInterpreter_AllVariables_MultiLink_Works()
+    {
+        // 全变量链：回归测试 LegoBricks 模式不受修复影响
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        // fA: [a] * [b] → Immediates=2, VarSlots=[{"a",0},{"b",1}]
+        var fA = runner.Compile(lexer.Lex("[a] * [b]"));
+        // fB_raw: [d] * [c] → ToModifier 移除 [d], VarSlots=[{"c",0}]
+        var fB = runner.Compile(lexer.Lex("[d] * [c]")).ToModifier();
+        var chain = fA.Connect(fB);  // [a] * [b] * [c]
+
+        float result = runner.Instantiate(chain)
+            .Set("a", 2f).Set("b", 3f).Set("c", 4f).Run();
+        Assert.That(result, Is.EqualTo(24f).Within(1e-6f),
+            "2*3*4 = 24");
+    }
 }
