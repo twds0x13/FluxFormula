@@ -93,7 +93,9 @@ readonly struct MathDef : IFluxExprDefinition<float>
             MathOp.Add => regs[inst.Arg0] + regs[inst.Arg1],
             MathOp.Mul => regs[inst.Arg0] * regs[inst.Arg1],
             MathOp.Sub => regs[inst.Arg0] - regs[inst.Arg1],
-            MathOp.Div => regs[inst.Arg0] / regs[inst.Arg1],
+            MathOp.Div => Math.Abs(regs[inst.Arg1]) < float.Epsilon
+                ? float.NaN
+                : regs[inst.Arg0] / regs[inst.Arg1],
             MathOp.Neg => -regs[inst.Arg0],
             _ => 0f,
         };
@@ -102,12 +104,17 @@ readonly struct MathDef : IFluxExprDefinition<float>
     // JIT 路径
     public Expression GetExpression(byte op, Instruction inst, ParameterExpression[] regs)
     {
+        var zero = Expression.Constant(0f);
+        var nan  = Expression.Constant(float.NaN);
         return ((MathOp)op) switch
         {
             MathOp.Add => Expression.Add(regs[inst.Arg0], regs[inst.Arg1]),
             MathOp.Mul => Expression.Multiply(regs[inst.Arg0], regs[inst.Arg1]),
             MathOp.Sub => Expression.Subtract(regs[inst.Arg0], regs[inst.Arg1]),
-            MathOp.Div => Expression.Divide(regs[inst.Arg0], regs[inst.Arg1]),
+            MathOp.Div => Expression.Condition(
+                Expression.Equal(regs[inst.Arg1], zero),
+                nan,
+                Expression.Divide(regs[inst.Arg0], regs[inst.Arg1])),
             MathOp.Neg => Expression.Negate(regs[inst.Arg0]),
             _ => Expression.Constant(0f),
         };
