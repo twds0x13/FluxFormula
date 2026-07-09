@@ -1,3 +1,9 @@
+## [5.6.0](https://github.com/twds0x13/FluxFormula/compare/v5.5.0...v5.6.0) (2026-07-09)
+
+### Features
+
+* add ElemMath example with custom LiteralScanner for element tags ([e401676](https://github.com/twds0x13/FluxFormula/commit/e40167678249a324ce7b6ff2236d51c3df32334f))
+
 ## [5.5.0](https://github.com/twds0x13/FluxFormula/compare/v5.4.0...v5.5.0) (2026-07-09)
 
 ### Features
