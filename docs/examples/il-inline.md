@@ -21,7 +21,7 @@ public enum FloatOp : byte
 public readonly struct FloatMathILDef : IFluxILDefinition<float>, IFluxExprDefinition<float>
 ```
 
-基础方法（`GetKind`、`GetArity`、`GetPrecedence`、`Compute` 等）与普通 Definition 完全相同。唯一新增的是 `EmitOp` 方法。
+基础方法（`GetKind`、`GetArity`、`GetPrecedence`、`GetFirstPosition`、`Compute` 等）与普通 Definition 完全相同。唯一新增的是 `EmitOp` 方法。
 
 ## EmitOp：手写 IL
 

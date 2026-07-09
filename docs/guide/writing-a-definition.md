@@ -14,6 +14,7 @@ public interface IFluxDefinition<TData>
     int GetPrecedence(byte op);                                       // 优先级
     OpPair GetPair(byte op);                                          // 括号配对
     Associativity GetAssociativity(byte op);                          // 结合方向
+    OperandPosition GetFirstPosition(byte op);                        // 首个操作数位置（DIM: Left）
     byte ResolveToken(byte oper, TokenContext ctx);                   // Token 消歧
     TData Compute(byte op, Instruction inst, Span<TData> registers); // 解释器计算
     string GetOperatorName(byte op);                                  // 显示名称（DIM，可选）
@@ -140,6 +141,23 @@ public Associativity GetAssociativity(byte op) => ((MathOp)op) switch
 {
     MathOp.Neg => Associativity.Right,
     _          => Associativity.Left,
+};
+```
+
+### GetFirstPosition
+
+首个操作数相对于操作符的位置。`Left`（中缀 `a + b`）：表达式以本操作符开头时视为缺左操作数（`FluxModifier`）。`Right`（前缀 `-x`、`max(a,b)`）：表达式以本操作符开头为合法 `FluxFormula`。
+
+默认实现返回 `Left`。定义体通过 switch 显式声明哪些操作符是中缀。
+
+```csharp
+public OperandPosition GetFirstPosition(byte op) => ((MathOp)op) switch
+{
+    MathOp.Add => OperandPosition.Left,
+    MathOp.Sub => OperandPosition.Left,
+    MathOp.Mul => OperandPosition.Left,
+    MathOp.Div => OperandPosition.Left,
+    _          => OperandPosition.Right,
 };
 ```
 

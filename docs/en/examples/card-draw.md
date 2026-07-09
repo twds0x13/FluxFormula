@@ -153,6 +153,11 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
     };
 
     public Associativity GetAssociativity(byte op) => Associativity.Left;
+    public OperandPosition GetFirstPosition(byte op) => ((SpellOp)op) switch
+    {
+        SpellOp.Add => OperandPosition.Left,
+        _           => OperandPosition.Right,
+    };
 
     public byte ResolveToken(byte op, TokenContext ctx) => op;
 
@@ -280,6 +285,7 @@ public readonly struct TrackerDef : IFluxDefinition<SpellTracker>
     public OpPair GetPair(byte op) => new OpPair { PairRole = Pair.None };
 
     public Associativity GetAssociativity(byte op) => Associativity.Left;
+    public OperandPosition GetFirstPosition(byte op) => OperandPosition.Left;
 
     public byte ResolveToken(byte op, TokenContext ctx) => op;
 

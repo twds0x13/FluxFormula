@@ -59,6 +59,15 @@ readonly struct MathDef : IFluxExprDefinition<float>
         _          => Associativity.Left,
     };
 
+    public OperandPosition GetFirstPosition(byte op) => ((MathOp)op) switch
+    {
+        MathOp.Add => OperandPosition.Left,
+        MathOp.Sub => OperandPosition.Left,
+        MathOp.Mul => OperandPosition.Left,
+        MathOp.Div => OperandPosition.Left,
+        _          => OperandPosition.Right,
+    };
+
     public byte ResolveToken(byte oper, TokenContext ctx)
     {
         if (oper == (byte)MathOp.Sub && ctx == TokenContext.OperandExpected)

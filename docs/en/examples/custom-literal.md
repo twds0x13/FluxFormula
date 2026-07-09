@@ -127,6 +127,7 @@ public readonly struct ElemDef : IFluxExprDefinition<ElemValue>
     };
 
     public Associativity GetAssociativity(byte op) => Associativity.Left;
+    public OperandPosition GetFirstPosition(byte op) => OperandPosition.Left;
 
     public byte ResolveToken(byte op, TokenContext ctx)
         => op == (byte)ElemOp.Sub && ctx == TokenContext.OperandExpected

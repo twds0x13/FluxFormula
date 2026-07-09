@@ -91,6 +91,7 @@ public readonly struct Vector3Def : IFluxExprDefinition<Vector3f>
     };
 
     public Associativity GetAssociativity(byte op) => Associativity.Left;
+    public OperandPosition GetFirstPosition(byte op) => OperandPosition.Left;
 
     public byte ResolveToken(byte op, TokenContext ctx) => op;
 

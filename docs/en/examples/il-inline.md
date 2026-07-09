@@ -21,7 +21,7 @@ Implements both `IFluxILDefinition<float>` (EmitOp inline inlining) and `IFluxEx
 public readonly struct FloatMathILDef : IFluxILDefinition<float>, IFluxExprDefinition<float>
 ```
 
-Base methods (`GetKind`, `GetArity`, `GetPrecedence`, `Compute`, etc.) are identical to a standard Definition. The only addition is the `EmitOp` method.
+Base methods (`GetKind`, `GetArity`, `GetPrecedence`, `GetFirstPosition`, `Compute`, etc.) are identical to a standard Definition. The only addition is the `EmitOp` method.
 
 ## EmitOp — Hand-Written IL
 

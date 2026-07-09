@@ -19,6 +19,7 @@ public interface IFluxDefinition<TData>
 | `GetPrecedence(byte op)` | `int` | Precedence. Higher values bind more tightly |
 | `GetPair(byte op)` | `OpPair` | Bracket pairing information |
 | `GetAssociativity(byte op)` | `Associativity` | Left / Right |
+| `GetFirstPosition(byte op)` | `OperandPosition` | Whether the first operand is to the left (infix a+b) or right (prefix -x, max(a,b)) of the operator. Default Left. Right means the expression starting with this operator is a valid Formula |
 | `ResolveToken(byte oper, TokenContext ctx)` | `byte` | Token disambiguation: maps the same symbol to different semantics based on context. Returns 0 to skip |
 | `Compute(byte op, Instruction inst, Span<TData> registers)` | `TData` | Interpreter path: performs the computation |
 | `GetOperatorName(byte op)` | `string` | Display name for the opcode (DIM, returns null by default). Editor/toolchain query point |
@@ -90,6 +91,14 @@ readonly struct MathDef : IFluxExprDefinition<float>
         MathOp.Add or MathOp.Sub => 1, MathOp.Mul or MathOp.Div => 2, _ => 0
     };
     public Associativity GetAssociativity(byte op) => Associativity.Left;
+    public OperandPosition GetFirstPosition(byte op) => ((MathOp)op) switch
+    {
+        MathOp.Add => OperandPosition.Left,
+        MathOp.Sub => OperandPosition.Left,
+        MathOp.Mul => OperandPosition.Left,
+        MathOp.Div => OperandPosition.Left,
+        _          => OperandPosition.Right,
+    };
     public OpPair GetPair(byte op) => default;
     public byte ResolveToken(byte oper, TokenContext ctx) => oper;
     public string GetOperatorName(byte op) => ((MathOp)op).ToString();

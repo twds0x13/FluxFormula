@@ -147,6 +147,15 @@ public readonly struct FloatMathDef : IFluxExprDefinition<float>
         => oper == (byte)FloatOp.Sub && ctx == TokenContext.OperandExpected
             ? (byte)FloatOp.Neg : oper;
 
+    public OperandPosition GetFirstPosition(byte op) => ((FloatOp)op) switch
+    {
+        FloatOp.Add => OperandPosition.Left,
+        FloatOp.Sub => OperandPosition.Left,
+        FloatOp.Mul => OperandPosition.Left,
+        FloatOp.Div => OperandPosition.Left,
+        _           => OperandPosition.Right,
+    };
+
     public float Compute(byte op, Instruction inst, Span<float> regs)
         => ((FloatOp)op) switch
         {

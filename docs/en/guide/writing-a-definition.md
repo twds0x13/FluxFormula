@@ -14,6 +14,7 @@ public interface IFluxDefinition<TData>
     int GetPrecedence(byte op);                                       // Operator precedence
     OpPair GetPair(byte op);                                          // Bracket pairing
     Associativity GetAssociativity(byte op);                          // Binding direction
+    OperandPosition GetFirstPosition(byte op);                        // First operand position (DIM: Left)
     byte ResolveToken(byte oper, TokenContext ctx);                   // Token disambiguation
     TData Compute(byte op, Instruction inst, Span<TData> registers); // Interpreter computation
     string GetOperatorName(byte op);                                  // Display name (DIM, optional)
@@ -140,6 +141,23 @@ public Associativity GetAssociativity(byte op) => ((MathOp)op) switch
 {
     MathOp.Neg => Associativity.Right,
     _          => Associativity.Left,
+};
+```
+
+### GetFirstPosition
+
+Position of the first operand relative to the operator. `Left` (infix `a + b`): expression starting with this operator is treated as missing its left operand (`FluxModifier`). `Right` (prefix `-x`, `max(a,b)`): expression starting with this operator is a valid `FluxFormula`.
+
+Default implementation returns `Left`. Each definition explicitly declares its infix operators via a switch.
+
+```csharp
+public OperandPosition GetFirstPosition(byte op) => ((MathOp)op) switch
+{
+    MathOp.Add => OperandPosition.Left,
+    MathOp.Sub => OperandPosition.Left,
+    MathOp.Mul => OperandPosition.Left,
+    MathOp.Div => OperandPosition.Left,
+    _          => OperandPosition.Right,
 };
 ```
 

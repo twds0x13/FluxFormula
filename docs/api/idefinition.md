@@ -19,6 +19,7 @@ public interface IFluxDefinition<TData>
 | `GetPrecedence(byte op)` | `int` | 优先级。数值越大越优先结合 |
 | `GetPair(byte op)` | `OpPair` | 括号配对信息 |
 | `GetAssociativity(byte op)` | `Associativity` | Left / Right |
+| `GetFirstPosition(byte op)` | `OperandPosition` | 首个操作数在操作符左侧（中缀 a+b）还是右侧（前缀 -x、max(a,b)）。默认 Left。Right 时表达式以本操作符开头不视为缺左操作数 |
 | `ResolveToken(byte oper, TokenContext ctx)` | `byte` | Token 消歧：根据上下文将同一符号映射为不同语义。返回 0 表示不消歧 |
 | `Compute(byte op, Instruction inst, Span<TData> registers)` | `TData` | 解释器路径：执行运算 |
 | `GetOperatorName(byte op)` | `string` | 操作码的显示名称（DIM，默认返回 null）。编辑器/工具链查询点 |
@@ -90,6 +91,14 @@ readonly struct MathDef : IFluxExprDefinition<float>
         MathOp.Add or MathOp.Sub => 1, MathOp.Mul or MathOp.Div => 2, _ => 0
     };
     public Associativity GetAssociativity(byte op) => Associativity.Left;
+    public OperandPosition GetFirstPosition(byte op) => ((MathOp)op) switch
+    {
+        MathOp.Add => OperandPosition.Left,
+        MathOp.Sub => OperandPosition.Left,
+        MathOp.Mul => OperandPosition.Left,
+        MathOp.Div => OperandPosition.Left,
+        _          => OperandPosition.Right,
+    };
     public OpPair GetPair(byte op) => default;
     public byte ResolveToken(byte oper, TokenContext ctx) => oper;
     public string GetOperatorName(byte op) => ((MathOp)op).ToString();
