@@ -1,4 +1,4 @@
-# Example: Advanced Functions and Ternary
+# Example: Advanced Float Arithmetic
 
 Extends the basic float arithmetic definition ([MathDef](/en/examples/float-math)) with function-style operators and ternary conditional support (v5.1.0).
 
