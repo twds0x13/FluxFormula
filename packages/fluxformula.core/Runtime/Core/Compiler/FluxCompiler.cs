@@ -9,9 +9,36 @@ namespace FluxFormula.Compiler
         where TDef : struct, IFluxDefinition<TData>
     {
         private readonly TDef _provider;
+        private readonly sbyte?[] _syntaxArity;  // opcode → Slots.Length override
         private const int MaxStackDepth = 64;
 
-        internal FluxCompiler(TDef provider) => _provider = provider;
+        internal FluxCompiler(TDef provider, ReadOnlySpan<FluxToken<TData>> tokens = default, TokenSyntax[] syntax = null)
+        {
+            _provider = provider;
+            _syntaxArity = BuildArityLookup(tokens, syntax);
+        }
+
+        private static sbyte?[] BuildArityLookup(ReadOnlySpan<FluxToken<TData>> tokens, TokenSyntax[] syntax)
+        {
+            if (syntax == null || syntax.Length == 0)
+                return null;
+            var map = new sbyte?[256];
+            int len = Math.Min(tokens.Length, syntax.Length);
+            for (int i = 0; i < len; i++)
+            {
+                if (syntax[i].Slots != null)
+                    map[tokens[i].Oper] = (sbyte)syntax[i].Slots.Length;
+            }
+            return map;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int GetArityOverride(byte op)
+        {
+            if (_syntaxArity != null && _syntaxArity[op] is { } a)
+                return a;
+            return _provider.GetArity(op);
+        }
 
         internal int Compile(
             ReadOnlySpan<FluxToken<TData>> infix,
@@ -238,7 +265,7 @@ namespace FluxFormula.Compiler
             if (idx >= maxLen)
                 throw new IndexOutOfRangeException("Instruction overflow.");
 
-            int arity = _provider.GetArity(opByte);
+            int arity = GetArityOverride(opByte);
 
             Instruction* inst = pDest + (idx++);
             inst->OpCode = opByte;
