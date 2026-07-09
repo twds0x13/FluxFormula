@@ -47,12 +47,14 @@ Activates an existing Formula as an executable Instance.
 
 `Compile()` inspects the first token to determine `Formula` or `Modifier` (internal `FluxType` enum — v3.0.0 made it `internal`; external consumers distinguish via `FluxFormula` / `FluxModifier` types):
 
+> **v5.5+**: If the first token comes from an `OperatorRule` with `Slots` declared, `Slots[0] < 0` determines whether a left operand is needed; otherwise falls back to `IFluxDefinition.GetFirstPosition`.
+
 | First Token | Produced External Type |
 |-------------|----------------------|
 | Immediate (e.g., Const) | `FluxFormula<TData, TDef>` |
-| Unary prefix operator (arity=1) | `FluxFormula<TData, TDef>` |
+| Function-style prefix operator (Slots[0] ≥ 0) | `FluxFormula<TData, TDef>` |
 | Left bracket (PairRole=Left) | `FluxFormula<TData, TDef>` |
-| Binary operator (arity≥2, non-bracket) | `FluxModifier<TData, TDef>` |
+| Infix operator (Slots[0] < 0 or GetFirstPosition=Left) | `FluxModifier<TData, TDef>` |
 
 ## See Also
 

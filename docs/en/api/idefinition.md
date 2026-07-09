@@ -19,7 +19,29 @@ public interface IFluxDefinition<TData>
 | `GetPrecedence(byte op)` | `int` | Precedence. Higher values bind more tightly |
 | `GetPair(byte op)` | `OpPair` | Bracket pairing information |
 | `GetAssociativity(byte op)` | `Associativity` | Left / Right |
-| `GetFirstPosition(byte op)` | `OperandPosition` | Whether the first operand is to the left (infix a+b) or right (prefix -x, max(a,b)) of the operator. Default Left. Right means the expression starting with this operator is a valid Formula |
+| `GetFirstPosition(byte op)` | `OperandPosition` | Whether the first operand is to the left (infix a+b) or right (prefix -x, max(a,b)). Default Left. v5.5+ prefer declaring via `OperatorRule.Slots`; this method is a fallback |
+
+### Syntax Views (v5.5+)
+
+Definition-level `GetFirstPosition`/`GetArity`/`GetPrecedence`/`GetAssociativity` are fallback defaults. The recommended approach: declare complete syntax views in `OperatorRule` via `Slots` and `Aux`. The compiler uses these in preference.
+
+```csharp
+// AuxRule: auxiliary symbol constraint at a specific offset from the pivot
+public readonly struct AuxRule
+{
+    public readonly sbyte Offset;    // token offset relative to pivot
+    public readonly string Symbol;   // expected text, e.g. "(", ":", ","
+}
+```
+
+```csharp
+// OperatorRule syntax view example
+new("cross", op.Cross,
+    slots: new sbyte[] { +2, +4 },
+    aux: new AuxRule[] { new(+1, "("), new(+3, ","), new(+5, ")") })
+```
+
+`Slots` declare operand positions (pivot=0, positive=right, negative=left), `Aux` declare bracket/separator positions. The infix `a + b` is equivalent to `slots: [-1, +1]`, and prefix `norm(v)` is `slots: [+2], aux: [(+1, "("), (+3, ")")]`.
 | `ResolveToken(byte oper, TokenContext ctx)` | `byte` | Token disambiguation: maps the same symbol to different semantics based on context. Returns 0 to skip |
 | `Compute(byte op, Instruction inst, Span<TData> registers)` | `TData` | Interpreter path: performs the computation |
 | `GetOperatorName(byte op)` | `string` | Display name for the opcode (DIM, returns null by default). Editor/toolchain query point |

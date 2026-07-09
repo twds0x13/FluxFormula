@@ -19,7 +19,31 @@ public interface IFluxDefinition<TData>
 | `GetPrecedence(byte op)` | `int` | 优先级。数值越大越优先结合 |
 | `GetPair(byte op)` | `OpPair` | 括号配对信息 |
 | `GetAssociativity(byte op)` | `Associativity` | Left / Right |
-| `GetFirstPosition(byte op)` | `OperandPosition` | 首个操作数在操作符左侧（中缀 a+b）还是右侧（前缀 -x、max(a,b)）。默认 Left。Right 时表达式以本操作符开头不视为缺左操作数 |
+| `GetFirstPosition(byte op)` | `OperandPosition` | 首个操作数在操作符左侧（中缀 a+b）还是右侧（前缀 -x、max(a,b)）。默认 Left。v5.5+ 推荐在 `OperatorRule.Slots` 中声明，此方法作为回退 |
+
+### 语法视图 (v5.5+)
+
+定义体层的 `GetFirstPosition`/`GetArity`/`GetPrecedence`/`GetAssociativity` 是回退默认值。
+推荐做法：在 `OperatorRule` 中通过 `Slots` 和 `Aux` 声明完整的语法视图，编译器优先使用。
+
+```csharp
+// AuxRule: 辅助符号约束，声明中轴附近某偏移位置的期望符号
+public readonly struct AuxRule
+{
+    public readonly sbyte Offset;    // 相对中轴的 token 偏移
+    public readonly string Symbol;   // 期望的符号文本, "(", ":", ","
+}
+```
+
+```csharp
+// OperatorRule 语法视图示例
+new("cross", op.Cross,
+    slots: new sbyte[] { +2, +4 },
+    aux: new AuxRule[] { new(+1, "("), new(+3, ","), new(+5, ")") })
+```
+
+`Slots` 声明操作数位置（中轴=0，正=右，负=左），`Aux` 声明括号/分隔符位置。
+中缀运算符 `a + b` 等价于 `slots: [-1, +1]`，前缀 `norm(v)` 等价于 `slots: [+2], aux: [(+1, "("), (+3, ")")]`。
 | `ResolveToken(byte oper, TokenContext ctx)` | `byte` | Token 消歧：根据上下文将同一符号映射为不同语义。返回 0 表示不消歧 |
 | `Compute(byte op, Instruction inst, Span<TData> registers)` | `TData` | 解释器路径：执行运算 |
 | `GetOperatorName(byte op)` | `string` | 操作码的显示名称（DIM，默认返回 null）。编辑器/工具链查询点 |

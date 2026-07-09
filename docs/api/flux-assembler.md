@@ -47,12 +47,14 @@ public FluxInstance<TData, TDef> Instantiate(
 
 `Compile()` 检查首 Token 判定 `Formula` 或 `Modifier`（内部 `FluxType` 枚举，v3.0.0 改为 `internal`；外部通过 `FluxFormula` / `FluxModifier` 类型区分）：
 
+> **v5.5+**: 若首 Token 来自具有 `Slots` 声明的 `OperatorRule`，优先使用 `Slots[0] < 0` 判定是否需左操作数；否则回退到 `IFluxDefinition.GetFirstPosition`。
+
 | 首 Token | 产出的外部类型 |
 |----------|---------------|
 | Immediate（如 Const） | `FluxFormula<TData, TDef>` |
-| 一元前缀运算符（arity=1） | `FluxFormula<TData, TDef>` |
+| 函数式前缀运算符（Slots[0] ≥ 0） | `FluxFormula<TData, TDef>` |
 | 左括号（PairRole=Left） | `FluxFormula<TData, TDef>` |
-| 二元运算符（arity≥2 且非括号） | `FluxModifier<TData, TDef>` |
+| 中缀运算符（Slots[0] < 0 或 GetFirstPosition=Left） | `FluxModifier<TData, TDef>` |
 
 ## 参见
 
