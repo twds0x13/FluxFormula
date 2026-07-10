@@ -48,6 +48,19 @@ public FluxCurryEvaluator<TData, TDef> Bind(string name, TData value)
 
 Looks up an unbound variable by name, injects the value, then executes to the next suspension point or completion. Throws `ArgumentException` if the variable is already bound or does not exist. Returns a new instance.
 
+### TryBind (by name)
+
+```csharp
+public FluxCurryEvaluator<TData, TDef> TryBind(string name, TData value)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `string` | Variable name (out-of-order binding) |
+| `value` | `TData` | Value to bind |
+
+Safely binds a variable by name. Silently skips when the variable does not exist or is already bound, without throwing. Designed for scenarios where the injection code cannot know the formula's signature in advance. Returns a new instance.
+
 ### Bind (sequential)
 
 ```csharp
@@ -59,6 +72,18 @@ public FluxCurryEvaluator<TData, TDef> Bind(params TData[] values)
 | `values` | `params TData[]` | Bind the next N unbound variables in order |
 
 Binds values sequentially, executing to a suspension point after each. Returns a new instance.
+
+### TryBind (sequential)
+
+```csharp
+public FluxCurryEvaluator<TData, TDef> TryBind(params TData[] values)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `values` | `params TData[]` | Safely bind the next N unbound variables in order |
+
+Safely binds unbound variables in sequence. Silently stops when all variables are already bound. Returns a new instance.
 
 ### ForceComplete
 

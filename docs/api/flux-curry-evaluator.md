@@ -48,6 +48,19 @@ public FluxCurryEvaluator<TData, TDef> Bind(string name, TData value)
 
 按名查找未绑定变量，注入后执行到下一个挂起点或完成。变量已绑定或不存在时抛 `ArgumentException`。返回新实例。
 
+### TryBind（按名）
+
+```csharp
+public FluxCurryEvaluator<TData, TDef> TryBind(string name, TData value)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `name` | `string` | 变量名（乱序绑定） |
+| `value` | `TData` | 绑定值 |
+
+按名安全绑定单个变量。变量名不存在或已绑定时静默跳过，不抛异常。适用于注入代码无法预先知道公式签名的场景。返回新实例。
+
 ### Bind（顺次）
 
 ```csharp
@@ -59,6 +72,18 @@ public FluxCurryEvaluator<TData, TDef> Bind(params TData[] values)
 | `values` | `params TData[]` | 按顺序绑定到接下来的 N 个未绑定变量 |
 
 依次绑定、逐值执行到挂起点。返回新实例。
+
+### TryBind（顺次）
+
+```csharp
+public FluxCurryEvaluator<TData, TDef> TryBind(params TData[] values)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `values` | `params TData[]` | 按顺序安全绑定到接下来的 N 个未绑定变量 |
+
+依次安全绑定未绑定变量。全部已绑定时静默停止。返回新实例。
 
 ### ForceComplete
 

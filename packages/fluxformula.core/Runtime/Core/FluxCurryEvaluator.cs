@@ -145,6 +145,25 @@ namespace FluxFormula.Core
             return BindAt(idx, value);
         }
 
+        /// <summary>
+        /// 按名安全绑定单个变量。变量名不存在或已绑定时静默跳过。
+        /// </summary>
+        public FluxCurryEvaluator<TData, TDef> TryBind(string name, TData value)
+        {
+            if (_completed) return this;
+
+            for (int i = 0; i < _varNames.Length; i++)
+            {
+                if (_varNames[i] == name)
+                {
+                    if (_boundMask[i])
+                        return this; // 已绑定，跳过
+                    return BindAt(i, value);
+                }
+            }
+            return this; // 变量名不存在，跳过
+        }
+
         // ── Bind（顺次）──
 
         /// <summary>
@@ -159,6 +178,30 @@ namespace FluxFormula.Core
             foreach (var v in values)
             {
                 // 找下一个未绑定位置
+                int next = -1;
+                var mask = state._boundMask;
+                for (int i = 0; i < mask.Length; i++)
+                {
+                    if (!mask[i]) { next = i; break; }
+                }
+                if (next < 0) break;
+                state = state.BindAt(next, v);
+                if (state._completed) break;
+            }
+            return state;
+        }
+
+        /// <summary>
+        /// 依次安全绑定接下来的 N 个未绑定变量。已满时静默停止。
+        /// </summary>
+        public FluxCurryEvaluator<TData, TDef> TryBind(params TData[] values)
+        {
+            if (_completed) return this;
+            if (values == null || values.Length == 0) return this;
+
+            var state = this;
+            foreach (var v in values)
+            {
                 int next = -1;
                 var mask = state._boundMask;
                 for (int i = 0; i < mask.Length; i++)

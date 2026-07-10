@@ -35,6 +35,25 @@ var inst = runner.Instantiate(formula);
 float r = inst.Set("atk", 150f).Set("def", 50f).Run();
 ```
 
+### TrySet
+
+```csharp
+public FluxInstance<TData, TDef> TrySet(string name, TData value)
+```
+
+Safely injects a value by variable name. When the variable exists, behaviour is identical to `Set`; when it does not exist, silently skips without throwing. Designed for scenarios where the injection code cannot know the formula's signature in advance, such as injecting computed statistics (`[Avg]` `[Max]` `[Min]` `[Mid]`) into a post-processing formula.
+
+```csharp
+// The formula may be [Max] - [Avg], or just [Avg], or any combination
+// The injection code stays the same
+instance
+    .TrySet("Avg", avg)
+    .TrySet("Max", max)
+    .TrySet("Min", min)
+    .TrySet("Mid", median)
+    .Run();
+```
+
 ### Run
 
 ```csharp

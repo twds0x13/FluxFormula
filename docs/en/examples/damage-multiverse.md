@@ -66,7 +66,28 @@ float avg = baseState.Multiverse("isCrit", count: 10000,
 // Each iteration injects the random float into the judge formula; result > 0.5 means crit
 ```
 
-All overloads share the same implementation pattern: cache the curry → loop fork → bind isCrit → `ForceComplete()` → read Result → return mean.
+All overloads share the same implementation pattern: cache the curry → loop fork → bind isCrit → `ForceComplete()` → read Result → collect statistics.
+
+Beyond the arithmetic mean, Multiverse also outputs Max, Min, and Mid (median) for use in post-processing formulas.
+
+## Post-Processing with TrySet
+
+Simulation results can be further refined through a post-processing formula. The formula is configuration-driven (`[Max] - [Avg]` for volatility, `[Avg] * (1 + [Max] / [Min])` for extreme ratio), and the injection code does not need to know the formula's signature in advance:
+
+```csharp
+// Simulation phase
+var stats = baseState.MultiverseStats("isCrit", 10000, 0.3f, rng);
+
+// Post-processing: TrySet injects all statistics, the formula decides which to use
+float final = postProcessRunner.Instantiate(postProcessFormula)
+    .TrySet("Avg", stats.Avg)
+    .TrySet("Max", stats.Max)
+    .TrySet("Min", stats.Min)
+    .TrySet("Mid", stats.Mid)
+    .Run();
+```
+
+`TrySet` silently skips variables that do not exist, so the post-processing formula can declare only `[Avg]` or `[Max] - [Min]`, and the injection code stays the same.
 
 ## Comparison with the Traditional Approach
 

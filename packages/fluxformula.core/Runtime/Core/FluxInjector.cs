@@ -169,6 +169,45 @@ namespace FluxFormula.Core
             throw new ArgumentException($"Variable '{name}' is not defined in this formula.");
         }
 
+        /// <summary>按变量名安全注入。同名变量全部槽位一起写入。变量名不存在时静默跳过。</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal readonly FluxInjector<TData> TrySet(string name, TData value)
+        {
+            int lo = 0, hi = _varCount - 1;
+            while (lo <= hi)
+            {
+                int mid = lo + (hi - lo) / 2;
+                int cmp = string.CompareOrdinal(_varNames[mid], name);
+                if (cmp == 0)
+                {
+                    int[] slotIndexes = _varSlotIndexes[mid];
+                    unsafe
+                    {
+                        fixed (Instruction* pBase = _buffer)
+                        {
+                            for (int i = 0; i < slotIndexes.Length; i++)
+                            {
+                                int si = slotIndexes[i];
+                                if (_values != null && si < _values.Length)
+                                    _values[si] = value;
+
+                                int offset = _offsets != null
+                                    ? _offsets[si]
+                                    : si * _slotsPerData;
+                                *(TData*)(pBase + offset) = value;
+                            }
+                        }
+                    }
+                    return this;
+                }
+                if (cmp < 0) lo = mid + 1;
+                else         hi = mid - 1;
+            }
+
+            // 变量名不存在：静默跳过
+            return this;
+        }
+
         // ── 回读 ──
 
         /// <summary>

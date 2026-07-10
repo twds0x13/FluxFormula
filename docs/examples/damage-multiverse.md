@@ -66,7 +66,28 @@ float avg = baseState.Multiverse("isCrit", count: 10000,
 // 每次迭代注入随机数到判定公式，结果 > 0.5 算暴击
 ```
 
-所有重载共享同一实现模式：缓存当前 curry → 循环 fork → 绑 isCrit → `ForceComplete()` → 取 Result → 返回平均值。
+所有重载共享同一实现模式：缓存当前 curry → 循环 fork → 绑 isCrit → `ForceComplete()` → 取 Result → 收集统计量。
+
+除算术平均值外，Multiverse 同时输出 Max、Min、Mid（中位数），供后处理公式使用。
+
+## 后处理与 TrySet
+
+模拟结果可通过后处理公式进一步加工。后处理公式由配置决定（`[Max] - [Avg]` 衡量波动性、`[Avg] * (1 + [Max] / [Min])` 计入极值比），注入代码无需预先知道公式签名：
+
+```csharp
+// 模拟阶段
+var stats = baseState.MultiverseStats("isCrit", 10000, 0.3f, rng);
+
+// 后处理：TrySet 注入全部统计量，公式决定用哪些
+float final = postProcessRunner.Instantiate(postProcessFormula)
+    .TrySet("Avg", stats.Avg)
+    .TrySet("Max", stats.Max)
+    .TrySet("Min", stats.Min)
+    .TrySet("Mid", stats.Mid)
+    .Run();
+```
+
+`TrySet` 变量不存在时静默跳过，因此后处理公式可以只声明 `[Avg]` 或 `[Max] - [Min]`，注入代码保持不变。
 
 ## 与传统做法的对比
 

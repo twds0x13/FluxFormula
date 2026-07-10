@@ -35,6 +35,25 @@ var inst = runner.Instantiate(formula);
 float r = inst.Set("atk", 150f).Set("def", 50f).Run();
 ```
 
+### TrySet
+
+```csharp
+public FluxInstance<TData, TDef> TrySet(string name, TData value)
+```
+
+按变量名安全注入值。变量名存在时与 `Set` 行为一致；变量名不存在时静默跳过，不抛异常。适用于注入代码无法预先知道公式签名的场景（如后处理公式中注入统计量关键字 `[Avg]` `[Max]` `[Min]` `[Mid]`）。
+
+```csharp
+// 公式可以是 [Max] - [Avg]，或只是 [Avg]，或任意组合
+// 注入代码不变
+instance
+    .TrySet("Avg", avg)
+    .TrySet("Max", max)
+    .TrySet("Min", min)
+    .TrySet("Mid", median)
+    .Run();
+```
+
 ### Run
 
 ```csharp

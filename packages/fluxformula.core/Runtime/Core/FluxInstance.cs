@@ -161,6 +161,27 @@ namespace FluxFormula.Core
             return this;
         }
 
+        /// <summary>
+        /// 按变量名安全注入。变量名存在时与 <see cref="Set"/> 行为一致；
+        /// 变量名不存在时静默跳过（不抛异常）。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public FluxInstance<TData, TDef> TrySet(string name, TData value)
+        {
+            if (_isAtomicJIT)
+            {
+                var slots = _formula.VariableSlots;
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    if (slots[i].Name == name)
+                        _jitInjector = _jitInjector.SetIndex(slots[i].SlotIndex, value);
+                }
+            }
+            else
+                _injector = _injector.TrySet(name, value);
+            return this;
+        }
+
         // ================= 求值 =================
 
         public readonly TData Run()
