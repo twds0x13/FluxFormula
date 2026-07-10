@@ -1,6 +1,6 @@
 # Blob 注册表
 
-如果你已经会用 `runner.Compile(lexer.Lex(formulaString))` 了，公式跑得也挺快，那你为什么还需要把公式预编译成 `.bytes` 文件、走一整套 Blob 管线？答案是规模。你的游戏有 500 条公式时，每个玩家每次启动都要 Lex + Compile 全部 500 条，加载时间会增加几百毫秒。Blob 管线的思路是把这些公式在打包时预编译，运行时走 pinned 内存零拷贝加载：500 条公式的加载时间从编译开销变成纯 I/O。
+如果你已经会用 `runner.Compile(lexer.Lex(formulaString))` 了，公式跑得也很快，那你为什么还需要把公式预编译成 `.bytes` 文件、走一整套 Blob 管线？答案是规模。你的游戏有 500 条公式时，每个玩家每次启动都要 Lex + Compile 全部 500 条，加载时间会增加几百毫秒。Blob 管线的思路是把这些公式在打包时预编译，运行时走 pinned 内存零拷贝加载：500 条公式的加载时间从编译开销变成纯 I/O。
 
 预编译公式字节码的构建、分发与运行时加载管线。公式在 Editor 中编译为二进制 `.bytes` 文件，由 Source Generator 生成偏移表常量，运行时通过 `/Mods/` bundle 或 Addressables 加载。
 
