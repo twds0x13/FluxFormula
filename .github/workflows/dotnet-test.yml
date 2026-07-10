@@ -7,12 +7,16 @@ on:
       - "docs/**"
       - "**.md"
       - ".gitignore"
+      - "examples/**"
+      - "**.drawio"
   pull_request:
     branches: [main]
     paths-ignore:
       - "docs/**"
       - "**.md"
       - ".gitignore"
+      - "examples/**"
+      - "**.drawio"
 
 jobs:
   test:

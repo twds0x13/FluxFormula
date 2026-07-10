@@ -10,6 +10,8 @@ on:
       - ".npmignore"
       - "package.json"
       - "package-lock.json"
+      - "examples/**"
+      - "**.drawio"
   pull_request:
     branches: [main]
     paths-ignore:
@@ -19,6 +21,8 @@ on:
       - ".npmignore"
       - "package.json"
       - "package-lock.json"
+      - "examples/**"
+      - "**.drawio"
 
 jobs:
   testRunner:
