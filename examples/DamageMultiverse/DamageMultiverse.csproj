@@ -1,12 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DefineConstants>FLUX_FAST_EXPRESSION_COMPILER</DefineConstants>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
-    <IsTestProject>true</IsTestProject>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
@@ -26,7 +27,6 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxLexer.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTemplateAttribute.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTagAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTemplateRegistry.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralScanners.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/ExternalLiteralTemplateAttribute.cs" />
@@ -52,32 +52,14 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxExprCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/FluxILCompiler.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/Compiler/IFluxILDefinition.cs" />
-    <!-- 示例源文件（复用，不重复定义） -->
-    <Compile Include="../FloatMath/MathDef.cs" />
-    <Compile Include="../AdvMath/AdvMathDef.cs" />
-    <Compile Include="../CardDraw/CardDrawDef.cs" />
-    <Compile Include="../Vector3/Vector3Def.cs" />
-    <Compile Include="../ElemMath/ElemMathDef.cs" />
-    <Compile Include="../ILInline/ILInlineDef.cs" />
-    <Compile Include="../DamageMultiverse/Pcg64.cs" />
-    <Compile Include="../DamageMultiverse/DamageDef.cs" />
-    <Compile Include="../DamageMultiverse/MultiverseExtensions.cs" />
-    <!-- 测试文件 -->
-    <Compile Include="FloatMathTests.cs" />
-    <Compile Include="ILInlineTests.cs" />
-    <Compile Include="VffPersistenceTests.cs" />
-    <Compile Include="AdvMathTests.cs" />
-    <Compile Include="ChainConnectTests.cs" />
-    <Compile Include="CardDrawTests.cs" />
-    <Compile Include="Vector3Tests.cs" />
-    <Compile Include="ElemMathTests.cs" />
-    <Compile Include="DamageMultiverseTests.cs" />
+    <!-- 示例源文件 -->
+    <Compile Include="Pcg64.cs" />
+    <Compile Include="DamageDef.cs" />
+    <Compile Include="MultiverseExtensions.cs" />
+    <Compile Include="Program.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NUnit" Version="4.1.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
     <PackageReference Include="FastExpressionCompiler" Version="5.4.1" />
     <PackageReference Include="System.IO.Hashing" Version="9.0.4" />
     <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
