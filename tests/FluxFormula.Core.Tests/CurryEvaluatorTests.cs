@@ -113,20 +113,24 @@ public class CurryEvaluatorTests
     }
 
     [Test]
-    public void Result_UnboundVariables_FilledWithDefault()
+    public void ForceComplete_FillsUnboundWithDefault()
     {
         var lexer = CreateVarLexer("[", "]");
         var runner = new FluxAssembler<float, FloatMathDef>(Def);
         var formula = runner.Compile(lexer.Lex("[x] + [y]"));
 
-        // 只绑 x，不绑 y——y 填 default(0)
+        // 只绑 x，不绑 y
         var curry = runner.Curry(formula).Bind(5f);
         Assert.That(curry.IsCompleted, Is.False);
-        Assert.That(curry.Result, Is.EqualTo(5f).Within(1e-6f),
-            "5 + 0 = 5");
 
-        // 再次访问 Result 返回相同值
-        Assert.That(curry.Result, Is.EqualTo(5f).Within(1e-6f));
+        // Result 掩码未满时抛异常
+        Assert.Throws<InvalidOperationException>(() => { var _ = curry.Result; });
+
+        // ForceComplete 显式填充 default
+        var complete = curry.ForceComplete();
+        Assert.That(complete.IsCompleted, Is.True);
+        Assert.That(complete.Result, Is.EqualTo(5f).Within(1e-6f),
+            "5 + 0 = 5");
     }
 
     [Test]
@@ -161,5 +165,93 @@ public class CurryEvaluatorTests
         float result = curry.Bind(2f, 3f, 4f).Result;
         Assert.That(result, Is.EqualTo(20f).Within(1e-6f),
             "(2+3)*4 = 20");
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // Bind(name, value) — 乱序绑定
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void Bind_ByName_OutOfOrder_ReturnsCorrectResult()
+    {
+        var lexer  = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[a] * [b] + [c]"));
+
+        // 乱序：先绑第三个，再绑第一个，最后第二个
+        var curry = runner.Curry(formula)
+            .Bind("c", 4f)
+            .Bind("a", 2f)
+            .Bind("b", 3f);
+
+        Assert.That(curry.IsCompleted, Is.True);
+        Assert.That(curry.Result, Is.EqualTo(10f).Within(1e-6f),
+            "2*3+4 = 10");
+    }
+
+    [Test]
+    public void Bind_ByName_ThenParams_MixedOrder()
+    {
+        var lexer  = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[a] * [b] + [c]"));
+
+        // 混合：按名绑 a/c，params 填剩余 (b)
+        var curry = runner.Curry(formula)
+            .Bind("c", 4f)
+            .Bind(2f, 3f); // 顺序填充下一个未绑定位置 (a, b)
+
+        Assert.That(curry.IsCompleted, Is.True);
+        Assert.That(curry.Result, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void Bind_ByName_NotFound_Throws()
+    {
+        var lexer  = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[x] + [y]"));
+
+        var curry = runner.Curry(formula);
+        var ex = Assert.Throws<ArgumentException>(() => curry.Bind("z", 1f));
+        Assert.That(ex.Message, Does.Contain("'z'"));
+    }
+
+    [Test]
+    public void Bind_ByName_AlreadyBound_Throws()
+    {
+        var lexer  = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[x] + [y]"));
+
+        var curry = runner.Curry(formula).Bind("x", 1f);
+        var ex = Assert.Throws<ArgumentException>(() => curry.Bind("x", 99f));
+        Assert.That(ex.Message, Does.Contain("already bound"));
+    }
+
+    [Test]
+    public void Result_WhenIncomplete_Throws()
+    {
+        var lexer  = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[x] + [y]"));
+
+        var curry = runner.Curry(formula).Bind("x", 5f);
+        Assert.That(curry.IsCompleted, Is.False);
+        Assert.Throws<InvalidOperationException>(() => { var _ = curry.Result; });
+    }
+
+    [Test]
+    public void Bind_ByName_CrossFork_IndependentResults()
+    {
+        var lexer  = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[base] * [mult]"));
+
+        var branch1 = runner.Curry(formula).Bind("base", 10f).Bind("mult", 2f);
+        var branch2 = runner.Curry(formula).Bind("mult", 5f).Bind("base", 3f);
+
+        Assert.That(branch1.Result, Is.EqualTo(20f).Within(1e-6f));
+        Assert.That(branch2.Result, Is.EqualTo(15f).Within(1e-6f));
     }
 }
