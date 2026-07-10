@@ -97,13 +97,15 @@ graph LR
 | [FluxChain](./flux-chain) | `<TData, TDef>` | 不可变链式字节码容器（Connect 串联产物） |
 | `FluxModifier` | `<TData, TDef>` | 不可变字节码容器（缺左操作数，仅可串联） |
 | [FluxInstance](./flux-instance) | `<TData, TDef>` | ref struct 流式执行器 |
+| [FluxCurryEvaluator](./flux-curry-evaluator) | `<TData, TDef>` | 变量级分步求值器（函数式 State→State） |
+| [FluxStepEvaluator](./flux-step-evaluator) | `<TData, TDef>` | 指令级单步调试器（逐条 Step） |
 | [IFluxDefinition](./idefinition) | `<TData>` | 运算符定义接口（解释器路径） |
 | [IFluxExprDefinition](./idefinition) | `<TData>` | 运算符定义接口（含 JIT 路径） |
 | [Instruction](./instruction) | — | 8 字节指令结构体 |
 | [FluxToken](./flux-token) | `<TData>` | 词法 Token（`Oper` 为 `byte`） |
-| `FluxLexer<TData>` | `<TData>` | 手写 Span 词法器 |
-| `LexResult<TData>` | `<TData>` | Lexer 产出：Token 数组 + 变量名 |
-| `LexerConfig<TData>` | `<TData>` | Lexer 配置（运算符/括号/变量规则） |
+| [FluxLexer](./flux-lexer) | `<TData>` | 手写 Span 词法器（含 `LexerConfig`、`LexResult`） |
+| [FluxCurryEvaluator](./flux-curry-evaluator) | `<TData, TDef>` | 变量级分步求值器（函数式 State→State） |
+| [FluxStepEvaluator](./flux-step-evaluator) | `<TData, TDef>` | 指令级单步调试器（逐条 Step） |
 | `VariableSlot` | — | 变量名到槽位索引的映射 |
 | [DualHash64](./dualhash64) | — | 128-bit 双哈希（xxHash64 + FNV-1a 64），内容寻址缓存键 |
 | [FluxConfig](./flux-config) | — | 项目级全局配置 |

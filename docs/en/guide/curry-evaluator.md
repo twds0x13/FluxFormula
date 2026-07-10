@@ -26,25 +26,7 @@ var curry = assembler.Curry(formula);
 // Equivalent to: FluxCurryEvaluator<float, FloatMathDef>.Create(definition, formula)
 ```
 
-## API
-
-### Properties
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `IsCompleted` | `bool` | `true` when all variables are bound and evaluation finished |
-| `Result` | `TData` | Final result. Reading while incomplete fills remaining variables with `default` and completes evaluation |
-| `BoundCount` | `int` | Number of variables bound so far |
-| `VariableCount` | `int` | Total variable count in the formula |
-
-### Methods
-
-```csharp
-public FluxCurryEvaluator<TData, TDef> Bind(params TData[] values)
-```
-
-Binds the next N variables in bytecode order. Returns a new instance each call; the original
-is unchanged. Excess values are silently clamped; empty array is a no-op.
+For the complete property list, method signatures, and parameter descriptions, see [FluxCurryEvaluator API Reference](/en/api/flux-curry-evaluator).
 
 ## Usage
 

@@ -97,13 +97,15 @@ graph LR
 | [FluxChain](./flux-chain) | `<TData, TDef>` | Immutable chained bytecode container (Connect product) |
 | `FluxModifier` | `<TData, TDef>` | Immutable bytecode container (no left operand; chain-only) |
 | [FluxInstance](./flux-instance) | `<TData, TDef>` | ref struct streaming executor |
+| [FluxCurryEvaluator](./flux-curry-evaluator) | `<TData, TDef>` | Variable-level progressive evaluator (functional State→State) |
+| [FluxStepEvaluator](./flux-step-evaluator) | `<TData, TDef>` | Instruction-level step debugger (per-instruction Step) |
 | [IFluxDefinition](./idefinition) | `<TData>` | Operator definition interface (interpreter path) |
 | [IFluxExprDefinition](./idefinition) | `<TData>` | Operator definition interface (with JIT path) |
 | [Instruction](./instruction) | — | 8-byte instruction struct |
 | [FluxToken](./flux-token) | `<TData>` | Lexical token (`Oper` is `byte`) |
-| `FluxLexer<TData>` | `<TData>` | Handwritten span lexer |
-| `LexResult<TData>` | `<TData>` | Lexer output: token array + variable names |
-| `LexerConfig<TData>` | `<TData>` | Lexer configuration (operators/brackets/variable rules) |
+| [FluxLexer](./flux-lexer) | `<TData>` | Handwritten span lexer (includes `LexerConfig`, `LexResult`) |
+| [FluxCurryEvaluator](./flux-curry-evaluator) | `<TData, TDef>` | Variable-level progressive evaluator (functional State→State) |
+| [FluxStepEvaluator](./flux-step-evaluator) | `<TData, TDef>` | Instruction-level step debugger (per-instruction Step) |
 | `VariableSlot` | — | Variable name to slot index mapping |
 | [DualHash64](./dualhash64) | — | 128-bit dual hash (xxHash64 + FNV-1a 64), content-addressable cache key |
 | [FluxConfig](./flux-config) | — | Project-level global configuration |

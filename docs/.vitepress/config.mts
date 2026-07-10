@@ -82,6 +82,15 @@ export default withMermaid(
                   ],
                 },
                 {
+                  text: "词法与求值",
+                  collapsed: false,
+                  items: [
+                    { text: "FluxLexer", link: "/api/flux-lexer" },
+                    { text: "FluxCurryEvaluator", link: "/api/flux-curry-evaluator" },
+                    { text: "FluxStepEvaluator", link: "/api/flux-step-evaluator" },
+                  ],
+                },
+                {
                   text: "运算符定义",
                   collapsed: false,
                   items: [
@@ -245,6 +254,15 @@ export default withMermaid(
                     { text: "FluxFormula", link: "/en/api/flux-formula" },
                     { text: "FluxChain", link: "/en/api/flux-chain" },
                     { text: "FluxInstance", link: "/en/api/flux-instance" },
+                  ],
+                },
+                {
+                  text: "Lexing & Evaluation",
+                  collapsed: false,
+                  items: [
+                    { text: "FluxLexer", link: "/en/api/flux-lexer" },
+                    { text: "FluxCurryEvaluator", link: "/en/api/flux-curry-evaluator" },
+                    { text: "FluxStepEvaluator", link: "/en/api/flux-step-evaluator" },
                   ],
                 },
                 {

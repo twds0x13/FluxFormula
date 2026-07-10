@@ -16,33 +16,7 @@ var step = assembler.StepDebug(formula);
 
 `C()` and `Op()` are test helpers generating Const immediate and Instruction operator tokens.
 
-## API
-
-### Properties
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `IsCompleted` | `bool` | `true` when all instructions have been executed |
-| `Result` | `TData` | Final result (meaningful only when `IsCompleted`) |
-| `CurrentIP` | `int` | Current instruction pointer (index into bytecode) |
-| `CurrentOpCode` | `byte` | Opcode byte of the current instruction |
-| `CurrentInstruction` | `Instruction` | Full Instruction struct at current IP |
-| `Regs` | `ReadOnlySpan<TData>` | Read-only snapshot of the register file |
-| `InstructionCount` | `int` | Total instruction count in the bytecode |
-
-### Methods
-
-```csharp
-public FluxStepEvaluator<TData, TDef> Step()
-```
-
-Executes one instruction. Returns a new instance. No-op when already completed.
-
-```csharp
-public FluxStepEvaluator<TData, TDef> RunToEnd()
-```
-
-Loops `Step()` until completion. Returns the final state.
+For the complete property list, method signatures, and parameter descriptions, see [FluxStepEvaluator API Reference](/en/api/flux-step-evaluator).
 
 ## Usage
 

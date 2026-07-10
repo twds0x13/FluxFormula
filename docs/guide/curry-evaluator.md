@@ -28,25 +28,7 @@ var curry = assembler.Curry(formula);
 // 等价于: FluxCurryEvaluator<float, FloatMathDef>.Create(definition, formula)
 ```
 
-## API
-
-### 属性
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `IsCompleted` | `bool` | 所有变量已绑定并求值完成时为 `true` |
-| `Result` | `TData` | 最终结果。未完成时读取会强制用 `default` 填充剩余变量并完成求值 |
-| `BoundCount` | `int` | 已绑定变量数 |
-| `VariableCount` | `int` | 公式中的变量总数 |
-
-### 方法
-
-```csharp
-public FluxCurryEvaluator<TData, TDef> Bind(params TData[] values)
-```
-
-绑定接下来的 N 个变量（按字节码中出现的顺序）。每次调用返回新实例，原实例不变。
-传入数量超过剩余变量时多余值被忽略；传入空数组无操作。
+完整的属性列表、方法签名和参数说明见 [FluxCurryEvaluator API 参考](/api/flux-curry-evaluator)。
 
 ## 用法
 

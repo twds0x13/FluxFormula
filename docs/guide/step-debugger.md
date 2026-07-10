@@ -17,33 +17,7 @@ var step = assembler.StepDebug(formula);
 
 `C()` 和 `Op()` 是测试辅助方法，分别生成 Const 立即数和 Instruction 操作符 token。
 
-## API
-
-### 属性
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `IsCompleted` | `bool` | 所有指令已执行完毕时为 `true` |
-| `Result` | `TData` | 最终结果（仅在 `IsCompleted` 时有意义） |
-| `CurrentIP` | `int` | 当前指令指针（字节码数组中的索引） |
-| `CurrentOpCode` | `byte` | 当前指令的操作码字节 |
-| `CurrentInstruction` | `Instruction` | 当前指令的完整结构体 |
-| `Regs` | `ReadOnlySpan<TData>` | 寄存器文件只读快照 |
-| `InstructionCount` | `int` | 字节码中的指令总数 |
-
-### 方法
-
-```csharp
-public FluxStepEvaluator<TData, TDef> Step()
-```
-
-执行一条指令，返回新实例。已完成时返回 `this`（无操作）。
-
-```csharp
-public FluxStepEvaluator<TData, TDef> RunToEnd()
-```
-
-循环 `Step()` 直到完成，返回最终状态。
+完整的属性列表、方法签名和参数说明见 [FluxStepEvaluator API 参考](/api/flux-step-evaluator)。
 
 ## 用法
 
