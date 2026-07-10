@@ -4,7 +4,7 @@
 >
 > 本文档对 FluxFormula 的每个源文件进行逐行级技术要点统计，标注潜在问题、隐式约定和可优化点。不修改源码，仅做分析与记录。
 >
-> **本文档基于 v3.0.0 架构。** v4.0 的 `Span<TData>` 寄存器签名和 v5.x 的 LiteralScanner source generator 为增量变更，未反映在此分析中。参见[迁移指南](/migration-guide)和[字面量扫描器指南](/guide/literal-scanner)。
+> **本文档基于 v5.9.1 架构。** v4.0 引入 `Span<TData>` 可写寄存器，v5.x 新增 LiteralTemplate/BlobRegistry source generators、FluxCurryEvaluator/FluxStepEvaluator 三态求值器、FluxILCompiler 三阶段 JIT。参见[迁移指南](/migration-guide)和[架构决策记录](./architecture-decisions)。
 
 ### 三层泛型约束 (所有核心类型通用)
 
@@ -495,7 +495,7 @@ Expression.Condition(
 | 1 | JIT 在 IL2CPP/AOT 平台崩溃 | `FluxPlatform` + `Instantiate()` try-catch 自动降级 | v1.3.0 |
 | 2 | `Connect()` 无 Count=0 保护 | 卫语句: `if (this.Count == 0) return next; if (next.Count == 0) return this;` | v1.3.0 |
 | 3 | TOper 底层类型无校验 | `TOper` 泛型参数移除，`FluxToken.Oper` 直接为 `byte`，无需校验 | v3.0.0 |
-| 4 | 无真实测试 | 332 个单元测试（97.9% 行覆盖），覆盖编译/解释器/JIT/Connect/Lexer/持久化/缓存/blob/VFF | v1.5+ |
+| 4 | 无真实测试 | 529 个单元测试（~97.3% 行覆盖），覆盖编译/解释器/JIT/Connect/Lexer/持久化/缓存/blob/VFF/Curry/Step | v1.5+ |
 | 5 | 无 IFluxDefinition 示例 | `MathDef` 完整示例 + `TestDefinition.cs` | v1.5+ |
 | 6 | 寄存器模型无文档 | VitePress 双语文档站完整覆盖核心概念/API/内部原理/pipeline | v1.5+ |
 | 7 | FluxBinder 残留 | `ToString()` 已更新为 `"FluxInjector<{TData}>"` | v1.3.0 |

@@ -36,16 +36,16 @@ public unsafe class FormulaCache : IFluxCacheProvider
 public static FormulaCache Instance { get; }
 ```
 
-Global singleton cache instance. Lazily initialized on first access (`Capacity` taken from `FluxConfig.Current.FormulaCacheCapacity`, default 2048). Replaces the removed `ConnectCache`.
+Global singleton cache instance. Lazily initialized on first access (`Capacity` taken from `FluxConfig.Current.FormulaCacheCapacity`, default 256).
 
 ### HitCount / MissCount
 
 ```csharp
-public static long HitCount { get; }
-public static long MissCount { get; }
+public static long HitCount;
+public static long MissCount;
 ```
 
-Cache hit/miss counters (incremented only for the singleton instance). For diagnostics.
+Cache hit/miss counter fields (public mutable). For diagnostics.
 
 ### Reset
 

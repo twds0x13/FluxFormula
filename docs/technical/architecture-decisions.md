@@ -170,6 +170,22 @@ Connect 最初内置了阈值判断（>8 links → 合并），将"何时合并"
 | FormulaFormat / BinaryFormat 集中化 | 格式定义和字节级 I/O 各集中为单一源文件，消除此前 9+ 个散落 helper。 |
 | FluxConfig 全局配置 | 替代硬编码常量（缓存容量、合并阈值、缓冲区大小）。Unity 端通过 `FluxConfigAsset` ScriptableObject 自动注入。 |
 
+## 已采纳（v3.0–v5.9）
+
+v3.0 之后的架构决策，按时间线记录：
+
+| 版本 | 议题 | 说明 |
+|------|------|------|
+| v3.0.0 | TOper 移除 | `TOper` 泛型参数从所有核心类型中移除。操作符枚举变为定义体内部实现细节，框架层面仅见 `byte`。消除 `sizeof(TOper) != 1` 运行时检查。 |
+| v3.0.0 | Formula/Modifier 类型分裂 | `FluxFormula<TData,TDef>` 永远是原子公式，`FluxModifier<TData,TDef>` 是不可独立求值的半成品。`Connect(FluxModifier)` 由类型系统保证。消除 4 个运行时异常。 |
+| v3.2.0 | FluxChain 独立类型 | `FluxChain<TData,TDef>` 从 `FluxFormula` 中提取。`Connect()` 返回 `FluxChain`（不合并字节码），`ToAtomic()` 显式转换。公开 API 零内部状态分支。 |
+| v3.6.0 | 三阶段 JIT 堆栈 | `FluxILCompiler`（DynamicMethod + ILGenerator）作为最优先 JIT 路径，`FluxExprCompiler`（Expression Tree）回退，解释器兜底。编译选择器 `CompileDelegate` 按 IL → Expression → Interpreter 三阶降级。 |
+| v5.1.0 | LiteralTemplate Source Generator | `[LiteralTemplate]` attribute + `IIncrementalGenerator` 替代手动 `LiteralParser`/`LiteralPattern`。编译期生成零分配 span 扫描器代码。 |
+| v5.2.0 | BlobRegistry Source Generator | `IFluxBlobRegistry` 接口 + `BlobRegistryGenerator`（IIncrementalGenerator）替代 C# byte[] 嵌入。偏移表编译期常量化，blob 数据留在独立 .blob 文件中。多 mod 可加架构。 |
+| v5.4.0 | 三态求值器 | `FluxCurryEvaluator`（变量级渐进绑定，函数式 State→State 分叉）+ `FluxStepEvaluator`（指令级单步调试）。与热路径 `FluxEvaluator` 共享同一寄存器机核心。 |
+| v5.7.0 | FluxJITInjector 拆分 | JIT 热路径从 `FluxInjector` 中拆出专用 `FluxJITInjector<TData>`，消除名称查找和条件分支。 |
+| v5.9.0 | 柯里化乱序绑定 | `FluxCurryEvaluator` 支持按变量名（而非注入顺序）绑定参数。 |
+
 ## 待决策
 
 | 议题 | 说明 |

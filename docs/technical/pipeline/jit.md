@@ -55,17 +55,18 @@ Definition 将 byte 操作码解释为 LINQ 表达式。框架不关心操作码
 
 ```csharp
 var body = Expression.Block(registers, expressions);
-var lambda = Expression.Lambda<CompiledFunc>(body, injectorParam);
+var lambda = Expression.Lambda<CompiledFunc<TData>>(body, bufferParam);
 var compiled = lambda.Compile();  // 或 FastExpressionCompiler
 ```
 
 `CompiledFunc` 的签名：
 
 ```csharp
-public delegate TData CompiledFunc(TData[] injector);
+internal delegate TData CompiledFunc<TData>(Instruction[] dataBuffer)
+    where TData : unmanaged;
 ```
 
-`injector` 参数是 JIT 模式下的数据缓冲。Immediate 值通过数组索引访问，而非嵌入指令流。
+`dataBuffer` 参数是 JIT 模式下的数据缓冲（`Instruction[]`）。Immediate 值通过指针重解释从 `Instruction[]` 中读取，而非嵌入指令流。
 
 ## FastExpressionCompiler
 
@@ -73,9 +74,9 @@ public delegate TData CompiledFunc(TData[] injector);
 
 ```csharp
 #if FLUX_FAST_EXPRESSION_COMPILER
-    var compiled = Expression.Lambda<CompiledFunc>(body, injectorParam).CompileFast();
+    var compiled = Expression.Lambda<CompiledFunc<TData>>(body, bufferParam).CompileFast();
 #else
-    var compiled = Expression.Lambda<CompiledFunc>(body, injectorParam).Compile();
+    var compiled = Expression.Lambda<CompiledFunc<TData>>(body, bufferParam).Compile();
 #endif
 ```
 

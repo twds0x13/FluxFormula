@@ -130,3 +130,65 @@ public Expression GetExpression(byte op, Instruction inst, ParameterExpression[]
 ```
 
 每条指令执行后都会检查 R0，一旦非 default 立即终止并返回错误值。
+
+## FluxChain 和 FluxFormula 有什么区别
+
+`FluxFormula<TData, TDef>` 是原子公式：完整的、可独立求值的字节码。`FluxChain<TData, TDef>` 是链式公式：由多个 `ChainLink` 串联而成。`Connect()` 返回 `FluxChain`，调用 `ToAtomic()` 可将链显式合并为原子 `FluxFormula`。
+
+`FluxAssembler.Instantiate()` 同时接受 `FluxFormula` 和 `FluxChain`：传入 `FluxFormula` 走单次求值（最快），传入 `FluxChain` 逐 link 求值（每个 link 的结果通过 R1 总线传递到下一个 link）。
+
+参见 [FluxChain API 参考](/api/flux-chain) 和 [链式 Connect 示例](/examples/chain-connect)。
+
+## 如何渐进式绑定变量（柯里化求值）
+
+使用 `FluxCurryEvaluator<TData, TDef>`：
+
+```csharp
+var curry = runner.Instantiate(formula, curry: true);
+curry = curry.Bind("atk", 100f);    // 绑定第一个变量，执行到下一个挂起点
+curry = curry.Bind("bonus", 25f);   // 绑定第二个变量
+float result = curry.Result;        // 最后一个变量自动触发最终求值
+```
+
+每次 `Bind()` 返回新实例（函数式 State→State），可从同一中间态分叉出不同参数组合：
+
+```csharp
+var branch1 = mid.Bind("isCrit", 1f).Result;
+var branch2 = mid.Bind("isCrit", 0f).Result;
+```
+
+参见 [分步求值器指南](/guide/curry-evaluator) 和 [柯里化多世界线示例](/examples/damage-multiverse)。
+
+## 如何单步调试公式
+
+使用 `FluxStepEvaluator<TData, TDef>`：
+
+```csharp
+var step = runner.Instantiate(formula, step: true);
+while (!step.IsCompleted)
+{
+    step = step.Step();             // 执行一条指令
+    var op   = step.CurrentOpCode;  // 当前操作码
+    var ip   = step.CurrentIP;      // 指令指针
+    var regs = step.Regs;           // 寄存器快照
+}
+```
+
+`RunToEnd()` 跳过剩余指令直接完成求值。
+
+参见 [单步调试器指南](/guide/step-debugger) 和 [FluxStepEvaluator API 参考](/api/flux-step-evaluator)。
+
+## VFF 文件是什么
+
+VFF（Virtual Formula Format）是公式链的持久化格式。不存储公式内容，存储对 blob 中已有公式的引用（`DualHash64`）+ 参数覆写。类比：blob 是 DLL（导出公式字节码），.vff 是 import table（引用符号 + 覆写）。
+
+```csharp
+// 持久化
+byte[] vffBytes = VffFormat.ToBytes(chain, overrides);
+File.WriteAllBytes("pipeline.vff", vffBytes);
+
+// 加载
+var loaded = VffFormat.FromBytes<Vector3f, Vector3Def>(vffBytes).Resolve();
+```
+
+参见 [VffFormat API 参考](/api/vff-format) 和 [VFF 持久化示例](/examples/vff-persistence)。

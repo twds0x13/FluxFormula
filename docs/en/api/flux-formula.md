@@ -38,6 +38,7 @@ public readonly struct FluxChain<TData, TDef>
 |------|------|------|
 | `Empty` | `FluxFormula<TData, TDef>` | Empty formula (Count=0), identity element for Connect |
 | `FromBytes(byte[])` | `FluxFormula<TData, TDef>` | Deserialize from bytecode |
+| `FromBytes(ReadOnlySpan<byte>)` | `FluxFormula<TData, TDef>` | Deserialize from bytecode span (zero-allocation) |
 
 ## FluxModifier Properties
 
@@ -48,7 +49,7 @@ public readonly struct FluxChain<TData, TDef>
 | `VariableSlots` | `VariableSlot[]` | Variable slot mapping |
 | `MaxRegister` | `byte` | Max register index |
 
-> `FluxModifier` has no `Instantiate()` method — any code attempting to independently evaluate a Modifier won't compile. Chain-related properties (`IsChained`/`ChainLength`/`GetChainLinks()`) moved to `FluxChain`.
+> `FluxModifier` has no `Instantiate()` method — any code attempting to independently evaluate a Modifier won't compile. Chain structure is accessed via `FluxChain.Length` and `FluxChain.GetLinks()`.
 
 ## Static Members
 
@@ -125,6 +126,24 @@ public FluxFormula<TData, TDef> ToFormula(string varName)
 ```
 
 Modifier→Formula: inserts a named variable to replace the R1 input. This is the only way to convert a `FluxModifier` into an evaluable `FluxFormula`.
+
+### Raw / ToBytes / GetByteHash / ToString
+
+```csharp
+public ReadOnlySpan<Instruction> Raw()              // O(1), never allocates
+public byte[] ToBytes()                             // Serialize to byte array
+public DualHash64 GetByteHash()                     // Compute bytecode hash
+public override string ToString()                   // Debug string representation
+```
+
+### FromBytes
+
+```csharp
+public static FluxModifier<TData, TDef> FromBytes(byte[] data)
+public static FluxModifier<TData, TDef> FromBytes(ReadOnlySpan<byte> data)
+```
+
+Deserialize a Modifier from bytecode.
 
 ## FluxChain Methods
 

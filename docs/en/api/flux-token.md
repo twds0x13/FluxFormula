@@ -18,6 +18,8 @@ v3.0.0 removed the `TOper` generic parameter — the operator enum is an interna
 | `Oper` | `byte` | Opcode (produced by definition's `ResolveToken()`) |
 | `Data` | `TData` | Data value (meaningful only for Immediate-type tokens) |
 
+`ToString()` override: outputs `Oper: {Oper}, Data: {Data}` format for debugging.
+
 ## Usage
 
 ```csharp

@@ -14,13 +14,21 @@ public ref struct FluxInstance<TData, TDef>
 
 ## Methods
 
+### SetIndex
+
+```csharp
+public FluxInstance<TData, TDef> SetIndex(int index, TData value)
+```
+
+Injects a value directly by slot index. Used by internal tooling (VFF override application, etc.). For name-based injection use `Set()`.
+
 ### Set
 
 ```csharp
 public FluxInstance<TData, TDef> Set(string name, TData value)
 ```
 
-Injects a value by variable name. Uses an inline binary search to locate the variable slot. All variables sharing the same name are written. Throws `ArgumentException` if `name` was not present in the Lexer's `VariablePatterns`.
+Injects a value by variable name. Uses an inline linear scan to locate variable slots (formulas typically have 3–5 variables). All variables sharing the same name are written. Throws `ArgumentException` if `name` was not present in the Lexer's `VariablePatterns`.
 
 ```csharp
 var inst = runner.Instantiate(formula);
@@ -42,24 +50,28 @@ Starts the computation engine and returns a `TData` result.
 ### GetBuffer
 
 ```csharp
-public readonly Instruction[] GetBuffer()
+internal readonly Instruction[] GetBuffer()
 ```
 
-Returns the underlying `Instruction[]` buffer. Intended for debugging and benchmarking, not production paths.
+Returns the underlying `Instruction[]` buffer (internal — not callable externally). Intended for debugging and benchmarking.
 
 ## Usage
 
 ```csharp
+var config  = new LexerConfig<float>();
+var lexer   = new FluxLexer<float>(config);
+var def     = new MathDef();
+var runner  = new FluxAssembler<float, MathDef>(def);
+
 var lexResult = lexer.Lex("1 + 2 * 3");
 var formula   = runner.Compile(lexResult);
 float r = runner.Instantiate(formula).Run();
 
 // Named variable injection
-float r = runner.Instantiate(formula)
+float r2 = runner.Instantiate(formula)
     .Set("atk", 150f)
     .Set("def", 50f)
     .Run();
-
 ```
 
 ## See Also

@@ -28,12 +28,12 @@ public readonly struct OperatorRule        // Operator syntax view: symbol + opc
 | Property | Type | Description |
 |----------|------|-------------|
 | `LiteralOper` | `byte` | Opcode for literal values (e.g. `(byte)MathOp.Const`) |
-| `LiteralScanner` | `LiteralScanner<TData>` | Literal scanner delegate. Use `CreateDefaultNumberScanner` for standard number formats |
+| `LiteralScanner` | `LiteralScanner<TData>` | Literal scanner delegate. Auto-generated when `[LiteralTemplate]` is present (optional); otherwise required |
 | `Operators` | `List<OperatorRule>` | Operator mapping list (auto-sorted by length descending; no manual sorting needed) |
 | `Brackets` | `List<BracketRule>` | Bracket mapping list |
 | `ImplicitOperators` | `List<byte>` | Operators eligible for implicit insertion (e.g. `(byte)MathOp.Mul`). With a single entry, `2(3)` and `(a)(b)` auto-insert the operator; multiple ambiguous entries throw |
 | `VariablePatterns` | `List<VariablePatternRule>` | Variable pattern list, e.g. `new("[", "]")` matches `[x]` |
-| `WhitespacePattern` | `string` | Whitespace/comment regex (matches are skipped). Default `@"\s+"` |
+| `WhitespacePattern` | `string` | (Deprecated, unused) Current implementation uses `char.IsWhiteSpace` per-character skip, not replaceable. Default `@"\s+"` |
 
 ### Auxiliary Types
 

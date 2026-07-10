@@ -38,6 +38,7 @@ public readonly struct FluxChain<TData, TDef>
 |------|------|------|
 | `Empty` | `FluxFormula<TData, TDef>` | 空公式（Count=0），Connect 的单位元 |
 | `FromBytes(byte[])` | `FluxFormula<TData, TDef>` | 从字节码反序列化 |
+| `FromBytes(ReadOnlySpan<byte>)` | `FluxFormula<TData, TDef>` | 从字节码 Span 反序列化（零分配） |
 
 ## FluxModifier 属性
 
@@ -48,7 +49,7 @@ public readonly struct FluxChain<TData, TDef>
 | `VariableSlots` | `VariableSlot[]` | 变量槽映射 |
 | `MaxRegister` | `byte` | 最高寄存器索引 |
 
-> `FluxModifier` 没有 `Instantiate()` 方法：任何尝试独立求值 Modifier 的代码编译不过。链相关属性（`IsChained`/`ChainLength`/`GetChainLinks()`）已移至 `FluxChain`。
+> `FluxModifier` 没有 `Instantiate()` 方法：任何尝试独立求值 Modifier 的代码编译不过。链结构通过 `FluxChain.Length` 和 `FluxChain.GetLinks()` 访问。
 
 ## 静态成员
 
@@ -123,6 +124,24 @@ public FluxFormula<TData, TDef> ToFormula(string varName)
 ```
 
 Modifier→Formula：插入命名变量替代 R1 输入。这是 `FluxModifier` 转为可求值 `FluxFormula` 的唯一途径。
+
+### Raw / ToBytes / GetByteHash / ToString
+
+```csharp
+public ReadOnlySpan<Instruction> Raw()              // O(1)，永不分配
+public byte[] ToBytes()                             // 序列化为字节数组
+public DualHash64 GetByteHash()                     // 计算字节码哈希
+public override string ToString()                   // 调试用字符串表示
+```
+
+### FromBytes
+
+```csharp
+public static FluxModifier<TData, TDef> FromBytes(byte[] data)
+public static FluxModifier<TData, TDef> FromBytes(ReadOnlySpan<byte> data)
+```
+
+从字节码反序列化 Modifier。
 
 ## FluxChain 方法
 

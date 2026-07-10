@@ -2,7 +2,7 @@
 
 This document tracks breaking changes between major FluxFormula versions and the steps required to migrate.
 
-The current latest version is 5.1.x.
+The current latest version is 5.9.1.
 
 ---
 
@@ -86,6 +86,38 @@ The current latest version is 5.1.x.
 1. Generated `LiteralScanners.TryGetScanner<TData>()` (hits when `[LiteralTemplate]` is present)
 2. `config.LiteralScanner` manual delegate (fallback)
 3. Throws `ArgumentException` if neither is available
+
+---
+
+## Migrating from 5.1 to 5.9
+
+### Overview
+
+5.2 through 5.9 introduced no breaking changes, but added three major systems. Existing code upgrading from 5.1 to 5.9 requires no modifications. The additions are listed below for optional adoption.
+
+### Additions
+
+| Version | Feature | Guide |
+|---------|---------|-------|
+| 5.2.0 | BlobRegistry system: `IFluxBlobRegistry` interface + source generator + `FluxBlobScanner` multi-mod discovery. Replaces the old C# byte[] embedding; .blob binary files with zero expansion | [Blob Registry](/guide/blob-registry) |
+| 5.4.0 | `FluxCurryEvaluator`: progressive curry-style binding, functional State→State forking | [Curry Evaluator](/guide/curry-evaluator) |
+| 5.4.0 | `FluxStepEvaluator`: single-step debugger for per-instruction tracing | [Step Debugger](/guide/step-debugger) |
+| 5.7.0 | `[LiteralTag]` attribute: enum-tag-based literal scanning | [Literal Scanner](/guide/literal-scanner) |
+| 5.9.0 | Out-of-order variable binding in curry evaluator (by name instead of injection order) | [Curry Evaluator](/guide/curry-evaluator) |
+
+### Example
+
+```csharp
+// Curry evaluation (5.4.0)
+var curry = assembler.Instantiate(formula, curry: true)
+    .Bind("atk", 100f)
+    .Bind("bonus", 25f);
+float result = curry.Result;
+
+// Step debugging (5.4.0)
+var step = assembler.Instantiate(formula, step: true);
+while (!step.IsCompleted) step = step.Step();
+```
 
 ---
 

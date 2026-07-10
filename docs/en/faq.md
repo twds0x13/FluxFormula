@@ -130,3 +130,65 @@ public Expression GetExpression(byte op, Instruction inst, ParameterExpression[]
 ```
 
 R0 is checked after every instruction. Once non-default, execution terminates immediately and returns the error value.
+
+## What is the difference between FluxChain and FluxFormula
+
+`FluxFormula<TData, TDef>` is an atomic formula: complete, independently evaluable bytecode. `FluxChain<TData, TDef>` is a chain formula: multiple `ChainLink` items linked together. `Connect()` returns `FluxChain`; call `ToAtomic()` to explicitly merge the chain into an atomic `FluxFormula`.
+
+`FluxAssembler.Instantiate()` accepts both `FluxFormula` and `FluxChain`: passing `FluxFormula` uses single-shot evaluation (fastest), passing `FluxChain` evaluates per-link (each link's result passes to the next via the R1 bus).
+
+See [FluxChain API Reference](/api/flux-chain) and [Chain Connect Example](/examples/chain-connect).
+
+## How to bind variables progressively (curry evaluation)
+
+Use `FluxCurryEvaluator<TData, TDef>`:
+
+```csharp
+var curry = runner.Instantiate(formula, curry: true);
+curry = curry.Bind("atk", 100f);    // Bind first variable, execute to next suspension point
+curry = curry.Bind("bonus", 25f);   // Bind second variable
+float result = curry.Result;        // The last variable auto-triggers final evaluation
+```
+
+Each `Bind()` returns a new instance (functional State→State), enabling forking from the same intermediate state:
+
+```csharp
+var branch1 = mid.Bind("isCrit", 1f).Result;
+var branch2 = mid.Bind("isCrit", 0f).Result;
+```
+
+See [Curry Evaluator Guide](/guide/curry-evaluator) and [Damage Multiverse Example](/examples/damage-multiverse).
+
+## How to step-debug a formula
+
+Use `FluxStepEvaluator<TData, TDef>`:
+
+```csharp
+var step = runner.Instantiate(formula, step: true);
+while (!step.IsCompleted)
+{
+    step = step.Step();             // Execute one instruction
+    var op   = step.CurrentOpCode;  // Current opcode
+    var ip   = step.CurrentIP;      // Instruction pointer
+    var regs = step.Regs;           // Register snapshot
+}
+```
+
+`RunToEnd()` skips remaining instructions and completes evaluation immediately.
+
+See [Step Debugger Guide](/guide/step-debugger) and [FluxStepEvaluator API Reference](/api/flux-step-evaluator).
+
+## What is a VFF file
+
+VFF (Virtual Formula Format) is a persistent format for formula chains. It stores references to existing formulas in the blob (via `DualHash64`) plus parameter overrides — not the formula content itself. Analogy: blob is the DLL (exporting formula bytecode), .vff is the import table (referencing symbols + overrides).
+
+```csharp
+// Persist
+byte[] vffBytes = VffFormat.ToBytes(chain, overrides);
+File.WriteAllBytes("pipeline.vff", vffBytes);
+
+// Load
+var loaded = VffFormat.FromBytes<Vector3f, Vector3Def>(vffBytes).Resolve();
+```
+
+See [VffFormat API Reference](/api/vff-format) and [VFF Persistence Example](/examples/vff-persistence).

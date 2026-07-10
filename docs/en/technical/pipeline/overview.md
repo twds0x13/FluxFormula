@@ -8,7 +8,7 @@ FluxFormula's compilation and execution pipeline is divided into four stages: **
 String / Token[]
   │
   ├─ 1. Lex ────────────────────────────────────────────
-  │   FluxLexer.Lex(string) → LexResult<TData, TDef>
+  │   FluxLexer.Lex(string) → LexResult<TData>
   │   Output: FluxToken[] + variable name list
   │   Allocation: Token array + variable name strings (one-time)
   │
@@ -24,7 +24,7 @@ String / Token[]
   │   Output: VFF byte array (saved as standalone file or embedded in blob)
   │
   ├─ 3. Instantiate ────────────────────────────────────
-  │   FluxAssembler.Instantiate(FluxFormula) → FluxInstance<TData, TDef, TDef>
+  │   FluxAssembler.Instantiate(FluxFormula) → FluxInstance<TData, TDef>
   │   Internal: build FluxInjector + JIT delegate compilation (IL first → Expression fallback → interpreter)
   │   Output: FluxInstance (ref struct, stack-allocated)
   │   Allocation: JIT delegate compilation (cacheable), Injector metadata (stack)
@@ -40,9 +40,9 @@ String / Token[]
 
 | Boundary | Input Type | Output Type | Immutability |
 |----------|-----------|-------------|--------------|
-| Lex → Compile | `string` | `LexResult<TData, TDef>` | LexResult is immutable |
+| Lex → Compile | `string` | `LexResult<TData>` | LexResult is immutable |
 | Compile → Instantiate | `LexResult` / `FluxToken[]` | `FluxFormula<TData, TDef>` | FluxFormula is immutable |
-| Instantiate → Run | `FluxFormula` | `FluxInstance<TData, TDef, TDef>` | Instance is mutable (Set) |
+| Instantiate → Run | `FluxFormula` | `FluxInstance<TData, TDef>` | Instance is mutable (Set) |
 | Run → Result | — | `TData` | Value type result |
 
 Key design: **Compilation products (FluxFormula) are immutable**, cacheable in FormulaCache and retrievable by DualHash64. Instantiation products (FluxInstance) are lightweight ref structs, stack-allocated, recreated for each evaluation.
@@ -89,7 +89,7 @@ Key design: **Compilation products (FluxFormula) are immutable**, cacheable in F
 ### 4. Run — Dual-Backend Execution
 
 **Interpreter path**:
-- `stackalloc` allocates 256 TData registers (64-byte aligned)
+- `stackalloc` dynamically allocates `regCount` TData registers (64-byte aligned); `regCount` is determined by scanning the bytecode on demand
 - `fixed` pointer pins the bytecode buffer
 - Instruction-by-instruction loop; short-circuit on R0 non-default
 

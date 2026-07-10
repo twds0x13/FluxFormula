@@ -9,10 +9,11 @@ internal unsafe ref struct FluxEvaluator<TData, TDef>
 {
     private readonly TDef _definition;
 
-    public TData Compute(ReadOnlySpan<Instruction> program, byte maxRegister = 0)
+    internal TData Compute(ReadOnlySpan<Instruction> program, byte maxRegister = 0)
     {
-        int regCount = maxRegister > 1 ? maxRegister + 1 : FluxPlatform.MaxRegisters;
+        int regCount = maxRegister > 1 ? maxRegister + 1 : ScanMaxRegister(program);
         TData* regs = stackalloc TData[regCount];
+        // 64 字节 cache line 对齐（Burst 路径优化）
         // ... 执行循环 ...
     }
 }
@@ -39,7 +40,7 @@ for (int ip = 0; ip < program.Length; )
     var inst = program[ip];
     byte opCode = inst.OpCode;
 
-    if (opCode == ReturnOp)
+    if (kind == OpType.Return)
     {
         regs[Registers.Bus] = regs[inst.Dest];
         ip++;
@@ -82,7 +83,7 @@ for (int ip = 0; ip < program.Length; )
 
 ```csharp
 // 标准求值：R1 初始化为 default(TData)
-public TData Compute(ReadOnlySpan<Instruction> raw, byte maxRegister = 0)
+internal TData Compute(ReadOnlySpan<Instruction> raw, byte maxRegister = 0)
 
 // 链式求值：R1 由 prevResult 初始化（前一个 link 的输出）
 public TData Compute(ReadOnlySpan<Instruction> raw, TData prevResult, byte maxRegister = 0)

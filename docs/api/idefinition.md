@@ -44,9 +44,22 @@ new("cross", op.Cross,
 
 `Slots` 声明操作数位置（中轴=0，正=右，负=左），`Aux` 声明括号/分隔符位置。
 中缀运算符 `a + b` 等价于 `slots: [-1, +1]`，前缀 `norm(v)` 等价于 `slots: [+2], aux: [(+1, "("), (+3, ")")]`。
-| `ResolveToken(byte oper, TokenContext ctx)` | `byte` | Token 消歧：根据上下文将同一符号映射为不同语义。返回 0 表示不消歧 |
+| `ResolveToken(byte oper, TokenContext context)` | `byte` | Token 消歧：根据上下文将同一符号映射为不同语义。返回 0 表示不消歧 |
 | `Compute(byte op, Instruction inst, Span<TData> registers)` | `TData` | 解释器路径：执行运算 |
+| `Compute(byte op, Instruction inst, IntPtr registers, int regCount)` | `TData` | IL 编译路径桥接：从原生指针重建 Span 后委托给 Span 重载（默认实现自动桥接） |
 | `GetOperatorName(byte op)` | `string` | 操作码的显示名称（DIM，默认返回 null）。编辑器/工具链查询点 |
+
+### OpPair
+
+`GetPair()` 返回此结构体，描述括号配对规则和选项。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `PairRole` | `PairRole` | 此操作码的配对角色：None / Left / Right |
+| `TargetLeft` | `byte` | PairRole=Right 时跨越的配对左操作码 |
+| `EmitOnMatch` | `byte` | 配对匹配时替换插入的操作码（0 表示不替换） |
+| `EmitOpCode` | `byte` | 配对匹配前插入的辅助操作码（0 表示不插入） |
+| `IsSeparator` | `byte` | 分隔符操作码：用于分隔函数参数（如 `,`）。0 表示非分隔符 |
 
 ### ResolveToken
 

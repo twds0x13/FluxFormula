@@ -49,11 +49,11 @@ public Expression GetExpression(byte op, Instruction inst, ParameterExpression[]
 
 ```csharp
 var body = Expression.Block(registers, expressions);
-var lambda = Expression.Lambda<CompiledFunc>(body, injectorParam);
+var lambda = Expression.Lambda<CompiledFunc<TData>>(body, bufferParam);
 var compiled = lambda.Compile();  // or CompileFast()
 ```
 
-`CompiledFunc` signature: `delegate TData CompiledFunc(TData[] injector)`. The `injector` array holds immediate values in JIT mode — accessed by index rather than embedded in the instruction stream.
+`CompiledFunc` signature: `internal delegate TData CompiledFunc<TData>(Instruction[] dataBuffer) where TData : unmanaged`. The `dataBuffer` array holds immediate values in JIT mode — accessed by index rather than embedded in the instruction stream.
 
 ## FastExpressionCompiler
 
@@ -61,9 +61,9 @@ Under `FLUX_FAST_EXPRESSION_COMPILER`, uses [FastExpressionCompiler](https://git
 
 ```csharp
 #if FLUX_FAST_EXPRESSION_COMPILER
-    var compiled = Expression.Lambda<CompiledFunc>(body, injectorParam).CompileFast();
+    var compiled = Expression.Lambda<CompiledFunc<TData>>(body, bufferParam).CompileFast();
 #else
-    var compiled = Expression.Lambda<CompiledFunc>(body, injectorParam).Compile();
+    var compiled = Expression.Lambda<CompiledFunc<TData>>(body, bufferParam).Compile();
 #endif
 ```
 

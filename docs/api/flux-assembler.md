@@ -43,6 +43,48 @@ public FluxInstance<TData, TDef> Instantiate(
 - `jit: false`（默认）：使用解释器路径，栈分配寄存器
 - `jit: true`：先尝试 JIT（Expression Tree 编译为委托），若平台不支持（AOT）则自动降级
 
+### Instantiate（链式重载）
+
+```csharp
+public FluxInstance<TData, TDef> Instantiate(
+    FluxChain<TData, TDef> chain,
+    bool jit = false)
+```
+
+链式公式实例化，逐 link 求值。每个 link 的结果通过 R1 总线传入下一个 link。
+
+### Instantiate（VFF 重载）
+
+```csharp
+public FluxInstance<TData, TDef> Instantiate(
+    VffResolveResult<TData, TDef> resolved,
+    bool jit = false)
+```
+
+VFF 解析结果实例化，等价于 `Instantiate(resolved.Chain, jit)`。
+
+### 便捷工厂
+
+### Curry
+
+```csharp
+public FluxCurryEvaluator<TData, TDef> Curry(FluxFormula<TData, TDef> formula)
+```
+
+创建柯里化求值器，等价于 `FluxCurryEvaluator<TData, TDef>.Create(_definition, formula)`。
+
+参见 [FluxCurryEvaluator](./flux-curry-evaluator)。
+
+### StepDebug
+
+```csharp
+public FluxStepEvaluator<TData, TDef> StepDebug(FluxFormula<TData, TDef> formula)
+```
+
+创建单步调试器，等价于 `FluxStepEvaluator<TData, TDef>.Create(_definition, formula)`。
+
+参见 [FluxStepEvaluator](./flux-step-evaluator)。
+
 ## 公式类型判定
 
 `Compile()` 检查首 Token 判定 `Formula` 或 `Modifier`（内部 `FluxType` 枚举，v3.0.0 改为 `internal`；外部通过 `FluxFormula` / `FluxModifier` 类型区分）：

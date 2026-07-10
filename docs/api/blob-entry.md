@@ -32,6 +32,15 @@ public bool Equals(BlobEntry other)
 
 按 Hash + Offset + Length 三元组判等。
 
+### GetHashCode / ToString
+
+```csharp
+public override int GetHashCode()
+public override string ToString()
+```
+
+标准重写。`ToString()` 输出 `{Hash} @{Offset}+{Length}` 格式。
+
 ## 二进制布局
 
 单条 entry 在 .blob 文件中占 24 字节：

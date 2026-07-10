@@ -36,16 +36,16 @@ public unsafe class FormulaCache : IFluxCacheProvider
 public static FormulaCache Instance { get; }
 ```
 
-全局单例缓存实例。首次访问时延迟初始化（`Capacity` 取自 `FluxConfig.Current.FormulaCacheCapacity`，默认 2048）。替代已移除的 `ConnectCache`。
+全局单例缓存实例。首次访问时延迟初始化（`Capacity` 取自 `FluxConfig.Current.FormulaCacheCapacity`，默认 256）。
 
 ### HitCount / MissCount
 
 ```csharp
-public static long HitCount { get; }
-public static long MissCount { get; }
+public static long HitCount;
+public static long MissCount;
 ```
 
-缓存命中/未命中计数（仅单例实例增量）。诊断用。
+缓存命中/未命中计数字段（public mutable）。诊断用。
 
 ### Reset
 

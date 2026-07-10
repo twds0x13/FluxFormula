@@ -25,6 +25,8 @@ features:
     details: Implement the IFluxExprDefinition interface to define domain operators. A single implementation yields both interpreter and JIT execution paths.
   - title: Compact Bytecode
     details: Instruction is an 8-byte fixed-size struct with explicit LayoutKind.Explicit memory layout. 256 virtual registers, max arity of 6.
+  - title: Three-Mode Evaluator
+    details: Hot-path interpreter at full speed, curry evaluator for progressive binding with forking, step debugger for per-instruction tracing. All three share the same register machine core, covering debug to production workflows.
 ---
 
 ## Performance at a Glance

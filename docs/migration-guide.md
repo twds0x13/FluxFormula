@@ -2,7 +2,7 @@
 
 本文档记录 FluxFormula 各主版本之间的 breaking changes 及迁移步骤。
 
-当前最新版本为 5.1.x。
+当前最新版本为 5.9.1。
 
 ---
 
@@ -86,6 +86,38 @@
 1. 生成的 `LiteralScanners.TryGetScanner<TData>()` (有 `[LiteralTemplate]` 时命中)
 2. `config.LiteralScanner` 手动委托 (回退)
 3. 两者都无则抛出 `ArgumentException`
+
+---
+
+## 从 5.1 迁移到 5.9
+
+### 概述
+
+5.2 到 5.9 未引入 breaking changes，但新增了三个重要系统。从 5.1 升级到 5.9 的既有代码无需修改，以下列出期间新增的功能以便选用。
+
+### 新增
+
+| 版本 | 功能 | 指南 |
+|------|------|------|
+| 5.2.0 | BlobRegistry 系统：`IFluxBlobRegistry` 接口 + source generator + `FluxBlobScanner` 多 mod 发现。替代旧的 C# byte[] 嵌入方式，.blob 二进制文件零膨胀 | [Blob 注册表](/guide/blob-registry) |
+| 5.4.0 | `FluxCurryEvaluator`：柯里化渐进式绑定，函数式 State→State 分叉 | [分步求值器](/guide/curry-evaluator) |
+| 5.4.0 | `FluxStepEvaluator`：单步调试器，逐指令排查 | [单步调试器](/guide/step-debugger) |
+| 5.7.0 | `[LiteralTag]` attribute：基于枚举标签的字面量扫描 | [字面量扫描器](/guide/literal-scanner) |
+| 5.9.0 | 柯里化求值器支持乱序变量绑定（按名称而非注入顺序） | [分步求值器](/guide/curry-evaluator) |
+
+### 示例
+
+```csharp
+// 柯里化求值（5.4.0）
+var curry = assembler.Instantiate(formula, curry: true)
+    .Bind("atk", 100f)
+    .Bind("bonus", 25f);
+float result = curry.Result;
+
+// 单步调试（5.4.0）
+var step = assembler.Instantiate(formula, step: true);
+while (!step.IsCompleted) step = step.Step();
+```
 
 ---
 

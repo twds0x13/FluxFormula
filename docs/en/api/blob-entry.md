@@ -32,6 +32,15 @@ public bool Equals(BlobEntry other)
 
 Equality by Hash + Offset + Length triple.
 
+### GetHashCode / ToString
+
+```csharp
+public override int GetHashCode()
+public override string ToString()
+```
+
+Standard overrides. `ToString()` outputs `{Hash} @{Offset}+{Length}` format.
+
 ## Binary Layout
 
 A single entry occupies 24 bytes in a .blob file:

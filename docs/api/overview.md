@@ -102,6 +102,7 @@ graph LR
 | [IFluxDefinition](./idefinition) | `<TData>` | 运算符定义接口（解释器路径） |
 | [IFluxExprDefinition](./idefinition) | `<TData>` | 运算符定义接口（含 JIT 路径） |
 | [Instruction](./instruction) | — | 8 字节指令结构体 |
+| [Registers](./registers) | — | 寄存器语义常量：R0 错误哨兵，R1 输出总线 |
 | [FluxToken](./flux-token) | `<TData>` | 词法 Token（`Oper` 为 `byte`） |
 | [FluxLexer](./flux-lexer) | `<TData>` | 手写 Span 词法器（含 `LexerConfig`、`LexResult`） |
 | [FluxCurryEvaluator](./flux-curry-evaluator) | `<TData, TDef>` | 变量级分步求值器（函数式 State→State） |
@@ -119,7 +120,7 @@ graph LR
 | [FluxBlob](./flux-blob) | — | Blob 加载/卸载门面（含 `FluxBlobHandle`） |
 | [IFluxBlobRegistry](./iflux-blob-registry) | — | Mod 公式注册表接口（含 `FluxBlobScanner` 扫描器） |
 | `FluxAsset` | — | ScriptableObject 资产容器 |
-| `FluxBlobBuilder` | — | 离线构建管线 |
+| [FluxBlobBuilder](./flux-blob-builder) | — | 离线构建管线 |
 
 ### 内部类型
 

@@ -12,7 +12,7 @@ public class FluxConfig
 
 | 成员 | 类型 | 说明 |
 |------|------|------|
-| `Default` | `FluxConfig` | 出厂默认配置（FormulaCacheCapacity=2048, MergeThreshold=8） |
+| `Default` | `FluxConfig` | 出厂默认配置（FormulaCacheCapacity=256, MergeThreshold=8） |
 | `Current` | `FluxConfig` | 当前生效的全局配置。未显式设置时返回 `Default` |
 
 ### Set
@@ -27,7 +27,8 @@ public static void Set(FluxConfig config)
 
 | 属性 | 类型 | 默认 | 说明 |
 |------|------|------|------|
-| `FormulaCacheCapacity` | `int` | `2048` | `FormulaCache` 哈希表槽位数。增大可减少碰撞，但增加内存 |
+| `FormulaCacheCapacity` | `int` | `256` | `FormulaCache` 哈希表槽位数。增大可减少碰撞，但增加内存 |
+| `NativeBytecodeCacheCapacity` | `int` | `256` | `NativeBytecodeCache` 哈希表槽位数。Burst Jobs 路径中唯一公式种类数通常远小于实例数 |
 | `MergeThreshold` | `int` | `8` | 链式公式合并阈值：链长超过此值时 `ToAtomic()` 合并为原子公式 |
 | `BlobFilePath` | `string` | `null` | Blob 二进制文件路径。null 使用 `StreamingAssets/flux.bytes` |
 | `CompressBlob` | `bool` | `false` | 是否对 blob 中每条公式启用 Brotli 压缩。运行时由 `FluxBlob.Load()` 自动解压 |

@@ -43,6 +43,48 @@ Activates an existing Formula as an executable Instance.
 - `jit: false` (default): Uses the interpreter path, stack-allocated registers
 - `jit: true`: Attempts JIT first (Expression Tree compiled to delegate); auto-degrades if the platform does not support it (AOT)
 
+### Instantiate (Chain overload)
+
+```csharp
+public FluxInstance<TData, TDef> Instantiate(
+    FluxChain<TData, TDef> chain,
+    bool jit = false)
+```
+
+Instantiates a chain formula, evaluating per-link. Each link's result flows into the next link via the R1 bus.
+
+### Instantiate (VFF overload)
+
+```csharp
+public FluxInstance<TData, TDef> Instantiate(
+    VffResolveResult<TData, TDef> resolved,
+    bool jit = false)
+```
+
+Instantiates a VFF resolve result. Equivalent to `Instantiate(resolved.Chain, jit)`.
+
+### Convenience Factories
+
+### Curry
+
+```csharp
+public FluxCurryEvaluator<TData, TDef> Curry(FluxFormula<TData, TDef> formula)
+```
+
+Creates a curry evaluator. Equivalent to `FluxCurryEvaluator<TData, TDef>.Create(_definition, formula)`.
+
+See [FluxCurryEvaluator](./flux-curry-evaluator).
+
+### StepDebug
+
+```csharp
+public FluxStepEvaluator<TData, TDef> StepDebug(FluxFormula<TData, TDef> formula)
+```
+
+Creates a step debugger. Equivalent to `FluxStepEvaluator<TData, TDef>.Create(_definition, formula)`.
+
+See [FluxStepEvaluator](./flux-step-evaluator).
+
 ## Formula Type Classification
 
 `Compile()` inspects the first token to determine `Formula` or `Modifier` (internal `FluxType` enum — v3.0.0 made it `internal`; external consumers distinguish via `FluxFormula` / `FluxModifier` types):

@@ -25,6 +25,8 @@ public struct Instruction
 
 `Raw` 与 `OpCode` 共用 offset 0。读 Raw 得到整个指令的 long 值（调试 dump），指令执行使用独立字段。
 
+`ToString()` 重写：输出 `[{OpCode}] D={Dest} A=[{Arg0},{Arg1},{Arg2},{Arg3},{Arg4},{Arg5}]` 格式，调试用。
+
 ## 用途
 
 用户一般不直接操作 `Instruction`。它由 `FluxCompiler` 生成，被 `FluxEvaluator` 与 `FluxExprCompiler` 消费。了解布局有助于调试字节码。

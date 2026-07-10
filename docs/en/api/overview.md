@@ -102,6 +102,7 @@ graph LR
 | [IFluxDefinition](./idefinition) | `<TData>` | Operator definition interface (interpreter path) |
 | [IFluxExprDefinition](./idefinition) | `<TData>` | Operator definition interface (with JIT path) |
 | [Instruction](./instruction) | — | 8-byte instruction struct |
+| [Registers](./registers) | — | Register semantic constants: R0 error sentinel, R1 output bus |
 | [FluxToken](./flux-token) | `<TData>` | Lexical token (`Oper` is `byte`) |
 | [FluxLexer](./flux-lexer) | `<TData>` | Handwritten span lexer (includes `LexerConfig`, `LexResult`) |
 | [FluxCurryEvaluator](./flux-curry-evaluator) | `<TData, TDef>` | Variable-level progressive evaluator (functional State→State) |
@@ -119,7 +120,7 @@ graph LR
 | [FluxBlob](./flux-blob) | — | Blob load/unload facade (includes `FluxBlobHandle`) |
 | [IFluxBlobRegistry](./iflux-blob-registry) | — | Mod formula registry interface (includes `FluxBlobScanner`) |
 | `FluxAsset` | — | ScriptableObject asset container |
-| `FluxBlobBuilder` | — | Offline build pipeline |
+| [FluxBlobBuilder](./flux-blob-builder) | — | Offline build pipeline |
 
 ### Internal Types
 

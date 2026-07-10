@@ -42,9 +42,22 @@ new("cross", op.Cross,
 ```
 
 `Slots` declare operand positions (pivot=0, positive=right, negative=left), `Aux` declare bracket/separator positions. The infix `a + b` is equivalent to `slots: [-1, +1]`, and prefix `norm(v)` is `slots: [+2], aux: [(+1, "("), (+3, ")")]`.
-| `ResolveToken(byte oper, TokenContext ctx)` | `byte` | Token disambiguation: maps the same symbol to different semantics based on context. Returns 0 to skip |
+| `ResolveToken(byte oper, TokenContext context)` | `byte` | Token disambiguation: maps the same symbol to different semantics based on context. Returns 0 to skip |
 | `Compute(byte op, Instruction inst, Span<TData> registers)` | `TData` | Interpreter path: performs the computation |
+| `Compute(byte op, Instruction inst, IntPtr registers, int regCount)` | `TData` | IL compile path bridge: reconstructs Span from native pointer, delegates to Span overload (default implementation auto-bridges) |
 | `GetOperatorName(byte op)` | `string` | Display name for the opcode (DIM, returns null by default). Editor/toolchain query point |
+
+### OpPair
+
+`GetPair()` returns this struct, describing bracket pairing rules and options.
+
+| Field | Type | Description |
+|------|------|------|
+| `PairRole` | `PairRole` | Pairing role of this opcode: None / Left / Right |
+| `TargetLeft` | `byte` | When PairRole=Right, the left opcode to pair across |
+| `EmitOnMatch` | `byte` | Opcode to emit on successful pair match (0 = no replacement) |
+| `EmitOpCode` | `byte` | Auxiliary opcode to insert before pair match (0 = no insertion) |
+| `IsSeparator` | `byte` | Separator opcode for delimiting function arguments (e.g. `,`). 0 = not a separator |
 
 ### ResolveToken
 

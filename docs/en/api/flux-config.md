@@ -12,7 +12,7 @@ public class FluxConfig
 
 | Member | Type | Description |
 |------|------|------|
-| `Default` | `FluxConfig` | Factory default (FormulaCacheCapacity=2048, MergeThreshold=8) |
+| `Default` | `FluxConfig` | Factory default (FormulaCacheCapacity=256, MergeThreshold=8) |
 | `Current` | `FluxConfig` | Currently active global config. Returns `Default` when not explicitly set |
 
 ### Set
@@ -27,7 +27,8 @@ Replaces the current config. Equivalent to `Current = config`. Passing `null` th
 
 | Property | Type | Default | Description |
 |------|------|------|------|
-| `FormulaCacheCapacity` | `int` | `2048` | `FormulaCache` hashmap slot count. Larger = fewer collisions, more memory |
+| `FormulaCacheCapacity` | `int` | `256` | `FormulaCache` hashmap slot count. Larger = fewer collisions, more memory |
+| `NativeBytecodeCacheCapacity` | `int` | `256` | `NativeBytecodeCache` hashmap slot count. Unique formula type count in Burst Jobs path is typically far smaller than instance count |
 | `MergeThreshold` | `int` | `8` | Chain merge threshold — `ToAtomic()` merges when chain length exceeds this |
 | `BlobFilePath` | `string` | `null` | Blob binary file path. null = `StreamingAssets/flux.bytes` |
 | `CompressBlob` | `bool` | `false` | Enables Brotli compression per-formula in blob. Auto-decompressed by `FluxBlob.Load()` at runtime |

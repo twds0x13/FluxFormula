@@ -25,6 +25,8 @@ features:
     details: 实现 IFluxExprDefinition 接口定义领域运算符，一次编写同时获得解释器与 JIT 两条执行路径。
   - title: 紧凑字节码
     details: Instruction 为 8 字节定长结构体，LayoutKind.Explicit 显式内存布局。256 虚拟寄存器，最大 arity 6。
+  - title: 三态求值器
+    details: 热路径解释器全速执行，柯里化求值器渐进式绑定支持分叉，单步调试器逐指令排查。三种模式共享同一寄存器机核心，覆盖调试到生产的全场景。
 ---
 
 ## 性能一览

@@ -14,13 +14,21 @@ public ref struct FluxInstance<TData, TDef>
 
 ## 方法
 
+### SetIndex
+
+```csharp
+public FluxInstance<TData, TDef> SetIndex(int index, TData value)
+```
+
+按槽位索引直接注入值。用于内部工具（VFF 覆写应用等），按名称注入请使用 `Set()`。
+
 ### Set
 
 ```csharp
 public FluxInstance<TData, TDef> Set(string name, TData value)
 ```
 
-按变量名注入值。使用内联二分查找定位变量槽位，所有同名变量同时写入。若 `name` 未在 Lexer 的 `VariablePatterns` 中出现，抛出 `ArgumentException`。
+按变量名注入值。使用内联线性扫描定位变量槽位（公式变量通常 3~5 个），所有同名变量同时写入。若 `name` 未在 Lexer 的 `VariablePatterns` 中出现，抛出 `ArgumentException`。
 
 ```csharp
 var inst = runner.Instantiate(formula);
@@ -42,24 +50,28 @@ public readonly TData Run()
 ### GetBuffer
 
 ```csharp
-public readonly Instruction[] GetBuffer()
+internal readonly Instruction[] GetBuffer()
 ```
 
-返回底层的 `Instruction[]` 缓冲。调试和 benchmark 专用，非生产路径。
+返回底层的 `Instruction[]` 缓冲（internal，外部不可调用）。调试和 benchmark 专用。
 
 ## 使用示例
 
 ```csharp
+var config  = new LexerConfig<float>();
+var lexer   = new FluxLexer<float>(config);
+var def     = new MathDef();
+var runner  = new FluxAssembler<float, MathDef>(def);
+
 var lexResult = lexer.Lex("1 + 2 * 3");
 var formula   = runner.Compile(lexResult);
 float r = runner.Instantiate(formula).Run();
 
 // 命名变量注入
-float r = runner.Instantiate(formula)
+float r2 = runner.Instantiate(formula)
     .Set("atk", 150f)
     .Set("def", 50f)
     .Run();
-
 ```
 
 ## 参见

@@ -104,7 +104,7 @@ Combine(A, B) ≠ Combine(B, A)  // 顺序敏感
 
 ## FormulaCache
 
-开放寻址 hashmap（默认 2048 槽，可通过 `FluxConfig.FormulaCacheCapacity` 调整），无链表指针，无 GC 分配。
+开放寻址 hashmap（默认 256 槽，可通过 `FluxConfig.FormulaCacheCapacity` 调整），无链表指针，无 GC 分配。
 
 ### 存储结构
 
@@ -126,7 +126,7 @@ _valueLengths[capacity] int[]      状态标记 + 长度
 
 ### 探测与驱逐
 
-- **线性探测**：`hash(key.XxHash64) % 2048` → 步进直到匹配或空槽位
+- **线性探测**：`hash(key.XxHash64) % Capacity` → 步进直到匹配或空槽位
 - **墓碑不阻链**：驱逐时标记为 Tombstone 而非 Empty，确保同探测链上的后续条目可达
 - **环形驱逐**：`_ringHead` 指针顺序覆盖，满时覆盖最老条目
 - **Compact**：墓碑数超过 `Capacity/4` 时全量 rehash，消除碎片
@@ -198,10 +198,10 @@ result = kernel.Compute(link2.字节码, initialR1: result)
 
 `FluxAssembler.Instantiate(formula, jit: true)`：
 
-1. 链式公式 → `ToAtomic()` 转为原子
-2. `GetByteHash()` → `FormulaCache.TryGetDelegate(hash)`
-3. 命中：`GCHandle.FromIntPtr` → cast `CompiledFunc` → `CreateJitPayload` 重建紧凑数据 buffer → 返回
-4. 未命中：`FluxExprCompiler.Compile()` → `GCHandle.Alloc(func)` → `PutDelegate(hash, handle)` → 返回
+1. 链式公式 → `InstantiateJitChain(chain)` 逐 link 编译 delegate（JIT 永不合并）
+2. 原子公式 → `GetByteHash()` → `FormulaCache.TryGetDelegate(hash)`
+3. 命中：`GCHandle.FromIntPtr` → cast `CompiledFunc<TData>` → `CreateJitPayload` 重建紧凑数据 buffer → 返回
+4. 未命中：IL 优先 → `FluxILCompiler.Compile()` → 回退 `FluxExprCompiler.Compile()` → `GCHandle.Alloc(func)` → `PutDelegate(hash, handle)` → 返回
 
 ### Payload 重建
 

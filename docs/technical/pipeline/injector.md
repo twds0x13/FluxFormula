@@ -18,35 +18,53 @@ FluxInjector 有两种工作模式，取决于执行后端：
 ## 核心数据结构
 
 ```csharp
-internal unsafe struct FluxInjector<TData> where TData : unmanaged
+internal readonly struct FluxInjector<TData> where TData : unmanaged
 {
-    private readonly Instruction[] _buffer;        // 字节码缓冲（共享引用）
-    private readonly int[] _offsets;               // 解释器模式: Immediate 在缓冲中的偏移量
-    private readonly FluxFormula.VariableSlot[] _variableSlots; // 变量名→位置映射
-    private readonly int _slotsPerData;            // 每个 TData 占用的 Instruction 槽位数
+    private readonly Instruction[] _buffer;         // 字节码缓冲（共享引用）
+    private readonly int[] _offsets;                // 解释器模式: Immediate 在缓冲中的偏移量
+    private readonly int _slotsPerData;             // 每个 TData 占用的 Instruction 槽位数
+
+    // 变量查找：并行数组，二分查找，零 GC
+    private readonly string[] _varNames;            // 唯一变量名（字典序）
+    private readonly int[][] _varSlotIndexes;       // 每个变量名对应的所有 SlotIndex
+    private readonly int _varCount;                 // 唯一变量数
+
+    // 值回读数组：按 SlotIndex 索引，Set/SetIndex 写入，GetValue 读取
+    private readonly TData[] _values;
 }
 ```
 
-`_buffer` 是共享引用，FluxInjector 不拥有缓冲，只持有引用并写入。这避免了拷贝，但也意味着多个 FluxInstance 不能并发操作同一缓冲（Unity 主线程场景下这不是问题）。
+关键变化（相比旧架构）：变量名查找从单一 `VariableSlot[]` 改为**并行数组 `_varNames[]` + `_varSlotIndexes[][]`**。每组同名变量在 `_varSlotIndexes` 中存储为 `int[]` 数组，一条 `Set` 同时覆写所有出现位置。`_values[]` 按 SlotIndex 存值，`GetValue()` 用 O(1) 回读，供链式求值 `BuildLinkBuffer` 使用。
 
-## SetByIndex：按索引注入
+## SetIndex：按索引注入
 
 ```csharp
-public FluxInjector<TData> SetIndex(int paramIndex, TData value)
+internal readonly FluxInjector<TData> SetIndex(int paramIndex, TData value)
 {
+    // 值回读（链式求值时 BuildLinkBuffer 依赖此数组）
+    if (_values != null && paramIndex < _values.Length)
+        _values[paramIndex] = value;
+
     int offset;
     if (_offsets == null)  // JIT 模式
     {
         offset = paramIndex * _slotsPerData;
+        if (offset + _slotsPerData > _buffer.Length)
+            throw new IndexOutOfRangeException(
+                $"Parameter index {paramIndex} is out of bounds.");
     }
     else                   // 解释器模式
     {
+        if (paramIndex < 0 || paramIndex >= _offsets.Length)
+            throw new IndexOutOfRangeException(
+                $"Parameter index {paramIndex} is out of bounds.");
         offset = _offsets[paramIndex];
     }
 
-    fixed (Instruction* pBase = _buffer)
+    unsafe
     {
-        *(TData*)(pBase + offset) = value;  // 指针重解释写入
+        fixed (Instruction* pBase = _buffer)
+            *(TData*)(pBase + offset) = value;
     }
     return this;
 }
@@ -55,9 +73,10 @@ public FluxInjector<TData> SetIndex(int paramIndex, TData value)
 关键细节：
 - `pBase + offset` 的 offset 单位是"Instruction 个数"而非字节。`Instruction*` 算术自动乘 `sizeof(Instruction)` = 8。
 - `*(TData*)(pBase + offset)` 将 Instruction 槽位的地址重解释为 TData 指针，直接写入。无需 memcpy，无 boxing。
+- 两种模式均有越界检查，抛出 `IndexOutOfRangeException`。
 - 返回 `this` 支持链式调用。
 
-## SetByName：按变量名注入
+## Set：按变量名注入
 
 `Set(name, value)` 需要将变量名映射到 paramIndex，这是注入器最有技术含量的部分。
 
@@ -72,43 +91,57 @@ public FluxInjector<TData> SetIndex(int paramIndex, TData value)
 ### 实现：内联二分查找
 
 ```csharp
-public FluxInjector<TData> Set(string name, TData value)
+internal readonly FluxInjector<TData> Set(string name, TData value)
 {
-    // 在 VariableSlots 中二分查找变量名
-    int lo = 0, hi = _variableSlots.Length - 1;
+    int lo = 0, hi = _varCount - 1;
     while (lo <= hi)
     {
-        int mid = (lo + hi) / 2;
-        int cmp = string.CompareOrdinal(name, _variableSlots[mid].Name);
+        int mid = lo + (hi - lo) / 2;
+        int cmp = string.CompareOrdinal(_varNames[mid], name);
         if (cmp == 0)
         {
-            // 找到：该变量名的所有出现位置批量更新
-            int slotIndex = _variableSlots[mid].SlotIndex;
-            // ... 更新所有 slotIndex 对应的位置
+            int[] slotIndexes = _varSlotIndexes[mid];
+            unsafe
+            {
+                fixed (Instruction* pBase = _buffer)
+                {
+                    for (int i = 0; i < slotIndexes.Length; i++)
+                    {
+                        int si = slotIndexes[i];
+                        if (_values != null && si < _values.Length)
+                            _values[si] = value;
+
+                        int offset = _offsets != null
+                            ? _offsets[si]
+                            : si * _slotsPerData;
+                        *(TData*)(pBase + offset) = value;
+                    }
+                }
+            }
             return this;
         }
-        if (cmp < 0) hi = mid - 1;
-        else lo = mid + 1;
+        if (cmp < 0) lo = mid + 1;
+        else         hi = mid - 1;
     }
-    throw new ArgumentException($"Variable '{name}' not found.");
+    throw new ArgumentException($"Variable '{name}' is not defined in this formula.");
 }
 ```
 
-值得注意的设计选择：
+- **`string.CompareOrdinal`**：序数比较避免文化敏感排序。
+- **同名变量的所有出现位置同时更新**：通过 `_varSlotIndexes[mid]`（`int[]` 数组）一次遍历覆写所有位置。
+- **安全中点计算**：`lo + (hi - lo) / 2` 避免整数溢出。
+- **`_values` 回写**：每个覆写位置同时更新 `_values[si]`，供 `GetValue()` O(1) 回读。
 
-- **`string.CompareOrdinal`** 而非 `CompareTo`。序数比较避免文化敏感排序，性能更好且行为一致。
-- **同名变量的所有出现位置同时更新**。一个变量名可以在公式中出现多次（如 `[atk] * 2 + [atk]`），所有出现共享同一个 SlotIndex，一条 Set 覆写所有位置。
-- **排序在编译期完成**。FluxCompiler 在生成 VariableSlots 时按 Name 排序，运行时零排序开销。
+### 排序策略：构造时去重 + 排序
 
-### 排序策略：并行数组
+FluxInjector 的第二个构造函数在运行时从 `VariableSlot[]` 构建查找表：
 
-FluxCompiler 维护两���并行数组：
-- `List<string> varNames`：变量名
-- `List<int> varPositions`：对应在 Instruction[] 中的位置
+1. 遍历 `varSlots` 去重统计唯一变量名
+2. 为每个唯一名创建 `int[]` 数组收集所有 `SlotIndex`
+3. 通过 `Array.Sort(_varNames, _varSlotIndexes, ...)` 按名字典序联合排序
+4. 查找时二分 `_varNames[]`，命中后遍历 `_varSlotIndexes[mid]` 更新所有槽位
 
-编译完成后，两者按变量名联合排序（任何稳定排序算法均可），变名相同的条目在排序后聚拢。然后压缩为 VariableSlot[]，相邻的同名条目合并为单条记录。
-
-这种"并行数组 + 排序 + 压缩"的策略比 Dictionary 更 GC 友好：排序在编译器的可变 List 上完成，最终产物 VariableSlot[] 是紧凑的只读数组。
+排序在 Injector 构造时一次性完成，后续每次 `Set` 调用零分配。
 
 ## JIT 模式的特殊处理
 

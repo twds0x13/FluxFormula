@@ -76,7 +76,7 @@ VFF 解析结果。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `Formula` | `FluxFormula<TData, TDef>` | 解析产出的链式公式（可传入 `Instantiate()`） |
+| `Chain` | `FluxChain<TData, TDef>` | 解析产出的链式公式（可直接传入 `Instantiate(FluxChain)`） |
 | `Overrides` | `VffOverride<TData>[]` | 参数覆写列表（空数组 = 纯引用无覆写） |
 
 ## 枚举
@@ -184,37 +184,25 @@ public static VffResolveResult<TData, TDef> FromBytes<TData, TDef>(
 ### 创建并持久化 VFF
 
 ```csharp
-// 编译两条公式并注入缓存
+// 编译公式并通过 Connect 拼成链
 var fA = assembler.Compile(lexer.Lex("[atk] * 2"));
 var fB = assembler.Compile(lexer.Lex("[def] + 10"));
-byte[] bytesA = fA.ToBytes(), bytesB = fB.ToBytes();
-var hashA = FormulaCache.Instance.Put(bytesA);
-var hashB = FormulaCache.Instance.Put(bytesB);
+var chain = fA.Connect(fB.ToModifier());
 
-// 构建 ChainLink 引用
-var links = new[]
-{
-    new ChainLink { Key = hashA, Bytecode = FormulaFormat.GetInstructionSpan(bytesA).ToArray(),
-        InstructionCount = fA.Count, Type = (byte)FluxType.Formula,  // internal enum; 0=Modifier, 1=Formula
-        ImmediateCount = fA.ImmediateCount, VarSlots = fA.VariableSlots,
-        MaxRegister = fA.MaxRegister },
-    new ChainLink { Key = hashB, Bytecode = FormulaFormat.GetInstructionSpan(bytesB).ToArray(),
-        InstructionCount = fB.Count, Type = FluxType.Formula,
-        ImmediateCount = fB.ImmediateCount, VarSlots = fB.VariableSlots,
-        MaxRegister = fB.MaxRegister },
-};
-
-// 序列化为 VFF 字节数组
+// 从链提取 link 引用，序列化为 VFF
+var links = chain.GetLinks().ToArray();
 byte[] vffData = VffFormat.ToBytes<float>(links, Array.Empty<VffOverride<float>>());
 
-// 保存为 .vff 文件（通过 IFluxFileFormatter）
-builder.Save(vffData, FluxArtifactKind.Virtual, "AttackDefenseChain.vff");
+// 持久化为 .vff 文件
+File.WriteAllBytes("AttackDefenseChain.vff", vffData);
 ```
+
+> 被引用公式的字节码须在调用 `FromBytes()` 前注入 `FormulaCache`。`ToBytes()` 不需要缓存。参见 [FormulaCache](./formula-cache)。
 
 ### 从字节解析 VFF
 
 ```csharp
-// 从 .vff 文件加载字节 → 解析
+// 从 .vff 文件加载并解析（依赖公式需预先在 FormulaCache 中）
 byte[] loaded = File.ReadAllBytes("AttackDefenseChain.vff");
 var result = VffFormat.FromBytes<float, MathDef>(loaded);
 

@@ -76,7 +76,7 @@ VFF resolution result.
 
 | Field | Type | Description |
 |------|------|------|
-| `Formula` | `FluxFormula<TData, TDef>` | Resolved chain formula (can be passed to `Instantiate()`) |
+| `Chain` | `FluxChain<TData, TDef>` | Resolved chain formula (can be passed directly to `Instantiate(FluxChain)`) |
 | `Overrides` | `VffOverride<TData>[]` | Parameter override list (empty array = pure reference, no overrides) |
 
 ## Enum
@@ -184,37 +184,25 @@ Referenced formulas are still resolved through `FormulaCache` — ensure depende
 ### Creating and Persisting a VFF
 
 ```csharp
-// Compile two formulas and inject into cache
+// Compile formulas and chain them via Connect
 var fA = assembler.Compile(lexer.Lex("[atk] * 2"));
 var fB = assembler.Compile(lexer.Lex("[def] + 10"));
-byte[] bytesA = fA.ToBytes(), bytesB = fB.ToBytes();
-var hashA = FormulaCache.Instance.Put(bytesA);
-var hashB = FormulaCache.Instance.Put(bytesB);
+var chain = fA.Connect(fB.ToModifier());
 
-// Build ChainLink references
-var links = new[]
-{
-    new ChainLink { Key = hashA, Bytecode = FormulaFormat.GetInstructionSpan(bytesA).ToArray(),
-        InstructionCount = fA.Count, Type = (byte)FluxType.Formula,  // internal enum; 0=Modifier, 1=Formula
-        ImmediateCount = fA.ImmediateCount, VarSlots = fA.VariableSlots,
-        MaxRegister = fA.MaxRegister },
-    new ChainLink { Key = hashB, Bytecode = FormulaFormat.GetInstructionSpan(bytesB).ToArray(),
-        InstructionCount = fB.Count, Type = FluxType.Formula,
-        ImmediateCount = fB.ImmediateCount, VarSlots = fB.VariableSlots,
-        MaxRegister = fB.MaxRegister },
-};
-
-// Serialize to VFF byte array
+// Extract link references from the chain and serialize to VFF
+var links = chain.GetLinks().ToArray();
 byte[] vffData = VffFormat.ToBytes<float>(links, Array.Empty<VffOverride<float>>());
 
-// Save as .vff file (via IFluxFileFormatter)
-builder.Save(vffData, FluxArtifactKind.Virtual, "AttackDefenseChain.vff");
+// Persist as .vff file
+File.WriteAllBytes("AttackDefenseChain.vff", vffData);
 ```
+
+> Referenced formula bytecode must be in `FormulaCache` before calling `FromBytes()`. `ToBytes()` does not require the cache. See [FormulaCache](./formula-cache).
 
 ### Parsing a VFF from Bytes
 
 ```csharp
-// Load bytes from .vff file → resolve
+// Load and resolve from .vff file (referenced formulas must be in FormulaCache)
 byte[] loaded = File.ReadAllBytes("AttackDefenseChain.vff");
 var result = VffFormat.FromBytes<float, MathDef>(loaded);
 

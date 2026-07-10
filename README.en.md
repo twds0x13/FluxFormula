@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Unity](https://img.shields.io/badge/Unity-2021.3%2B-black?logo=unity)](https://unity.com/)
 [![Docs](https://img.shields.io/badge/docs-vitepress-green)](https://twds0x13.github.io/FluxFormula/)
-[![Coverage](https://img.shields.io/badge/coverage-96.9%25-brightgreen)](./docs/technical/test-coverage-boundary.md)
+[![Coverage](https://img.shields.io/badge/coverage-97.3%25-brightgreen)](./docs/technical/test-coverage-boundary.md)
 
 A high-performance linear formula compilation pipeline for Unity (zero-GC at runtime, one-time allocations at compile time). Define custom operator sets, compile infix expressions to compact bytecode, execute via interpreter or JIT backend
 
@@ -21,6 +21,7 @@ A high-performance linear formula compilation pipeline for Unity (zero-GC at run
 - **Custom Instruction Set**: Implement the `IFluxExprDefinition<TData>` interface to define domain-specific operators. A single implementation yields both interpreter and JIT execution paths
 - **Compact Bytecode**: `Instruction` is an 8-byte fixed-size struct with explicit memory layout. 256 virtual registers, maximum arity 6, immediate operands inlined into the instruction buffer
 - **Hand-Written Lexer**: A `ReadOnlySpan<char>` based zero-allocation scanner with no regex dependency. Configurable operators, brackets, variable patterns, and implicit operators
+- **Three-Mode Evaluator**: Hot-path interpreter at full speed, curry evaluator for progressive variable binding with forking support, and step debugger for per-instruction inspection. All three share the same register machine core
 
 ## Why FluxFormula
 
@@ -53,6 +54,17 @@ This is a monorepo containing five independent packages:
 | `fluxformula.burst` | Burst/Jobs evaluator: multi-threaded, zero-allocation concurrent execution | Core + Burst + Collections |
 | `fluxformula.addressables` | Optional Addressables loading support | Core + FluxFormula + Addressables |
 | `fluxformula.addressables.unitask` | UniTask async loading extensions (install if your project already uses UniTask) | Addressables |
+
+## Compatibility
+
+CI runs the full test suite on:
+
+| Environment | Tested Versions |
+|-------------|----------------|
+| Unity | 2021.3 LTS · 2022.3 LTS · 6000.0 |
+| .NET SDK | 8.0 · 9.0 |
+
+The Core package (`fluxformula.core`) targets netstandard2.1, compatible with .NET Core 3.0+ and all modern .NET runtimes. Unity supports both Mono and IL2CPP scripting backends.
 
 ## Installation
 
@@ -97,17 +109,6 @@ This is a monorepo containing five independent packages:
 }
 ```
 
-## Compatibility
-
-CI runs the full test suite on:
-
-| Environment | Tested Versions |
-|-------------|----------------|
-| Unity | 2021.3 LTS · 2022.3 LTS · 6000.0 |
-| .NET SDK | 8.0 · 9.0 |
-
-The Core package (`fluxformula.core`) targets netstandard2.1, compatible with .NET Core 3.0+ and all modern .NET runtimes. Unity supports both Mono and IL2CPP scripting backends.
-
 Minimum Unity version: 2021.3
 
 ## Quick Start
@@ -135,8 +136,12 @@ do {
 If you just want the minimal API shape:
 
 ```csharp
-var lexResult = new FluxLexer<float>(config).Lex("([atk] * 2 + [bonus]) / 100");
+var config = new LexerConfig<float>();          // operator and bracket config
+var lexer  = new FluxLexer<float>(config);      // lexer
+var def    = new MathDef();                     // operator definition (+ - * /)
+var runner = new FluxAssembler<float, MathDef>(def); // compiler + instance factory
 
+var lexResult = lexer.Lex("([atk] * 2 + [bonus]) / 100");
 float result = runner.Instantiate(runner.Compile(lexResult))
     .Set("atk", 150f).Set("bonus", 25f).Run();
 // result = 3.25

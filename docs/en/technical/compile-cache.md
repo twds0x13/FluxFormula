@@ -77,7 +77,7 @@ Combine(A, B) ≠ Combine(B, A)  // order-sensitive
 
 ## FormulaCache
 
-Open-addressing hashmap (default 2048 slots, adjustable via `FluxConfig.FormulaCacheCapacity`). Zero linked-list pointers. Zero GC allocation after construction.
+Open-addressing hashmap (default 256 slots, adjustable via `FluxConfig.FormulaCacheCapacity`). Zero linked-list pointers. Zero GC allocation after construction.
 
 ### Storage Structure
 
@@ -99,7 +99,7 @@ _valueLengths[capacity] int[]      state marker + length
 
 ### Probing and Eviction
 
-- **Linear probe**: `hash(key.XxHash64) % 2048` → step until match or empty
+- **Linear probe**: `hash(key.XxHash64) % Capacity` → step until match or empty
 - **Tombstones do not break chains**: evicted slots are marked Tombstone, not Empty, so entries further down the probe chain remain reachable
 - **Ring eviction**: `_ringHead` pointer advances on each insert; when full, overwrites the oldest
 - **Compact**: when tombstone count exceeds `Capacity/4`, full-table rehash eliminates fragmentation
@@ -130,7 +130,7 @@ An immutable slice of a formula's bytecode. Retains a reference to the original 
 
 | Path | Chain ≤ 8 | Chain > 8 |
 |------|-----------|-----------|
-| JIT | `ToAtomic()` merge → single delegate | `ToAtomic()` merge → single delegate |
+| JIT | Per-link delegate (`InstantiateJitChain`) | Per-link delegate (`InstantiateJitChain`) |
 | Interpreter | Per-link `Compute(span, initialR1)` | `ToAtomic()` merge → single `Compute` |
 
 ### Chain Interpreter Evaluation
