@@ -1,5 +1,7 @@
 # Getting Started
 
+First time using FluxFormula? This page walks you through a complete formula pipeline from scratch: define operators, implement compute logic, configure the lexer, and run a variable-injectable evaluation chain.
+
 Build a complete floating-point arithmetic formula from scratch (v5.1.0).
 
 ## Step 1: Define the Operator Enum

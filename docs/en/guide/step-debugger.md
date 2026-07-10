@@ -1,5 +1,7 @@
 # Step Debugger
 
+Formula giving wrong results? Want to see exactly where the bytecode goes off track? The step debugger lets you inspect register state instruction by instruction — debug your formula execution like you would step through C# code.
+
 `FluxStepEvaluator` provides per-instruction execution, exposing instruction pointer and register snapshots. Useful for debugging compiler output, visualizing formula execution, and educational demonstrations.
 
 ## Creation

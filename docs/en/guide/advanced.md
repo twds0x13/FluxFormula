@@ -1,5 +1,7 @@
 # Advanced Usage
 
+Connect lets you chain formula fragments together — append a Modifier after a Formula, and the R1 bus carries context between them automatically. Set/SetIndex let you inject variables by name or slot index: compile once, reuse many times.
+
 ## Connect: Chain Composition
 
 `Connect()` does not merge bytecode. It appends reference slices to `ChainLink[]` — zero bytecode copy, deferred materialization.

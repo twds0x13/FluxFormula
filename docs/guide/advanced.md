@@ -1,5 +1,7 @@
 # 高级用法
 
+Connect 让你像串手链一样组合公式片段——把 Modifier 接到 Formula 后面，R1 总线自动传递上下文。Set/SetIndex 则让你按命名或槽位注入变量，编译一次、多次复用。
+
 ## Connect：链式组合
 
 `Connect()` 不合并字节码，它在 `ChainLink[]` 末尾追加对原始公式的引用切片，物理拼接推迟到求值时刻。

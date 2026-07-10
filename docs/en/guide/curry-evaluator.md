@@ -1,5 +1,7 @@
 # Curry Evaluator
 
+Sometimes you do not want to inject all variables at once — a template formula needs to bind different parameters across multiple calls, or you want to fork multiple results from the same intermediate state. The curry evaluator is designed for exactly this progressive-binding pattern.
+
 `FluxCurryEvaluator` provides functional-style progressive variable binding. Bind parameters in declaration order, each `Bind` returning a new State. Supports forking — multiple callers can bind different values from the same intermediate state. Ideal for deferred parameter injection and template formula reuse.
 
 ## Relationship to the Hot Path

@@ -1,6 +1,6 @@
 # Writing a Definition
 
-Define operator semantics. One implementation yields both interpreter and JIT execution paths. The interface uses a single generic parameter — the operator enum is a `private` internal detail of the definition.
+If you want to define more than just arithmetic — elemental resistances in damage formulas, draw costs in spell systems — this page shows you how to implement your own `IFluxExprDefinition<TData>`. One implementation yields both interpreter and JIT execution paths. The interface uses a single generic parameter — the operator enum is a `private` internal detail of the definition.
 
 ## Interface Overview
 
