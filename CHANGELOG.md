@@ -1,3 +1,9 @@
+## [5.9.1](https://github.com/twds0x13/FluxFormula/compare/v5.9.0...v5.9.1) (2026-07-10)
+
+### Bug Fixes
+
+* auto-apply VFF constant overrides during Instantiate ([6610df1](https://github.com/twds0x13/FluxFormula/commit/6610df152fbf0bdd002c45e1b2956c5b7948885a))
+
 ## [5.9.0](https://github.com/twds0x13/FluxFormula/compare/v5.8.0...v5.9.0) (2026-07-10)
 
 ### Features
