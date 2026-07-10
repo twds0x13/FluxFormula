@@ -2,7 +2,7 @@
 
 Understand the pipeline diagram and data model on this page, and you understand all of FluxFormula's core mechanisms. Every concept maps to a specific API type — jump straight to the API reference for details after reading.
 
-FluxFormula's compilation pipeline and key data structures (v5.1.0).
+FluxFormula's compilation pipeline and key data structures.
 
 ## Pipeline
 

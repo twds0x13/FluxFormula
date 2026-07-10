@@ -13,7 +13,7 @@ Connect(fA, fB):
   ChainLink[] = [Link(fA), Link(fB)]   // 零字节码复制，仅追加引用
 ```
 
-求值时，短链（≤8）逐 link 求值，通过 R1 总线传递结果；长链或 JIT 路径自动合并为原子公式后单次求值。详见 [ChainLink 深度解析](../technical/chainlink-deep-dive)。
+求值时，短链（≤8）逐 link 求值，通过 R1 总线传递结果；长链 ToAtomic 合并后单次求值。JIT 路径始终逐 link delegate 串联，永不合并。详见 [ChainLink 深度解析](../technical/chainlink-deep-dive)。
 
 ### Formula ↔ Modifier
 
@@ -124,3 +124,44 @@ float damage = assembler.Instantiate(result.Chain)
 ```
 
 参见 [VffFormat API](../api/vff-format) 获取完整的 VFF 编码/解码参考。
+
+## 柯里化求值：渐进式变量绑定
+
+`FluxCurryEvaluator` 支持按变量名渐进绑定，每次 `Bind()` 返回新实例（函数式 State→State），可从同一中间态分叉：
+
+```csharp
+var curry = runner.Instantiate(formula, curry: true);
+curry = curry.Bind("atk", 100f).Bind("bonus", 25f);
+float result = curry.Result;
+
+// 从中途分叉
+var branch1 = mid.Bind("isCrit", 1f).Result;
+var branch2 = mid.Bind("isCrit", 0f).Result;
+```
+
+参见 [分步求值器指南](./curry-evaluator) 和 [暴击多世界线示例](../examples/damage-multiverse)。
+
+## 单步调试
+
+`FluxStepEvaluator` 逐指令执行，暴露当前 IP、操作码和寄存器快照：
+
+```csharp
+var step = runner.Instantiate(formula, step: true);
+while (!step.IsCompleted) step = step.Step();
+```
+
+参见 [单步调试器指南](./step-debugger)。
+
+## Blob 注册表与 Mod 加载
+
+Blob 管线将公式字节码打包为 .blob 文件，通过 source generator 在编译期生成 `IFluxBlobRegistry` 偏移表。`FluxBlobScanner` 在运行时自动发现并加载所有 mod 的公式：
+
+```csharp
+foreach (var registry in FluxBlobScanner.DiscoverAll())
+{
+    byte[] blobData = FluxBlobScanner.LoadBlobFromFile(registry.BlobKey);
+    var handle = FluxBlob.Load(blobData, registry.GetEntries());
+}
+```
+
+参见 [Blob 注册表指南](./blob-registry)。

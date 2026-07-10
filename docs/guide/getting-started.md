@@ -186,7 +186,7 @@ var inst = runner.Instantiate(formula, jit: false);
 float r = inst.Set("atk", 100f).Set("bonus", 20f).Run();
 ```
 
-## 直接构造 Token（无 Lexer）
+## JIT 执行
 
 ```csharp
 var lexResult = lexer.Lex("1 + 2 * 3");

@@ -2,15 +2,17 @@
 
 理解这一页的流水线图和数据模型，你就理解了 FluxFormula 的全部核心机制。每个概念都对应一个具体的 API 类型，读完可以直接跳到 API 参考查细节。
 
-FluxFormula 的编译流水线与关键数据结构（v5.1.0）。
+FluxFormula 的编译流水线与关键数据结构。
 
 ## 流水线
 
 ```mermaid
 graph LR
     A["string 表达式"] -->|"Lex()"| B["LexResult<br/>Token[] + VarNames"]
-    B -->|"Compile()"| C["Formula<br/>不可变字节码"]
+    B -->|"Compile()"| C["Formula / Modifier<br/>不可变字节码"]
+    C -->|"Connect()"| C1["FluxChain<br/>链式引用"]
     C -->|"Instantiate()"| D["Instance<br/>流式执行器"]
+    C1 -->|"Instantiate()"| D
     D -->|"Set() + Run()"| E["TData<br/>求值结果"]
 ```
 
@@ -55,12 +57,13 @@ public byte ResolveToken(byte oper, TokenContext ctx)
 - **Operator Token**：运算符（如 `Add`、`Neg`），其 `Data` 为 `default`
 - **Pair Token**：括号（如 `LParen`、`RParen`）
 
-### Formula / Modifier（编译产物）
+### Formula / Modifier / FluxChain（编译产物）
 
-`FluxFormula<TData, TDef>` 和 `FluxModifier<TData, TDef>` 是不可变的字节码容器。由 `FluxAssembler.Compile()` 生成，可缓存复用。
+`FluxFormula<TData, TDef>` 和 `FluxModifier<TData, TDef>` 是不可变的字节码容器。`Connect()` 返回 `FluxChain<TData, TDef>`，通过 `ToAtomic()` 可显式合并为原子 Formula。
 
 - **Formula**（完整公式）：可独立 `Instantiate` + `Run`
-- **Modifier**（缺左操作数）：只能通过 `Connect()` 拼接到 Formula 后方，或通过 `ToFormula(varName)` 转为完整 Formula。没有 `Instantiate()` 方法，编译期保证安全。
+- **Modifier**（缺左操作数）：只能通过 `Connect()` 拼接到 Formula 后方，或通过 `ToFormula(varName)` 转为完整 Formula。没有 `Instantiate()` 方法，编译期保证安全
+- **FluxChain**（链式引用）：`Connect()` 的返回值，持有一组 `ChainLink[]` 指向原始字节码，不合并。`Instantiate(FluxChain)` 逐 link 求值
 
 ### Instance（执行器）
 
@@ -98,7 +101,7 @@ var combined = f42.Connect(mod);  // 42 + 5，编译通过
 
 ## 寄存器模型
 
-256 个虚拟寄存器（byte 可寻址范围）：
+最多 255 个虚拟寄存器（byte 可寻址范围），运行时按需动态分配（扫描字节码确定实际用量）：
 
 | 常量 | 寄存器 | 语义 |
 |------|--------|------|
@@ -142,6 +145,18 @@ restored.Set("input", 5f).Run();     // works
 ```
 
 > v3.0.0：`Connect` 签名只接受 `FluxModifier<TData, TDef>`。传入 `FluxFormula` 编译不过，不需要运行时 `ArgumentException`。
+
+## 三态求值器
+
+`FluxInstance` 支持三种执行模式，覆盖调试到生产的全场景：
+
+| 模式 | 创建方式 | 执行粒度 | 用途 |
+|------|---------|---------|------|
+| 热路径 | `Instantiate(formula)` | 全速 | 生产环境，零开销 |
+| 柯里化 | `Instantiate(formula, curry: true)` | 变量级分步 | 渐进绑定，支持分叉 |
+| 单步调试 | `Instantiate(formula, step: true)` | 指令级 | 逐指令排查 |
+
+参见 [分步求值器](/guide/curry-evaluator) 和 [单步调试器](/guide/step-debugger)。
 
 ## Delegate 缓存
 

@@ -13,7 +13,7 @@ Connect(fA, fB):
   ChainLink[] = [Link(fA), Link(fB)]   // references only, no merge
 ```
 
-At evaluation time, short chains (≤8) evaluate per-link through the R1 bus; long chains or JIT paths automatically merge to atomic. See [ChainLink Deep Dive](../technical/chainlink-deep-dive).
+At evaluation time, short chains (≤8) evaluate per-link through the R1 bus; long chains are ToAtomic-merged for single-shot evaluation. The JIT path always uses per-link delegates and never merges. See [ChainLink Deep Dive](../technical/chainlink-deep-dive).
 
 ### Formula ↔ Modifier
 
@@ -124,3 +124,44 @@ float damage = assembler.Instantiate(result.Chain)
 ```
 
 See [VffFormat API](../api/vff-format) for the complete VFF encoding/decoding reference.
+
+## Curry Evaluation: Progressive Variable Binding
+
+`FluxCurryEvaluator` supports progressive binding by variable name. Each `Bind()` returns a new instance (functional State→State), enabling forking from the same intermediate state:
+
+```csharp
+var curry = runner.Instantiate(formula, curry: true);
+curry = curry.Bind("atk", 100f).Bind("bonus", 25f);
+float result = curry.Result;
+
+// Fork from mid-state
+var branch1 = mid.Bind("isCrit", 1f).Result;
+var branch2 = mid.Bind("isCrit", 0f).Result;
+```
+
+See [Curry Evaluator Guide](./curry-evaluator) and [Damage Multiverse Example](../examples/damage-multiverse).
+
+## Step Debugging
+
+`FluxStepEvaluator` executes one instruction at a time, exposing the current IP, opcode, and register snapshot:
+
+```csharp
+var step = runner.Instantiate(formula, step: true);
+while (!step.IsCompleted) step = step.Step();
+```
+
+See [Step Debugger Guide](./step-debugger).
+
+## Blob Registry and Mod Loading
+
+The Blob pipeline packages formula bytecode into .blob files. A source generator produces `IFluxBlobRegistry` offset tables at compile time. `FluxBlobScanner` auto-discovers and loads formulas from all mods at runtime:
+
+```csharp
+foreach (var registry in FluxBlobScanner.DiscoverAll())
+{
+    byte[] blobData = FluxBlobScanner.LoadBlobFromFile(registry.BlobKey);
+    var handle = FluxBlob.Load(blobData, registry.GetEntries());
+}
+```
+
+See [Blob Registry Guide](./blob-registry).
