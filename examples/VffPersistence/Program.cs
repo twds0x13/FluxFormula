@@ -24,18 +24,19 @@ var runner = new FluxAssembler<float, MathDef>(def);
 var lexer  = new FluxLexer<float>(config);
 
 // ── 2. Compile two independent formulas ──
-var damage  = runner.Compile(lexer.Lex("[atk] * [mult]"));
-var reducer = runner.Compile(lexer.Lex("[def] * 0.5"));
+var damage   = runner.Compile(lexer.Lex("[atk] * [mult]"));
+var reducerF = runner.Compile(lexer.Lex("[prev] - [def] * 0.5"));
+var reducer  = reducerF.ToModifier();
 
 // ── 3. Cache bytecode via DualHash64 → FormulaCache ──
-byte[] dBytes = damage.ToBytes(), rBytes = reducer.ToBytes();
+byte[] dBytes = damage.ToBytes(), rBytes = reducerF.ToBytes();
 var dHash = DualHash64.Compute(dBytes);
 var rHash = DualHash64.Compute(rBytes);
 FormulaCache.Instance.PutBytes(dHash, dBytes);
 FormulaCache.Instance.PutBytes(rHash, rBytes);
 
 // ── 4. Connect into a chain: (atk * mult) - def * 0.5 ──
-var chain = damage.Connect(reducer.ToModifier());
+var chain = damage.Connect(reducer);
 
 // ── 5. Serialize to VFF ──
 var links = chain.GetLinks().ToArray();
@@ -49,7 +50,7 @@ File.WriteAllBytes(path, vffData);
 byte[] loaded = File.ReadAllBytes(path);
 var result = VffFormat.FromBytes<float, MathDef>(loaded);
 
-var instance = runner.Instantiate(result.Chain, jit: true);
+var instance = runner.Instantiate(result, jit: true);
 instance.Set("atk", 100f).Set("mult", 2f).Set("def", 50f);
 float value = instance.Run();
 Console.WriteLine($"(100 * 2) - 50 * 0.5 = {value}");
@@ -76,8 +77,8 @@ File.WriteAllBytes(path2, vffWithOverride);
 byte[] loaded2 = File.ReadAllBytes(path2);
 var result2 = VffFormat.FromBytes<float, MathDef>(loaded2);
 
-var inst2 = runner.Instantiate(result2.Chain, jit: true);
-inst2.Set("atk", 100f).Set("def", 30f);
+var inst2 = runner.Instantiate(result2, jit: true)
+    .Set("atk", 100f).Set("def", 30f);
 float value2 = inst2.Run();
 Console.WriteLine($"(100 * 2) - 30 * 0.5 = {value2}  (mult fixed to 2.0)");
 
@@ -88,7 +89,7 @@ var vffHash = DualHash64.Compute(vffData);
 FormulaCache.Instance.PutBytes(vffHash, vffData);
 
 var result3 = VffFormat.Resolve<float, MathDef>(vffHash);
-var inst3 = runner.Instantiate(result3.Chain, jit: true);
+var inst3 = runner.Instantiate(result3, jit: true);
 inst3.Set("atk", 10f).Set("mult", 3f).Set("def", 4f);
 float value3 = inst3.Run();
 Console.WriteLine($"(10 * 3) - 4 * 0.5 = {value3}  (resolved via cache)");

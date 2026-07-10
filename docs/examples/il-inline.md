@@ -93,11 +93,15 @@ return false;
 
 ## 完整代码
 
-以上各节代码组合即为可直接编译运行的完整 Definition。将其放入引用了 `fluxformula.core` 的 csproj 项目中，参照 `examples/FloatMath/` 的项目配置即可运行。
+以上各节代码组合即为可直接编译运行的完整 Definition。将其放入引用了 `fluxformula.core` 的 csproj 项目中，参照 `examples/ILInline/` 的项目配置即可运行。
 
 ## 使用方法
 
 ```csharp
+using System;
+using System.Globalization;
+using FluxFormula.Core;
+
 var def = default(FloatMathILDef);
 var assembler = new FluxAssembler<float, FloatMathILDef>(def);
 
@@ -105,7 +109,8 @@ var assembler = new FluxAssembler<float, FloatMathILDef>(def);
 var lexer = new FluxLexer<float>(new LexerConfig<float>
 {
     LiteralOper    = (byte)FloatOp.Const,
-    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
+    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
+        s => float.Parse(s, CultureInfo.InvariantCulture)),
     Operators =
     {
         new("+", (byte)FloatOp.Add),
@@ -113,6 +118,8 @@ var lexer = new FluxLexer<float>(new LexerConfig<float>
         new("*", (byte)FloatOp.Mul),
         new("/", (byte)FloatOp.Div),
     },
+    Brackets = { new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen) },
+    VariablePatterns = { new("[", "]") },
 });
 
 var formula = assembler.Compile(lexer.Lex("1 + 2 * 3").Tokens);

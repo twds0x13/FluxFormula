@@ -198,6 +198,28 @@ namespace FluxFormula.Core
         }
 
         /// <summary>
+        /// 从 <see cref="VffResolveResult{TData, TDef}"/> 实例化链式公式，
+        /// 自动应用 VFF 参数覆写（Constant 覆写注入对应 Immediate 槽位，
+        /// Inject 覆写保留为调用方通过 <see cref="FluxInstance{TData, TDef}.Set"/> 注入）。
+        /// </summary>
+        public FluxInstance<TData, TDef> Instantiate(
+            VffResolveResult<TData, TDef> resolved,
+            bool jit = false)
+        {
+            var instance = Instantiate(resolved.Chain, jit);
+            var overrides = resolved.Overrides;
+            if (overrides == null || overrides.Length == 0)
+                return instance;
+
+            for (int i = 0; i < overrides.Length; i++)
+            {
+                if (overrides[i].Kind == VffOverrideKind.Constant)
+                    instance = instance.SetIndex(overrides[i].GlobalSlot, overrides[i].ConstantValue);
+            }
+            return instance;
+        }
+
+        /// <summary>
         /// 将词法 Token 直接编译为可执行的流式流水线
         /// </summary>
         internal FluxInstance<TData, TDef> Build(

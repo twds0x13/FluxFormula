@@ -11,6 +11,7 @@ Compile two formulas and insert them into `FormulaCache` so VFF deserialization 
 ```csharp
 using System;
 using System.Globalization;
+using System.IO;
 using FluxFormula.Core;
 
 var config = new LexerConfig<float>
@@ -28,7 +29,7 @@ var config = new LexerConfig<float>
 };
 
 var lexer     = new FluxLexer<float>(config);
-var def       = new MathDef();
+var def       = default(MathDef);
 var assembler = new FluxAssembler<float, MathDef>(def);
 
 // Compile two independent formulas
@@ -62,8 +63,9 @@ Pass an empty array when no parameter overrides are needed:
 var links = chain.GetLinks().ToArray();
 byte[] vffData = VffFormat.ToBytes<float>(links, Array.Empty<VffOverride<float>>());
 
-// Write to a .vff file (or embed in an AssetBundle via FluxBlobBuilder)
-File.WriteAllBytes("DamageChain.vff", vffData);
+// Write to a temp file (simulating persist + reload)
+string path = Path.GetTempFileName();
+File.WriteAllBytes(path, vffData);
 ```
 
 ## Deserialize from Bytes and Evaluate
@@ -71,12 +73,14 @@ File.WriteAllBytes("DamageChain.vff", vffData);
 Load the VFF byte array, deserialize into a chained formula, and evaluate:
 
 ```csharp
-byte[] loaded = File.ReadAllBytes("DamageChain.vff");
+byte[] loaded = File.ReadAllBytes(path);
 var result = VffFormat.FromBytes<float, MathDef>(loaded);
 
-var instance = assembler.Instantiate(result.Chain, jit: true);
+var instance = assembler.Instantiate(result, jit: true);
 instance.Set("atk", 100f).Set("mult", 2f).Set("def", 50f);
 float value = instance.Run(); // (100 * 2) - 50 * 0.5 = 175
+
+File.Delete(path);
 ```
 
 `FromBytes` internally looks up referenced formula bytecodes via `FormulaCache`. Ensure all dependency formulas are in the cache before calling it.
@@ -112,11 +116,18 @@ byte[] vffWithOverride = VffFormat.ToBytes<float>(
 After deserialization, "mult" is hardcoded. The caller only injects the remaining variables:
 
 ```csharp
-var result2 = VffFormat.FromBytes<float, MathDef>(vffWithOverride);
-var inst2 = assembler.Instantiate(result2.Chain, jit: true);
-inst2.Set("atk", 100f).Set("def", 30f);
+string path2 = Path.GetTempFileName();
+File.WriteAllBytes(path2, vffWithOverride);
+
+byte[] loaded2 = File.ReadAllBytes(path2);
+var result2 = VffFormat.FromBytes<float, MathDef>(loaded2);
+
+var inst2 = assembler.Instantiate(result2, jit: true)
+    .Set("atk", 100f).Set("def", 30f);
 float value2 = inst2.Run(); // (100 * 2) - 30 * 0.5 = 185
-// "mult" cannot be overridden via Set() — the VFF has fixed it to 2.0
+// "mult" cannot be overridden via Set() — Instantiate auto-applied the VFF Constant override
+
+File.Delete(path2);
 ```
 
 ## Resolve via Cache Hash

@@ -11,6 +11,7 @@
 ```csharp
 using System;
 using System.Globalization;
+using System.IO;
 using FluxFormula.Core;
 
 var config = new LexerConfig<float>
@@ -28,7 +29,7 @@ var config = new LexerConfig<float>
 };
 
 var lexer     = new FluxLexer<float>(config);
-var def       = new MathDef();
+var def       = default(MathDef);
 var assembler = new FluxAssembler<float, MathDef>(def);
 
 // 编译两条独立公式
@@ -62,8 +63,9 @@ var chain = damage.Connect(reducer.ToModifier());
 var links = chain.GetLinks().ToArray();
 byte[] vffData = VffFormat.ToBytes<float>(links, Array.Empty<VffOverride<float>>());
 
-// 写入 .vff 文件（或通过 FluxBlobBuilder 嵌入 AssetBundle）
-File.WriteAllBytes("DamageChain.vff", vffData);
+// 写入临时文件（模拟持久化 + 重新加载）
+string path = Path.GetTempFileName();
+File.WriteAllBytes(path, vffData);
 ```
 
 ## 从字节反序列化并求值
@@ -71,12 +73,14 @@ File.WriteAllBytes("DamageChain.vff", vffData);
 加载 VFF 字节数组，反序列化为链式公式后直接求值：
 
 ```csharp
-byte[] loaded = File.ReadAllBytes("DamageChain.vff");
+byte[] loaded = File.ReadAllBytes(path);
 var result = VffFormat.FromBytes<float, MathDef>(loaded);
 
-var instance = assembler.Instantiate(result.Chain, jit: true);
+var instance = assembler.Instantiate(result, jit: true);
 instance.Set("atk", 100f).Set("mult", 2f).Set("def", 50f);
 float value = instance.Run(); // (100 * 2) - 50 * 0.5 = 175
+
+File.Delete(path);
 ```
 
 `FromBytes` 内部通过 `FormulaCache` 按哈希查找被引用公式的字节码，调用前须确保依赖公式已注入缓存。
@@ -112,11 +116,18 @@ byte[] vffWithOverride = VffFormat.ToBytes<float>(
 反序列化后，"mult" 已被硬编码，调用方仅需注入剩余变量：
 
 ```csharp
-var result2 = VffFormat.FromBytes<float, MathDef>(vffWithOverride);
-var inst2 = assembler.Instantiate(result2.Chain, jit: true);
-inst2.Set("atk", 100f).Set("def", 30f);
+string path2 = Path.GetTempFileName();
+File.WriteAllBytes(path2, vffWithOverride);
+
+byte[] loaded2 = File.ReadAllBytes(path2);
+var result2 = VffFormat.FromBytes<float, MathDef>(loaded2);
+
+var inst2 = assembler.Instantiate(result2, jit: true)
+    .Set("atk", 100f).Set("def", 30f);
 float value2 = inst2.Run(); // (100 * 2) - 30 * 0.5 = 185
-// "mult" 无法通过 Set() 覆盖，VFF 已将其固定为 2.0
+// "mult" 无法通过 Set() 覆盖，Instantiate 已自动应用 VFF Constant 覆写
+
+File.Delete(path2);
 ```
 
 ## 通过缓存哈希解析

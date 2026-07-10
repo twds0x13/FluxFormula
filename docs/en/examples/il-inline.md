@@ -93,18 +93,23 @@ When EmitOp returns false, the compiler automatically generates the Compute poin
 
 ## Full Source
 
-The code shown in the sections above constitutes a complete, compilable Definition. Place it in a csproj that references `fluxformula.core`, following the project configuration of `examples/FloatMath/`.
+The code shown in the sections above constitutes a complete, compilable Definition. Place it in a csproj that references `fluxformula.core`, following the project configuration of `examples/ILInline/`.
 
 ## Usage
 
 ```csharp
+using System;
+using System.Globalization;
+using FluxFormula.Core;
+
 var def = default(FloatMathILDef);
 var assembler = new FluxAssembler<float, FloatMathILDef>(def);
 
 var lexer = new FluxLexer<float>(new LexerConfig<float>
 {
     LiteralOper    = (byte)FloatOp.Const,
-    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
+    LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(
+        s => float.Parse(s, CultureInfo.InvariantCulture)),
     Operators =
     {
         new("+", (byte)FloatOp.Add),
@@ -112,6 +117,8 @@ var lexer = new FluxLexer<float>(new LexerConfig<float>
         new("*", (byte)FloatOp.Mul),
         new("/", (byte)FloatOp.Div),
     },
+    Brackets = { new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen) },
+    VariablePatterns = { new("[", "]") },
 });
 
 var formula = assembler.Compile(lexer.Lex("1 + 2 * 3").Tokens);
