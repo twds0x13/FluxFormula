@@ -1,6 +1,6 @@
-# Curry Evaluator
+# Progressive Binding Evaluator (Currying)
 
-Sometimes you do not want to inject all variables at once — a template formula needs to bind different parameters across multiple calls, or you want to fork multiple results from the same intermediate state. The curry evaluator is designed for exactly this progressive-binding pattern.
+Suppose you have a skill damage formula: `[baseAtk] * [skillMult] * (1 + [critDmg])`. baseAtk and critDmg are character stats that rarely change; skillMult is a per-skill parameter. You can bind the character stats once when the character panel opens, save the intermediate state, then bind only skillMult for each skill — instead of chaining `.Set().Set().Set().Run()` every time.
 
 `FluxCurryEvaluator` provides functional-style progressive variable binding. Bind parameters in declaration order, each `Bind` returning a new State. Supports forking — multiple callers can bind different values from the same intermediate state. Ideal for deferred parameter injection and template formula reuse.
 

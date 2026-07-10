@@ -1,5 +1,7 @@
 # Blob 注册表
 
+如果你已经会用 `runner.Compile(lexer.Lex(formulaString))` 了，公式跑得也挺快，那你为什么还需要把公式预编译成 `.bytes` 文件、走一整套 Blob 管线？答案是规模。你的游戏有 500 条公式时，每个玩家每次启动都要 Lex + Compile 全部 500 条，加载时间会增加几百毫秒。Blob 管线的思路是把这些公式在打包时预编译，运行时走 pinned 内存零拷贝加载：500 条公式的加载时间从编译开销变成纯 I/O。
+
 预编译公式字节码的构建、分发与运行时加载管线。公式在 Editor 中编译为二进制 `.bytes` 文件，由 Source Generator 生成偏移表常量，运行时通过 `/Mods/` bundle 或 Addressables 加载。
 
 ## 概念
@@ -12,6 +14,8 @@
 - 跳过运行时的 Lex → Compile → JIT 全管线
 - 字节码直接来自 pinned 内存，零拷贝存入 `FormulaCache`
 - 游戏本体和 mod 可以各自携带独立 blob
+
+> **为什么哈希在这里不能出错**：Blob 管线的运行时路径是从 pinned 内存直接索引字节码然后执行，没有校验步骤。如果两条不同公式发生了哈希碰撞，运行时会把公式 A 的字节码当成公式 B 执行，产生一个几乎不可能调试的隐蔽逻辑错误。DualHash64（XxHash64 + FNV-1a 联立）的设计保证联立碰撞在计算上不可行，因此每条公式通过内容寻址保证正确性。详见 [编译缓存管线](../technical/compile-cache)。
 
 ### BlobKey
 

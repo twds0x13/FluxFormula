@@ -1,6 +1,8 @@
 # 高级用法
 
-Connect 让你像串手链一样组合公式片段——把 Modifier 接到 Formula 后面，R1 总线自动传递上下文。Set/SetIndex 则让你按命名或槽位注入变量，编译一次、多次复用。
+Connect 让你像串手链一样组合公式片段：把 Modifier 接到 Formula 后面，R1 总线自动传递上下文。Set/SetIndex 则让你按命名或槽位注入变量，编译一次、多次复用。
+
+这页涵盖日常高频操作：Connect 串联、Set 注入、JIT vs 解释器切换。如果你在找 VFF 持久化、Blob 手动构建等深入内容，见 [API 参考](../api/overview) 对应页面。
 
 ## Connect：链式组合
 

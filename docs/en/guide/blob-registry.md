@@ -1,5 +1,7 @@
 # Blob Registry
 
+If you already use `runner.Compile(lexer.Lex(formulaString))` and your formulas run fast, why bother pre-compiling them into `.bytes` files and going through the full Blob pipeline? The answer is scale. When your game has 500 formulas, Lex + Compiling all of them on every player's startup adds hundreds of milliseconds. The Blob pipeline pre-compiles those formulas at build time and loads them with zero-copy pinned memory at runtime: 500 formulas go from compile overhead to pure I/O.
+
 Pre-compiled formula bytecode build, distribution, and runtime loading pipeline. Formulas are compiled into binary `.bytes` files in the Editor. A Source Generator produces offset-table constants. At runtime, blobs load via `/Mods/` bundles or Addressables.
 
 ## Concepts
@@ -12,6 +14,8 @@ Benefits of pre-compiling formulas into a blob:
 - Skips the entire Lex → Compile → JIT pipeline at runtime
 - Bytecode points directly into pinned memory with zero-copy registration in `FormulaCache`
 - The base game and mods each carry their own independent blob
+
+> **Why hash collisions are catastrophic here**: The Blob pipeline's runtime path indexes bytecode directly from pinned memory and executes it, with no verification step. If two different formulas collide, runtime silently executes formula A's bytecode as formula B, producing a logic error that is nearly impossible to debug. DualHash64 (XxHash64 + FNV-1a combined) makes a simultaneous collision computationally infeasible, so each formula is guaranteed correct by content addressing. See [Compile Cache Pipeline](../technical/compile-cache) for the full security argument.
 
 ### BlobKey
 
