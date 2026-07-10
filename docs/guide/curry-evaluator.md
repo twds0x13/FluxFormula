@@ -1,6 +1,6 @@
 # 分步求值器（柯里化）
 
-假设你有一个技能伤害公式 `[baseAtk] * [skillMult] * (1 + [critDmg])`。baseAtk 和 critDmg 是角色属性，基本不变；skillMult 是技能参数，每个技能不同。你可以在角色面板打开时绑一次角色属性，存为中间状态，之后每个技能只绑 skillMult 就出结果，不用每次 `.Set().Set().Set().Run()`。
+假设你有一个技能伤害公式 `[baseAtk] * [skillMult] * (1 + [critDmg])`。baseAtk 和 critDmg 是角色属性，基本不变；skillMult 是技能参数，每个技能不同。你可以在角色面板打开时绑一次角色属性，存为中间状态，之后每个技能只绑 skillMult 就出结果，无需每次 `.Set().Set().Set().Run()`。
 
 `FluxCurryEvaluator` 提供函数式渐进绑定求值：按变量声明顺序分批注入参数，每次 `Bind` 返回新
 State，支持从同一中间状态分叉出不同参数组合。适用于参数延迟绑定、模板化公式复用等场景。
