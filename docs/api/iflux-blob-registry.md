@@ -54,7 +54,7 @@ public sealed class FluxBlobRegistryAssemblyAttribute : Attribute
 
 ## FluxBlobScanner
 
-`FluxBlobScanner` 是 Unity 层的静态扫描器（位于 `FluxFormula` 程序集，不依赖 Addressables）。职责仅限于发现——加载由调用方负责。
+`FluxBlobScanner` 是 Unity 层的静态扫描器（位于 `FluxFormula` 程序集，不依赖 Addressables）。职责仅限于发现，加载由调用方负责。
 
 ### DiscoverAll
 
@@ -62,7 +62,7 @@ public sealed class FluxBlobRegistryAssemblyAttribute : Attribute
 public static List<IFluxBlobRegistry> DiscoverAll()
 ```
 
-扫描所有已加载程序集中实现 `IFluxBlobRegistry` 的类型。可多次调用（增量扫描——已扫描的程序集自动跳过）。返回本次新发现的 registry 列表。
+扫描所有已加载程序集中实现 `IFluxBlobRegistry` 的类型。可多次调用（增量扫描，已扫描的程序集自动跳过）。返回本次新发现的 registry 列表。
 
 ```csharp
 // 典型用法：发现 → 加载

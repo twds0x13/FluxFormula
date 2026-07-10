@@ -222,7 +222,7 @@ public readonly struct SpellDef : IFluxExprDefinition<SpellContext>
 }
 ```
 
-`EvaluateAdd` 和 `EvaluateAddJit` 分别为解释器和 JIT 路径实现 Add 语义。两条路径共享相同的判断逻辑（位置跳过、抽数耗尽检测、正常累加），差异仅在于 R0 写入方式：解释器通过 `Span<SpellContext>` 直接写 `regs[Registers.Error]`，JIT 通过 `ref SpellContext r0` 参数写 `regs[Registers.Error]`。表达式树的 `Expression.Call` 将 `regs[Registers.Error]` 按引用传递，编译后的委托在 R0 写入后由求值器框架检测到非 default 并立即返回——与解释器路径的 `IsDefault(&regsPtr[Error])` 检查等效。
+`EvaluateAdd` 和 `EvaluateAddJit` 分别为解释器和 JIT 路径实现 Add 语义。两条路径共享相同的判断逻辑（位置跳过、抽数耗尽检测、正常累加），差异仅在于 R0 写入方式：解释器通过 `Span<SpellContext>` 直接写 `regs[Registers.Error]`，JIT 通过 `ref SpellContext r0` 参数写 `regs[Registers.Error]`。表达式树的 `Expression.Call` 将 `regs[Registers.Error]` 按引用传递，编译后的委托在 R0 写入后由求值器框架检测到非 default 并立即返回，与解释器路径的 `IsDefault(&regsPtr[Error])` 检查等效。
 
 `Add` 的两个分支：`b.StartIndex < a.StartIndex`（卡已在前一回合中消费）→ 透传跳过，正常继续执行下一条卡；`a.DrawsProvide <= 0`（抽数耗尽）→ 写入 R0 错误寄存器，求值器框架立即中断整条链，后续卡不执行。正常执行时 `ConsumedThisRound` 每卡递增，`StartIndex` 透传不变，伤害修正直接累加。
 

@@ -1,8 +1,8 @@
 # Literal Scanner
 
-Controls how the lexer recognizes literals such as numbers and keywords. Starting from v5.0, the source-generator-driven `[LiteralTemplate]` is the recommended approach: declare a format template on your TData struct and the compiler auto-generates a zero-allocation span scanner at compile time.
+Controls how the lexer recognizes literals such as numbers and keywords. Starting from v5.0, the source-generator-driven `[LiteralTemplate]` is available: declare a format template on your TData struct and the compiler auto-generates a zero-allocation span scanner at compile time.
 
-## Recommended: `[LiteralTemplate]`
+## `[LiteralTemplate]` Auto-Generation
 
 Add an attribute to your struct. The source generator produces the scanner at compile time. `LexerConfig.LiteralScanner` is no longer required:
 

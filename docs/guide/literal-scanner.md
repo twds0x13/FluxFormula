@@ -1,8 +1,8 @@
 # 字面量扫描器
 
-控制词法分析器如何识别数字、关键字等字面量。v5.0 起 source generator 驱动的 `[LiteralTemplate]` 是推荐方式: 在 TData struct 上声明格式模板，编译器自动生成零分配 span 扫描代码。
+控制词法分析器如何识别数字、关键字等字面量。v5.0 起引入 source generator 驱动的 `[LiteralTemplate]`：在 TData struct 上声明格式模板，编译器自动生成零分配 span 扫描代码。
 
-## 推荐方式: `[LiteralTemplate]`
+## `[LiteralTemplate]` 自动生成
 
 在 struct 上加一个 attribute，source generator 在编译期生成扫描器。`LexerConfig.LiteralScanner` 不再是必设字段:
 
