@@ -112,7 +112,7 @@ Core 包（`fluxformula.core`）目标框架为 netstandard2.1，兼容 .NET Cor
 
 ## 快速开始
 
-用 FluxFormula 构建 Noita 式法术修正系统——每张卡有伤害修正和抽牌提供，串联为法术链后一次施法跑完整条链：
+用 FluxFormula 构建 Noita 式法术修正系统。每张卡有伤害修正和抽牌提供，串联为法术链后一次施法跑完整条链：
 
 ```csharp
 // 三张法术卡：+10 / +7 / +5 伤害，无额外抽牌
