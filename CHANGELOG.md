@@ -1,3 +1,9 @@
+## [5.12.0](https://github.com/twds0x13/FluxFormula/compare/v5.11.0...v5.12.0) (2026-07-10)
+
+### Features
+
+* **examples:** add MultiverseStats with Avg/Max/Min/Mid for post-processing ([1421e1d](https://github.com/twds0x13/FluxFormula/commit/1421e1da2b4fbf9f0e8d47236b1e22803edda76d))
+
 ## [5.11.0](https://github.com/twds0x13/FluxFormula/compare/v5.10.0...v5.11.0) (2026-07-10)
 
 ### Features
