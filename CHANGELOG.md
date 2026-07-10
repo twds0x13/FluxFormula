@@ -1,3 +1,9 @@
+## [5.9.0](https://github.com/twds0x13/FluxFormula/compare/v5.8.0...v5.9.0) (2026-07-10)
+
+### Features
+
+* support out-of-order variable binding in FluxCurryEvaluator ([a7b1fb5](https://github.com/twds0x13/FluxFormula/commit/a7b1fb505aa5d618f04ec542c67ce8a723abd3dd))
+
 ## [5.8.0](https://github.com/twds0x13/FluxFormula/compare/v5.7.1...v5.8.0) (2026-07-10)
 
 ### Features
