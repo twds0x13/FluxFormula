@@ -62,6 +62,12 @@ export default withMermaid(
               ],
             },
             {
+              text: "参考",
+              items: [
+                { text: "术语速查", link: "/reference/glossary" },
+              ],
+            },
+            {
               text: "API 参考",
               items: [
                 {
@@ -219,6 +225,12 @@ export default withMermaid(
                 { text: "Step Debugger", link: "/en/guide/step-debugger" },
                 { text: "Advanced Usage", link: "/en/guide/advanced" },
                 { text: "Blob Registry", link: "/en/guide/blob-registry" },
+              ],
+            },
+            {
+              text: "Reference",
+              items: [
+                { text: "Glossary", link: "/en/reference/glossary" },
               ],
             },
             {
