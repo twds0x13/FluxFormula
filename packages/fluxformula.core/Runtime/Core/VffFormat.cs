@@ -445,11 +445,29 @@ namespace FluxFormula.Core
                 else
                 {
                     // ── 普通公式 link：构建 ChainLink ──
-                    var fHeader = FormulaFormat.ReadHeader(fBytes);
-                    var instSpan = FormulaFormat.GetInstructionSpan(fBytes);
-                    var bytecode = instSpan.ToArray();
+                    ReadOnlySpan<byte> linkBytes = fBytes;
+                    int linkImmCount = entry.ImmCount;
+                    byte linkMaxRegister;
 
-                    var varSlots = FormulaFormat.ReadVariableSlots(fBytes, baseSlotOffset: cumImm);
+                    if ((FluxType)entry.Type == FluxType.Modifier)
+                    {
+                        // 缓存中为原始公式（含首 Immediate），需转为 Modifier 后再构建 ChainLink
+                        var original = FluxFormula<TData, TDef>.FromBytes(fBytes);
+                        var modifier = original.ToModifier();
+                        var innerBytes = modifier.Inner.ToBytes();
+                        var innerHeader = FormulaFormat.ReadHeader(innerBytes);
+                        linkBytes = innerBytes;
+                        linkImmCount = modifier.Inner.ImmediateCount;
+                        linkMaxRegister = innerHeader.MaxRegister;
+                    }
+                    else
+                    {
+                        linkMaxRegister = FormulaFormat.ReadHeader(fBytes).MaxRegister;
+                    }
+
+                    var instSpan = FormulaFormat.GetInstructionSpan(linkBytes);
+                    var bytecode = instSpan.ToArray();
+                    var varSlots = FormulaFormat.ReadVariableSlots(linkBytes, baseSlotOffset: cumImm);
 
                     links.Add(new ChainLink
                     {
@@ -457,12 +475,12 @@ namespace FluxFormula.Core
                         Bytecode         = bytecode,
                         InstructionCount = bytecode.Length,
                         Type             = (FluxType)entry.Type,
-                        ImmediateCount   = entry.ImmCount,
+                        ImmediateCount   = linkImmCount,
                         VarSlots         = varSlots,
-                        MaxRegister      = fHeader.MaxRegister,
+                        MaxRegister      = linkMaxRegister,
                     });
 
-                    cumImm += entry.ImmCount;
+                    cumImm += linkImmCount;
                 }
             }
 

@@ -129,7 +129,7 @@ namespace FluxFormula.Core
         /// </summary>
         public FluxModifier<TData, TDef> ToModifier()
         {
-            if (Type == FluxType.Modifier) return new FluxModifier<TData, TDef>(this);
+            if (Type == FluxType.Modifier) return new FluxModifier<TData, TDef>(this, GetByteHash());
 
             if (Count < 2)
                 throw new InvalidOperationException("Cannot convert formula with fewer than 2 instructions to Modifier.");
@@ -187,9 +187,10 @@ namespace FluxFormula.Core
                 newSlots = VariableSlots;
             }
 
+            var originalKey = GetByteHash();
             return new FluxModifier<TData, TDef>(
                 new FluxFormula<TData, TDef>(newBuffer, newCount, FluxType.Modifier,
-                    newImmCount, newSlots, MaxRegister));
+                    newImmCount, newSlots, MaxRegister), originalKey);
         }
 
         /// <summary>
@@ -278,14 +279,14 @@ namespace FluxFormula.Core
             if (Count == 0)
                 return next.Count == 0
                     ? FluxChain<TData, TDef>.Empty
-                    : new FluxChain<TData, TDef>(new[] { next.Inner.ToLink() });
+                    : new FluxChain<TData, TDef>(new[] { next.ToLink() });
             if (next.Count == 0)
                 return new FluxChain<TData, TDef>(new[] { ToLink() });
             if (Count == 1)
                 return new FluxChain<TData, TDef>(new[] { next.ToFormula(ChainReserved.InternalPrefix + "single").ToLink() });
 
             return new FluxChain<TData, TDef>(
-                FluxChain<TData, TDef>.ChainConnect(new[] { ToLink() }, new[] { next.Inner.ToLink() }));
+                FluxChain<TData, TDef>.ChainConnect(new[] { ToLink() }, new[] { next.ToLink() }));
         }
 
         /// <summary>

@@ -15,15 +15,17 @@ namespace FluxFormula.Core
         where TDef : unmanaged, IFluxExprDefinition<TData>
     {
         internal readonly FluxFormula<TData, TDef> Inner;
+        internal readonly DualHash64 OriginalKey;
 
-        internal FluxModifier(FluxFormula<TData, TDef> inner)
+        internal FluxModifier(FluxFormula<TData, TDef> inner, DualHash64 originalKey)
         {
             Inner = inner;
+            OriginalKey = originalKey;
         }
 
         /// <summary>空 Modifier（Count=0），Connect 的单位元</summary>
         public static FluxModifier<TData, TDef> Empty =>
-            new(FluxFormula<TData, TDef>.EmptyModifier);
+            new(FluxFormula<TData, TDef>.EmptyModifier, default);
 
         // ── 属性（委托给 Inner）──
 
@@ -48,6 +50,16 @@ namespace FluxFormula.Core
         // ── Connect ──
 
         /// <summary>
+        /// 创建此 Modifier 对应的 <see cref="ChainLink"/>，使用原始公式的哈希作为缓存键。
+        /// </summary>
+        internal ChainLink ToLink()
+        {
+            var link = Inner.ToLink();
+            link.Key = OriginalKey; // VFF 缓存查询用原始公式 hash
+            return link;
+        }
+
+        /// <summary>
         /// 将两个 Modifier 串联，返回 <see cref="FluxChain{TData, TDef}"/>。
         /// 前者的 R1 输出流入后者的首操作数位置。
         /// 结果仍为 Modifier 链，仍然缺少第一操作数，
@@ -56,13 +68,13 @@ namespace FluxFormula.Core
         public FluxChain<TData, TDef> Connect(FluxModifier<TData, TDef> next)
         {
             if (Count == 0)
-                return new FluxChain<TData, TDef>(new[] { next.Inner.ToLink() });
+                return new FluxChain<TData, TDef>(new[] { next.ToLink() });
             if (next.Count == 0)
-                return new FluxChain<TData, TDef>(new[] { Inner.ToLink() });
+                return new FluxChain<TData, TDef>(new[] { ToLink() });
 
             return new FluxChain<TData, TDef>(
                 FluxChain<TData, TDef>.ChainConnect(
-                    new[] { Inner.ToLink() }, new[] { next.Inner.ToLink() }));
+                    new[] { ToLink() }, new[] { next.ToLink() }));
         }
 
         // ── 序列化 / 字节码访问 ──
@@ -83,7 +95,8 @@ namespace FluxFormula.Core
         public static FluxModifier<TData, TDef> FromBytes(byte[] data)
         {
             var formula = FluxFormula<TData, TDef>.FromBytes(data);
-            return new FluxModifier<TData, TDef>(formula);
+            var key = formula.GetByteHash();
+            return new FluxModifier<TData, TDef>(formula, key);
         }
 
         /// <summary>
@@ -92,7 +105,8 @@ namespace FluxFormula.Core
         public static FluxModifier<TData, TDef> FromBytes(ReadOnlySpan<byte> data)
         {
             var formula = FluxFormula<TData, TDef>.FromBytes(data);
-            return new FluxModifier<TData, TDef>(formula);
+            var key = formula.GetByteHash();
+            return new FluxModifier<TData, TDef>(formula, key);
         }
 
         public override readonly string ToString() =>
