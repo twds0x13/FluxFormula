@@ -1,3 +1,9 @@
+## [5.10.0](https://github.com/twds0x13/FluxFormula/compare/v5.9.1...v5.10.0) (2026-07-10)
+
+### Features
+
+* **examples:** add DamageMultiverse — curry fork + crit multiverse simulation ([3081d70](https://github.com/twds0x13/FluxFormula/commit/3081d7097eafdbac11e268726a0b1b93fdc693ab))
+
 ## [5.9.1](https://github.com/twds0x13/FluxFormula/compare/v5.9.0...v5.9.1) (2026-07-10)
 
 ### Bug Fixes
