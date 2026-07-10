@@ -5,7 +5,7 @@ using FluxFormula.Compiler;
 
 namespace FluxFormula.Core
 {
-    public readonly unsafe ref struct FluxAssembler<TData, TDef>
+    public readonly unsafe struct FluxAssembler<TData, TDef>
         where TData : unmanaged
         where TDef : unmanaged, IFluxExprDefinition<TData>
     {

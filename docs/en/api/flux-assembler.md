@@ -5,7 +5,7 @@ Compilation entry point. Compiles lexical tokens into bytecode and instantiates 
 ## Signature
 
 ```csharp
-public readonly unsafe ref struct FluxAssembler<TData, TDef>
+public readonly unsafe struct FluxAssembler<TData, TDef>
     where TData : unmanaged
     where TDef : unmanaged, IFluxExprDefinition<TData>
 ```
