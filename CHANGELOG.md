@@ -1,3 +1,13 @@
+## [5.8.0](https://github.com/twds0x13/FluxFormula/compare/v5.7.1...v5.8.0) (2026-07-10)
+
+### Features
+
+* **examples:** add ILInline and VffPersistence runnable examples ([dd5a4b4](https://github.com/twds0x13/FluxFormula/commit/dd5a4b440d605763254042e9f356d87de4c28035))
+
+### Bug Fixes
+
+* preserve original formula hash through Modifier for VFF cache lookup ([7346a71](https://github.com/twds0x13/FluxFormula/commit/7346a719cc3eae734a0673066adccf8807acd412))
+
 ## [5.7.1](https://github.com/twds0x13/FluxFormula/compare/v5.7.0...v5.7.1) (2026-07-09)
 
 ### Performance Improvements
