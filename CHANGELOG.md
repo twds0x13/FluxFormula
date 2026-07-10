@@ -1,3 +1,9 @@
+## [5.11.0](https://github.com/twds0x13/FluxFormula/compare/v5.10.0...v5.11.0) (2026-07-10)
+
+### Features
+
+* **api:** add TrySet and TryBind for silent variable injection ([61ef49d](https://github.com/twds0x13/FluxFormula/commit/61ef49dfd16ec0ceb68bc848a39ea27c9420c7c3))
+
 ## [5.10.0](https://github.com/twds0x13/FluxFormula/compare/v5.9.1...v5.10.0) (2026-07-10)
 
 ### Features
