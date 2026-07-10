@@ -2,7 +2,7 @@
 
 The traditional approach to crit simulation re-injects all variables on every run: 1000 simulations = 3000 `Set` calls. Curry's fork capability changes this: bind the shared variables once, then fork a new instance for the one remaining variable each time.
 
-This example defines a damage formula with a `select` ternary operator, uses `FluxCurryEvaluator` to bind attack and crit damage, then runs a multiverse simulation over the "is this a crit?" variable via custom `.Multiverse()` extension methods, returning the arithmetic mean.
+This example defines a damage formula with a `select` ternary operator, uses `FluxCurryEvaluator` to bind attack and crit damage, then runs a multiverse simulation over the "is this a crit?" variable via custom `.Multiverse()` / `.MultiverseStats()` extension methods. `.Multiverse()` returns the arithmetic mean; `.MultiverseStats()` returns full aggregated statistics (Avg/Max/Min/Mid).
 
 ## Damage Formula
 
@@ -39,7 +39,7 @@ var baseState = FluxCurryEvaluator<float, DamageDef>.Create(def, formula)
 
 ## Multiverse Extension Methods
 
-`.Multiverse()` is an extension method on `FluxCurryEvaluator<float, TDef>` with three overloads:
+`.Multiverse()` is an extension method on `FluxCurryEvaluator<float, TDef>` that returns `float`. Three overloads:
 
 ### Simple Threshold
 
@@ -66,9 +66,23 @@ float avg = baseState.Multiverse("isCrit", count: 10000,
 // Each iteration injects the random float into the judge formula; result > 0.5 means crit
 ```
 
-All overloads share the same implementation pattern: cache the curry → loop fork → bind isCrit → `ForceComplete()` → read Result → collect statistics.
+## MultiverseStats Extension Methods
 
-Beyond the arithmetic mean, Multiverse also outputs Max, Min, and Mid (median) for use in post-processing formulas.
+`.MultiverseStats()` returns a `MultiverseStats` struct (`Avg` / `Max` / `Min` / `Mid`). The same three overloads mirror `.Multiverse()`:
+
+```csharp
+// Threshold
+MultiverseStats stats = baseState.MultiverseStats("isCrit", 10000, 0.3f, rng);
+
+// Delegate
+MultiverseStats stats = baseState.MultiverseStats("isCrit", 10000, rng => counter++ % 3 == 0, rng);
+
+// External judge
+MultiverseStats stats = baseState.MultiverseStats("isCrit", 10000,
+    judgeAssembler, judgeFormula, rng);
+```
+
+All overloads share the same implementation pattern: cache the curry → loop fork → bind isCrit → `ForceComplete()` → read Result → collect statistics.
 
 ## Post-Processing with TrySet
 
@@ -114,6 +128,7 @@ Each iteration binds 1 variable instead of 3. `baseState` remains unchanged acro
 
 ## Notes
 
-- Multiverse does **not** go through `.Result` — the method returns `float` directly
+- `.Multiverse()` returns `float` (mean only); `.MultiverseStats()` returns `MultiverseStats` (Avg/Max/Min/Mid)
+- Results do **not** go through `.Result` — methods return aggregated values directly
 - The original curry instance is **unaffected** after Multiverse runs (`readonly struct` + per-fork new instances)
 - PCG64 reproducibility means "30% crit rate" produces identical results across two runs

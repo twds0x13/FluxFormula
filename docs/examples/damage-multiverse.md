@@ -2,7 +2,7 @@
 
 暴击判定在传统做法中是每次模拟全部变量重新注入：1000 次模拟 = 3000 次 `Set`。Curry 的分叉能力改变了这一点：绑定共同变量一次，剩余的那个变量每次 fork 一份新实例独立求值。
 
-此示例定义了一个含 `select` 三元运算符的伤害公式，使用 `FluxCurryEvaluator` 绑定攻击力和暴击伤害后，通过自定义 `.Multiverse()` 扩展方法对"是否暴击"做多世界线模拟并取算数平均。
+此示例定义了一个含 `select` 三元运算符的伤害公式，使用 `FluxCurryEvaluator` 绑定攻击力和暴击伤害后，通过自定义 `.Multiverse()` / `.MultiverseStats()` 扩展方法对"是否暴击"做多世界线模拟。`.Multiverse()` 返回算术平均值，`.MultiverseStats()` 返回 Avg/Max/Min/Mid 完整统计量。
 
 ## 伤害公式
 
@@ -39,7 +39,7 @@ var baseState = FluxCurryEvaluator<float, DamageDef>.Create(def, formula)
 
 ## Multiverse 扩展方法
 
-`.Multiverse()` 是 `FluxCurryEvaluator<float, TDef>` 的扩展方法，提供三种重载：
+`.Multiverse()` 是 `FluxCurryEvaluator<float, TDef>` 的扩展方法，返回 `float`。提供三种重载：
 
 ### 简单阈值
 
@@ -66,9 +66,23 @@ float avg = baseState.Multiverse("isCrit", count: 10000,
 // 每次迭代注入随机数到判定公式，结果 > 0.5 算暴击
 ```
 
-所有重载共享同一实现模式：缓存当前 curry → 循环 fork → 绑 isCrit → `ForceComplete()` → 取 Result → 收集统计量。
+## MultiverseStats 扩展方法
 
-除算术平均值外，Multiverse 同时输出 Max、Min、Mid（中位数），供后处理公式使用。
+`.MultiverseStats()` 返回 `MultiverseStats` 结构体（`Avg` / `Max` / `Min` / `Mid`），同样提供三种重载，签名与 `.Multiverse()` 一一对应：
+
+```csharp
+// 阈值版
+MultiverseStats stats = baseState.MultiverseStats("isCrit", 10000, 0.3f, rng);
+
+// 委托版
+MultiverseStats stats = baseState.MultiverseStats("isCrit", 10000, rng => counter++ % 3 == 0, rng);
+
+// 外部判定版
+MultiverseStats stats = baseState.MultiverseStats("isCrit", 10000,
+    judgeAssembler, judgeFormula, rng);
+```
+
+所有重载共享同一实现模式：缓存当前 curry → 循环 fork → 绑 isCrit → `ForceComplete()` → 取 Result → 收集统计量。
 
 ## 后处理与 TrySet
 
@@ -114,6 +128,7 @@ float avg = baseState.Multiverse("isCrit", 10000, 0.3f, rng);
 
 ## 注意事项
 
-- Multiverse 结果**不经过** `.Result`——函数直接返回 `float` 平均值
+- `.Multiverse()` 返回 `float`（平均值），`.MultiverseStats()` 返回 `MultiverseStats`（Avg/Max/Min/Mid）
+- 结果**不经过** `.Result`——方法直接返回聚合值
 - 原始 curry 实例在 Multiverse 执行后**不受影响**（`readonly struct` + 每 fork 新实例）
 - PCG64 的可回溯性意味着"30% 暴击率"两次运行结果完全一致

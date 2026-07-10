@@ -67,6 +67,22 @@ float avgB = baseState.Multiverse("isCrit", count: 10000, rng =>
 Console.WriteLine($"Delegate (every 3rd, n=10000): {avgB:F2}  "
     + $"(expected ~116.67: 100*(1+0.5)/3 + 100*2/3)");
 
+// 4c. MultiverseStats: full statistics + post-processing via TrySet
+var rng4 = new Pcg64(42);
+var stats = baseState.MultiverseStats("isCrit", count: 10000, critRate: 0.3f, rng4);
+Console.WriteLine($"MultiverseStats (30% crit, n=10000):");
+Console.WriteLine($"  Avg={stats.Avg:F2}  Max={stats.Max:F2}  Min={stats.Min:F2}  Mid={stats.Mid:F2}");
+
+// Post-processing formula: [Max] - [Avg] measures spread
+var postFormula = runner.Compile(lexer.Lex("[Max] - [Avg]"));
+float spread = runner.Instantiate(postFormula)
+    .TrySet("Avg", stats.Avg)
+    .TrySet("Max", stats.Max)
+    .TrySet("Min", stats.Min)
+    .TrySet("Mid", stats.Mid)
+    .Run();
+Console.WriteLine($"  Post-process [Max] - [Avg] = {spread:F2}  (expected ~35: 150-115)");
+
 // ── 5. Traditional full-Set comparison ──
 var rng3 = new Pcg64(42);
 float tradSum = 0f;
