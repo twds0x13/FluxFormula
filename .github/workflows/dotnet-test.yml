@@ -43,7 +43,7 @@ jobs:
         run: dotnet tool install -g dotnet-coverage
 
       - name: Collect coverage
-        run: dotnet-coverage collect --output coverage-latest.xml --output-format cobertura --exclude-by-file "**/FluxILCompiler.cs" "dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --configuration Release --no-build --framework net${{ matrix.dotnet-version }}"
+        run: dotnet-coverage collect --output coverage-latest.xml --output-format cobertura "dotnet test tests/FluxFormula.Core.Tests/FluxFormula.Tests.csproj --configuration Release --no-build --framework net${{ matrix.dotnet-version }}"
         continue-on-error: true
 
       - name: Upload coverage to Codecov
