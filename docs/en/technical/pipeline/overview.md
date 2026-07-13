@@ -25,7 +25,7 @@ String / Token[]
   │
   ├─ 3. Instantiate ────────────────────────────────────
   │   FluxAssembler.Instantiate(FluxFormula) → FluxInstance<TData, TDef>
-  │   Internal: build FluxInjector + JIT delegate compilation (IL first → Expression fallback → interpreter)
+  │   Internal: build FluxJITInjector (JIT path) or FluxInjector (interpreter path) + JIT delegate compilation (IL first → Expression fallback → interpreter)
   │   Output: FluxInstance (ref struct, stack-allocated)
   │   Allocation: JIT delegate compilation (cacheable), Injector metadata (stack)
   │
@@ -115,6 +115,17 @@ Instantiate ──→ FormulaCache.Instance.TryGetDelegate(hash) ──→ hit �
 
 The cache layer forms a transparent acceleration layer between the Compile and Instantiate stages. Users do not need to be aware of the cache's existence — `Instantiate(jit: true)` directly returns a pre-compiled delegate on cache hit, or performs full JIT compilation and writes to cache on miss.
 
+## Other Subsystems
+
+Beyond the main four-stage pipeline, the following subsystems provide compile-time code generation, runtime gradual evaluation, and persistence:
+
+- **[LiteralScanner Source Generator](./literal-scanner-sg.md)**: generates dedicated Span literal scanners from attribute declarations at compile time. `FluxLexer` prioritizes generated scanners at construction time.
+- **[Blob Registry](../blob-registry.md)**: binary distribution pipeline for pre-compiled formulas. `IFluxBlobRegistry` + `BlobRegistryGenerator` + `FluxBlob.Load/Unload` additive model supports multiple mods.
+- **[VFF Persistence Format](../vff-format.md)**: persistent form of `ChainLink[]`. References formulas in blobs by `DualHash64`, supports parameter overrides and recursive assembly.
+- **[Curry Evaluator](./curry-evaluator.md)**: functional State→State gradual binding. Together with `FluxEvaluator` (hot path) and `FluxStepEvaluator` (step debug), forms the three-evaluator architecture.
+- **[JIT Injector](./jit-injector.md)**: `FluxJITInjector` (2 fields, zero branches) as a separate type, split from `FluxInjector` in v5.7.1.
+
 ## Next Steps
 
 - [Data Injector](./injector.md) — internal mechanism of Set/SetIndex
+- [JIT Injector](./jit-injector.md) — FluxJITInjector hot-path injection

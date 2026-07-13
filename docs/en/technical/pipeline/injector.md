@@ -1,52 +1,48 @@
 # Data Injector
 
-`FluxInjector<TData>` is responsible for writing user parameters into the formula bytecode buffer. Its core design question: **how to efficiently locate and overwrite specific variable values in a compact `Instruction[]` while maintaining zero GC?**
+`FluxInjector<TData>` is responsible for writing user parameters into the formula bytecode buffer. Its core design question: how to efficiently locate and overwrite specific variable values in a compact `Instruction[]` while maintaining zero GC.
 
-## Two Injection Modes
-
-FluxInjector has two working modes, depending on the execution backend:
-
-| Mode | Trigger | Data Layout | Location Method |
-|------|---------|-------------|-----------------|
-| **JIT mode** | `jit: true` | payload array (compact TData sequence) | Linear index: `paramIndex * slotsPerData` |
-| **Interpreter mode** | `jit: false` | full formula buffer (Instruction[] + inlined TData) | Offset array: `_offsets[paramIndex]` |
-
-The fundamental difference between the two modes comes from Instruction's different roles in JIT and interpreter:
-- **JIT mode**: Instructions and data are separated. Instructions become Expression Trees (consumed at compile time); data stays in the payload array for runtime reading. The payload is a compact TData sequence with no Instruction headers.
-- **Interpreter mode**: Instructions and data coexist in the same Instruction[] buffer. TData follows immediately after the Immediate instruction header, written via pointer offset.
+JIT hot-path injection is handled by the separate type `FluxJITInjector<TData>`; see [JIT Injector](./jit-injector.md).
 
 ## Core Data Structure
 
 ```csharp
-internal unsafe struct FluxInjector<TData> where TData : unmanaged
+internal readonly struct FluxInjector<TData> where TData : unmanaged
 {
-    private readonly Instruction[] _buffer;        // bytecode buffer (shared reference)
-    private readonly int[] _offsets;               // interpreter mode: Immediate offsets in buffer
-    private readonly FluxFormula.VariableSlot[] _variableSlots; // variable name → position mapping
-    private readonly int _slotsPerData;            // Instruction slots occupied per TData
+    private readonly Instruction[] _buffer;         // bytecode buffer (shared reference)
+    private readonly int[] _offsets;                // Immediate offsets in the buffer
+    private readonly int _slotsPerData;             // Instruction slots occupied per TData
+
+    // Variable lookup: parallel arrays, binary search, zero GC
+    private readonly string[] _varNames;            // unique variable names (dictionary order)
+    private readonly int[][] _varSlotIndexes;       // per-name SlotIndex groups
+    private readonly int _varCount;                 // unique variable count
+
+    // Value readback: indexed by SlotIndex, written by Set/SetIndex, read by GetValue
+    private readonly TData[] _values;
 }
 ```
 
-`_buffer` is a shared reference — FluxInjector does not own the buffer; it only holds a reference and writes to it. This avoids copying, but also means multiple FluxInstances cannot concurrently operate on the same buffer (not a concern in Unity's main thread context).
+Variable name lookup uses **parallel arrays `_varNames[]` + `_varSlotIndexes[][]`**. Each group of identically-named variables is stored as an `int[]` array in `_varSlotIndexes`; a single `Set` call overwrites all occurrences. `_values[]` stores values by SlotIndex; `GetValue()` provides O(1) readback, used by chain evaluation's `BuildLinkBuffer`.
 
-## SetByIndex — Index-Based Injection
+## SetIndex: Index-Based Injection
 
 ```csharp
-public FluxInjector<TData> SetIndex(int paramIndex, TData value)
+internal readonly FluxInjector<TData> SetIndex(int paramIndex, TData value)
 {
-    int offset;
-    if (_offsets == null)  // JIT mode
-    {
-        offset = paramIndex * _slotsPerData;
-    }
-    else                   // Interpreter mode
-    {
-        offset = _offsets[paramIndex];
-    }
+    // Value readback (BuildLinkBuffer depends on this array during chain evaluation)
+    if (_values != null && paramIndex < _values.Length)
+        _values[paramIndex] = value;
 
-    fixed (Instruction* pBase = _buffer)
+    if (paramIndex < 0 || paramIndex >= _offsets.Length)
+        throw new IndexOutOfRangeException(
+            $"Parameter index {paramIndex} is out of bounds.");
+
+    int offset = _offsets[paramIndex];
+    unsafe
     {
-        *(TData*)(pBase + offset) = value;  // pointer reinterpretation write
+        fixed (Instruction* pBase = _buffer)
+            *(TData*)(pBase + offset) = value;
     }
     return this;
 }
@@ -57,64 +53,86 @@ Key details:
 - `*(TData*)(pBase + offset)` reinterprets the address of the Instruction slot as a TData pointer and writes directly. No memcpy, no boxing.
 - Returns `this` to enable fluent chaining.
 
-## SetByName — Named Variable Injection
+The JIT hot path uses [FluxJITInjector](./jit-injector.md) (2 fields, zero branches) instead of this method.
 
-`Set(name, value)` needs to map a variable name to paramIndex. This is the most technically interesting part of the injector.
+## Set: Named Variable Injection
 
-### Why Not a Dictionary?
+`Set(name, value)` maps a variable name to SlotIndex. This is the most technically interesting part of the injector.
 
-The standard C# approach would be `Dictionary<string, int>` for name → index mapping. FluxFormula does not use this because:
+### Why Not a Dictionary
+
+The standard C# approach would use `Dictionary<string, int>` for name-to-index mapping. FluxFormula does not use this because:
 
 1. **Dictionary is a heap-allocated type**. Even with a cached Dictionary instance, each lookup incurs virtual dispatch overhead.
-2. **Variable names are fixed after compilation**. VariableSlots are sorted in lexicographic order at compile time, naturally supporting binary search.
-3. **Variable counts are typically small**. Game formulas usually have 2–20 variables. Inline binary search has a better constant factor than Dictionary at these scales.
+2. **Variable names are fixed after compilation**. VariableSlots are sorted in dictionary order at compile time, naturally supporting binary search.
+3. **Variable counts are typically small**. Game formulas usually have 2-20 variables. Inline binary search has a better constant factor than Dictionary at these scales.
 
 ### Implementation: Inline Binary Search
 
 ```csharp
-public FluxInjector<TData> Set(string name, TData value)
+internal readonly FluxInjector<TData> Set(string name, TData value)
 {
-    // Binary search for variable name in VariableSlots
-    int lo = 0, hi = _variableSlots.Length - 1;
+    int lo = 0, hi = _varCount - 1;
     while (lo <= hi)
     {
-        int mid = (lo + hi) / 2;
-        int cmp = string.CompareOrdinal(name, _variableSlots[mid].Name);
+        int mid = lo + (hi - lo) / 2;
+        int cmp = string.CompareOrdinal(_varNames[mid], name);
         if (cmp == 0)
         {
-            // Found: batch-update all occurrences of this variable name
-            int slotIndex = _variableSlots[mid].SlotIndex;
-            // ... update all positions corresponding to slotIndex
+            int[] slotIndexes = _varSlotIndexes[mid];
+            for (int i = 0; i < slotIndexes.Length; i++)
+            {
+                int si = slotIndexes[i];
+                if (_values != null && si < _values.Length)
+                    _values[si] = value;
+
+                int offset = _offsets[si];
+                unsafe
+                {
+                    fixed (Instruction* pBase = _buffer)
+                        *(TData*)(pBase + offset) = value;
+                }
+            }
             return this;
         }
-        if (cmp < 0) hi = mid - 1;
-        else lo = mid + 1;
+        if (cmp < 0) lo = mid + 1;
+        else         hi = mid - 1;
     }
-    throw new ArgumentException($"Variable '{name}' not found.");
+    throw new ArgumentException($"Variable '{name}' is not defined in this formula.");
 }
 ```
 
-Notable design choices:
+- **`string.CompareOrdinal`**: ordinal comparison avoids culture-sensitive sorting.
+- **All occurrences of the same variable name are updated simultaneously**: via `_varSlotIndexes[mid]` (`int[]` array), iterating all positions in one pass.
+- **Safe midpoint calculation**: `lo + (hi - lo) / 2` avoids integer overflow.
+- **`_values` write-back**: every overwritten position also updates `_values[si]` for O(1) `GetValue()` readback.
 
-- **`string.CompareOrdinal`** rather than `CompareTo`. Ordinal comparison avoids culture-sensitive sorting, is faster, and has consistent behavior.
-- **All occurrences of the same variable name are updated simultaneously**. A variable name can appear multiple times in a formula (e.g., `[atk] * 2 + [atk]`); all occurrences share a single SlotIndex. One Set overwrites all positions.
-- **Sorting happens at compile time**. FluxCompiler sorts VariableSlots by Name during compilation; zero sorting cost at runtime.
+### Sorting Strategy: Dedup + Sort at Construction
 
-### Sorting Strategy: Parallel Arrays
+FluxInjector builds the lookup table from `VariableSlot[]` at runtime:
 
-FluxCompiler maintains two parallel arrays:
-- `List<string> varNames`: variable names
-- `List<int> varPositions`: corresponding positions in Instruction[]
+1. Iterate `varSlots` to deduplicate and count unique variable names
+2. Create an `int[]` array per unique name collecting all `SlotIndex` values
+3. Jointly sort by name in dictionary order via `Array.Sort(_varNames, _varSlotIndexes, ...)`
+4. At lookup time, binary-search `_varNames[]`; on hit, iterate `_varSlotIndexes[mid]` to update all slots
 
-After compilation, both are jointly sorted by variable name (any stable sort algorithm works). Entries with the same variable name cluster together after sorting. They are then compressed into VariableSlot[], with adjacent same-name entries merged into a single record.
+Sorting happens once at Injector construction; every subsequent `Set` call is allocation-free.
 
-This "parallel arrays + sort + compress" strategy is more GC-friendly than Dictionary: sorting happens on the compiler's mutable Lists; the final product VariableSlot[] is a compact read-only array.
+## TrySet: Silent Injection
 
-## JIT Mode Special Handling
+```csharp
+public FluxInjector<TData> TrySet(string name, TData value)
+```
 
-In JIT mode, `_offsets` is null and offsets are computed as `paramIndex * _slotsPerData`. This means the JIT payload must arrange TData strictly in paramIndex order with no gaps.
+Same injection logic as `Set`, but silently skips when the variable name does not exist instead of throwing. Suitable for VFF override application: a mod may reference variable names from the base game that do not exist in the mod's own link. Callers need not know each link's variable signature in advance.
 
-The JIT compiler determines the paramIndex-to-payload-position mapping at `Compile()` time. It generates an Expression Tree that is independent of variable count — variable values are read from the payload at runtime via `GetData<TData>(buffer, index)`.
+## GetValue: Value Readback
+
+```csharp
+public TData GetValue(int slotIndex)
+```
+
+Reads the value at the given SlotIndex from the `_values` array in O(1) time. The chain interpreter's `BuildLinkBuffer` relies on this method to obtain upstream link output values (propagated via the R1 Bus register).
 
 ## Pointer Write Safety
 
@@ -128,8 +146,10 @@ fixed (Instruction* pBase = _buffer)
 The safety of this write is guaranteed by:
 - The `TData : unmanaged` constraint ensures the type can be safely accessed via pointer
 - `sizeof(TData)` varies, but `_slotsPerData = (sizeof(TData) + 7) / 8` guarantees sufficient Instruction slots
-- Bounds checking is performed at the `SetIndex` entry point (though extreme values lack overflow protection; see [Technical Analysis](../technical-analysis.md#27-fluxinjectorcs))
+- Bounds checking is performed at the `SetIndex` entry point (though extreme values lack overflow protection; see [Technical Analysis](../technical-analysis.md))
 
-## Next Steps
+## References
 
-- [Pipeline Overview](./overview.md) — back to pipeline overview
+- [JIT Injector](./jit-injector.md) -- FluxJITInjector hot-path injector (v5.7.1 split)
+- [Curry Evaluator](./curry-evaluator.md) -- gradual injection evaluation
+- [Pipeline Overview](./overview.md) -- back to pipeline overview

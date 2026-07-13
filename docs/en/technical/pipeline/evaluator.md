@@ -2,6 +2,8 @@
 
 `FluxEvaluator<TData, TDef>` is a stack-based bytecode interpreter. Core design question: **how to execute bytecode entirely on the stack (outside the managed heap), achieving 27ns single-evaluation latency?**
 
+FluxFormula has three evaluator variants sharing the same register machine execution core, differing only in suspension strategy. For variants beyond the hot path, see [Curry Evaluator](./curry-evaluator.md).
+
 ## Zero-Allocation Execution Stack
 
 ```csharp

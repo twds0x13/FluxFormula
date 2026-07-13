@@ -1,12 +1,12 @@
 # Test Coverage Boundary
 
-> Current baseline: **97.7% line coverage** (500 tests, 0 failures consistently). The remaining uncovered lines are concentrated in compiler/evaluator defensive code paths.
+> Current baseline: **97.5% line coverage** (725 tests, 0 failures). The remaining uncovered lines are concentrated in compiler/evaluator defensive code paths.
 
 ## Current Baseline
 
 ```
-Line coverage:    97.7%  (8083 / 8276)
-Test count:       500    (0 failures; 1 known flaky VffFormat test order pollution)
+Line coverage:    97.5%  (9250 / 9492)
+Test count:       725    (0 failures, 0 skipped)
 ```
 
 The following describes uncovered code by category: the nature of the uncovered code, the reason it is uncovered, and the impact on users.
