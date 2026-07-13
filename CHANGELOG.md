@@ -1,3 +1,9 @@
+## [5.12.1](https://github.com/twds0x13/FluxFormula/compare/v5.12.0...v5.12.1) (2026-07-13)
+
+### Bug Fixes
+
+* **ci:** restore coverage collection and use dynamic Codecov badge ([0a43ecb](https://github.com/twds0x13/FluxFormula/commit/0a43ecb1d498a65db269e3a9cd2e0e9cb7db3cfd))
+
 ## [5.12.0](https://github.com/twds0x13/FluxFormula/compare/v5.11.0...v5.12.0) (2026-07-10)
 
 ### Features
