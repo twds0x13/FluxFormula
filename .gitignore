@@ -21,9 +21,57 @@ node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 
-# ===== AI / Claude (local only) =====
-CLAUDE.md
-.claude/settings.local.json
+# ===== AI Coding Tools (local state, personal config, session files) =====
+# These are per-developer files that should never enter version control.
+# Project-level AI instructions (CLAUDE.md, .cursorrules, .github/copilot-instructions.md)
+# may be intentionally committed — this section only excludes local/personal state.
+
+# Claude Code (Anthropic)
+CLAUDE.md                     # project rules, kept per-developer
+.claude/                      # settings.json, worktrees/, scheduled_tasks.json, session transcripts
+
+# Cursor
+.cursor/                      # local IDE state, personal settings
+
+# OpenAI Codex CLI
+.codex/                       # local state, personal config
+codex.yaml                    # personal override (project config uses codex.json or codex.yml)
+
+# GitHub Copilot
+.copilot/                     # local agent state
+
+# Aider
+.aider/                       # local state, chat history, tags cache
+.aider.chat.history.md
+.aider.input.history
+
+# Continue.dev
+.continue/                    # local config overrides
+
+# Windsurf
+.windsurf/                    # local IDE state
+
+# Amazon Q Developer
+.amazonq/                     # local state
+
+# Sourcegraph Cody
+.cody/                        # local state
+
+# Cline (VS Code)
+.cline/                       # local state
+
+# Augment Code
+.augment/                     # local state
+
+# Google Gemini CLI
+.gemini/                      # local state
+
+# Tabby
+.tabby/                       # local agent state
+
+# Common AI session/scratch files
+*.session.md                  # AI-generated session notes
+*.scratch.md                  # AI scratch files
 
 # Source generator build artifacts
 packages/fluxformula.core/SourceGenerator/bin/
