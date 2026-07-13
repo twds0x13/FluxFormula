@@ -130,6 +130,9 @@ namespace FluxFormula.LiteralScanner.Generator
                 case OptionalBlockNode opt:
                     EmitOptionalBlock(sb, opt, structTypeName, dependencyGraph, indent);
                     break;
+                case RepetitionNode rep:
+                    EmitRepetitionBlock(sb, rep, structTypeName, dependencyGraph, indent);
+                    break;
             }
         }
 
@@ -182,27 +185,33 @@ namespace FluxFormula.LiteralScanner.Generator
                 string scannerMethod = $"Scan_{char.ToUpperInvariant(resolvedType[0])}{resolvedType.Substring(1)}";
                 string csharpType = resolvedType.ToLowerInvariant();
                 string aliasNote = resolvedType != typeAlias ? $" (alias→{resolvedType})" : "";
+                string preVar = GetUniqueVar("pre");
 
                 sb.AppendLine($"{indent}// <{typeAlias} {fieldName}>{aliasNote}");
+                sb.AppendLine($"{indent}int {preVar} = pos;");
                 sb.AppendLine($"{indent}pos = LiteralTemplateRegistry.{scannerMethod}(src, pos, out {csharpType} {localVar});");
-                sb.AppendLine($"{indent}if (pos == start) {fail}");
+                sb.AppendLine($"{indent}if (pos == {preVar}) {fail}");
                 sb.AppendLine($"{indent}value.{fieldName} = {localVar};");
             }
             else if (_enumTags.TryGetValue(typeAlias, out var tags))
             {
                 // 枚举标签类型: 生成 switch-on-string 扫描
+                string preVar = GetUniqueVar("pre");
                 sb.AppendLine($"{indent}// <{typeAlias} {fieldName}> (enum tag)");
+                sb.AppendLine($"{indent}int {preVar} = pos;");
                 sb.AppendLine($"{indent}pos = Scan_Enum_{typeAlias}(src, pos, out {typeAlias} {localVar});");
-                sb.AppendLine($"{indent}if (pos == start) {fail}");
+                sb.AppendLine($"{indent}if (pos == {preVar}) {fail}");
                 sb.AppendLine($"{indent}value.{fieldName} = {localVar};");
             }
             else
             {
                 if (dependencyGraph.TryGetValue(typeAlias, out string depMethod))
                 {
+                    string preVar = GetUniqueVar("pre");
                     sb.AppendLine($"{indent}// <{typeAlias} {fieldName}> (nested)");
+                    sb.AppendLine($"{indent}int {preVar} = pos;");
                     sb.AppendLine($"{indent}pos = {depMethod}(src, pos, out {typeAlias} {localVar});");
-                    sb.AppendLine($"{indent}if (pos == start) {fail}");
+                    sb.AppendLine($"{indent}if (pos == {preVar}) {fail}");
                     sb.AppendLine($"{indent}value.{fieldName} = {localVar};");
                 }
                 else
@@ -238,9 +247,37 @@ namespace FluxFormula.LiteralScanner.Generator
             return sb.ToString();
         }
 
-        // ── 可选块 ────────────────────────────────────
+        // ── 重复块 ────────────────────────────────────
+
+        private static int _repCounter;
+
+        private static void EmitRepetitionBlock(
+            StringBuilder sb, RepetitionNode rep, string structTypeName,
+            Dictionary<string, string> dependencyGraph, string indent)
+        {
+            if (rep.Body.Count == 0) return;
+
+            int id = _repCounter++;
+            string failLabel = $"repFail_{id}";
+            string innerIndent = indent + "    ";
+
+            sb.AppendLine($"{indent}// <repetition>");
+            sb.AppendLine($"{indent}while (true)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{innerIndent}int saved_{id} = pos;");
+            EmitNodeList(sb, rep.Body, structTypeName, dependencyGraph, innerIndent, failLabel);
+            sb.AppendLine($"{innerIndent}continue;");
+            sb.AppendLine($"{innerIndent}{failLabel}:");
+            sb.AppendLine($"{innerIndent}    pos = saved_{id};");
+            sb.AppendLine($"{innerIndent}    break;");
+            sb.AppendLine($"{indent}}}");
+            sb.AppendLine($"{indent}// </repetition>");
+            sb.AppendLine();
+        }
 
         private static int _optCounter;
+
+        // ── 可选块 ────────────────────────────────────
 
         private static void EmitOptionalBlock(
             StringBuilder sb, OptionalBlockNode opt, string structTypeName,

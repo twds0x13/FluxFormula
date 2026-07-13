@@ -33,6 +33,13 @@ namespace FluxFormula.LiteralScanner.Generator
         public override string ToString() => $"Optional({Body.Count} children)";
     }
 
+    internal sealed class RepetitionNode : TemplateNode
+    {
+        public List<TemplateNode> Body { get; }
+        public RepetitionNode(List<TemplateNode> body) => Body = body;
+        public override string ToString() => $"Repetition({Body.Count} children)";
+    }
+
     // ═══════════════════════════════════════════════════════
     // XML → AST 解析器
     // ═══════════════════════════════════════════════════════
@@ -47,6 +54,7 @@ namespace FluxFormula.LiteralScanner.Generator
         private static readonly XName FieldName = "field";
         private static readonly XName TextName  = "text";
         private static readonly XName OptName   = "optional";
+        private static readonly XName RepName   = "repetition";
 
         /// <summary>XML 字符串 → AST 节点列表</summary>
         public static List<TemplateNode> Parse(string xml)
@@ -83,6 +91,10 @@ namespace FluxFormula.LiteralScanner.Generator
                 else if (child.Name == OptName)
                 {
                     nodes.Add(new OptionalBlockNode(ParseChildren(child)));
+                }
+                else if (child.Name == RepName)
+                {
+                    nodes.Add(new RepetitionNode(ParseChildren(child)));
                 }
                 else
                 {

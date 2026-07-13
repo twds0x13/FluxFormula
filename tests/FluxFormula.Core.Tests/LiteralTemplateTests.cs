@@ -119,6 +119,29 @@ public struct Team
     public Entity Member;
 }
 
+/// <summary>带 repetition 的变长数组模板（XML 格式）</summary>
+[LiteralTemplate(@"
+  <literal-template>
+    <field type=""float"" name=""Damage""/>
+    <repetition>
+      <text>, </text>
+      <field type=""float"" name=""Multipliers""/>
+    </repetition>
+  </literal-template>")]
+public struct DamageWithMultipliers
+{
+    public float Damage;
+    public float Multipliers;
+}
+
+/// <summary>带 repetition 的变长数组模板（紧凑语法）</summary>
+[LiteralTemplate("<float Damage><repetition>, <float Multipliers></repetition>")]
+public struct DamageCompact
+{
+    public float Damage;
+    public float Multipliers;
+}
+
 // ═══════════════════════════════════════════════════════
 // 测试
 // ═══════════════════════════════════════════════════════
@@ -520,6 +543,82 @@ public class LiteralTemplateTests
     }
 
     [Test]
+    public void ScanLong_WithLSuffix()
+    {
+        long val;
+        int end = LiteralTemplateRegistry.Scan_Long("123L ", 0, out val);
+        Assert.That(end, Is.EqualTo(4)); // position includes 'L' suffix
+        Assert.That(val, Is.EqualTo(123L));
+    }
+
+    [Test]
+    public void ScanUlong_WithUlSuffix()
+    {
+        ulong val;
+        int end = LiteralTemplateRegistry.Scan_Ulong("456UL ", 0, out val);
+        Assert.That(end, Is.EqualTo(5)); // position includes 'UL' suffix
+        Assert.That(val, Is.EqualTo(456uL));
+    }
+
+    [Test]
+    public void ScanUlong_WithLowercaseSuffix()
+    {
+        ulong val;
+        int end = LiteralTemplateRegistry.Scan_Ulong("78ul ", 0, out val);
+        Assert.That(end, Is.EqualTo(4));
+        Assert.That(val, Is.EqualTo(78uL));
+    }
+
+    [Test]
+    public void ScanLong_EmptyInput_ReturnsPos()
+    {
+        long val;
+        int end = LiteralTemplateRegistry.Scan_Long("", 0, out val);
+        Assert.That(end, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ScanUlong_EmptyInput_ReturnsPos()
+    {
+        ulong val;
+        int end = LiteralTemplateRegistry.Scan_Ulong("", 0, out val);
+        Assert.That(end, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ScanFloat_PointWithoutDigit_ReturnsStart()
+    {
+        float val;
+        int end = LiteralTemplateRegistry.Scan_Float("3.", 0, out val);
+        Assert.That(end, Is.EqualTo(0)); // '.' not followed by digit
+    }
+
+    [Test]
+    public void ScanDouble_EWithoutDigit_ReturnsStart()
+    {
+        double val;
+        int end = LiteralTemplateRegistry.Scan_Double("1e", 0, out val);
+        Assert.That(end, Is.EqualTo(0)); // 'e' not followed by digit
+    }
+
+    [Test]
+    public void ScanInt_SignOnly_ReturnsStart()
+    {
+        int val;
+        int end = LiteralTemplateRegistry.Scan_Int("+", 0, out val);
+        Assert.That(end, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ScanBool_True()
+    {
+        bool val;
+        int end = LiteralTemplateRegistry.Scan_Bool("true", 0, out val);
+        Assert.That(end, Is.EqualTo(4));
+        Assert.That(val, Is.True);
+    }
+
+    [Test]
     public void ScanBool_NoMatch()
     {
         bool val;
@@ -615,6 +714,64 @@ public class LiteralTemplateTests
         Assert.Pass("FLX002 verified via build output — see compilation errors above.");
     }
 
+    // ── DamageWithMultipliers: repetition ────────────
+
+    [Test]
+    public void Repetition_CompactSyntax_EquivalentToXml()
+    {
+        // 紧凑语法 "<float Damage><repetition>, <float Multipliers></repetition>"
+        // 等效于 XML 版本
+        var lexer = CreateDamageCompactLexer();
+        var result = lexer.Lex("42, 1.5, 2.0");
+        Assert.That(result.Tokens.Length, Is.EqualTo(1));
+        Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(42f).Within(1e-5f));
+        Assert.That(result.Tokens[0].Data.Multipliers, Is.EqualTo(2.0f).Within(1e-5f));
+    }
+
+    [Test]
+    public void Repetition_ZeroExtraElements()
+    {
+        // 模板: <float Damage><repetition><text>, </text><float Multipliers></repetition>
+        // repetition 找不到 ", " → break
+        var lexer = CreateDamageMultipliersLexer();
+        var result = lexer.Lex("42");
+        Assert.That(result.Tokens.Length, Is.EqualTo(1));
+        Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(42f).Within(1e-5f));
+        Assert.That(result.Tokens[0].Data.Multipliers, Is.EqualTo(0f));
+    }
+
+    [Test]
+    public void Repetition_OneExtraElement()
+    {
+        // repetition 内 ", " + float 匹配一次
+        var lexer = CreateDamageMultipliersLexer();
+        var result = lexer.Lex("42, 1.5");
+        Assert.That(result.Tokens.Length, Is.EqualTo(1));
+        Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(42f).Within(1e-5f));
+        Assert.That(result.Tokens[0].Data.Multipliers, Is.EqualTo(1.5f).Within(1e-5f));
+    }
+
+    [Test]
+    public void Repetition_MultipleExtraElements()
+    {
+        // repetition 迭代 3 次，最后一次写入 Multipliers=3.5
+        // 剩余 " + 100" 产生 2 个额外 token: op "+" + literal "100"
+        var lexer = CreateDamageMultipliersLexer();
+        var result = lexer.Lex("42, 1.5, 2.0, 3.5 + 100");
+        Assert.That(result.Tokens.Length, Is.EqualTo(3));
+        Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(42f).Within(1e-5f));
+        Assert.That(result.Tokens[0].Data.Multipliers, Is.EqualTo(3.5f).Within(1e-5f));
+    }
+
+    [Test]
+    public void Repetition_NoMatch_ThrowsFormatException()
+    {
+        var lexer = CreateDamageMultipliersLexer();
+        // "hello" 不匹配模板中的任何部分
+        Assert.That(() => lexer.Lex("hello"),
+            Throws.TypeOf<FormatException>());
+    }
+
     // ═══════════════════════════════════════════════════════
     // Helper methods
     // ═══════════════════════════════════════════════════════
@@ -667,5 +824,25 @@ public class LiteralTemplateTests
             Operators = { new("+", 1) },
         };
         return new FluxLexer<Team>(config);
+    }
+
+    private static FluxLexer<DamageWithMultipliers> CreateDamageMultipliersLexer()
+    {
+        var config = new LexerConfig<DamageWithMultipliers>
+        {
+            LiteralOper = 0,
+            Operators = { new("+", 1), new("-", 2) },
+        };
+        return new FluxLexer<DamageWithMultipliers>(config);
+    }
+
+    private static FluxLexer<DamageCompact> CreateDamageCompactLexer()
+    {
+        var config = new LexerConfig<DamageCompact>
+        {
+            LiteralOper = 0,
+            Operators = { new("+", 1), new("-", 2) },
+        };
+        return new FluxLexer<DamageCompact>(config);
     }
 }

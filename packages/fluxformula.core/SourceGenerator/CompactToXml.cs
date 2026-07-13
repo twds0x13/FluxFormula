@@ -57,13 +57,21 @@ namespace FluxFormula.LiteralScanner.Generator
                     {
                         sb.Append("</optional>");
                     }
+                    else if (trimmed == "repetition")
+                    {
+                        sb.Append("<repetition>");
+                    }
+                    else if (trimmed == "/repetition")
+                    {
+                        sb.Append("</repetition>");
+                    }
                     else
                     {
                         // <type fieldname> → <field type="type" name="fieldname"/>
                         int spaceIdx = trimmed.IndexOf(' ');
                         if (spaceIdx < 0)
                             throw new FormatException(
-                                $"Invalid directive '<{trimmed}>'. Expected '<type fieldname>' or '<optional>'.");
+                                $"Invalid directive '<{trimmed}>'. Expected '<type fieldname>', '<optional>', or '<repetition>'.");
 
                         string typeAlias = trimmed.Substring(0, spaceIdx);
                         string fieldName = trimmed.Substring(spaceIdx + 1).Trim();

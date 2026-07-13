@@ -80,4 +80,65 @@ public unsafe class FluxInjectorTests
             () => injector.SetIndex(999, 1.0f));
         Assert.That(ex.Message, Does.Contain("out of bounds"));
     }
+
+    // ═══════════════════════════════════════════════════════
+    // TrySet — 静默注入（解释器路径）
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void TrySet_ValidName_ThroughInstance()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
+            .Compile(lexer.Lex("[x] + [y]"));
+        var inst = new FluxAssembler<float, FloatMathDef>(Def)
+            .Instantiate(f).TrySet("x", 7f).TrySet("y", 3f);
+        Assert.That(inst.Run(), Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void TrySet_UnknownVariable_ReturnsSelf()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
+            .Compile(lexer.Lex("[x] + [y]"));
+        var inst = new FluxAssembler<float, FloatMathDef>(Def)
+            .Instantiate(f).TrySet("z", 99f);
+        // 变量不存在，静默跳过
+        Assert.That(inst.Run(), Is.EqualTo(0f).Within(1e-6f));
+    }
+
+    [Test]
+    public void TrySet_Chain_MixedWithSet()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
+            .Compile(lexer.Lex("[a] + [b] + [c]"));
+        // TrySet + Set 混合链式调用
+        var inst = new FluxAssembler<float, FloatMathDef>(Def)
+            .Instantiate(f).Set("a", 1f).TrySet("x", 999f).Set("b", 2f).TrySet("c", 3f);
+        Assert.That(inst.Run(), Is.EqualTo(6f).Within(1e-6f));
+    }
+
+    [Test]
+    public void TrySet_JIT_ValidVariable_WritesValue()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
+            .Compile(lexer.Lex("[x] + [y]"));
+        var inst = new FluxAssembler<float, FloatMathDef>(Def)
+            .Instantiate(f, jit: true).TrySet("x", 10f).TrySet("y", 5f);
+        Assert.That(inst.Run(), Is.EqualTo(15f).Within(1e-6f));
+    }
+
+    [Test]
+    public void TrySet_JIT_UnknownVariable_ReturnsSelf()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var f = new FluxAssembler<float, FloatMathDef>(Def)
+            .Compile(lexer.Lex("[x] + [y]"));
+        var inst = new FluxAssembler<float, FloatMathDef>(Def)
+            .Instantiate(f, jit: true).TrySet("z", 99f);
+        Assert.That(inst.Run(), Is.EqualTo(0f).Within(1e-6f));
+    }
 }

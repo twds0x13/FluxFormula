@@ -394,6 +394,9 @@ namespace FluxFormula.LiteralScanner.Generator
                 else if (node is OptionalBlockNode opt)
                     foreach (var r in FindFieldTypeReferences(opt.Body))
                         refs.Add(r);
+                else if (node is RepetitionNode rep)
+                    foreach (var r in FindFieldTypeReferences(rep.Body))
+                        refs.Add(r);
             }
             return refs;
         }

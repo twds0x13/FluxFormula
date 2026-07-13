@@ -254,4 +254,122 @@ public class CurryEvaluatorTests
         Assert.That(branch1.Result, Is.EqualTo(20f).Within(1e-6f));
         Assert.That(branch2.Result, Is.EqualTo(15f).Within(1e-6f));
     }
+
+    // ═══════════════════════════════════════════════════════
+    // TryBind — 静默注入，不抛异常
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void TryBind_ByName_ValidName_WritesValue()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[x] + [y]"));
+
+        var curry = runner.Curry(formula)
+            .TryBind("x", 3f)
+            .TryBind("y", 7f);
+
+        Assert.That(curry.IsCompleted, Is.True);
+        Assert.That(curry.Result, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void TryBind_ByName_NotFound_ReturnsSelf()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[x] + [y]"));
+
+        // 不存在的变量名，静默返回自己
+        var curry = runner.Curry(formula).TryBind("z", 99f);
+        Assert.That(curry.IsCompleted, Is.False);
+        Assert.That(curry.BoundCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TryBind_ByName_AlreadyBound_ReturnsSelf()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[x] + [y]"));
+
+        var curry = runner.Curry(formula).Bind("x", 5f);
+        // 重复绑定同一变量，静默返回
+        var unchanged = curry.TryBind("x", 99f);
+        Assert.That(unchanged.BoundCount, Is.EqualTo(1));
+        // 值未被覆盖
+        var complete = unchanged.TryBind("y", 3f);
+        Assert.That(complete.Result, Is.EqualTo(8f).Within(1e-6f), "5+3=8, x 应保持 5");
+    }
+
+    [Test]
+    public void TryBind_Params_SingleVariable_ReturnsCorrectResult()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[x] + 1"));
+
+        var curry = runner.Curry(formula).TryBind(3f);
+        Assert.That(curry.IsCompleted, Is.True);
+        Assert.That(curry.Result, Is.EqualTo(4f).Within(1e-6f));
+    }
+
+    [Test]
+    public void TryBind_Params_MultipleVariables_ReturnsCorrectResult()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[a] * [b] + [c]"));
+
+        var curry = runner.Curry(formula).TryBind(2f, 3f, 4f);
+        Assert.That(curry.IsCompleted, Is.True);
+        Assert.That(curry.Result, Is.EqualTo(10f).Within(1e-6f), "2*3+4=10");
+    }
+
+    [Test]
+    public void TryBind_Params_ExcessValues_Clamped()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[x]"));
+
+        // 只有 1 个变量，bind 5 个值——多余的被忽略
+        var curry = runner.Curry(formula).TryBind(1f, 2f, 3f, 4f, 5f);
+        Assert.That(curry.Result, Is.EqualTo(1f).Within(1e-6f));
+    }
+
+    [Test]
+    public void TryBind_ByName_ThenTryBindParams_MixedOrder()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[a] * [b] + [c]"));
+
+        var curry = runner.Curry(formula)
+            .TryBind("c", 4f)
+            .TryBind(2f, 3f); // 顺序填充 a, b
+
+        Assert.That(curry.IsCompleted, Is.True);
+        Assert.That(curry.Result, Is.EqualTo(10f).Within(1e-6f));
+    }
+
+    [Test]
+    public void TryBind_Forking_ProducesIndependentResults()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[a] * [b]"));
+
+        var base_ = runner.Curry(formula).TryBind("a", 3f);
+
+        var branch1 = base_.TryBind("b", 4f);
+        Assert.That(branch1.Result, Is.EqualTo(12f).Within(1e-6f));
+
+        var branch2 = base_.TryBind("b", 7f);
+        Assert.That(branch2.Result, Is.EqualTo(21f).Within(1e-6f));
+
+        // base_ 不受影响
+        Assert.That(base_.BoundCount, Is.EqualTo(1));
+    }
 }
