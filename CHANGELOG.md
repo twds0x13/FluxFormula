@@ -1,3 +1,9 @@
+## [5.12.2](https://github.com/twds0x13/FluxFormula/compare/v5.12.1...v5.12.2) (2026-07-13)
+
+### Bug Fixes
+
+* **core:** enum tag scanner silently accepts unknown tags ([43b4108](https://github.com/twds0x13/FluxFormula/commit/43b41082fba460925e97994a2306a1d90f051bbe))
+
 ## [5.12.1](https://github.com/twds0x13/FluxFormula/compare/v5.12.0...v5.12.1) (2026-07-13)
 
 ### Bug Fixes
