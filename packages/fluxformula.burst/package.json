@@ -1,6 +1,6 @@
 {
   "name": "com.twds0x13.fluxformula.burst",
-  "version": "5.12.2",
+  "version": "5.12.3",
   "displayName": "FluxFormula Burst",
   "description": "Unity Jobs + Burst evaluator for FluxFormula — concurrent, allocation-free formula evaluation in worker threads.",
   "unity": "2021.3",

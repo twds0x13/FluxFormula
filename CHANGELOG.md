@@ -1,3 +1,9 @@
+## [5.12.3](https://github.com/twds0x13/FluxFormula/compare/v5.12.2...v5.12.3) (2026-07-13)
+
+### Bug Fixes
+
+* **burst:** sync version from 3.7.0 to 5.12.2 and add to semantic-release pipeline ([2dbeddc](https://github.com/twds0x13/FluxFormula/commit/2dbeddc43d89637ec5e80baa5e5569e6226e4b84))
+
 ## [5.12.2](https://github.com/twds0x13/FluxFormula/compare/v5.12.1...v5.12.2) (2026-07-13)
 
 ### Bug Fixes
