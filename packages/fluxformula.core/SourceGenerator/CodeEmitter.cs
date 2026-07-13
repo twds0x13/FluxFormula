@@ -240,7 +240,7 @@ namespace FluxFormula.LiteralScanner.Generator
             sb.AppendLine("            {");
             foreach (var (member, tag) in tags)
                 sb.AppendLine($"                case \"{tag}\": value = {enumName}.{member}; break;");
-            sb.AppendLine("                default: break;");
+            sb.AppendLine("                default: return start;");
             sb.AppendLine("            }");
             sb.AppendLine("            return pos;");
             sb.AppendLine("        }");

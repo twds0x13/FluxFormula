@@ -5,6 +5,8 @@ using static TestHelper;
 
 // 注册自定义类型别名——模板中可以用 <Distance range> 替代 <float range>
 [assembly: LiteralTypeAlias("Distance", "float")]
+// 为 ExternalPoint 注册外部模板（Priority B：覆盖 [LiteralTemplate]）
+[assembly: ExternalLiteralTemplate(typeof(ExternalPoint), "<float A> <float B>")]
 
 // ═══════════════════════════════════════════════════════
 // 测试用 struct：带 [LiteralTemplate] 标记
@@ -146,8 +148,20 @@ public struct DamageCompact
 // 测试
 // ═══════════════════════════════════════════════════════
 
-// 为 ExternalPoint 注册外部模板（Priority B：覆盖 [LiteralTemplate]）
-[ExternalLiteralTemplate(typeof(ExternalPoint), "<float A> <float B>")]
+// ── 枚举标签类型 ──
+public enum DamageType : byte
+{
+    [LiteralTag("fire")]  Fire,
+    [LiteralTag("ice")]   Ice,
+    [LiteralTag("magic")] Magic,
+}
+
+[LiteralTemplate("<DamageType Type>|<float Power>")]
+public struct TaggedSpell
+{
+    public DamageType Type;
+    public float Power;
+}
 
 public class LiteralTemplateTests
 {
@@ -834,6 +848,35 @@ public class LiteralTemplateTests
             Operators = { new("+", 1), new("-", 2) },
         };
         return new FluxLexer<DamageWithMultipliers>(config);
+    }
+
+    // ── TaggedSpell: 枚举标签扫描 + 未知标签应失败 ──
+
+    [Test]
+    public void TaggedSpell_KnownTag_ParsesCorrectly()
+    {
+        var lexer = CreateTaggedSpellLexer();
+        var result = lexer.Lex("fire|5");
+        Assert.That(result.Tokens.Length, Is.EqualTo(1));
+        Assert.That(result.Tokens[0].Data.Type, Is.EqualTo(DamageType.Fire));
+        Assert.That(result.Tokens[0].Data.Power, Is.EqualTo(5f).Within(1e-5f));
+    }
+
+    [Test]
+    public void TaggedSpell_UnknownTag_ReturnsStart()
+    {
+        Assert.That(LiteralScanners.TryGetScanner<TaggedSpell>(out var scan), Is.True);
+        int r = scan("water|10".AsSpan(), 0, out _);
+        Assert.That(r, Is.EqualTo(0));
+    }
+
+    private static FluxLexer<TaggedSpell> CreateTaggedSpellLexer()
+    {
+        var config = new LexerConfig<TaggedSpell>
+        {
+            LiteralOper = 0,
+        };
+        return new FluxLexer<TaggedSpell>(config);
     }
 
     private static FluxLexer<DamageCompact> CreateDamageCompactLexer()

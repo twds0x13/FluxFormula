@@ -30,6 +30,7 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralScanners.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/ExternalLiteralTemplateAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTypeAliasAttribute.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTagAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/DualHash64.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FormulaCache.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxCacheProvider.cs" />
