@@ -53,7 +53,7 @@ These are compiler/evaluator safety nets — triggered when a new OpType is adde
 
 FluxAssembler has additional lines in the JIT fallback catch block (`PlatformNotSupportedException`/`NotSupportedException`) and the `ResolveBytecodeSpan` cache-hit path. The former requires an AOT platform environment; the latter requires pre-populated `FormulaCache`.
 
-### LiteralTemplateRegistry: 83.8%
+### SerializerRegistry: 83.8%
 
 A source-generator-produced registry. Most logic executes at compile time (incremental generator); only a simple `TryGetScanner` dispatch remains at runtime. Covering the remaining paths would require tests for every built-in type and template variant, with minimal return.
 

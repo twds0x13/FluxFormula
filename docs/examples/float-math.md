@@ -138,6 +138,6 @@ Assert.That(runner.Instantiate(formula).Run(), Is.EqualTo(7f).Within(1e-6f));
 - `OpPair<FloatOp>` → `OpPair`（非泛型）
 - `FluxToken<float, FloatOp>` → `FluxToken<float>`；`Oper` 为 `byte`
 - `FluxAssembler<float, FloatOp, FloatMathDef>` → `FluxAssembler<float, MathDef>`
-- `LexerConfig.LiteralScanner` 委托变为可选：`float` 等内置类型可用 `CreateDefaultNumberScanner`；自定义 struct 推荐 `[LiteralTemplate]`
+- `LexerConfig.LiteralScanner` 委托变为可选：`float` 等内置类型可用 `CreateDefaultNumberScanner`；自定义 struct 推荐 `[Template]`
 
 完整源码见 `tests/FluxFormula.Core.Tests/TestDefinition.cs`。

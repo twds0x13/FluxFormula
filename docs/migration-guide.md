@@ -60,30 +60,30 @@
 
 ### 概述
 
-5.0 移除 `LiteralParser` 和 `LiteralPattern`，引入 source generator 驱动的字面量模板系统。`[LiteralTemplate]` attribute 使编译器自动生成零分配 span 扫描器，`LexerConfig.LiteralScanner` 委托变为可选。
+5.0 移除 `LiteralParser` 和 `LiteralPattern`，引入 source generator 驱动的字面量模板系统。`[Template]` attribute 使编译器自动生成零分配 span 扫描器，`LexerConfig.LiteralScanner` 委托变为可选。
 
 ### Breaking Changes
 
 | 变更 | 4.x 行为 | 5.1 行为 | 迁移 |
 |------|----------|----------|------|
-| `LexerConfig.LiteralParser` | 存在 | 移除 | 使用 `LexerConfig.LiteralScanner` 委托，或为 TData struct 添加 `[LiteralTemplate]` |
-| `LexerConfig.LiteralPattern` | 存在 | 移除 | 由 `[LiteralTemplate]` 的模板字符串替代 |
-| `LexerConfig.LiteralScanner` | 必设字段 | 可选（有 `[LiteralTemplate]` 时自动生成） | 现有手写委托继续有效，无需修改 |
+| `LexerConfig.LiteralParser` | 存在 | 移除 | 使用 `LexerConfig.LiteralScanner` 委托，或为 TData struct 添加 `[Template]` |
+| `LexerConfig.LiteralPattern` | 存在 | 移除 | 由 `[Template]` 的模板字符串替代 |
+| `LexerConfig.LiteralScanner` | 必设字段 | 可选（有 `[Template]` 时自动生成） | 现有手写委托继续有效，无需修改 |
 
 ### 新增
 
-- `[LiteralTemplate("<float X> <float Y>")]` — 在 struct 上标记模板，source generator 编译期生成扫描代码
-- `[ExternalLiteralTemplate(typeof(T), "...")]` — 为第三方无法修改源码的类型注册模板
-- `[LiteralTypeAlias("Alias", "float")]` — 自定义类型别名，纯语法糖
-- `LiteralTemplateRegistry` — 12 种内置类型的 `Scan_Xxx` 零分配解析方法 (float, double, int, uint, long, ulong, short, ushort, byte, sbyte, bool, char)
-- 编译器诊断: FLX001 (模板语法错误), FLX002 (循环依赖), FLX003 (readonly struct 不可用), FLX004 (引用未注册类型)
+- `[Template("<float X> <float Y>")]` — 在 struct 上标记模板，source generator 编译期生成扫描代码
+- `[ExternalTemplate(typeof(T), "...")]` — 为第三方无法修改源码的类型注册模板
+- `[TypeAlias("Alias", "float")]` — 自定义类型别名，纯语法糖
+- `SerializerRegistry` — 12 种内置类型的 `Scan_Xxx` 零分配解析方法 (float, double, int, uint, long, ulong, short, ushort, byte, sbyte, bool, char)
+- 编译器诊断: SSR001 (模板语法错误), SSR002 (循环依赖), SSR003 (readonly struct 不可用), SSR004 (引用未注册类型)
 - `CompactToXml` / `XmlTemplateParser` — 内部模板解析管线
 - `CodeEmitter` — AST → C# 源码发射器
 
 ### 运行时优先级
 
 `FluxLexer<TData>` 构造时按以下顺序选择扫描器:
-1. 生成的 `LiteralScanners.TryGetScanner<TData>()` (有 `[LiteralTemplate]` 时命中)
+1. 生成的 `SerializerScanners.TryGetScanner<TData>()` (有 `[Template]` 时命中)
 2. `config.LiteralScanner` 手动委托 (回退)
 3. 两者都无则抛出 `ArgumentException`
 
@@ -102,7 +102,7 @@
 | 5.2.0 | BlobRegistry 系统：`IFluxBlobRegistry` 接口 + source generator + `FluxBlobScanner` 多 mod 发现。替代旧的 C# byte[] 嵌入方式，.blob 二进制文件零膨胀 | [Blob 注册表](/guide/blob-registry) |
 | 5.4.0 | `FluxCurryEvaluator`：柯里化渐进式绑定，函数式 State→State 分叉 | [分步求值器](/guide/curry-evaluator) |
 | 5.4.0 | `FluxStepEvaluator`：单步调试器，逐指令排查 | [单步调试器](/guide/step-debugger) |
-| 5.7.0 | `[LiteralTag]` attribute：基于枚举标签的字面量扫描 | [字面量扫描器](/guide/literal-scanner) |
+| 5.7.0 | `[Tag]` attribute：基于枚举标签的字面量扫描 | [字面量扫描器](/guide/literal-scanner) |
 | 5.9.0 | 柯里化求值器支持乱序变量绑定（按名称而非注入顺序） | [分步求值器](/guide/curry-evaluator) |
 
 ### 示例
@@ -118,6 +118,39 @@ float result = curry.Result;
 var step = assembler.Instantiate(formula, step: true);
 while (!step.IsCompleted) step = step.Step();
 ```
+
+---
+
+## 从 5.x 迁移到 6.0
+
+### 概述
+
+6.0 将字面量扫描器的 source generator 从自研的 `LiteralScannerGenerator` 替换为独立的 [SourceSerializer](https://github.com/twds0x13/SourceSerializer) v1.2.0 库。属性命名空间从 `FluxFormula.Core` 迁移到 `SourceSerializer`。
+
+### Breaking Changes
+
+| 旧名称 | 新名称 |
+|--------|--------|
+| `[LiteralTemplate("...")]` | `[Template("...")]` |
+| `[LiteralTag("tag")]` | `[Tag("tag")]` |
+| `[LiteralTypeAlias("Alias", "float")]` | `[TypeAlias("Alias", "float")]` |
+| `[ExternalLiteralTemplate(typeof(T), "...")]` | `[ExternalTemplate(typeof(T), "...")]` |
+| `LiteralScanners.TryGetScanner<T>()` | `SerializerScanners.TryGetScanner<T>()` |
+| `LiteralTemplateRegistry.Scan_Xxx` | `SerializerRegistry.Scan_Xxx` |
+| `FluxFormula.LiteralScanner.Generator` (SG 引用) | `SourceSerializer.Generator` |
+
+诊断代码 `FLX001`-`FLX004` 替换为 `SSR001`-`SSR004`。`LexerConfig.LiteralScanner` 委托和 `LiteralScanner<TData>` 类型保持不变。
+
+### 新增功能
+
+| 功能 | 说明 |
+|------|------|
+| `SerializerEmitters.TryGetEmitter<T>()` | 序列化方向：struct 实例写回 `StringBuilder` |
+| `string` 内置类型 | 新增 `string` 作为第 13 种内置类型 |
+| 泛型集合自动解析 | `List<T>` / `Dictionary<K,V>` 字段自动合成解析器 |
+| `[TemplateIgnore]` | 标记字段不参与序列化，阻止 SSR004 错误 |
+| SSR004 Error | 缺失模板依赖从 Warning 升级为 Error |
+| SSR005 Error | 新增：repetition 块内标量字段检测 |
 
 ---
 

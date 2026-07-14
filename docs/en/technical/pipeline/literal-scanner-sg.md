@@ -2,7 +2,7 @@
 
 Its core design question: how to move literal scanning from runtime (hand-written Span loops, reflection, delegates) to compile time, achieving declarative definition and automatic code generation while maintaining zero allocation and type safety.
 
-The answer is a four-layer Source Generator pipeline: developers declare data formats via attributes; the `IIncrementalGenerator` translates them into dedicated C# Span scanners at compile time, injected into the `LiteralScanners` partial class. Zero reflection, zero boxing, zero delegate allocation at runtime.
+The answer is a four-layer Source Generator pipeline: developers declare data formats via attributes; the `IIncrementalGenerator` translates them into dedicated C# Span scanners at compile time, injected into the `SerializerScanners` partial class. Zero reflection, zero boxing, zero delegate allocation at runtime.
 
 ## Four-Layer Pipeline
 
@@ -11,7 +11,7 @@ graph LR
     A[Attribute Declaration] --> B[CompactToXml<br/>Compact Syntax Translator]
     B --> C[XmlTemplateParser<br/>XML to AST]
     C --> D[CodeEmitter<br/>AST to C#]
-    D --> E[LiteralScanners.g.cs]
+    D --> E[SerializerScanners.g.cs]
 ```
 
 ### Layer 1: Attribute Declaration
@@ -20,10 +20,10 @@ Four attributes form the declarative data format definition:
 
 | Attribute | Target | Semantics |
 |-----------|--------|-----------|
-| `[LiteralTemplate("...")]` | struct | Define a literal template for the struct |
-| `[ExternalLiteralTemplate(typeof(X), "...")]` | assembly | Define a template for a third-party type (without modifying the original type) |
-| `[LiteralTypeAlias("Alias", "float")]` | assembly | Custom type alias; templates can use the alias instead of the full type name |
-| `[LiteralTag("tag")]` | enum member | String tag for enum members; auto-generates tag-to-enum scanners |
+| `[Template("...")]` | struct | Define a literal template for the struct |
+| `[ExternalTemplate(typeof(X), "...")]` | assembly | Define a template for a third-party type (without modifying the original type) |
+| `[TypeAlias("Alias", "float")]` | assembly | Custom type alias; templates can use the alias instead of the full type name |
+| `[Tag("tag")]` | enum member | String tag for enum members; auto-generates tag-to-enum scanners |
 
 ### Layer 2: CompactToXml — Compact Syntax Translator
 
@@ -56,7 +56,7 @@ Parses XML templates into an AST node tree. Four node types:
 | `OptionalBlockNode` | `<optional>...</optional>` | Attempts to match inner nodes; rolls back and continues on failure | 0 | 1 |
 | `RepetitionBlockNode` | `<repetition>...</repetition>` | Loops matching until failure; rolls back and exits the loop | 0 | ∞ |
 
-Template dependency graph and topological sort: when struct A's template references struct B, `BuildDependencyGraph` constructs a directed graph, detects circular dependencies (FLX002), and produces a topological ordering. `CodeEmitter` emits code in dependency order (dependents emitted first so they are available to their consumers).
+Template dependency graph and topological sort: when struct A's template references struct B, `BuildDependencyGraph` constructs a directed graph, detects circular dependencies (SSR002), and produces a topological ordering. `CodeEmitter` emits code in dependency order (dependents emitted first so they are available to their consumers).
 
 ### Layer 4: CodeEmitter — AST to C# Source
 
@@ -76,17 +76,17 @@ Generated code is annotated with `[MethodImpl(AggressiveInlining)]` and register
 
 | Pipeline | Input | Filter | Output |
 |----------|-------|--------|--------|
-| A | structs with `[LiteralTemplate]` | `StructDeclarationSyntax` | `StructInfo` (name, fields, template) |
-| B | `[ExternalLiteralTemplate]` | Any syntax node | Same `StructInfo` as Pipeline A |
+| A | structs with `[Template]` | `StructDeclarationSyntax` | `StructInfo` (name, fields, template) |
+| B | `[ExternalTemplate]` | Any syntax node | Same `StructInfo` as Pipeline A |
 | C | `[LiteralTypeAlias]` | assembly-level attribute | Alias mapping |
-| D | enum members with `[LiteralTag]` | `EnumMemberDeclarationSyntax` | tag-to-enum scanner |
+| D | enum members with `[Tag]` | `EnumMemberDeclarationSyntax` | tag-to-enum scanner |
 
 Pipeline B's `ExternalLiteralTemplate` is designed to override Pipeline A: an external template for the same struct name takes priority over the internal one, enabling replacement of third-party type scanners without modifying source code.
 
 ## Generated Output
 
 ```csharp
-// LiteralScanners.g.cs (auto-generated)
+// SerializerScanners.g.cs (auto-generated)
 namespace FluxFormula.Core
 {
     partial class LiteralScanners
@@ -112,16 +112,16 @@ namespace FluxFormula.Core
 
 | Code | Level | Description |
 |------|-------|-------------|
-| FLX001 | Error | Template parse error (syntax error, invalid type name) |
-| FLX002 | Error | Circular template dependency (A references B, B references A) |
-| FLX003 | Error | readonly struct with LiteralTemplate (cannot assign fields) |
-| FLX004 | Warning | Template references a non-built-in type without LiteralTemplate; the field is skipped |
+| SSR001 | Error | Template parse error (syntax error, invalid type name) |
+| SSR002 | Error | Circular template dependency (A references B, B references A) |
+| SSR003 | Error | readonly struct with LiteralTemplate (cannot assign fields) |
+| SSR004 | Warning | Template references a non-built-in type without LiteralTemplate; the field is skipped |
 
 ## Relationship with FluxLexer
 
 `FluxLexer` selects the literal scanner at construction time in priority order:
 
-1. `LiteralScanners.TryGetScanner<TData>()` -- if a `[LiteralTemplate]` definition exists
+1. `SerializerScanners.TryGetScanner<TData>()` -- if a `[Template]` definition exists
 2. `config.LiteralScanner` manual delegate -- callback fallback
 3. Throw `ArgumentException` -- neither available
 

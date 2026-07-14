@@ -125,7 +125,7 @@ readonly struct MathDef : IFluxExprDefinition<float>
 ```
 
 ::: tip LiteralTemplate (v5.0+)
-对于自定义 TData struct，可使用 `[LiteralTemplate]` 在编译期自动生成字面量扫描器，无需手写 `LiteralScanner` 委托。内置 `float` 类型直接通过 `CreateDefaultNumberScanner` 工作。详见[字面量扫描器指南](/guide/literal-scanner)。
+对于自定义 TData struct，可使用 `[Template]` 在编译期自动生成字面量扫描器，无需手写 `LiteralScanner` 委托。内置 `float` 类型直接通过 `CreateDefaultNumberScanner` 工作。详见[字面量扫描器指南](/guide/literal-scanner)。
 :::
 
 ## 第 3 步：配置 Lexer 并解析
@@ -209,7 +209,7 @@ float result  = runner.Instantiate(formula, jit: true).Run();
 
 | v3.0.0 | v5.1.0 |
 |--------|--------|
-| `LiteralScanner` 委托必设 | `[LiteralTemplate]` 生成式扫描器（委托变为可选） |
+| `LiteralScanner` 委托必设 | `[Template]` 生成式扫描器（委托变为可选） |
 | 手动扫描逻辑 | 编译期 source generator 生成 `Scan_Xxx` 方法 |
 
 ## 下一步

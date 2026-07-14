@@ -1,12 +1,12 @@
 # Example: Elemental Damage Formula
 
-Using `[LiteralTemplate]` + `[LiteralTag]` source generator for inline element tag syntax.
+Using `[Template]` + `[Tag]` source generator for inline element tag syntax.
 
 ## Scenario
 
 Elemental damage formulas in games: `[atk] * 2.5:fire + [bonus] - [def]`. `2.5:fire` is a fire-typed multiplier. Magic damage vs. physical defense is true damage: subtraction ignores the right operand when elements differ.
 
-v5.5+ `[LiteralTag]` brings enum labels into the template system, eliminating manual `LiteralScanner` delegates.
+v5.5+ `[Tag]` brings enum labels into the template system, eliminating manual `LiteralScanner` delegates.
 
 ## TData Struct
 
@@ -14,12 +14,12 @@ v5.5+ `[LiteralTag]` brings enum labels into the template system, eliminating ma
 public enum Element : byte
 {
     Physical = 0,
-    [LiteralTag("fire")]  Fire,
-    [LiteralTag("ice")]   Ice,
-    [LiteralTag("magic")] Magic,
+    [Tag("fire")]  Fire,
+    [Tag("ice")]   Ice,
+    [Tag("magic")] Magic,
 }
 
-[LiteralTemplate("<float Amount><optional>:<Element Element></optional>")]
+[Template("<float Amount><optional>:<Element Element></optional>")]
 public struct ElemValue : IEquatable<ElemValue>
 {
     public float Amount;
@@ -53,7 +53,7 @@ public struct ElemValue : IEquatable<ElemValue>
 
 ## Literal Scanning
 
-The `[LiteralTemplate]` + `[LiteralTag]` attributes trigger compile-time code generation.
+The `[Template]` + `[Tag]` attributes trigger compile-time code generation.
 `LexerConfig.LiteralScanner` is not needed. Template `<float Amount><optional>:<Element Element></optional>` recognizes `42`, `1.5:fire`, `-3:ice`.
 
 ## Definition
@@ -137,7 +137,7 @@ public readonly struct ElemDef : IFluxExprDefinition<ElemValue>
 var config = new LexerConfig<ElemValue>
 {
     LiteralOper = (byte)ElemOp.Const,
-    // Scanner auto-injected by [LiteralTemplate] Source Generator
+    // Scanner auto-injected by [Template] Source Generator
     Operators =
     {
         new("+", (byte)ElemOp.Add, slots: new sbyte[] { -1, +1 }),
@@ -168,7 +168,7 @@ var result = runner.Instantiate(f)
 
 ## Key Points
 
-- `[LiteralTemplate]` + `[LiteralTag]` replace manual delegates for `:tag` suffix syntax
+- `[Template]` + `[Tag]` replace manual delegates for `:tag` suffix syntax
 - Mul/Div preserve the multiplier/divisor element type; Add/Sub preserve the left operand element
 - JIT path uses `Expression.Call` to static methods, avoiding verbose `Expression.MemberInit`
 - Full source at `examples/ElemMath/`

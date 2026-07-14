@@ -1,12 +1,12 @@
 # 示例：元素伤害公式
 
-使用 `[LiteralTemplate]` + `[LiteralTag]` Source Generator 实现带元素标签的字面量语法。
+使用 `[Template]` + `[Tag]` Source Generator 实现带元素标签的字面量语法。
 
 ## 场景
 
 游戏中的元素伤害公式: `[atk] * 2.5:fire + [bonus] - [def]`。`2.5:fire` 是一个火元素倍率。纯魔法攻击对纯物理防御是真实伤害：减法中元素不相等则忽略减值。
 
-v5.5+ 的 `[LiteralTag]` 使枚举标签纳入模板系统，无需手写 `LiteralScanner` 委托。
+v5.5+ 的 `[Tag]` 使枚举标签纳入模板系统，无需手写 `LiteralScanner` 委托。
 
 ## TData 结构体
 
@@ -14,12 +14,12 @@ v5.5+ 的 `[LiteralTag]` 使枚举标签纳入模板系统，无需手写 `Liter
 public enum Element : byte
 {
     Physical = 0,
-    [LiteralTag("fire")]  Fire,
-    [LiteralTag("ice")]   Ice,
-    [LiteralTag("magic")] Magic,
+    [Tag("fire")]  Fire,
+    [Tag("ice")]   Ice,
+    [Tag("magic")] Magic,
 }
 
-[LiteralTemplate("<float Amount><optional>:<Element Element></optional>")]
+[Template("<float Amount><optional>:<Element Element></optional>")]
 public struct ElemValue : IEquatable<ElemValue>
 {
     public float Amount;
@@ -53,7 +53,7 @@ public struct ElemValue : IEquatable<ElemValue>
 
 ## 字面量扫描
 
-`[LiteralTemplate]` + `[LiteralTag]` 属性由 Source Generator 在编译期自动生成扫描代码。
+`[Template]` + `[Tag]` 属性由 Source Generator 在编译期自动生成扫描代码。
 `LexerConfig.LiteralScanner` 无需设置。模板 `<float Amount><optional>:<Element Element></optional>` 识别 `42`、`1.5:fire`、`-3:ice`。
 
 ## 定义体
@@ -137,7 +137,7 @@ public readonly struct ElemDef : IFluxExprDefinition<ElemValue>
 var config = new LexerConfig<ElemValue>
 {
     LiteralOper = (byte)ElemOp.Const,
-    // 扫描器由 [LiteralTemplate] Source Generator 自动注入
+    // 扫描器由 [Template] Source Generator 自动注入
     Operators =
     {
         new("+", (byte)ElemOp.Add, slots: new sbyte[] { -1, +1 }),
@@ -169,7 +169,7 @@ var result = runner.Instantiate(f)
 
 ## 要点
 
-- `[LiteralTemplate]` + `[LiteralTag]` 替代手写委托，模板直接表达 `:tag` 后缀语法
+- `[Template]` + `[Tag]` 替代手写委托，模板直接表达 `:tag` 后缀语法
 - Mul/Div 保留乘数/除数的元素类型，Add/Sub 保留左操作数的元素类型
 - JIT 路径通过 `Expression.Call` 调用静态方法，避免繁琐的 `Expression.MemberInit`
 - 完整源码见 `examples/ElemMath/`

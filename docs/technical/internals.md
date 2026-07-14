@@ -100,12 +100,12 @@ sequenceDiagram
 编译期从 attribute 声明生成专用字面量扫描器，替代运行时反射和手写委托：
 
 ```
-[LiteralTag] [LiteralTemplate] [LiteralTypeAlias] [ExternalLiteralTemplate]
+[Tag] [Template] [LiteralTypeAlias] [ExternalTemplate]
   → LiteralScannerGenerator（IIncrementalGenerator，4 pipeline）
     → CompactToXml（紧凑语法 → XML）
     → XmlTemplateParser（XML → AST）
     → CodeEmitter（AST → C# span scanner）
-  → LiteralScanners.g.cs（partial class，编译期注入）
+  → SerializerScanners.g.cs（partial class，编译期注入）
 ```
 
 生成代码通过 `ScannerRegistry<TData>` 注册，`FluxLexer` 在构造时优先使用生成的扫描器。

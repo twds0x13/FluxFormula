@@ -28,7 +28,7 @@ public readonly struct OperatorRule        // Operator syntax view: symbol + opc
 | Property | Type | Description |
 |----------|------|-------------|
 | `LiteralOper` | `byte` | Opcode for literal values (e.g. `(byte)MathOp.Const`) |
-| `LiteralScanner` | `LiteralScanner<TData>` | Literal scanner delegate. Auto-generated when `[LiteralTemplate]` is present (optional); otherwise required |
+| `LiteralScanner` | `LiteralScanner<TData>` | Literal scanner delegate. Auto-generated when `[Template]` is present (optional); otherwise required |
 | `Operators` | `List<OperatorRule>` | Operator mapping list (auto-sorted by length descending; no manual sorting needed) |
 | `Brackets` | `List<BracketRule>` | Bracket mapping list |
 | `ImplicitOperators` | `List<byte>` | Operators eligible for implicit insertion (e.g. `(byte)MathOp.Mul`). With a single entry, `2(3)` and `(a)(b)` auto-insert the operator; multiple ambiguous entries throw |

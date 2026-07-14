@@ -1,8 +1,6 @@
 # 源码技术分析
 
-> 生成日期: 2026-06-19 | 最后更新: 2026-06-25 | 文档基于版本: v3.0.0（已全面更新类型签名）
->
-> 本文档对 FluxFormula 的每个源文件进行逐行级技术要点统计，标注潜在问题、隐式约定和可优化点。不修改源码，仅做分析与记录。
+> 本文档对 FluxFormula 的每个源文件进行逐行级技术要点统计，标注潜在问题、隐式约定和可优化点。
 >
 > **本文档基于 v5.9.1 架构。** v4.0 引入 `Span<TData>` 可写寄存器，v5.x 新增 LiteralTemplate/BlobRegistry source generators、FluxCurryEvaluator/FluxStepEvaluator 三态求值器、FluxILCompiler 三阶段 JIT。参见[迁移指南](/migration-guide)和[架构决策记录](./architecture-decisions)。
 

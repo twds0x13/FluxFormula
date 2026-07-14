@@ -53,7 +53,7 @@ FluxAssembler:     92.2%  (188/204) — 16 行
 
 FluxAssembler 另有数行在 JIT 回退 catch 块（`PlatformNotSupportedException`/`NotSupportedException`）和 `ResolveBytecodeSpan` 缓存命中路径。前者需要 AOT 平台环境，后者需要预填充 `FormulaCache`。
 
-### LiteralTemplateRegistry：83.8%
+### SerializerRegistry：83.8%
 
 Source generator 产出的注册表，大部分逻辑在编译期（incremental generator）执行，运行时仅剩简单的 `TryGetScanner` 分发。覆盖剩余路径需要为每种内置类型和模板变体编写测试，收益极低。
 

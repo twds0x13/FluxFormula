@@ -15,7 +15,7 @@ Noita-style spell correction system. Each spell card has two attributes:
 ## TData Struct
 
 ```csharp
-[LiteralTemplate("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
+[Template("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
 public struct SpellContext : IEquatable<SpellContext>
 {
     public float Damage;              // Accumulated damage
@@ -54,7 +54,7 @@ public enum SpellOp : byte
 
 ## LiteralScanner: `damage|draw N|idx:N` Named-Field Format
 
-> **v5.2+ recommendation**: Prefer the `[LiteralTemplate]` source generator (see attribute on the struct declaration above). After adding the `FluxFormula.LiteralScanner.Generator` analyzer to your csproj, omit the `LiteralScanner` field from `LexerConfig` — the `FluxLexer` constructor automatically injects the generated scanner. The template-first approach eliminates manual delegate maintenance.
+> **v5.2+ recommendation**: Prefer the `[Template]` source generator (see attribute on the struct declaration above). After adding the `SourceSerializer.Generator` analyzer to your csproj, omit the `LiteralScanner` field from `LexerConfig` — the `FluxLexer` constructor automatically injects the generated scanner. The template-first approach eliminates manual delegate maintenance.
 
 The manual implementation is preserved below for reference:
 

@@ -15,7 +15,7 @@ Noita 式法术修正系统。每张法术卡有两个属性：
 ## TData 结构体
 
 ```csharp
-[LiteralTemplate("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
+[Template("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
 public struct SpellContext : IEquatable<SpellContext>
 {
     public float Damage;              // 累积伤害
@@ -54,7 +54,7 @@ public enum SpellOp : byte
 
 ## LiteralScanner：`damage|draw N|idx:N` 命名字段格式
 
-> **v5.2+ 推荐**：优先使用 `[LiteralTemplate]` Source Generator 自动生成扫描器（见 TData 结构体上的属性声明）。在 csproj 中引用 `FluxFormula.LiteralScanner.Generator` analyzer 后，`LexerConfig` 无需设置 `LiteralScanner` 字段，`FluxLexer` 构造函数自动注入生成的扫描器。模板优先方案消除手写委托的维护成本。
+> **v5.2+ 推荐**：优先使用 `[Template]` Source Generator 自动生成扫描器（见 TData 结构体上的属性声明）。在 csproj 中引用 `SourceSerializer.Generator` analyzer 后，`LexerConfig` 无需设置 `LiteralScanner` 字段，`FluxLexer` 构造函数自动注入生成的扫描器。模板优先方案消除手写委托的维护成本。
 
 手动实现版本保留以下供参考：
 

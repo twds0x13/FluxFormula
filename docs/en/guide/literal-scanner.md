@@ -1,13 +1,13 @@
 # Literal Scanner
 
-Controls how the lexer recognizes literals such as numbers and keywords. Starting from v5.0, the source-generator-driven `[LiteralTemplate]` is available: declare a format template on your TData struct and the compiler auto-generates a zero-allocation span scanner at compile time.
+Controls how the lexer recognizes literals such as numbers and keywords. Powered by [SourceSerializer](https://github.com/twds0x13/SourceSerializer) v1.2.0 under the hood: declare a `[Template]` attribute on your TData struct and the source generator emits a zero-allocation span scanner at compile time.
 
-## `[LiteralTemplate]` Auto-Generation
+## `[Template]` Auto-Generation
 
 Add an attribute to your struct. The source generator produces the scanner at compile time. `LexerConfig.LiteralScanner` is no longer required:
 
 ```csharp
-[LiteralTemplate("<float X> <float Y>")]
+[Template("<float X> <float Y>")]
 public struct Point2D
 {
     public float X;
@@ -25,14 +25,14 @@ var result = lexer.Lex("3.5 -2.1");
 // result.Tokens[0].Data → Point2D { X = 3.5, Y = -2.1 }
 ```
 
-**Runtime priority**: the lexer constructor first checks `LiteralScanners.TryGetScanner<TData>()` (hits when `[LiteralTemplate]` is present), falls back to `config.LiteralScanner` manual delegate, and throws `ArgumentException` if neither is available.
+**Runtime priority**: the lexer constructor first checks `SerializerScanners.TryGetScanner<TData>()` (hits when `[Template]` is present), falls back to `config.LiteralScanner` manual delegate, and throws `ArgumentException` if neither is available.
 
 ## Template Syntax
 
 ### Compact Format
 
 ```csharp
-[LiteralTemplate("<float Damage>|<optional>draw <int Count>|</optional>idx:<int Index>")]
+[Template("<float Damage>|<optional>draw <int Count>|</optional>idx:<int Index>")]
 public struct SpellCard { ... }
 ```
 
@@ -57,7 +57,7 @@ Matches `3.5, -2.1`. `<text>` elements wrap exact-match characters, `<field>` de
 Templates support C# raw string literal multi-line syntax. Line breaks are normalized to spaces during parsing:
 
 ```csharp
-[LiteralTemplate("""
+[Template("""
     <float X>
     <float Y>
     """)]
@@ -69,7 +69,7 @@ public struct PointMultiLine { public float X; public float Y; }
 Segments wrapped in `<optional>...</optional>` may be absent from the input. Matching logic: save the current position, attempt to match the block contents, continue on success, restore position and skip the block on failure.
 
 ```csharp
-[LiteralTemplate("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
+[Template("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
 public struct SpellCard
 {
     public float Damage;
@@ -82,63 +82,63 @@ public struct SpellCard
 
 ## Nested Structs
 
-A type name in a template can reference another struct with `[LiteralTemplate]`. The generator recursively produces nested scan code:
+A type name in a template can reference another struct with `[Template]`. The generator recursively produces nested scan code:
 
 ```csharp
-[LiteralTemplate("<float X> <float Y> <float Z>")]
+[Template("<float X> <float Y> <float Z>")]
 public struct Vec3 { public float X, Y, Z; }
 
-[LiteralTemplate("(<Vec3 Pos>)")]
+[Template("(<Vec3 Pos>)")]
 public struct Entity { public Vec3 Pos; }
 
-[LiteralTemplate("[<Entity Member>]")]
+[Template("[<Entity Member>]")]
 public struct Team { public Entity Member; }
 ```
 
-`[(10 20 30)]` → Team → Entity → Vec3: three levels of recursion. The dependency graph is topologically sorted automatically. Circular dependencies trigger FLX002 compile errors.
+`[(10 20 30)]` → Team → Entity → Vec3: three levels of recursion. The dependency graph is topologically sorted automatically. Circular dependencies trigger SSR002 compile errors.
 
 ## External Types
 
-For third-party structs you cannot modify, use `[ExternalLiteralTemplate]`:
+For third-party structs you cannot modify, use `[ExternalTemplate]`:
 
 ```csharp
-[assembly: ExternalLiteralTemplate(typeof(UnityEngine.Vector3),
+[assembly: ExternalTemplate(typeof(UnityEngine.Vector3),
     "<float x> <float y> <float z>")]
 
 // or on a class/struct
-[ExternalLiteralTemplate(typeof(SomeExternalStruct), "<int A> <int B>")]
+[ExternalTemplate(typeof(SomeExternalStruct), "<int A> <int B>")]
 public class MyBehaviour { ... }
 ```
 
-Priority B semantics: if a type has both `[LiteralTemplate]` and `[ExternalLiteralTemplate]`, the latter overrides the former.
+Priority B semantics: if a type has both `[Template]` and `[ExternalTemplate]`, the latter overrides the former.
 
 ## Type Aliases
 
-Use `[LiteralTypeAlias]` to give built-in types domain-specific names. Purely cosmetic — does not change parsing logic:
+Use `[TypeAlias]` to give built-in types domain-specific names. Purely cosmetic — does not change parsing logic:
 
 ```csharp
-[assembly: LiteralTypeAlias("Distance", "float")]
-[assembly: LiteralTypeAlias("Health", "int")]
+[assembly: TypeAlias("Distance", "float")]
+[assembly: TypeAlias("Health", "int")]
 
 // Aliases can be used in templates
-[LiteralTemplate("<Distance Range> <Health HP>")]
+[Template("<Distance Range> <Health HP>")]
 public struct WeaponStats { public float Range; public int HP; }
 ```
 
 ## Enum Tags
 
-v5.5+ supports `[LiteralTag]` attribute on enum members, enabling templates to recognize string labels directly:
+v5.5+ supports `[Tag]` attribute on enum members, enabling templates to recognize string labels directly:
 
 ```csharp
 public enum Element : byte
 {
     Physical = 0,
-    [LiteralTag("fire")]  Fire,
-    [LiteralTag("ice")]   Ice,
-    [LiteralTag("magic")] Magic,
+    [Tag("fire")]  Fire,
+    [Tag("ice")]   Ice,
+    [Tag("magic")] Magic,
 }
 
-[LiteralTemplate("<float Amount><optional>:<Element Element></optional>")]
+[Template("<float Amount><optional>:<Element Element></optional>")]
 public struct ElemValue
 {
     public float Amount;
@@ -149,12 +149,57 @@ public struct ElemValue
 The generated scanner includes a `switch(new string(src.Slice(...)))` block mapping `"fire"` to `Element.Fire`. The template matches `42`, `-5`, `1.5:fire`, `100:ice`.
 
 ::: tip
-`[LiteralTag]` eliminates manual delegates for most tagged literal formats.
+`[Tag]` eliminates manual delegates for most tagged literal formats.
 :::
+
+## Serialization Direction (Emit)
+
+`[Template]` generates both deserialization (scan) and serialization (emit) paths. `SerializerEmitters.TryGetEmitter<T>()` writes a struct instance back to a `StringBuilder`, producing output consistent with the template format:
+
+```csharp
+[Template("<float X> <float Y>")]
+public struct Point2D { public float X; public float Y; }
+
+SerializerEmitters.TryGetEmitter<Point2D>(out var emit);
+var sb = new StringBuilder();
+emit(sb, new Point2D { X = 3.5f, Y = -2.1f });
+// sb.ToString() == "3.5 -2.1"
+```
+
+The Emit direction supports literal text, field serialization, and optional blocks. `<repetition>` block serialization is deferred to the managed Walk phase.
+
+## Generic Collection Auto-Resolution
+
+When a field type is `List<T>` or `Dictionary<K,V>`, the source generator automatically synthesizes a parser from built-in open generic templates. No manual `[Template]` is needed for collection types:
+
+```csharp
+[Template("<float Value>")]
+public struct NamedValue { public float Value; }
+
+[Template("<repetition>, <List<NamedValue> Items></repetition>")]
+public struct Container { public List<NamedValue> Items; }
+```
+
+Collection fields use `.Add()` for assignment, preserving all parsed values in the list.
+
+## Skipping Fields: `[TemplateIgnore]`
+
+When a struct contains fields that should not participate in serialization (caches, internal state), and the field type has no `[Template]`, mark it with `[TemplateIgnore]`. Marked fields are excluded from scanner and emitter code:
+
+```csharp
+[Template("<float Value>")]
+public struct Stats
+{
+    public float Value;
+    [TemplateIgnore] public CacheData InternalCache;
+}
+```
+
+Marked fields must not appear in the template string, or SSR004 will still be reported.
 
 ## Built-in Types
 
-The source generator supports 12 C# built-in unmanaged types, each with a corresponding `LiteralTemplateRegistry.Scan_Xxx` method:
+The source generator supports 12 C# built-in unmanaged types plus `string`, each with corresponding `SerializerRegistry.Scan_Xxx` and `Emit_Xxx` methods:
 
 | Alias | C# Type | Recognized Format |
 |------|---------|-------------------|
@@ -170,21 +215,22 @@ The source generator supports 12 C# built-in unmanaged types, each with a corres
 | `sbyte` | `sbyte` | `-?\d+` |
 | `bool` | `bool` | `true` / `false` |
 | `char` | `char` | Single character |
+| `string` | `string` | Quoted or unquoted token |
 
-All built-in scanners are zero-allocation span methods annotated with `AggressiveInlining`.
+All built-in scanners and emitters are zero-allocation span methods annotated with `AggressiveInlining`. The `string` type is not constrained by `TData : unmanaged` at the Template level (class types are also supported), but `FluxLexer<TData>` still requires `TData : unmanaged`.
 
 ## Compiler Diagnostics
 
 | ID | Severity | Meaning |
 |----|----------|---------|
-| FLX001 | Error | Template syntax or format error |
-| FLX002 | Error | Circular dependency between template types |
-| FLX003 | Error | `readonly struct` cannot use `[LiteralTemplate]` (field assignment requires a mutable struct) |
-| FLX004 | Warning | Template references a type without `[LiteralTemplate]` or `[ExternalLiteralTemplate]` registration (field is skipped) |
+| SSR001 | Error | Template syntax or format error |
+| SSR002 | Error | Circular dependency between template types |
+| SSR003 | Error | `readonly struct` cannot use `[Template]` (field assignment requires a mutable struct) |
+| SSR004 | Error | Template references a type without `[Template]` or `[ExternalTemplate]`, and the field is not marked `[TemplateIgnore]` |
 
 ## Manual Delegate: Advanced / Fallback
 
-Use a handwritten `LiteralScanner<TData>` delegate when the literal syntax is too irregular for a template. When `[LiteralTemplate]` is present this field is not needed, but setting both is not an error: generated scanners take priority.
+Use a handwritten `LiteralScanner<TData>` delegate when the literal syntax is too irregular for a template. When `[Template]` is present this field is not needed, but setting both is not an error: generated scanners take priority.
 
 ### Signature
 

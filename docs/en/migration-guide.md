@@ -60,30 +60,30 @@ The current latest version is 5.9.1.
 
 ### Overview
 
-5.0 removes `LiteralParser` and `LiteralPattern`, introducing a source-generator-driven literal template system. The `[LiteralTemplate]` attribute enables the compiler to auto-generate zero-allocation span scanners, making the `LexerConfig.LiteralScanner` delegate optional.
+5.0 removes `LiteralParser` and `LiteralPattern`, introducing a source-generator-driven literal template system. The `[Template]` attribute enables the compiler to auto-generate zero-allocation span scanners, making the `LexerConfig.LiteralScanner` delegate optional.
 
 ### Breaking Changes
 
 | Change | 4.x Behavior | 5.1 Behavior | Migration |
 |--------|-------------|-------------|-----------|
-| `LexerConfig.LiteralParser` | Present | Removed | Use `LexerConfig.LiteralScanner` delegate, or add `[LiteralTemplate]` to the TData struct |
-| `LexerConfig.LiteralPattern` | Present | Removed | Replaced by `[LiteralTemplate]` template strings |
-| `LexerConfig.LiteralScanner` | Required | Optional (auto-generated when `[LiteralTemplate]` is present) | Existing manual delegates continue to work unchanged |
+| `LexerConfig.LiteralParser` | Present | Removed | Use `LexerConfig.LiteralScanner` delegate, or add `[Template]` to the TData struct |
+| `LexerConfig.LiteralPattern` | Present | Removed | Replaced by `[Template]` template strings |
+| `LexerConfig.LiteralScanner` | Required | Optional (auto-generated when `[Template]` is present) | Existing manual delegates continue to work unchanged |
 
 ### Additions
 
-- `[LiteralTemplate("<float X> <float Y>")]` — marks a struct with a template; source generator produces scan code at compile time
-- `[ExternalLiteralTemplate(typeof(T), "...")]` — registers templates for third-party types you cannot modify
-- `[LiteralTypeAlias("Alias", "float")]` — custom type alias, purely cosmetic
-- `LiteralTemplateRegistry` — zero-allocation `Scan_Xxx` methods for 12 built-in types (float, double, int, uint, long, ulong, short, ushort, byte, sbyte, bool, char)
-- Compiler diagnostics: FLX001 (template syntax error), FLX002 (circular dependency), FLX003 (readonly struct not allowed), FLX004 (reference to unregistered type)
+- `[Template("<float X> <float Y>")]` — marks a struct with a template; source generator produces scan code at compile time
+- `[ExternalTemplate(typeof(T), "...")]` — registers templates for third-party types you cannot modify
+- `[TypeAlias("Alias", "float")]` — custom type alias, purely cosmetic
+- `SerializerRegistry` — zero-allocation `Scan_Xxx` methods for 12 built-in types (float, double, int, uint, long, ulong, short, ushort, byte, sbyte, bool, char)
+- Compiler diagnostics: SSR001 (template syntax error), SSR002 (circular dependency), SSR003 (readonly struct not allowed), SSR004 (reference to unregistered type)
 - `CompactToXml` / `XmlTemplateParser` — internal template parsing pipeline
 - `CodeEmitter` — AST to C# source emitter
 
 ### Runtime Priority
 
 `FluxLexer<TData>` constructor selects scanners in the following order:
-1. Generated `LiteralScanners.TryGetScanner<TData>()` (hits when `[LiteralTemplate]` is present)
+1. Generated `SerializerScanners.TryGetScanner<TData>()` (hits when `[Template]` is present)
 2. `config.LiteralScanner` manual delegate (fallback)
 3. Throws `ArgumentException` if neither is available
 
@@ -102,7 +102,7 @@ The current latest version is 5.9.1.
 | 5.2.0 | BlobRegistry system: `IFluxBlobRegistry` interface + source generator + `FluxBlobScanner` multi-mod discovery. Replaces the old C# byte[] embedding; .blob binary files with zero expansion | [Blob Registry](/guide/blob-registry) |
 | 5.4.0 | `FluxCurryEvaluator`: progressive curry-style binding, functional State→State forking | [Curry Evaluator](/guide/curry-evaluator) |
 | 5.4.0 | `FluxStepEvaluator`: single-step debugger for per-instruction tracing | [Step Debugger](/guide/step-debugger) |
-| 5.7.0 | `[LiteralTag]` attribute: enum-tag-based literal scanning | [Literal Scanner](/guide/literal-scanner) |
+| 5.7.0 | `[Tag]` attribute: enum-tag-based literal scanning | [Literal Scanner](/guide/literal-scanner) |
 | 5.9.0 | Out-of-order variable binding in curry evaluator (by name instead of injection order) | [Curry Evaluator](/guide/curry-evaluator) |
 
 ### Example
@@ -118,6 +118,39 @@ float result = curry.Result;
 var step = assembler.Instantiate(formula, step: true);
 while (!step.IsCompleted) step = step.Step();
 ```
+
+---
+
+## Migrating from 5.x to 6.0
+
+### Overview
+
+6.0 replaces the in-house `LiteralScannerGenerator` with the independent [SourceSerializer](https://github.com/twds0x13/SourceSerializer) v1.2.0 library. Attribute namespaces migrate from `FluxFormula.Core` to `SourceSerializer`.
+
+### Breaking Changes
+
+| Old Name | New Name |
+|----------|----------|
+| `[LiteralTemplate("...")]` | `[Template("...")]` |
+| `[LiteralTag("tag")]` | `[Tag("tag")]` |
+| `[LiteralTypeAlias("Alias", "float")]` | `[TypeAlias("Alias", "float")]` |
+| `[ExternalLiteralTemplate(typeof(T), "...")]` | `[ExternalTemplate(typeof(T), "...")]` |
+| `LiteralScanners.TryGetScanner<T>()` | `SerializerScanners.TryGetScanner<T>()` |
+| `LiteralTemplateRegistry.Scan_Xxx` | `SerializerRegistry.Scan_Xxx` |
+| `FluxFormula.LiteralScanner.Generator` (SG reference) | `SourceSerializer.Generator` |
+
+Diagnostic codes `FLX001`-`FLX004` are replaced by `SSR001`-`SSR004`. The `LexerConfig.LiteralScanner` delegate and `LiteralScanner<TData>` type remain unchanged.
+
+### New Features
+
+| Feature | Description |
+|---------|-------------|
+| `SerializerEmitters.TryGetEmitter<T>()` | Serialization direction: write struct instance back to `StringBuilder` |
+| `string` built-in type | Added `string` as the 13th built-in type |
+| Generic collection auto-resolution | `List<T>` / `Dictionary<K,V>` fields auto-synthesize parsers |
+| `[TemplateIgnore]` | Mark fields to skip serialization, prevent SSR004 error |
+| SSR004 Error | Missing template dependency upgraded from Warning to Error |
+| SSR005 Error | New: scalar field inside `<repetition>` detection |
 
 ---
 

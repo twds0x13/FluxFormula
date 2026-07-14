@@ -100,12 +100,12 @@ See [Data Injector](./pipeline/injector.md) and [JIT Injector](./pipeline/jit-in
 Generates dedicated literal scanners at compile time from attribute declarations, replacing runtime reflection and hand-written delegates:
 
 ```
-[LiteralTag] [LiteralTemplate] [LiteralTypeAlias] [ExternalLiteralTemplate]
+[Tag] [Template] [LiteralTypeAlias] [ExternalTemplate]
   → LiteralScannerGenerator (IIncrementalGenerator, 4 pipelines)
     → CompactToXml (compact syntax → XML)
     → XmlTemplateParser (XML → AST)
     → CodeEmitter (AST → C# span scanner)
-  → LiteralScanners.g.cs (partial class, compile-time injection)
+  → SerializerScanners.g.cs (partial class, compile-time injection)
 ```
 
 Generated code is registered via `ScannerRegistry<TData>`; `FluxLexer` prioritizes generated scanners at construction time.

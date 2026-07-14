@@ -119,8 +119,8 @@ v5.0 introduces a source-generator-driven literal template system that moves sca
 
 | Pipeline | Attribute | Collects |
 |----------|-----------|----------|
-| A | `[LiteralTemplate]` | Directly annotated structs |
-| B | `[ExternalLiteralTemplate]` | Third-party type template registrations (overrides Pipeline A) |
+| A | `[Template]` | Directly annotated structs |
+| B | `[ExternalTemplate]` | Third-party type template registrations (overrides Pipeline A) |
 | C | `[LiteralTypeAlias]` | Type aliases (e.g. `Distance` → `float`) |
 
 After merging Pipelines A and B (B overrides A), each template passes through two stages:
@@ -128,7 +128,7 @@ After merging Pipelines A and B (B overrides A), each template passes through tw
 1. **CompactToXml**: compact format `"<float X> <float Y>"` is converted to standard XML `<literal-template><field type="float" name="X"/>...</literal-template>`
 2. **XmlTemplateParser**: XML is parsed into an AST (`LiteralTextNode` / `FieldDirectiveNode` / `OptionalBlockNode`)
 
-`BuildDependencyGraph` then analyzes type reference relationships between templates, detects circular dependencies, produces a topological sort, and `CodeEmitter` compiles the AST into C# span scanner source code, injected as `LiteralScanners.g.cs`.
+`BuildDependencyGraph` then analyzes type reference relationships between templates, detects circular dependencies, produces a topological sort, and `CodeEmitter` compiles the AST into C# span scanner source code, injected as `SerializerScanners.g.cs`.
 
 ### Runtime Integration
 
@@ -144,7 +144,7 @@ static LiteralScanners()
 
 `FluxLexer<TData>` constructor selects scanners in priority order:
 
-1. `LiteralScanners.TryGetScanner<TData>()` — hits when `[LiteralTemplate]` is present
+1. `SerializerScanners.TryGetScanner<TData>()` — hits when `[Template]` is present
 2. `config.LiteralScanner` — manual delegate fallback
 3. Throws `ArgumentException` if neither is available
 
@@ -153,7 +153,7 @@ static LiteralScanners()
 Each generated `Scan_Xxx` method structure:
 
 - Span bounds check → field-by-field scan
-- Built-in type fields call `LiteralTemplateRegistry.Scan_Float` etc. (12 built-in scanners)
+- Built-in type fields call `SerializerRegistry.Scan_Float` etc. (12 built-in scanners)
 - Custom struct fields recursively call previously generated `Scan_OtherStruct`
 - Optional blocks: save position → attempt match → continue on success, restore on failure
 - Character-by-character exact matching for literal text
