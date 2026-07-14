@@ -372,4 +372,236 @@ public class CurryEvaluatorTests
         // base_ 不受影响
         Assert.That(base_.BoundCount, Is.EqualTo(1));
     }
+
+    // ── Record 序列化往返 ──
+
+    [Test]
+    public void ToRecord_ZeroVariable_RoundTrip_Completes()
+    {
+        var lexer = CreateMathLexer();
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("1 + 2"));
+        FormulaCache.Instance.PutBytes(formula.GetByteHash(), formula.ToBytes());
+
+        var original = runner.Curry(formula);
+        Assert.That(original.VariableCount, Is.EqualTo(0));
+        Assert.That(original.IsCompleted, Is.True);
+        Assert.That(original.Result, Is.EqualTo(3f).Within(1e-6f));
+
+        byte[] record = original.ToRecord();
+        var restored = FluxCurryEvaluator<float, FloatMathDef>.FromRecord(record, Def);
+
+        Assert.That(restored.VariableCount, Is.EqualTo(0));
+        Assert.That(restored.IsCompleted, Is.True);
+        Assert.That(restored.Result, Is.EqualTo(3f).Within(1e-6f));
+    }
+
+    [Test]
+    public void ToRecord_HalfBound_RoundTrip_ResumesCorrectly()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[a] * [b] + [c]"));
+        FormulaCache.Instance.PutBytes(formula.GetByteHash(), formula.ToBytes());
+
+        // 绑定前两个变量后挂起
+        var original = runner.Curry(formula).Bind(2f, 3f); // a=2, b=3, 等 c
+        Assert.That(original.IsCompleted, Is.False);
+        Assert.That(original.BoundCount, Is.EqualTo(2));
+
+        // 序列化 → 反序列化
+        byte[] record = original.ToRecord();
+        var restored = FluxCurryEvaluator<float, FloatMathDef>.FromRecord(record, Def);
+
+        Assert.That(restored.IsCompleted, Is.False);
+        Assert.That(restored.BoundCount, Is.EqualTo(2));
+        Assert.That(restored.VariableCount, Is.EqualTo(3));
+
+        // 继续绑定剩余变量
+        var completed = restored.Bind(4f); // c=4
+        Assert.That(completed.IsCompleted, Is.True);
+        Assert.That(completed.Result, Is.EqualTo(10f).Within(1e-6f), "2*3+4 = 10");
+    }
+
+    [Test]
+    public void ToRecord_FullyCompleted_RoundTrip_PreservesResult()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[x] * [y]"));
+        FormulaCache.Instance.PutBytes(formula.GetByteHash(), formula.ToBytes());
+
+        var original = runner.Curry(formula).Bind(7f, 3f);
+        Assert.That(original.IsCompleted, Is.True);
+        Assert.That(original.Result, Is.EqualTo(21f).Within(1e-6f));
+
+        byte[] record = original.ToRecord();
+        var restored = FluxCurryEvaluator<float, FloatMathDef>.FromRecord(record, Def);
+
+        Assert.That(restored.IsCompleted, Is.True);
+        Assert.That(restored.Result, Is.EqualTo(21f).Within(1e-6f));
+    }
+
+    [Test]
+    public void ToRecord_AfterFork_EachBranchSerializesIndependently()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[a] * [b]"));
+        FormulaCache.Instance.PutBytes(formula.GetByteHash(), formula.ToBytes());
+
+        var base_ = runner.Curry(formula).Bind(3f); // a=3
+
+        // 分叉序列化各自独立
+        byte[] rec1 = base_.Bind(4f).ToRecord();
+        byte[] rec2 = base_.Bind(7f).ToRecord();
+
+        var restored1 = FluxCurryEvaluator<float, FloatMathDef>.FromRecord(rec1, Def);
+        var restored2 = FluxCurryEvaluator<float, FloatMathDef>.FromRecord(rec2, Def);
+
+        Assert.That(restored1.Result, Is.EqualTo(12f).Within(1e-6f));
+        Assert.That(restored2.Result, Is.EqualTo(21f).Within(1e-6f));
+    }
+
+    [Test]
+    public void FromRecord_CacheMiss_ThrowsInvalidOperationException()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[x] + 1"));
+        FormulaCache.Instance.PutBytes(formula.GetByteHash(), formula.ToBytes());
+
+        var original = runner.Curry(formula).Bind(5f);
+        byte[] record = original.ToRecord();
+
+        // 清空缓存模拟 cache miss
+        FormulaCache.Reset();
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            FluxCurryEvaluator<float, FloatMathDef>.FromRecord(record, Def));
+        Assert.That(ex.Message, Does.Contain("FormulaCache"));
+    }
+
+    [Test]
+    public void FromRecord_MagicMismatch_ThrowsFormatException()
+    {
+        var lexer = CreateMathLexer();
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("1 + 2"));
+        FormulaCache.Instance.PutBytes(formula.GetByteHash(), formula.ToBytes());
+
+        var original = runner.Curry(formula);
+        byte[] record = original.ToRecord();
+
+        // 损坏 magic 字节
+        record[0] = 0xFF;
+
+        Assert.Throws<FormatException>(() =>
+            FluxCurryEvaluator<float, FloatMathDef>.FromRecord(record, Def));
+    }
+
+    [Test]
+    public void FromRecord_VersionMismatch_ThrowsFormatException()
+    {
+        var lexer = CreateMathLexer();
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("1 + 2"));
+        FormulaCache.Instance.PutBytes(formula.GetByteHash(), formula.ToBytes());
+
+        var original = runner.Curry(formula);
+        byte[] record = original.ToRecord();
+
+        // 损坏 version 字节
+        record[4] = 0xFF;
+
+        Assert.Throws<FormatException>(() =>
+            FluxCurryEvaluator<float, FloatMathDef>.FromRecord(record, Def));
+    }
+
+    [Test]
+    public void ToRecord_JitInterpreterCrossBackend_PreservesConsistency()
+    {
+        var lexer = CreateVarLexer("[", "]");
+        var runner = new FluxAssembler<float, FloatMathDef>(Def);
+        var formula = runner.Compile(lexer.Lex("[a] * [b] + [c]"));
+        FormulaCache.Instance.PutBytes(formula.GetByteHash(), formula.ToBytes());
+
+        // 发送方：解释器路径（curry 总是解释器）
+        var curry = runner.Curry(formula).Bind("a", 3f).Bind("b", 5f);
+        Assert.That(curry.IsCompleted, Is.False);
+        Assert.That(curry.BoundCount, Is.EqualTo(2));
+
+        byte[] record = curry.ToRecord();
+
+        // 接收方：从 Record 恢复，继续用解释器完成
+        var restored = FluxCurryEvaluator<float, FloatMathDef>.FromRecord(record, Def);
+        var completed = restored.Bind("c", 2f);
+        float interpretResult = completed.Result;
+
+        // 接收方：直接用 JIT 求完整的 [3] * [5] + [2]
+        var jitInstance = runner.Instantiate(formula, jit: true);
+        jitInstance.Set("a", 3f).Set("b", 5f).Set("c", 2f);
+        float jitResult = jitInstance.Run();
+
+        Assert.That(interpretResult, Is.EqualTo(jitResult).Within(1e-6f),
+            $"Record-restored result ({interpretResult}) should match JIT result ({jitResult})");
+    }
+
+    // ── Error 寄存器短路 ──
+
+    private enum ErrorTestOp : byte { Const, Boom, Return }
+
+    private readonly struct ErrorTestDef : IFluxExprDefinition<float>
+    {
+        public byte GetReturnOp() => (byte)ErrorTestOp.Return;
+        public int GetArity(byte op) => ((ErrorTestOp)op) switch { ErrorTestOp.Boom => 1, _ => 0 };
+        public OpType GetKind(byte op) => ((ErrorTestOp)op) switch
+        {
+            ErrorTestOp.Const => OpType.Immediate,
+            ErrorTestOp.Return => OpType.Return,
+            _ => OpType.Instruction,
+        };
+        public int GetPrecedence(byte op) => 0;
+        public OpPair GetPair(byte op) => default;
+        public Associativity GetAssociativity(byte op) => Associativity.Left;
+        public byte ResolveToken(byte oper, TokenContext context) => oper;
+
+        public float Compute(byte op, Instruction inst, Span<float> regs)
+        {
+            if ((ErrorTestOp)op == ErrorTestOp.Boom)
+            {
+                regs[Registers.Error] = float.NaN;
+                return float.NaN;
+            }
+            return default;
+        }
+
+        public System.Linq.Expressions.Expression GetExpression(byte op, Instruction inst,
+            System.Linq.Expressions.ParameterExpression[] regs)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    [Test]
+    public void Resume_ErrorRegister_CompletesWithErrorValue()
+    {
+        var runner = new FluxAssembler<float, ErrorTestDef>(default);
+        // 手动构造: 第一个 Const 是变量占位，Boom 写入 Error 寄存器触发短路
+        var tokens = new FluxToken<float>[]
+        {
+            new() { Oper = (byte)ErrorTestOp.Const, Data = 0f },
+            new() { Oper = (byte)ErrorTestOp.Boom },
+        };
+        var formula = runner.Compile(tokens).ToModifier().ToFormula("x");
+
+        var curry = runner.Curry(formula);
+        Assert.That(curry.IsCompleted, Is.False);
+        Assert.That(curry.VariableCount, Is.EqualTo(1));
+
+        // 绑定变量后 Resume 遇到 Boom → Error 寄存器非 default → 完成
+        curry = curry.Bind(42f);
+        Assert.That(curry.IsCompleted, Is.True);
+        Assert.That(float.IsNaN(curry.Result), Is.True);
+    }
 }

@@ -2,7 +2,7 @@ using System;
 using FluxFormula.Core;
 
 // ═══════════════════════════════════════════════════════
-// ElemValue 通过 [LiteralTemplate] + [LiteralTag] 自动生成
+// ElemValue 通过 [Template] + [Tag] 自动生成
 // 字面量扫描器，无需手写 LiteralScanner 委托。
 // 模板: "<float Amount><optional>:<Element tag></optional>"
 // 支持的语法: 42, -5, 1.5:fire, 100:ice

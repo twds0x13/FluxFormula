@@ -21,6 +21,9 @@ node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 
+# ===== Open WebUI =====
+docs/.openwebui_ignore
+
 # ===== AI Coding Tools (local state, personal config, session files) =====
 # These are per-developer files that should never enter version control.
 # Project-level AI instructions (CLAUDE.md, .cursorrules, .github/copilot-instructions.md)

@@ -1,15 +1,26 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
-namespace FluxFormula.LiteralScanner.Generator
+namespace SourceSerializer.Generator
 {
     /// <summary>
     /// 将紧凑模板语法翻译为 XML 格式。
     /// 紧凑语法：<c>&lt;float X&gt; &lt;float Y&gt;</c>
     /// XML 输出：<c>&lt;literal-template&gt;&lt;field type="float" name="X"/&gt;&lt;text&gt; &lt;/text&gt;...</c>
     /// </summary>
+    // 纯编译期辅助类型，运行时从不实例化
+    [ExcludeFromCodeCoverage]
     internal static class CompactToXml
     {
+        // 预估的 XML 标签开销（<literal-template>、<text>、<field .../> 等），
+        // 用于 StringBuilder 初始容量，避免转换期间扩容
+        private const int XmlTagOverheadEstimate = 50;
+
+        // ═══════════════════════════════════════════════════════
+        // 公共入口
+        // ═══════════════════════════════════════════════════════
+
         /// <summary>
         /// 检测给定字符串是否为紧凑格式（不含 &lt;literal-template&gt; 根元素）。
         /// </summary>
@@ -27,7 +38,7 @@ namespace FluxFormula.LiteralScanner.Generator
             // 预处理：多行 → 规范化空白
             compact = NormalizeWhitespace(compact);
 
-            var sb = new StringBuilder(compact.Length * 2 + 50);
+            var sb = new StringBuilder(compact.Length * 2 + XmlTagOverheadEstimate);
             sb.Append("<literal-template>");
 
             int pos = 0;
@@ -39,8 +50,16 @@ namespace FluxFormula.LiteralScanner.Generator
                 {
                     FlushText(textBuf, sb);
 
-                    int end = compact.IndexOf('>', pos + 1);
-                    if (end < 0)
+                    // 嵌套深度跟踪：<List<NamedValue> Mods> 中内层 > 不终止
+                    int end = pos + 1;
+                    int depth = 1;
+                    while (end < compact.Length && depth > 0)
+                    {
+                        if (compact[end] == '<') depth++;
+                        else if (compact[end] == '>') depth--;
+                        if (depth > 0) end++;
+                    }
+                    if (end >= compact.Length)
                         throw new FormatException(
                             $"Unclosed '<' at position {pos} in: \"{compact}\"");
 
@@ -60,6 +79,26 @@ namespace FluxFormula.LiteralScanner.Generator
                     else if (trimmed == "repetition")
                     {
                         sb.Append("<repetition>");
+                    }
+                    else if (trimmed == "/repetition")
+                    {
+                        sb.Append("</repetition>");
+                    }
+                    else if (trimmed == "first")
+                    {
+                        sb.Append("<first>");
+                    }
+                    else if (trimmed == "/first")
+                    {
+                        sb.Append("</first>");
+                    }
+                    else if (trimmed == "body")
+                    {
+                        sb.Append("<body>");
+                    }
+                    else if (trimmed == "/body")
+                    {
+                        sb.Append("</body>");
                     }
                     else if (trimmed == "/repetition")
                     {
@@ -91,6 +130,10 @@ namespace FluxFormula.LiteralScanner.Generator
             sb.Append("</literal-template>");
             return sb.ToString();
         }
+
+        // ═══════════════════════════════════════════════════════
+        // XML 辅助
+        // ═══════════════════════════════════════════════════════
 
         private static void FlushText(StringBuilder buf, StringBuilder output)
         {

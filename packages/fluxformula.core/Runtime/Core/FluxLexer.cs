@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using SourceSerializer;
 
 namespace FluxFormula.Core
 {
@@ -261,10 +262,10 @@ namespace FluxFormula.Core
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
 
-            // Priority: generated template scanner > manual LiteralScanner delegate
-            if (LiteralScanners.TryGetScanner<TData>(out var generatedScanner))
+            // Priority: generated SourceSerializer scanner > manual LiteralScanner delegate
+            if (SerializerScanners.TryGetScanner<TData>(out var generatedScanner))
             {
-                _literalScanner = generatedScanner;
+                _literalScanner = new LiteralScanner<TData>(generatedScanner);
             }
             else if (config.LiteralScanner != null)
             {
@@ -276,7 +277,7 @@ namespace FluxFormula.Core
                     "LexerConfig.LiteralScanner must be set. " +
                     "Use CreateDefaultNumberScanner(parser) for standard number formats, " +
                     "provide a custom LiteralScanner delegate, " +
-                    "or add [LiteralTemplate] attribute to the TData struct.");
+                    "or add [Template] attribute to the TData struct.");
             }
 
             // ── 变量模式 ──

@@ -2,7 +2,7 @@ using System;
 using FluxFormula.Core;
 
 // ═══════════════════════════════════════════════════════
-// SpellContext 的 [LiteralTemplate] 属性（CardDrawDef.cs）由 Source Generator
+// SpellContext 的 [Template] 属性（CardDrawDef.cs）由 Source Generator
 // 自动生成字面量扫描器，Lexer 构造函数自动发现并使用，无需手动设置
 // LiteralScanner。手动实现版本参见文档 docs/examples/card-draw.md。
 // ═══════════════════════════════════════════════════════

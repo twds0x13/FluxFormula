@@ -2,21 +2,26 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text;
 
-namespace FluxFormula.Core
+namespace SourceSerializer
 {
     /// <summary>
     /// 内置字面量类型注册表。定义所有 C# 内置 unmanaged 值类型的正则模式、
     /// 解析器委托和零分配 span 扫描方法。
     /// </summary>
     /// <remarks>
-    /// Leaf type = 内置值类型（float、int、bool 等），有预置的正则和 parser。
-    /// 自定义 struct 类型需通过 <see cref="LiteralTemplateAttribute"/> 或
-    /// <see cref="LexerConfig{TData}.Template"/> 注册模板后，由 source generator
-    /// 递归进入其 <c>Scan_Xxx</c> 方法。
+    /// <para>内置值类型（float、int、bool 等）有预置的零分配 span 扫描器。</para>
+    /// <para>自定义 struct 类型通过 <see cref="TemplateAttribute"/> 或
+    /// <see cref="ExternalTemplateAttribute"/> 声明模板后，由 source generator
+    /// 编译期生成对应的 <c>Scan_Xxx</c> 方法，递归进入嵌套类型的扫描器。</para>
     /// </remarks>
-    public static class LiteralTemplateRegistry
+    public static class SerializerRegistry
     {
+        // ═══════════════════════════════════════════════════════
+        // 内置类型注册表
+        // ═══════════════════════════════════════════════════════
+
         /// <summary>
         /// 内置类型别名字典：alias → (regex_pattern, display_name)。
         /// 用于 source generator 在编译期查找对应类型的扫描方法名。
@@ -35,6 +40,18 @@ namespace FluxFormula.Core
             ["sbyte"]  = (@"-?\d+",                     "sbyte"),
             ["bool"]   = (@"true|false",                "bool"),
             ["char"]   = (@".",                         "char"),
+            ["string"] = (@"[^\s|>,)}\]]+",             "string"),
+        };
+
+        /// <summary>
+        /// 开放泛型模板注册表。键为开放泛型全名（如 System.Collections.Generic.List&lt;&gt;），
+        /// 值为模板字符串，T 作为类型占位符。SG 在编译期遇到具体化泛型类型时，
+        /// 将 T 替换为具体类型参数后解析为 AST 并生成专用扫描方法。
+        /// </summary>
+        internal static readonly Dictionary<string, string> GenericTemplates = new()
+        {
+            ["System.Collections.Generic.List<>"] = "<first><T1 item></first><body>, <T1 item></body>",
+            ["System.Collections.Generic.Dictionary<>"] = "<first><T1 key>: <T2 value></first><body>, <T1 key>: <T2 value></body>",
         };
 
         /// <summary>
@@ -313,5 +330,121 @@ namespace FluxFormula.Core
             value = src[pos];
             return pos + 1;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int Scan_String(ReadOnlySpan<char> src, int pos, out string value)
+        {
+            value = default!;
+            if (pos >= src.Length) return pos;
+            int start = pos;
+
+            // Quoted: "hello world"
+            if (src[pos] == '"')
+            {
+                pos++;
+                int contentStart = pos;
+                while (pos < src.Length && src[pos] != '"')
+                    pos++;
+                if (pos >= src.Length)
+                    return start;
+#if NET6_0_OR_GREATER
+                value = src.Slice(contentStart, pos - contentStart).ToString();
+#else
+                value = src.Slice(contentStart, pos - contentStart).ToString();
+#endif
+                pos++;
+                return pos;
+            }
+
+            // Unquoted: read until whitespace or delimiter
+            while (pos < src.Length && !IsStringTerminator(src[pos]))
+                pos++;
+
+            if (pos == start) return start;
+#if NET6_0_OR_GREATER
+            value = src.Slice(start, pos - start).ToString();
+#else
+            value = src.Slice(start, pos - start).ToString();
+#endif
+            return pos;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsStringTerminator(char c)
+        {
+            return char.IsWhiteSpace(c)
+                || c == '|' || c == '>' || c == ','
+                || c == ')' || c == '}' || c == ']';
+        }
+
+        /// <summary>
+        /// 将字符串追加到 StringBuilder，必要时加引号转义。
+        /// </summary>
+        internal static void Emit_String(System.Text.StringBuilder sb, string value)
+        {
+            bool needsQuote = false;
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (IsStringTerminator(value[i]) || value[i] == '"')
+                { needsQuote = true; break; }
+            }
+            if (needsQuote)
+            {
+                sb.Append('"');
+                sb.Append(value);
+                sb.Append('"');
+            }
+            else
+            {
+                sb.Append(value);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // Emit 方法 —— 每个内置类型一个
+        // 签名: static void Emit_Xxx(StringBuilder sb, Xxx value)
+        // ═══════════════════════════════════════════════════════
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Float(StringBuilder sb, float value)
+        {
+            sb.Append(value.ToString("G9", CultureInfo.InvariantCulture));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Double(StringBuilder sb, double value)
+        {
+            sb.Append(value.ToString("G17", CultureInfo.InvariantCulture));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Int(StringBuilder sb, int value) => sb.Append(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Uint(StringBuilder sb, uint value) => sb.Append(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Long(StringBuilder sb, long value) => sb.Append(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Ulong(StringBuilder sb, ulong value) => sb.Append(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Short(StringBuilder sb, short value) => sb.Append(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Ushort(StringBuilder sb, ushort value) => sb.Append(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Byte(StringBuilder sb, byte value) => sb.Append(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Sbyte(StringBuilder sb, sbyte value) => sb.Append(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Bool(StringBuilder sb, bool value) => sb.Append(value ? "true" : "false");
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Emit_Char(StringBuilder sb, char value) => sb.Append(value);
     }
 }

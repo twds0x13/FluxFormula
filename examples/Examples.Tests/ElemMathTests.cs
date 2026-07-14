@@ -11,7 +11,7 @@ public class ElemMathTests
         return new FluxLexer<ElemValue>(new LexerConfig<ElemValue>
         {
             LiteralOper = (byte)ElemOp.Const,
-            // [LiteralTemplate] Source Generator 自动注入扫描器
+            // [Template] Source Generator 自动注入扫描器
             Operators =
             {
                 new("+", (byte)ElemOp.Add, slots: new sbyte[] { -1, +1 }),

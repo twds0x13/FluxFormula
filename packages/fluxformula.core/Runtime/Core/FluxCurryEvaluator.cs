@@ -7,7 +7,7 @@ namespace FluxFormula.Core
     /// 分步求值器：按名或按顺序渐进绑定变量，每次 <see cref="Bind"/> 返回新实例。
     /// 函数式 State→State 模型，旧 state 不受影响，支持中途分叉。
     /// </summary>
-    public readonly struct FluxCurryEvaluator<TData, TDef>
+    public readonly partial struct FluxCurryEvaluator<TData, TDef>
         where TData : unmanaged
         where TDef : unmanaged, IFluxExprDefinition<TData>
     {
@@ -19,6 +19,7 @@ namespace FluxFormula.Core
         private readonly int _immCount;
         private readonly int _instrCount;
         private readonly byte _maxRegister;
+        private readonly DualHash64 _byteHash;
 
         // 可变（Bind 时拷贝）
         private readonly TData[] _regs;
@@ -76,9 +77,10 @@ namespace FluxFormula.Core
             regs[Registers.Bus] = default;
 
             int varCount = varSlots.Length;
+            var byteHash = formula.GetByteHash();
             var state = new FluxCurryEvaluator<TData, TDef>(
                 definition, bytecode, varImmIndices, varNames, immCount, instrCount,
-                formula.MaxRegister, regs,
+                formula.MaxRegister, byteHash, regs,
                 new TData[varCount], new bool[varCount], 0,
                 0, false, default);
 
@@ -93,6 +95,7 @@ namespace FluxFormula.Core
             int immCount,
             int instrCount,
             byte maxRegister,
+            DualHash64 byteHash,
             TData[] regs,
             TData[] boundValues,
             bool[] boundMask,
@@ -108,6 +111,7 @@ namespace FluxFormula.Core
             _immCount      = immCount;
             _instrCount    = instrCount;
             _maxRegister   = maxRegister;
+            _byteHash      = byteHash;
             _regs          = regs;
             _boundValues   = boundValues;
             _boundMask     = boundMask;
@@ -233,7 +237,7 @@ namespace FluxFormula.Core
             int newCount = _boundCount + 1;
             var state = new FluxCurryEvaluator<TData, TDef>(
                 _definition, _bytecode, _varImmIndices, _varNames,
-                _immCount, _instrCount, _maxRegister,
+                _immCount, _instrCount, _maxRegister, _byteHash,
                 newRegs, newBound, newMask, newCount, _ip, false, default);
 
             return Resume(state);
@@ -290,7 +294,7 @@ namespace FluxFormula.Core
                                     // 未绑定：挂起
                                     return new FluxCurryEvaluator<TData, TDef>(
                                         state._definition, state._bytecode, varImm, state._varNames,
-                                        state._immCount, instrCount, state._maxRegister,
+                                        state._immCount, instrCount, state._maxRegister, state._byteHash,
                                         regs, bound, mask, state._boundCount, ip, false, default);
                                 }
                                 r[inst->Dest] = bound[varPtr];
@@ -311,7 +315,7 @@ namespace FluxFormula.Core
                             if (!IsDefault(r + Registers.Error))
                                 return new FluxCurryEvaluator<TData, TDef>(
                                     state._definition, state._bytecode, varImm, state._varNames,
-                                    state._immCount, instrCount, state._maxRegister,
+                                    state._immCount, instrCount, state._maxRegister, state._byteHash,
                                     regs, bound, mask, state._boundCount, ip + 1, true, r[Registers.Error]);
                             ip++;
                         }
@@ -329,7 +333,7 @@ namespace FluxFormula.Core
                                     ? r[returnReg] : r[Registers.Error];
                                 return new FluxCurryEvaluator<TData, TDef>(
                                     state._definition, state._bytecode, varImm, state._varNames,
-                                    state._immCount, instrCount, state._maxRegister,
+                                    state._immCount, instrCount, state._maxRegister, state._byteHash,
                                     regs, bound, mask, state._boundCount, ip + 1, true, finalResult);
                             }
                         }
@@ -342,7 +346,7 @@ namespace FluxFormula.Core
 
                     return new FluxCurryEvaluator<TData, TDef>(
                         state._definition, state._bytecode, varImm, state._varNames,
-                        state._immCount, instrCount, state._maxRegister,
+                        state._immCount, instrCount, state._maxRegister, state._byteHash,
                         regs, bound, mask, state._boundCount, ip, true, default);
                 }
             }

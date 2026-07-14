@@ -11,7 +11,7 @@ public class CardDrawTests
     // Lexer 工厂
     // ═══════════════════════════════════════════════════════
 
-    // SpellContext 的 LiteralScanner 由 [LiteralTemplate] Source Generator 自动生成
+    // SpellContext 的 LiteralScanner 由 [Template] Source Generator 自动生成
     private static FluxLexer<SpellContext> CreateSpellLexer()
     {
         return new FluxLexer<SpellContext>(new LexerConfig<SpellContext>

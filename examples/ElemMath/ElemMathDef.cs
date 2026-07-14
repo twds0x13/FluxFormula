@@ -1,16 +1,17 @@
 using System;
 using System.Linq.Expressions;
 using FluxFormula.Core;
+using SourceSerializer;
 
 public enum Element : byte
 {
-    Physical = 0,
-    [LiteralTag("fire")]  Fire,
-    [LiteralTag("ice")]   Ice,
-    [LiteralTag("magic")] Magic,
+    [Tag("Physical")] Physical = 0,
+    [Tag("fire")]  Fire,
+    [Tag("ice")]   Ice,
+    [Tag("magic")] Magic,
 }
 
-[LiteralTemplate("<float Amount><optional>:<Element Element></optional>")]
+[Template("<float Amount><optional>:<Element Element></optional>")]
 public struct ElemValue : IEquatable<ElemValue>
 {
     public float Amount;

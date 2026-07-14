@@ -1,20 +1,21 @@
 using System;
 using FluxFormula.Core;
+using SourceSerializer;
 using NUnit.Framework;
 using static TestHelper;
 
 // 注册自定义类型别名——模板中可以用 <Distance range> 替代 <float range>
-[assembly: LiteralTypeAlias("Distance", "float")]
-// 为 ExternalPoint 注册外部模板（Priority B：覆盖 [LiteralTemplate]）
-[assembly: ExternalLiteralTemplate(typeof(ExternalPoint), "<float A> <float B>")]
+[assembly: TypeAlias("Distance", "float")]
+// 为 ExternalPoint 注册外部模板（Priority B：覆盖 [Template]）
+[assembly: ExternalTemplate(typeof(ExternalPoint), "<float A> <float B>")]
 
 // ═══════════════════════════════════════════════════════
-// 测试用 struct：带 [LiteralTemplate] 标记
+// 测试用 struct：带 [Template] 标记
 // source generator 应为这些 struct 生成 scan 代码
 // ═══════════════════════════════════════════════════════
 
 /// <summary>简单结构体：两个 float 字段，空格分隔</summary>
-[LiteralTemplate("<float X> <float Y>")]
+[Template("<float X> <float Y>")]
 public struct Point2D
 {
     public float X;
@@ -24,7 +25,7 @@ public struct Point2D
 }
 
 /// <summary>卡牌上下文：带可选字段的复杂格式</summary>
-[LiteralTemplate("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
+[Template("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
 public struct SpellCard
 {
     public float Damage;
@@ -36,14 +37,14 @@ public struct SpellCard
 }
 
 /// <summary>bool 字段测试</summary>
-[LiteralTemplate("<bool Flag>")]
+[Template("<bool Flag>")]
 public struct BoolWrapper
 {
     public bool Flag;
 }
 
 /// <summary>多行模板测试：等价于 &lt;float X&gt; &lt;float Y&gt;</summary>
-[LiteralTemplate(@"
+[Template(@"
     <float X>
     <float Y>
 ")]
@@ -53,7 +54,7 @@ public struct PointMultiLine
     public float Y;
 }
 
-/// <summary>无 [LiteralTemplate]——通过 ExternalLiteralTemplate 注册</summary>
+/// <summary>无 [Template]——通过 ExternalLiteralTemplate 注册</summary>
 public struct ExternalPoint
 {
     public float A;
@@ -61,7 +62,7 @@ public struct ExternalPoint
 }
 
 /// <summary>使用 LiteralTypeAlias 注册的自定义类型名</summary>
-[LiteralTemplate("<Distance X> <Distance Y>")]
+[Template("<Distance X> <Distance Y>")]
 public struct DistancePoint
 {
     public float X;
@@ -69,7 +70,7 @@ public struct DistancePoint
 }
 
 /// <summary>纯 XML 格式模板（非紧凑语法）</summary>
-[LiteralTemplate(@"
+[Template(@"
   <literal-template>
     <field type=""float"" name=""X""/>
     <text>, </text>
@@ -82,7 +83,7 @@ public struct XmlPoint2D
 }
 
 /// <summary>XML 格式 + 嵌套</summary>
-[LiteralTemplate(@"
+[Template(@"
   <literal-template>
     <text>[</text>
     <field type=""XmlPoint2D"" name=""Pos""/>
@@ -98,7 +99,7 @@ public struct XmlEntity
 // ═══════════════════════════════════════════════════════
 
 /// <summary>叶子结构体：三维坐标</summary>
-[LiteralTemplate("<float X> <float Y> <float Z>")]
+[Template("<float X> <float Y> <float Z>")]
 public struct Vec3
 {
     public float X;
@@ -108,21 +109,22 @@ public struct Vec3
 }
 
 /// <summary>包含 Vec3 的复合结构体：用括号包裹</summary>
-[LiteralTemplate("(<Vec3 Pos>)")]
+[Template("(<Vec3 Pos>)")]
 public struct Entity
 {
     public Vec3 Pos;
 }
 
 /// <summary>二级嵌套：Team 包含 Entity，Entity 包含 Vec3</summary>
-[LiteralTemplate("[<Entity Member>]")]
+[Template("[<Entity Member>]")]
 public struct Team
 {
     public Entity Member;
 }
 
-/// <summary>带 repetition 的变长数组模板（XML 格式）</summary>
-[LiteralTemplate(@"
+/// <summary>带 repetition 的变长数组模板（XML 格式）——测试 repetition 的 last-value-wins 语义</summary>
+#pragma warning disable SSR005 // 标量在 repetition 中：故意测试覆盖行为
+[Template(@"
   <literal-template>
     <field type=""float"" name=""Damage""/>
     <repetition>
@@ -130,14 +132,17 @@ public struct Team
       <field type=""float"" name=""Multipliers""/>
     </repetition>
   </literal-template>")]
+#pragma warning restore SSR005
 public struct DamageWithMultipliers
 {
     public float Damage;
     public float Multipliers;
 }
 
-/// <summary>带 repetition 的变长数组模板（紧凑语法）</summary>
-[LiteralTemplate("<float Damage><repetition>, <float Multipliers></repetition>")]
+/// <summary>带 repetition 的变长数组模板（紧凑语法）——测试 repetition 的 last-value-wins 语义</summary>
+#pragma warning disable SSR005 // 标量在 repetition 中：故意测试覆盖行为
+[Template("<float Damage><repetition>, <float Multipliers></repetition>")]
+#pragma warning restore SSR005
 public struct DamageCompact
 {
     public float Damage;
@@ -151,12 +156,12 @@ public struct DamageCompact
 // ── 枚举标签类型 ──
 public enum DamageType : byte
 {
-    [LiteralTag("fire")]  Fire,
-    [LiteralTag("ice")]   Ice,
-    [LiteralTag("magic")] Magic,
+    [Tag("fire")]  Fire,
+    [Tag("ice")]   Ice,
+    [Tag("magic")] Magic,
 }
 
-[LiteralTemplate("<DamageType Type>|<float Power>")]
+[Template("<DamageType Type>|<float Power>")]
 public struct TaggedSpell
 {
     public DamageType Type;
@@ -200,7 +205,7 @@ public class LiteralTemplateTests
     [Test]
     public void Point2D_Template_FallbackToManualScanner()
     {
-        // 未设置 config.LiteralScanner 且无 [LiteralTemplate]
+        // 未设置 config.LiteralScanner 且无 [Template]
         // 应抛异常
         var config = new LexerConfig<float>
         {
@@ -297,7 +302,7 @@ public class LiteralTemplateTests
     [Test]
     public void ManualLiteralScanner_TakesPriority_WhenTemplateNotUsed()
     {
-        // 没有 [LiteralTemplate] 的 TData 仍然通过手动 delegate 工作
+        // 没有 [Template] 的 TData 仍然通过手动 delegate 工作
         var tokens = CreateMathLexer().Lex("42f").Tokens;
         Assert.That(tokens.Length, Is.EqualTo(1));
         Assert.That(tokens[0].Data, Is.EqualTo(42f).Within(1e-6f));
@@ -369,7 +374,7 @@ public class LiteralTemplateTests
     [Test]
     public void ExternalTemplate_RegistersViaAttribute()
     {
-        // ExternalPoint has no [LiteralTemplate] but has [ExternalLiteralTemplate]
+        // ExternalPoint has no [Template] but has [ExternalTemplate]
         var config = new LexerConfig<ExternalPoint>
         {
             LiteralOper = 0,
@@ -389,7 +394,7 @@ public class LiteralTemplateTests
     public void ScanFloat_HandlesSuffix()
     {
         float val;
-        int end = LiteralTemplateRegistry.Scan_Float("3.5f ", 0, out val);
+        int end = SerializerRegistry.Scan_Float("3.5f ", 0, out val);
         Assert.That(end, Is.EqualTo(4));
         Assert.That(val, Is.EqualTo(3.5f).Within(1e-5f));
     }
@@ -398,7 +403,7 @@ public class LiteralTemplateTests
     public void ScanDouble_HandlesExponent()
     {
         double val;
-        int end = LiteralTemplateRegistry.Scan_Double("1e2 ", 0, out val);
+        int end = SerializerRegistry.Scan_Double("1e2 ", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo(100.0).Within(1e-5));
     }
@@ -407,7 +412,7 @@ public class LiteralTemplateTests
     public void ScanDouble_HandlesExponentWithSign()
     {
         double val;
-        int end = LiteralTemplateRegistry.Scan_Double("-1e+3 ", 0, out val);
+        int end = SerializerRegistry.Scan_Double("-1e+3 ", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo(-1000.0).Within(1e-5));
     }
@@ -416,7 +421,7 @@ public class LiteralTemplateTests
     public void ScanDouble_HandlesDSuffix()
     {
         double val;
-        int end = LiteralTemplateRegistry.Scan_Double("3.14d ", 0, out val);
+        int end = SerializerRegistry.Scan_Double("3.14d ", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo(3.14).Within(1e-5));
     }
@@ -425,7 +430,7 @@ public class LiteralTemplateTests
     public void ScanUint_HandlesDigits()
     {
         uint val;
-        int end = LiteralTemplateRegistry.Scan_Uint("99 ", 0, out val);
+        int end = SerializerRegistry.Scan_Uint("99 ", 0, out val);
         Assert.That(end, Is.EqualTo(2));
         Assert.That(val, Is.EqualTo(99u));
     }
@@ -434,7 +439,7 @@ public class LiteralTemplateTests
     public void ScanUint_NoMatchOnLetter()
     {
         uint val;
-        int end = LiteralTemplateRegistry.Scan_Uint("abc", 0, out val);
+        int end = SerializerRegistry.Scan_Uint("abc", 0, out val);
         Assert.That(end, Is.EqualTo(0));
     }
 
@@ -442,7 +447,7 @@ public class LiteralTemplateTests
     public void ScanLong_Negative()
     {
         long val;
-        int end = LiteralTemplateRegistry.Scan_Long("-123 ", 0, out val);
+        int end = SerializerRegistry.Scan_Long("-123 ", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo(-123L));
     }
@@ -451,7 +456,7 @@ public class LiteralTemplateTests
     public void ScanUlong_Basic()
     {
         ulong val;
-        int end = LiteralTemplateRegistry.Scan_Ulong("42 ", 0, out val);
+        int end = SerializerRegistry.Scan_Ulong("42 ", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo(42uL));
     }
@@ -460,7 +465,7 @@ public class LiteralTemplateTests
     public void ScanShort_Basic()
     {
         short val;
-        int end = LiteralTemplateRegistry.Scan_Short("32000 ", 0, out val);
+        int end = SerializerRegistry.Scan_Short("32000 ", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo((short)32000));
     }
@@ -469,7 +474,7 @@ public class LiteralTemplateTests
     public void ScanUshort_Basic()
     {
         ushort val;
-        int end = LiteralTemplateRegistry.Scan_Ushort("65000 ", 0, out val);
+        int end = SerializerRegistry.Scan_Ushort("65000 ", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo((ushort)65000));
     }
@@ -478,7 +483,7 @@ public class LiteralTemplateTests
     public void ScanByte_Basic()
     {
         byte val;
-        int end = LiteralTemplateRegistry.Scan_Byte("255 ", 0, out val);
+        int end = SerializerRegistry.Scan_Byte("255 ", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo((byte)255));
     }
@@ -487,7 +492,7 @@ public class LiteralTemplateTests
     public void ScanSbyte_Negative()
     {
         sbyte val;
-        int end = LiteralTemplateRegistry.Scan_Sbyte("-128 ", 0, out val);
+        int end = SerializerRegistry.Scan_Sbyte("-128 ", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo((sbyte)-128));
     }
@@ -496,7 +501,7 @@ public class LiteralTemplateTests
     public void ScanBool_False()
     {
         bool val;
-        int end = LiteralTemplateRegistry.Scan_Bool("false ", 0, out val);
+        int end = SerializerRegistry.Scan_Bool("false ", 0, out val);
         Assert.That(end, Is.EqualTo(5));
         Assert.That(val, Is.False);
     }
@@ -505,7 +510,7 @@ public class LiteralTemplateTests
     public void ScanChar_AtEnd()
     {
         char val;
-        int end = LiteralTemplateRegistry.Scan_Char("x", 0, out val);
+        int end = SerializerRegistry.Scan_Char("x", 0, out val);
         Assert.That(end, Is.EqualTo(1));
         Assert.That(val, Is.EqualTo('x'));
     }
@@ -514,7 +519,7 @@ public class LiteralTemplateTests
     public void ScanChar_EmptyReturnsPos()
     {
         char val;
-        int end = LiteralTemplateRegistry.Scan_Char("", 0, out val);
+        int end = SerializerRegistry.Scan_Char("", 0, out val);
         Assert.That(end, Is.EqualTo(0));
     }
 
@@ -524,7 +529,7 @@ public class LiteralTemplateTests
     public void ScanFloat_NoSuffix_DecimalOnly()
     {
         float val;
-        int end = LiteralTemplateRegistry.Scan_Float("3.5", 0, out val);
+        int end = SerializerRegistry.Scan_Float("3.5", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo(3.5f).Within(1e-5f));
     }
@@ -533,7 +538,7 @@ public class LiteralTemplateTests
     public void ScanDouble_NegativeExponent()
     {
         double val;
-        int end = LiteralTemplateRegistry.Scan_Double("1e-3", 0, out val);
+        int end = SerializerRegistry.Scan_Double("1e-3", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo(0.001).Within(1e-6));
     }
@@ -542,7 +547,7 @@ public class LiteralTemplateTests
     public void ScanInt_PositiveSign()
     {
         int val;
-        int end = LiteralTemplateRegistry.Scan_Int("+42", 0, out val);
+        int end = SerializerRegistry.Scan_Int("+42", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo(42));
     }
@@ -551,7 +556,7 @@ public class LiteralTemplateTests
     public void ScanUlong_WithUSuffix()
     {
         ulong val;
-        int end = LiteralTemplateRegistry.Scan_Ulong("99U", 0, out val);
+        int end = SerializerRegistry.Scan_Ulong("99U", 0, out val);
         Assert.That(end, Is.GreaterThan(0));
         Assert.That(val, Is.EqualTo(99uL));
     }
@@ -560,7 +565,7 @@ public class LiteralTemplateTests
     public void ScanLong_WithLSuffix()
     {
         long val;
-        int end = LiteralTemplateRegistry.Scan_Long("123L ", 0, out val);
+        int end = SerializerRegistry.Scan_Long("123L ", 0, out val);
         Assert.That(end, Is.EqualTo(4)); // position includes 'L' suffix
         Assert.That(val, Is.EqualTo(123L));
     }
@@ -569,7 +574,7 @@ public class LiteralTemplateTests
     public void ScanUlong_WithUlSuffix()
     {
         ulong val;
-        int end = LiteralTemplateRegistry.Scan_Ulong("456UL ", 0, out val);
+        int end = SerializerRegistry.Scan_Ulong("456UL ", 0, out val);
         Assert.That(end, Is.EqualTo(5)); // position includes 'UL' suffix
         Assert.That(val, Is.EqualTo(456uL));
     }
@@ -578,7 +583,7 @@ public class LiteralTemplateTests
     public void ScanUlong_WithLowercaseSuffix()
     {
         ulong val;
-        int end = LiteralTemplateRegistry.Scan_Ulong("78ul ", 0, out val);
+        int end = SerializerRegistry.Scan_Ulong("78ul ", 0, out val);
         Assert.That(end, Is.EqualTo(4));
         Assert.That(val, Is.EqualTo(78uL));
     }
@@ -587,7 +592,7 @@ public class LiteralTemplateTests
     public void ScanLong_EmptyInput_ReturnsPos()
     {
         long val;
-        int end = LiteralTemplateRegistry.Scan_Long("", 0, out val);
+        int end = SerializerRegistry.Scan_Long("", 0, out val);
         Assert.That(end, Is.EqualTo(0));
     }
 
@@ -595,7 +600,7 @@ public class LiteralTemplateTests
     public void ScanUlong_EmptyInput_ReturnsPos()
     {
         ulong val;
-        int end = LiteralTemplateRegistry.Scan_Ulong("", 0, out val);
+        int end = SerializerRegistry.Scan_Ulong("", 0, out val);
         Assert.That(end, Is.EqualTo(0));
     }
 
@@ -603,7 +608,7 @@ public class LiteralTemplateTests
     public void ScanFloat_PointWithoutDigit_ReturnsStart()
     {
         float val;
-        int end = LiteralTemplateRegistry.Scan_Float("3.", 0, out val);
+        int end = SerializerRegistry.Scan_Float("3.", 0, out val);
         Assert.That(end, Is.EqualTo(0)); // '.' not followed by digit
     }
 
@@ -611,7 +616,7 @@ public class LiteralTemplateTests
     public void ScanDouble_EWithoutDigit_ReturnsStart()
     {
         double val;
-        int end = LiteralTemplateRegistry.Scan_Double("1e", 0, out val);
+        int end = SerializerRegistry.Scan_Double("1e", 0, out val);
         Assert.That(end, Is.EqualTo(0)); // 'e' not followed by digit
     }
 
@@ -619,7 +624,7 @@ public class LiteralTemplateTests
     public void ScanInt_SignOnly_ReturnsStart()
     {
         int val;
-        int end = LiteralTemplateRegistry.Scan_Int("+", 0, out val);
+        int end = SerializerRegistry.Scan_Int("+", 0, out val);
         Assert.That(end, Is.EqualTo(0));
     }
 
@@ -627,7 +632,7 @@ public class LiteralTemplateTests
     public void ScanBool_True()
     {
         bool val;
-        int end = LiteralTemplateRegistry.Scan_Bool("true", 0, out val);
+        int end = SerializerRegistry.Scan_Bool("true", 0, out val);
         Assert.That(end, Is.EqualTo(4));
         Assert.That(val, Is.True);
     }
@@ -636,7 +641,7 @@ public class LiteralTemplateTests
     public void ScanBool_NoMatch()
     {
         bool val;
-        int end = LiteralTemplateRegistry.Scan_Bool("maybe", 0, out val);
+        int end = SerializerRegistry.Scan_Bool("maybe", 0, out val);
         Assert.That(end, Is.EqualTo(0));
     }
 
@@ -644,7 +649,7 @@ public class LiteralTemplateTests
     public void ScanInt_NoMatchOnLetter()
     {
         int val;
-        int end = LiteralTemplateRegistry.Scan_Int("abc", 0, out val);
+        int end = SerializerRegistry.Scan_Int("abc", 0, out val);
         Assert.That(end, Is.EqualTo(0));
     }
 
@@ -653,7 +658,7 @@ public class LiteralTemplateTests
     [Test]
     public void TypeAlias_DistanceMapsToFloat()
     {
-        // [assembly: LiteralTypeAlias("Distance", "float")]
+        // [assembly: TypeAlias("Distance", "float")]
         // DistancePoint uses <Distance X> <Distance Y> → behaves like <float X> <float Y>
         var config = new LexerConfig<DistancePoint>
         {
@@ -709,7 +714,7 @@ public class LiteralTemplateTests
     [Test]
     public void MissingDependency_GeneratorProducesWarning()
     {
-        // For types without [LiteralTemplate] referenced in a template,
+        // For types without [Template] referenced in a template,
         // FLX004 warning is produced. We test by checking that a struct
         // with an unregistered type in its template compiles but produces
         // no scanner (the field is skipped with a comment).
@@ -720,7 +725,7 @@ public class LiteralTemplateTests
     [Test]
     public void CircularDependency_Detected()
     {
-        // When struct A references B and B references A via [LiteralTemplate],
+        // When struct A references B and B references A via [Template],
         // both FLX002 (our error) and CS0523 (C# struct layout cycle) fire.
         // FLX002 provides additional context about which template types are involved.
         // Since CS0523 prevents compilation of the test types, we verify FLX002
@@ -865,7 +870,7 @@ public class LiteralTemplateTests
     [Test]
     public void TaggedSpell_UnknownTag_ReturnsStart()
     {
-        Assert.That(LiteralScanners.TryGetScanner<TaggedSpell>(out var scan), Is.True);
+        Assert.That(SerializerScanners.TryGetScanner<TaggedSpell>(out var scan), Is.True);
         int r = scan("water|10".AsSpan(), 0, out _);
         Assert.That(r, Is.EqualTo(0));
     }

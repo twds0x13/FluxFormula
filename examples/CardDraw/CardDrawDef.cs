@@ -3,12 +3,13 @@ using System.Linq.Expressions;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using FluxFormula.Core;
+using SourceSerializer;
 
 // ═══════════════════════════════════════════════════════
 // TData 结构体
 // ═══════════════════════════════════════════════════════
 
-[LiteralTemplate("<float Damage>|<optional>draw <byte DrawsProvide>|</optional>idx:<byte StartIndex>")]
+[Template("<float Damage>|<optional>draw <byte DrawsProvide>|</optional>idx:<byte StartIndex>")]
 public struct SpellContext : IEquatable<SpellContext>
 {
     public float Damage;              // 累积伤害

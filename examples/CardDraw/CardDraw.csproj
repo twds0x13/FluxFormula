@@ -26,11 +26,12 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxJITInjector.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxLexer.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTemplateAttribute.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTemplateRegistry.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralScanners.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/ExternalLiteralTemplateAttribute.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/LiteralTypeAliasAttribute.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/TemplateAttribute.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/SerializerRegistry.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/SerializerScanners.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/SerializerEmitters.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/ExternalTemplateAttribute.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/TypeAliasAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/DualHash64.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FormulaCache.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxCacheProvider.cs" />
@@ -64,7 +65,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../packages/fluxformula.core/SourceGenerator/FluxFormula.LiteralScanner.Generator.csproj"
+    <ProjectReference Include="../../packages/fluxformula.core/SourceGenerator/SourceSerializer.Generator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
