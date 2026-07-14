@@ -1,3 +1,18 @@
+## [6.0.0](https://github.com/twds0x13/FluxFormula/compare/v5.12.3...v6.0.0) (2026-07-14)
+
+### ⚠ BREAKING CHANGES
+
+* All LiteralScanner attributes renamed to SourceSerializer
+equivalents. [LiteralTemplate]→[Template], [LiteralTag]→[Tag],
+[LiteralTypeAlias]→[TypeAlias], [ExternalLiteralTemplate]→[ExternalTemplate].
+LiteralScanners.TryGetScanner→SerializerScanners.TryGetScanner.
+LiteralTemplateRegistry→SerializerRegistry. Diagnostic codes FLX001-FLX004
+replaced by SSR001-SSR004.
+
+### Code Refactoring
+
+* migrate LiteralScanner SG to SourceSerializer and vendor sources ([19dd95a](https://github.com/twds0x13/FluxFormula/commit/19dd95aa2ed4711fa5aad2495ae17b2216ab00d2))
+
 ## [5.12.3](https://github.com/twds0x13/FluxFormula/compare/v5.12.2...v5.12.3) (2026-07-13)
 
 ### Bug Fixes
