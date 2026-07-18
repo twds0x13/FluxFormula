@@ -44,17 +44,6 @@ namespace SourceSerializer
         };
 
         /// <summary>
-        /// 开放泛型模板注册表。键为开放泛型全名（如 System.Collections.Generic.List&lt;&gt;），
-        /// 值为模板字符串，T 作为类型占位符。SG 在编译期遇到具体化泛型类型时，
-        /// 将 T 替换为具体类型参数后解析为 AST 并生成专用扫描方法。
-        /// </summary>
-        internal static readonly Dictionary<string, string> GenericTemplates = new()
-        {
-            ["System.Collections.Generic.List<>"] = "<first><T1 item></first><body>, <T1 item></body>",
-            ["System.Collections.Generic.Dictionary<>"] = "<first><T1 key>: <T2 value></first><body>, <T1 key>: <T2 value></body>",
-        };
-
-        /// <summary>
         /// 返回给定别名是否为内置类型。
         /// </summary>
         // 仅供 source generator 编译期使用，运行时从不调用

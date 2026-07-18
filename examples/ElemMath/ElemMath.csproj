@@ -8,6 +8,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,8 +28,7 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/TemplateAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/TagAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/SerializerRegistry.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/SerializerScanners.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Core/SerializerEmitters.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Core/SerializerBlocks.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/ExternalTemplateAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/TypeAliasAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/DualHash64.cs" />

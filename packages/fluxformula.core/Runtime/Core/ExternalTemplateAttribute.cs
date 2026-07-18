@@ -25,7 +25,7 @@ namespace SourceSerializer
     /// <example>
     /// <code>
     /// // 注册 Unity Vector3 的模板
-    /// [assembly: ExternalTemplate(typeof(UnityEngine.Vector3),
+    /// [assembly: ExternalLiteralTemplate(typeof(UnityEngine.Vector3),
     ///     "&lt;float x&gt; &lt;float y&gt; &lt;float z&gt;")]
     /// </code>
     /// </example>

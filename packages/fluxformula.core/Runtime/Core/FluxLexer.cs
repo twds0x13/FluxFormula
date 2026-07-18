@@ -263,9 +263,9 @@ namespace FluxFormula.Core
             _config = config ?? throw new ArgumentNullException(nameof(config));
 
             // Priority: generated SourceSerializer scanner > manual LiteralScanner delegate
-            if (SerializerScanners.TryGetScanner<TData>(out var generatedScanner))
+            if (SerializerBlocks.TryGet<TData>(out var block))
             {
-                _literalScanner = new LiteralScanner<TData>(generatedScanner);
+                _literalScanner = block.Scan;
             }
             else if (config.LiteralScanner != null)
             {

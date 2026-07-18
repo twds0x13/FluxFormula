@@ -870,8 +870,8 @@ public class LiteralTemplateTests
     [Test]
     public void TaggedSpell_UnknownTag_ReturnsStart()
     {
-        Assert.That(SerializerScanners.TryGetScanner<TaggedSpell>(out var scan), Is.True);
-        int r = scan("water|10".AsSpan(), 0, out _);
+        Assert.That(SerializerBlocks.TryGet<TaggedSpell>(out var block), Is.True);
+        int r = block.Scan("water|10".AsSpan(), 0, out _);
         Assert.That(r, Is.EqualTo(0));
     }
 

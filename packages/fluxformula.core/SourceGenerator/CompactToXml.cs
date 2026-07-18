@@ -44,11 +44,16 @@ namespace SourceSerializer.Generator
             int pos = 0;
             var textBuf = new StringBuilder();
 
+            // <repetition> 缓冲：栈顶是当前 repetition 级别的输出目标。非 rep 模式时直接写 sb。
+            // depth=0 表示不在 rep 内，>0 表示在嵌套 rep 内。
+            var repStack = new System.Collections.Generic.Stack<(StringBuilder Buf, bool HasFirstOrBody)>();
+            StringBuilder current = sb;
+
             while (pos < compact.Length)
             {
                 if (compact[pos] == '<')
                 {
-                    FlushText(textBuf, sb);
+                    FlushText(textBuf, current);
 
                     // 嵌套深度跟踪：<List<NamedValue> Mods> 中内层 > 不终止
                     int end = pos + 1;
@@ -70,39 +75,52 @@ namespace SourceSerializer.Generator
 
                     if (trimmed == "optional")
                     {
-                        sb.Append("<optional>");
+                        current.Append("<optional>");
                     }
                     else if (trimmed == "/optional")
                     {
-                        sb.Append("</optional>");
+                        current.Append("</optional>");
                     }
                     else if (trimmed == "repetition")
                     {
-                        sb.Append("<repetition>");
+                        // 开始缓冲 <repetition> 内容，结束时转为 <first>/<body>
+                        repStack.Push((current, false));
+                        current = new StringBuilder();
                     }
                     else if (trimmed == "/repetition")
                     {
-                        sb.Append("</repetition>");
+                        // 结束缓冲，展开为 <first>/<body>
+                        if (repStack.Count == 0)
+                            throw new FormatException("Unmatched '</repetition>' without '<repetition>'.");
+                        var (parent, hasFirstOrBody) = repStack.Pop();
+                        string body = current.ToString();
+                        if (hasFirstOrBody)
+                        {
+                            // 内容已含 <first>/<body>：直接展平
+                            parent.Append(body);
+                        }
+                        else
+                        {
+                            // 同质内容：复制为 first + body
+                            parent.Append("<first>");
+                            parent.Append(body);
+                            parent.Append("</first>");
+                            parent.Append("<body>");
+                            parent.Append(body);
+                            parent.Append("</body>");
+                        }
+                        current = parent;
                     }
-                    else if (trimmed == "first")
+                    else if (trimmed == "first" || trimmed == "/first" ||
+                             trimmed == "body" || trimmed == "/body")
                     {
-                        sb.Append("<first>");
-                    }
-                    else if (trimmed == "/first")
-                    {
-                        sb.Append("</first>");
-                    }
-                    else if (trimmed == "body")
-                    {
-                        sb.Append("<body>");
-                    }
-                    else if (trimmed == "/body")
-                    {
-                        sb.Append("</body>");
-                    }
-                    else if (trimmed == "/repetition")
-                    {
-                        sb.Append("</repetition>");
+                        // 标记当前 rep 层级已有 first/body，然后透传标签
+                        if (repStack.Count > 0)
+                        {
+                            var (parent, _) = repStack.Pop();
+                            repStack.Push((parent, true));
+                        }
+                        current.Append($"<{trimmed}>");
                     }
                     else
                     {
@@ -110,12 +128,12 @@ namespace SourceSerializer.Generator
                         int spaceIdx = trimmed.IndexOf(' ');
                         if (spaceIdx < 0)
                             throw new FormatException(
-                                $"Invalid directive '<{trimmed}>'. Expected '<type fieldname>', '<optional>', or '<repetition>'.");
+                                $"Invalid directive '<{trimmed}>'. Expected '<type fieldname>', '<optional>', or '<first>+<body>'.");
 
                         string typeAlias = trimmed.Substring(0, spaceIdx);
                         string fieldName = trimmed.Substring(spaceIdx + 1).Trim();
 
-                        sb.Append($"<field type=\"{EscapeXml(typeAlias)}\" name=\"{EscapeXml(fieldName)}\"/>");
+                        current.Append($"<field type=\"{EscapeXml(typeAlias)}\" name=\"{EscapeXml(fieldName)}\"/>");
                     }
                 }
                 else
@@ -125,7 +143,10 @@ namespace SourceSerializer.Generator
                 }
             }
 
-            FlushText(textBuf, sb);
+            if (repStack.Count > 0)
+                throw new FormatException("Unclosed '<repetition>' at end of template.");
+
+            FlushText(textBuf, current);
 
             sb.Append("</literal-template>");
             return sb.ToString();
