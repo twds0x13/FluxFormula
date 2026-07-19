@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -19,8 +18,8 @@ namespace FluxFormula.Core
 
         public NativeTruncateBuffer(nuint initialCapacity, uint maxTruncations)
         {
-            _data = NativeMemory.Alloc(initialCapacity);
-            _truncations = (uint*)NativeMemory.Alloc(maxTruncations * (nuint)sizeof(uint));
+            _data = (void*)Marshal.AllocHGlobal((nint)initialCapacity);
+            _truncations = (uint*)(void*)Marshal.AllocHGlobal((nint)(maxTruncations * (nuint)sizeof(uint)));
             _dataCapacity = initialCapacity;
             _truncCapacity = maxTruncations;
             _pos = 0;
@@ -207,8 +206,8 @@ namespace FluxFormula.Core
                 _sync.Enter(ref lockTaken);
                 if (_disposed) return;
                 _disposed = true;
-                NativeMemory.Free(_data);
-                NativeMemory.Free(_truncations);
+                Marshal.FreeHGlobal((nint)_data);
+                Marshal.FreeHGlobal((nint)_truncations);
             }
             finally
             {
@@ -223,15 +222,15 @@ namespace FluxFormula.Core
             nuint newSize = _dataCapacity;
             while (newSize < needed)
                 newSize *= 4;
-            _data = NativeMemory.Realloc(_data, newSize);
+            _data = (void*)Marshal.ReAllocHGlobal((nint)_data, (nint)newSize);
             _dataCapacity = newSize;
         }
 
         private void ExpandTruncations()
         {
             _truncCapacity *= 4;
-            _truncations = (uint*)NativeMemory.Realloc(
-                _truncations, _truncCapacity * (nuint)sizeof(uint));
+            _truncations = (uint*)(void*)Marshal.ReAllocHGlobal(
+                (nint)_truncations, (nint)(_truncCapacity * (nuint)sizeof(uint)));
         }
     }
 }

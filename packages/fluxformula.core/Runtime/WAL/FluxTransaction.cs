@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+
 
 namespace FluxFormula.Core
 {
@@ -36,11 +36,12 @@ namespace FluxFormula.Core
         }
 
         /// <summary>累积一个变量绑定。不会立即写入 WAL。</summary>
-        public FluxTransaction<TMeta, TData, TDef> Bind(string name, TData value)
+        public unsafe FluxTransaction<TMeta, TData, TDef> Bind(string name, TData value)
         {
             if (_disposed) throw new ObjectDisposedException("FluxTransaction");
-            byte[] bytes = new byte[Unsafe.SizeOf<TData>()];
-            Unsafe.WriteUnaligned(ref bytes[0], value);
+            byte[] bytes = new byte[sizeof(TData)];
+            fixed (byte* p = &bytes[0])
+                *(TData*)p = value;
             _bindings.Add((name, bytes));
             _evaluator = _evaluator.TryBind(name, value);
             return this;

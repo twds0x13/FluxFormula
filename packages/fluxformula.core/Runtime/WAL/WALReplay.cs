@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+
 
 namespace FluxFormula.Core
 {
@@ -24,11 +24,13 @@ namespace FluxFormula.Core
                 var entry = new WALEntry<TMeta>(raw, 0, raw.Length);
                 var curry = evaluator;
 
-                foreach (var (name, valueBytes) in entry.GetBindings())
+                var bindings = entry.GetBindings();
+                while (bindings.MoveNext())
                 {
+                    var (name, valueBytes) = bindings.Current;
                     TData value = default;
-                    if (valueBytes.Length == Unsafe.SizeOf<TData>())
-                        value = Unsafe.ReadUnaligned<TData>(ref valueBytes[0]);
+                    if (valueBytes.Length == System.Runtime.InteropServices.Marshal.SizeOf<TData>())
+                        value = System.Runtime.InteropServices.MemoryMarshal.Read<TData>(new ReadOnlySpan<byte>(valueBytes));
                     curry = curry.TryBind(name, value);
                 }
 
@@ -65,7 +67,7 @@ namespace FluxFormula.Core
         /// 回滚到指定帧。
         /// 恢复 checkpoint 状态后，累积重放 checkpoint 到 targetFrame 之间的所有条目。
         /// </summary>
-        public static FluxCurryEvaluator<TData, TDef> Rollback<TMeta, TData, TDef>(
+        public static unsafe FluxCurryEvaluator<TData, TDef> Rollback<TMeta, TData, TDef>(
             this FluxWAL<TMeta> wal,
             TDef definition,
             FramePtr targetFrame)
@@ -85,8 +87,11 @@ namespace FluxFormula.Core
                 foreach (var (name, valueBytes) in entry.GetBindings())
                 {
                     TData value = default;
-                    if (valueBytes.Length == Unsafe.SizeOf<TData>())
-                        value = Unsafe.ReadUnaligned<TData>(ref valueBytes[0]);
+                    if (valueBytes.Length == sizeof(TData))
+                    {
+                        fixed (byte* p = &valueBytes[0])
+                            value = *(TData*)p;
+                    }
                     evaluator = evaluator.TryBind(name, value);
                 }
             }

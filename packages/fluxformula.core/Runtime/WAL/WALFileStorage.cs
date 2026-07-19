@@ -27,7 +27,9 @@ namespace FluxFormula.Core
         {
             string tmp = _filePath + ".tmp";
             File.WriteAllBytes(tmp, data);
-            File.Move(tmp, _filePath, overwrite: true);
+            if (File.Exists(_filePath))
+                File.Delete(_filePath);
+            File.Move(tmp, _filePath);
         }
 
         public void OverwritePreamble(byte[] data)

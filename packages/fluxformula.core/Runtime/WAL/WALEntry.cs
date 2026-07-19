@@ -1,5 +1,5 @@
 using System;
-using System.Runtime.CompilerServices;
+
 using System.Text;
 
 namespace FluxFormula.Core
@@ -71,12 +71,13 @@ namespace FluxFormula.Core
         }
 
         /// <summary>用户定义元数据，从 entry 尾部直接读取。</summary>
-        public TMeta Meta
+        public unsafe TMeta Meta
         {
             get
             {
-                int tailOffset = _offset + _length - Unsafe.SizeOf<TMeta>();
-                return Unsafe.ReadUnaligned<TMeta>(ref _buffer[tailOffset]);
+                int tailOffset = _offset + _length - sizeof(TMeta);
+                fixed (byte* p = &_buffer[tailOffset])
+                    return *(TMeta*)p;
             }
         }
 

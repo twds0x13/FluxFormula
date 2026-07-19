@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+
 using System.Text;
 using System.Threading;
 
@@ -440,10 +440,11 @@ namespace FluxFormula.Core
         public void Dispose() => _inner.Dispose();
         public void Delete() => _inner.Delete();
 
-        private static byte[] MetaToBytes(in TMeta meta)
+        private static unsafe byte[] MetaToBytes(in TMeta meta)
         {
-            byte[] bytes = new byte[Unsafe.SizeOf<TMeta>()];
-            Unsafe.WriteUnaligned(ref bytes[0], meta);
+            byte[] bytes = new byte[sizeof(TMeta)];
+            fixed (byte* p = &bytes[0])
+                *(TMeta*)p = meta;
             return bytes;
         }
     }
