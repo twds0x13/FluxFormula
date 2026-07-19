@@ -35,21 +35,16 @@ Prerequisites:
 FluxFormula/
 ├── packages/
 │   ├── fluxformula.core/            # Pure C# pipeline (zero Unity dependency)
-│   │   └── Runtime/Core/
-│   │       ├── FluxAssembler.cs     # Compilation + Instantiate entry point
-│   │       ├── FluxCompiler.cs      # Shunting-yard algorithm (internal)
-│   │       ├── FluxEvaluator.cs     # Interpreter execution (internal)
-│   │       ├── FluxExprCompiler.cs   # LINQ Expression Tree compiler (internal)
-│   │       ├── FluxFormula.cs       # Bytecode container + ChainLink + Connect
-│   │       ├── FluxInstance.cs      # ref struct streaming executor
-│   │       ├── FluxLexer.cs         # Hand-written span lexer
-│   │       ├── FluxToken.cs         # Lexical token
-│   │       ├── FluxInjector.cs      # Data injection + value readback
-│   │       ├── DualHash64.cs        # xxHash64 + FNV-1a 64 dual hash
-│   │       ├── FormulaCache.cs      # 2048-slot open-addressing hashmap
-│   │       ├── IFluxCacheProvider.cs # Cache provider interface
-│   │       ├── ConnectCache.cs      # Managed-to-native buffer bridge
-│   │       └── ...
+│   │   └── Runtime/
+│   │       ├── Core/                # FluxFormula, Assembler, Evaluator, Injector
+│   │       ├── Compiler/            # Shunting-yard + Expression/IL compilers
+│   │       ├── Lexer/               # Span lexer + lexer config
+│   │       ├── Cache/               # DualHash64, FormulaCache, IFluxCacheProvider
+│   │       ├── Format/              # BinaryFormat, FormulaFormat, VffFormat
+│   │       ├── Literal/             # LiteralScanner attributes + serializer
+│   │       ├── Blob/                # IFluxBlobRegistry, BlobFormat, BlobEntry
+│   │       ├── WAL/                 # FluxWAL, WALEntry, NativeTruncateBuffer
+│   │       └── SourceGenerator/     # C# source generators
 │   ├── fluxformula/                 # Unity integration (ScriptableObject + Editor)
 │   │   ├── Runtime/Unity/           # FluxAsset, FormulaLibrary
 │   │   ├── Editor/                  # Unity Editor extensions

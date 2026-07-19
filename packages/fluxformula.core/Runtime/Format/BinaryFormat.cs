@@ -109,5 +109,36 @@ namespace FluxFormula.Core
             buf[offset + 1] = (byte)(value >> 8);
             offset += 2;
         }
+
+        /// <summary>读取 64-bit 小端序无符号整数（ref-offset 风格）。</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong ReadUInt64LE(ReadOnlySpan<byte> data, ref int offset)
+        {
+            ulong v = (ulong)data[offset]
+                    | ((ulong)data[offset + 1] << 8)
+                    | ((ulong)data[offset + 2] << 16)
+                    | ((ulong)data[offset + 3] << 24)
+                    | ((ulong)data[offset + 4] << 32)
+                    | ((ulong)data[offset + 5] << 40)
+                    | ((ulong)data[offset + 6] << 48)
+                    | ((ulong)data[offset + 7] << 56);
+            offset += 8;
+            return v;
+        }
+
+        /// <summary>写入 64-bit 小端序无符号整数。对标 <see cref="WriteInt64LE"/>。</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void WriteUInt64LE(byte[] buf, ref int offset, ulong value)
+        {
+            buf[offset]     = (byte)value;
+            buf[offset + 1] = (byte)(value >> 8);
+            buf[offset + 2] = (byte)(value >> 16);
+            buf[offset + 3] = (byte)(value >> 24);
+            buf[offset + 4] = (byte)(value >> 32);
+            buf[offset + 5] = (byte)(value >> 40);
+            buf[offset + 6] = (byte)(value >> 48);
+            buf[offset + 7] = (byte)(value >> 56);
+            offset += 8;
+        }
     }
 }

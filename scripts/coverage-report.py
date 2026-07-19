@@ -173,7 +173,7 @@ def main():
                '  %(prog)s --json             # machine-readable JSON\n'
                '  %(prog)s cov.xml -t 90      # from existing XML file')
     parser.add_argument('xml', nargs='?', help='Cobertura coverage XML file (if omitted, auto-collect)')
-    parser.add_argument('--source', default='packages/fluxformula.core/Runtime/Core',
+    parser.add_argument('--source', default='packages/fluxformula.core/Runtime',
                         help='Source directory to scan for #else blocks')
     parser.add_argument('--threshold', '-t', type=float, default=95.0,
                         help='Only show classes below this coverage %% (default 95)')

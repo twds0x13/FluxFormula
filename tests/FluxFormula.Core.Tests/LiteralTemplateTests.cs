@@ -139,7 +139,19 @@ public struct DamageWithMultipliers
     public float Multipliers;
 }
 
-/// <summary>带 repetition 的变长数组模板（紧凑语法）——测试 repetition 的 last-value-wins 语义</summary>
+/// <summary>构造器 struct + optional block：验证构造器策略下可选块变量的作用域不被 if/scope 块限制</summary>
+	[Template("<float X><optional> <float Y></optional>")]
+	public struct PointWithOptional
+	{
+	    public float X;
+	    public float Y;
+
+	    public PointWithOptional(float x, float y) => (X, Y) = (x, y);
+
+	    public override readonly string ToString() => $"({X}, {Y})";
+	}
+
+	/// <summary>带 repetition 的变长数组模板（紧凑语法）——测试 repetition 的 last-value-wins 语义</summary>
 #pragma warning disable SSR005 // 标量在 repetition 中：故意测试覆盖行为
 [Template("<float Damage><repetition>, <float Multipliers></repetition>")]
 #pragma warning restore SSR005
@@ -792,6 +804,28 @@ public class LiteralTemplateTests
     }
 
     // ═══════════════════════════════════════════════════════
+
+    // ── PointWithOptional: 构造器 + optional ───────────
+
+    [Test]
+    public void PointWithOptional_FullFormat_ParsesBothFields()
+    {
+        var lexer = CreatePointWithOptionalLexer();
+        var result = lexer.Lex("3.5 2.1");
+        Assert.That(result.Tokens.Length, Is.EqualTo(1));
+        Assert.That(result.Tokens[0].Data.X, Is.EqualTo(3.5f).Within(1e-5f));
+        Assert.That(result.Tokens[0].Data.Y, Is.EqualTo(2.1f).Within(1e-5f));
+    }
+
+    [Test]
+    public void PointWithOptional_OmitOptional_DefaultsToZero()
+    {
+        var lexer = CreatePointWithOptionalLexer();
+        var result = lexer.Lex("3.5");
+        Assert.That(result.Tokens.Length, Is.EqualTo(1));
+        Assert.That(result.Tokens[0].Data.X, Is.EqualTo(3.5f).Within(1e-5f));
+        Assert.That(result.Tokens[0].Data.Y, Is.EqualTo(0f));
+    }
     // Helper methods
     // ═══════════════════════════════════════════════════════
 
@@ -892,5 +926,15 @@ public class LiteralTemplateTests
             Operators = { new("+", 1), new("-", 2) },
         };
         return new FluxLexer<DamageCompact>(config);
+    }
+
+    private static FluxLexer<PointWithOptional> CreatePointWithOptionalLexer()
+    {
+        var config = new LexerConfig<PointWithOptional>
+        {
+            LiteralOper = 0,
+            Operators = { new("+", 1), new("-", 2) },
+        };
+        return new FluxLexer<PointWithOptional>(config);
     }
 }
