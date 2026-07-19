@@ -1,3 +1,9 @@
+## [6.1.1](https://github.com/twds0x13/FluxFormula/compare/v6.1.0...v6.1.1) (2026-07-19)
+
+### Bug Fixes
+
+* replace .NET 6+ APIs with .NET Standard 2.0 equivalents for Unity compat ([b60842f](https://github.com/twds0x13/FluxFormula/commit/b60842f774122743315bcdcbad2b52a7a8b9cd2d))
+
 ## [6.1.0](https://github.com/twds0x13/FluxFormula/compare/v6.0.0...v6.1.0) (2026-07-18)
 
 ### Features
