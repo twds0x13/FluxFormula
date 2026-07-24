@@ -7,11 +7,14 @@ using NUnit.Framework;
 /// </summary>
 public class LexerConfigTests
 {
+    // 未注册任何 ISerializerBlock 的测试类型，用于验证"无扫描器可用"的报错路径
+    private struct TestNoScanner { public int Dummy; }
+
     [Test]
     public void NullLiteralScanner_ThrowsOnConstruct()
     {
-        var cfg = new LexerConfig<float> { LiteralScanner = null! };
-        Assert.That(() => new FluxLexer<float>(cfg),
+        var cfg = new LexerConfig<TestNoScanner> { LiteralScanner = null! };
+        Assert.That(() => new FluxLexer<TestNoScanner>(cfg),
             Throws.ArgumentException.With.Message.Contains("LiteralScanner"));
     }
 

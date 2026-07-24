@@ -162,6 +162,47 @@ public struct DamageCompact
 }
 
 // ═══════════════════════════════════════════════════════
+// 数组字段测试类型（[] 简写 → repetition 展开）
+// ═══════════════════════════════════════════════════════
+
+/// <summary>float 数组：用 [] 简写语法</summary>
+[Template("<float[] Items>")]
+public struct FloatArrWrap
+{
+    public float[] Items;
+
+    public override readonly string ToString() => $"[{string.Join(", ", Items ?? Array.Empty<float>())}]";
+}
+
+/// <summary>string 数组：引用类型元素 + [] 简写</summary>
+[Template("<string[] Items>")]
+public struct StringArrWrap
+{
+    public string[] Items;
+
+    public override readonly string ToString() => $"[{string.Join(", ", Items ?? Array.Empty<string>())}]";
+}
+
+/// <summary>int 数组：用 repetition 显式语法（不含 [] 简写）验证显式 repetition emit 路径</summary>
+[Template("<repetition><first><int Items></first><body>, <int Items></body></repetition>")]
+public struct IntArrWrapRep
+{
+    public int[] Items;
+
+    public override readonly string ToString() => $"[{string.Join(", ", Items ?? Array.Empty<int>())}]";
+}
+
+/// <summary>float[][] 锯齿数组——验证递归数组合成</summary>
+[Template("<float[][] Grid>")]
+public struct FloatJagged
+{
+    public float[][] Grid;
+
+    public override readonly string ToString()
+        => $"Jagged({Grid?.Length ?? 0} rows)";
+}
+
+// ═══════════════════════════════════════════════════════
 // 测试
 // ═══════════════════════════════════════════════════════
 
@@ -182,6 +223,9 @@ public struct TaggedSpell
 
 public class LiteralTemplateTests
 {
+    // 未标记 [Template] 的测试类型，用于验证无 block 可用时的报错路径
+    private struct LiteralTestNoScanner { public int Dummy; }
+
     // ── Point2D: 基本模板 ───────────────────────────
 
     [Test]
@@ -217,14 +261,13 @@ public class LiteralTemplateTests
     [Test]
     public void Point2D_Template_FallbackToManualScanner()
     {
-        // 未设置 config.LiteralScanner 且无 [Template]
+        // 未设置 config.LiteralScanner 且无已注册的 ISerializerBlock
         // 应抛异常
-        var config = new LexerConfig<float>
+        var config = new LexerConfig<LiteralTestNoScanner>
         {
             LiteralOper = 0,
-            // LiteralScanner NOT set → should fail unless float has template
         };
-        Assert.That(() => new FluxLexer<float>(config),
+        Assert.That(() => new FluxLexer<LiteralTestNoScanner>(config),
             Throws.ArgumentException.With.Message.Contains("LiteralScanner"));
     }
 
@@ -907,6 +950,171 @@ public class LiteralTemplateTests
         Assert.That(SerializerBlocks.TryGet<TaggedSpell>(out var block), Is.True);
         int r = block.Scan("water|10".AsSpan(), 0, out _);
         Assert.That(r, Is.EqualTo(0));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 数组字段往返测试（Emit → Scan）
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void FloatArrWrap_Roundtrip_SingleElement()
+    {
+        Assert.That(SerializerBlocks.TryGet<FloatArrWrap>(out var block), Is.True);
+
+        var original = new FloatArrWrap { Items = new[] { 3.14f } };
+        var sb = new System.Text.StringBuilder();
+        block.Emit(sb, original);
+
+        int r = block.Scan(sb.ToString().AsSpan(), 0, out var parsed);
+        Assert.That(r, Is.GreaterThan(0));
+        Assert.That(parsed.Items, Is.Not.Null);
+        Assert.That(parsed.Items.Length, Is.EqualTo(1));
+        Assert.That(parsed.Items[0], Is.EqualTo(3.14f).Within(1e-5f));
+    }
+
+    [Test]
+    public void FloatArrWrap_Roundtrip_MultipleElements()
+    {
+        Assert.That(SerializerBlocks.TryGet<FloatArrWrap>(out var block), Is.True);
+
+        var original = new FloatArrWrap { Items = new[] { 1f, 2f, 3f, 4f, 5f } };
+        var sb = new System.Text.StringBuilder();
+        block.Emit(sb, original);
+
+        string emitOutput = sb.ToString();
+        Assert.That(emitOutput, Is.EqualTo("List(1, 2, 3, 4, 5)"), $"Emit: '{emitOutput}'");
+
+        int r = block.Scan(emitOutput.AsSpan(), 0, out var parsed);
+        Assert.That(r, Is.GreaterThan(0));
+        Assert.That(parsed.Items, Is.Not.Null);
+        Assert.That(parsed.Items.Length, Is.EqualTo(5));
+        Assert.That(parsed.Items[0], Is.EqualTo(1f).Within(1e-5f));
+        Assert.That(parsed.Items[4], Is.EqualTo(5f).Within(1e-5f));
+    }
+
+    [Test]
+    public void FloatArrWrap_Roundtrip_EmptyArray()
+    {
+        Assert.That(SerializerBlocks.TryGet<FloatArrWrap>(out var block), Is.True);
+
+        var original = new FloatArrWrap { Items = Array.Empty<float>() };
+        var sb = new System.Text.StringBuilder();
+        block.Emit(sb, original);
+
+        // 空数组 emit 的字符串应该可以 scan 回去（虽然空内容 scan 返回 pos）
+        // 验证新集合格式：空数组 emit 应为 "List()"
+        string emitOutput = sb.ToString();
+        Assert.That(emitOutput, Is.EqualTo("List()"), $"Emit: '{emitOutput}'");
+        int r = block.Scan(emitOutput.AsSpan(), 0, out var parsed);
+        Assert.That(parsed.Items, Is.Not.Null);
+        Assert.That(parsed.Items.Length, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void FloatArrWrap_Roundtrip_NegativeValues()
+    {
+        Assert.That(SerializerBlocks.TryGet<FloatArrWrap>(out var block), Is.True);
+
+        var original = new FloatArrWrap { Items = new[] { -1.5f, 0f, 2.718f } };
+        var sb = new System.Text.StringBuilder();
+        block.Emit(sb, original);
+
+        int r = block.Scan(sb.ToString().AsSpan(), 0, out var parsed);
+        Assert.That(r, Is.GreaterThan(0));
+        Assert.That(parsed.Items, Is.Not.Null);
+        Assert.That(parsed.Items.Length, Is.EqualTo(3));
+        Assert.That(parsed.Items[0], Is.EqualTo(-1.5f).Within(1e-5f));
+        Assert.That(parsed.Items[1], Is.EqualTo(0f).Within(1e-5f));
+        Assert.That(parsed.Items[2], Is.EqualTo(2.718f).Within(1e-5f));
+    }
+
+    [Test]
+    public void StringArrWrap_Roundtrip_MultipleElements()
+    {
+        Assert.That(SerializerBlocks.TryGet<StringArrWrap>(out var block), Is.True);
+
+        var original = new StringArrWrap { Items = new[] { "hello", "world", "foo bar" } };
+        var sb = new System.Text.StringBuilder();
+        block.Emit(sb, original);
+
+        string emitOutput = sb.ToString();
+        // 字符串始终加引号，消除与 float/int 等其他类型的歧义
+        Assert.That(emitOutput, Is.EqualTo("List(\"hello\", \"world\", \"foo bar\")"), $"Emit: '{emitOutput}'");
+
+        int r = block.Scan(emitOutput.AsSpan(), 0, out var parsed);
+        Assert.That(r, Is.GreaterThan(0));
+        Assert.That(parsed.Items, Is.Not.Null);
+        Assert.That(parsed.Items.Length, Is.EqualTo(3));
+        Assert.That(parsed.Items[0], Is.EqualTo("hello"));
+        Assert.That(parsed.Items[1], Is.EqualTo("world"));
+        Assert.That(parsed.Items[2], Is.EqualTo("foo bar"));
+    }
+
+    [Test]
+    public void StringArrWrap_Roundtrip_EmptyArray()
+    {
+        Assert.That(SerializerBlocks.TryGet<StringArrWrap>(out var block), Is.True);
+
+        var original = new StringArrWrap { Items = Array.Empty<string>() };
+        var sb = new System.Text.StringBuilder();
+        block.Emit(sb, original);
+
+        string emitOutput = sb.ToString();
+        Assert.That(emitOutput, Is.EqualTo("List()"), $"Emit: '{emitOutput}'");
+        int r = block.Scan(emitOutput.AsSpan(), 0, out var parsed);
+        Assert.That(parsed.Items, Is.Not.Null);
+        Assert.That(parsed.Items.Length, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void IntArrWrapRep_Roundtrip_RepetitionSyntax()
+    {
+        Assert.That(SerializerBlocks.TryGet<IntArrWrapRep>(out var block), Is.True);
+
+        var original = new IntArrWrapRep { Items = new[] { 10, 20, 30 } };
+        var sb = new System.Text.StringBuilder();
+        block.Emit(sb, original);
+
+        int r = block.Scan(sb.ToString().AsSpan(), 0, out var parsed);
+        Assert.That(r, Is.GreaterThan(0));
+        Assert.That(parsed.Items, Is.Not.Null);
+        Assert.That(parsed.Items.Length, Is.EqualTo(3));
+        Assert.That(parsed.Items[0], Is.EqualTo(10));
+        Assert.That(parsed.Items[1], Is.EqualTo(20));
+        Assert.That(parsed.Items[2], Is.EqualTo(30));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 锯齿数组递归合成
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void FloatJagged_Roundtrip()
+    {
+        Assert.That(SerializerBlocks.TryGet<FloatJagged>(out var block), Is.True);
+
+        var original = new FloatJagged
+        {
+            Grid = new float[][]
+            {
+                new float[] { 1f, 2f },
+                new float[] { 3f, 4f, 5f },
+            }
+        };
+        var sb = new System.Text.StringBuilder();
+        block.Emit(sb, original);
+
+        string emitOutput = sb.ToString();
+        Assert.That(emitOutput, Is.EqualTo("List(List(1, 2), List(3, 4, 5))"), $"Emit: '{emitOutput}'");
+
+        int r = block.Scan(emitOutput.AsSpan(), 0, out var parsed);
+        Assert.That(r, Is.GreaterThan(0));
+        Assert.That(parsed.Grid, Is.Not.Null);
+        Assert.That(parsed.Grid.Length, Is.EqualTo(2));
+        Assert.That(parsed.Grid[0].Length, Is.EqualTo(2));
+        Assert.That(parsed.Grid[0][0], Is.EqualTo(1f).Within(1e-5f));
+        Assert.That(parsed.Grid[1].Length, Is.EqualTo(3));
+        Assert.That(parsed.Grid[1][2], Is.EqualTo(5f).Within(1e-5f));
     }
 
     private static FluxLexer<TaggedSpell> CreateTaggedSpellLexer()

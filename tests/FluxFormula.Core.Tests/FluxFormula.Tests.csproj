@@ -96,6 +96,7 @@
     <Compile Include="FecExplicitStructTests.cs" />       <!-- FEC × Explicit struct -->
     <Compile Include="CustomLiteralScannerTests.cs" />    <!-- 自定义字面量扫描器 -->
     <Compile Include="LiteralTemplateTests.cs" />           <!-- 字面量模板系统 -->
+    <Compile Include="SerializerBlocksTests.cs" />         <!-- SerializerBlocks API -->
     <Compile Include="BlobEntryTests.cs" />              <!-- BlobEntry 结构体 -->
     <Compile Include="BlobFormatTests.cs" />             <!-- BlobFormat 二进制格式 -->
     <Compile Include="FormulaCacheRemoveTests.cs" />     <!-- FormulaCache.Remove -->
