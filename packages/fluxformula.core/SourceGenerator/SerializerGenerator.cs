@@ -53,7 +53,7 @@ namespace SourceSerializer.Generator
                 new StructTemplateInfo
                 {
                     StructName = "IList`1",
-                    Template = "<first><T item></first><body>, <T item></body>",
+                    Template = "List(<repetition><first><T item></first><body>, <T item></body></repetition>)",
                     NeedsHeapAlloc = true,
                     IsCollection = true,
 
@@ -67,7 +67,7 @@ namespace SourceSerializer.Generator
                 new StructTemplateInfo
                 {
                     StructName = "ISet`1",
-                    Template = "<first><T item></first><body>, <T item></body>",
+                    Template = "HashSet(<repetition><first><T item></first><body>, <T item></body></repetition>)",
                     NeedsHeapAlloc = true,
                     IsCollection = true,
 
@@ -81,7 +81,7 @@ namespace SourceSerializer.Generator
                 new StructTemplateInfo
                 {
                     StructName = "IReadOnlyList`1",
-                    Template = "<first><T item></first><body>, <T item></body>",
+                    Template = "List(<repetition><first><T item></first><body>, <T item></body></repetition>)",
                     NeedsHeapAlloc = true,
                     IsCollection = true,
 
@@ -95,7 +95,7 @@ namespace SourceSerializer.Generator
                 new StructTemplateInfo
                 {
                     StructName = "IDictionary`2",
-                    Template = "<first><TKey key>: <TValue value></first><body>, <TKey key>: <TValue value></body>",
+                    Template = "Dict(<repetition><first><TKey key>: <TValue value></first><body>, <TKey key>: <TValue value></body></repetition>)",
                     NeedsHeapAlloc = true,
                     IsCollection = true,
 
@@ -109,12 +109,28 @@ namespace SourceSerializer.Generator
                 new StructTemplateInfo
                 {
                     StructName = "IReadOnlyDictionary`2",
-                    Template = "<first><TKey key>: <TValue value></first><body>, <TKey key>: <TValue value></body>",
+                    Template = "Dict(<repetition><first><TKey key>: <TValue value></first><body>, <TKey key>: <TValue value></body></repetition>)",
                     NeedsHeapAlloc = true,
                     IsCollection = true,
 
                     IsOpenGeneric = true,
                     TypeParameterNames = new[] { "TKey", "TValue" },
+                    ImplementedInterfaces = Array.Empty<string>(),
+                    Fields = new List<FieldInfo>(),
+                    IsReadonlyStruct = false,
+                    MatchedCtorParams = null,
+                },
+                // T[] 数组开放泛型：与 List<T> 共享 List(...) 模板格式，但用 buffer+Array.Copy 替代 .Add()
+                new StructTemplateInfo
+                {
+                    StructName = "Array`1",
+                    Template = "List(<repetition><first><T item></first><body>, <T item></body></repetition>)",
+                    NeedsHeapAlloc = true,
+                    IsCollection = true,
+                    IsArrayCollection = true,
+
+                    IsOpenGeneric = true,
+                    TypeParameterNames = new[] { "T" },
                     ImplementedInterfaces = Array.Empty<string>(),
                     Fields = new List<FieldInfo>(),
                     IsReadonlyStruct = false,
@@ -149,6 +165,14 @@ namespace SourceSerializer.Generator
             "Field '{0}' of struct '{1}' is scalar type '{2}' but appears inside a " +
             "repetition block. Use a collection type (List<T>, T[], etc.) for " +
             "fields that receive repeated values.",
+            "SourceSerializer", DiagnosticSeverity.Error, isEnabledByDefault: true);
+
+        private static readonly DiagnosticDescriptor TemplateAmbiguityError = new(
+            "SSR006", "Template ambiguity",
+            "Template of '{0}' is {1} of '{2}' template. " +
+            "When deserializing, the shorter template will always match first, " +
+            "making the longer one unreachable. Adjust one of the templates so " +
+            "neither is fully contained within the other.",
             "SourceSerializer", DiagnosticSeverity.Error, isEnabledByDefault: true);
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -524,6 +548,9 @@ namespace SourceSerializer.Generator
                 // ── 2.6 Validate: no readonly fields referenced in templates ──
                 ValidateFieldMutability(context, parsed);
 
+                // ── 2.7 Validate: no template ambiguity across interface implementations ──
+                ValidateTemplateDisambiguation(context, parsed, interfaceMap);
+
                 // ── 3. Topological sort ──
                 var ordered = TopologicalSort(parsed, depGraph);
 
@@ -780,6 +807,59 @@ namespace SourceSerializer.Generator
         }
 
         /// <summary>
+        /// 验证接口实现类型之间的模板歧义：如果 A 的模板字面上包含在 B 的模板中
+        ///（前缀或全等），产生 SSR006——扫描时无法区分。
+        /// </summary>
+        private static void ValidateTemplateDisambiguation(
+            SourceProductionContext context,
+            List<(StructTemplateInfo Info, List<TemplateNode> Ast)> parsed,
+            Dictionary<string, List<string>> interfaceMap)
+        {
+            // Build typeName → raw template string lookup (trimmed)
+            var templateOf = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var (info, _) in parsed)
+            {
+                if (!string.IsNullOrEmpty(info.Template))
+                    templateOf[info.StructName] = info.Template.Trim();
+            }
+
+            foreach (var kv in interfaceMap)
+            {
+                var types = kv.Value;
+                for (int i = 0; i < types.Count; i++)
+                {
+                    if (!templateOf.TryGetValue(types[i], out var tA) || string.IsNullOrEmpty(tA))
+                        continue;
+
+                    for (int j = i + 1; j < types.Count; j++)
+                    {
+                        if (!templateOf.TryGetValue(types[j], out var tB) || string.IsNullOrEmpty(tB))
+                            continue;
+
+                        if (tA == tB)
+                        {
+                            context.ReportDiagnostic(Diagnostic.Create(
+                                TemplateAmbiguityError, Location.None,
+                                types[i], "identical to", types[j]));
+                        }
+                        else if (tB.StartsWith(tA, StringComparison.Ordinal))
+                        {
+                            context.ReportDiagnostic(Diagnostic.Create(
+                                TemplateAmbiguityError, Location.None,
+                                types[i], "a prefix", types[j]));
+                        }
+                        else if (tA.StartsWith(tB, StringComparison.Ordinal))
+                        {
+                            context.ReportDiagnostic(Diagnostic.Create(
+                                TemplateAmbiguityError, Location.None,
+                                types[j], "a prefix", types[i]));
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// 扫描已解析模板的字段引用，为泛型集合类型（如 List&lt;NamedValue&gt;）
         /// 自动解析开放泛型模板并合成 StructTemplateInfo。
         /// 支持硬编码集合泛型（List/Dictionary）和用户定义开放泛型。
@@ -883,6 +963,33 @@ namespace SourceSerializer.Generator
                             Fields = synthFields,
                             IsReadonlyStruct = openInfo.IsReadonlyStruct,
                             MatchedCtorParams = openInfo.MatchedCtorParams,
+                        };
+                        result.Add((synthInfo, ast));
+                    }
+                }
+                // 检测 T[] 数组类型：从 Array`1 开放泛型模板合成 float[]、IVector[] 等
+                else if (field.TypeAlias.EndsWith("[]"))
+                {
+                    string elemType = field.TypeAlias.Substring(0, field.TypeAlias.Length - 2);
+                    string instanceName = field.TypeAlias;
+                    if (seen.Add(instanceName)
+                        && openGenerics.TryGetValue("Array`1", out var arrEntry))
+                    {
+                        string resolved = arrEntry.Info.Template.Replace(
+                            arrEntry.Info.TypeParameterNames[0], elemType);
+                        string xml = CompactToXml.IsCompactFormat(resolved)
+                            ? CompactToXml.Convert(resolved) : resolved;
+                        var ast = XmlTemplateParser.Parse(xml);
+                        var synthInfo = new StructTemplateInfo
+                        {
+                            StructName = instanceName,
+                            Template = resolved,
+                            NeedsHeapAlloc = arrEntry.Info.NeedsHeapAlloc,
+                            IsCollection = true,
+                            IsArrayCollection = true,
+                            Fields = new List<FieldInfo>(),
+                            IsReadonlyStruct = false,
+                            MatchedCtorParams = null,
                         };
                         result.Add((synthInfo, ast));
                     }
@@ -1170,6 +1277,7 @@ namespace SourceSerializer.Generator
             /// </summary>
             public bool NeedsHeapAlloc;
             public bool IsCollection; // true for List<T> etc. — field assignment → .Add()
+            public bool IsArrayCollection; // true for T[] — buffer+Array.Copy instead of .Add()
             public List<FieldInfo> Fields;
             /// <summary>是否为开放泛型类型（如 Wrapper&lt;T&gt;）</summary>
             public bool IsOpenGeneric;
@@ -1187,6 +1295,7 @@ namespace SourceSerializer.Generator
                 StructName = StructName,
                 NeedsHeapAlloc = NeedsHeapAlloc,
                 IsCollection = IsCollection,
+                IsArrayCollection = IsArrayCollection,
                 IsReadonlyStruct = IsReadonlyStruct,
                 MatchedCtorParams = MatchedCtorParams,
             };
@@ -1199,6 +1308,7 @@ namespace SourceSerializer.Generator
         public string StructName;
         public bool NeedsHeapAlloc;
         public bool IsCollection;
+        public bool IsArrayCollection;
         public bool IsReadonlyStruct;
         public string[]? MatchedCtorParams;
     }

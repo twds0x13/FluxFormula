@@ -26,7 +26,7 @@ namespace SourceSerializer.Generator
             sb.AppendLine();
             sb.AppendLine("namespace SourceSerializer");
             sb.AppendLine("{");
-            sb.AppendLine("    partial class SerializerBlocks");
+            sb.AppendLine("    partial class SerializerRegistry");
             sb.AppendLine("    {");
 
             foreach (var e in structs)
@@ -274,49 +274,92 @@ namespace SourceSerializer.Generator
             Dictionary<string, FieldInfo> fieldTypes,
             string indent, bool isCollection)
         {
-            // Only generate foreach for self-collection types (List<T>, HashSet<T>, etc.)
-            // Non-collection structs with collection fields are handled inline by EmitFieldDirective
-            if (!isCollection)
+            // 确定迭代源：自集合类型迭代 value 自身，用户 struct 迭代 value.FieldName
+            string iterSource;
+            if (isCollection)
             {
-                sb.AppendLine($"{indent}// <repetition>: collection field emit handled inline");
-                return;
+                iterSource = "value";
             }
+            else
+            {
+                var cf = FindCollectionField(rep.Body, fieldTypes);
+                if (cf == null) return;
+                iterSource = $"value.@{(cf.Value.FieldName)}";
+            }
+
             string itemVar = $"__elem_{EmitHelpers.NextEmitId()}";
             bool hasFirst = rep.First != null;
             string step = indent + "    ";
-            // 循环内 body 节点使用 __elem 作为值表达式
-            string elemValueName = "__elem";
+            // 使用 NextEmitId() 去重，避免同 struct 多个 repetition 产生 CS0128
+            string elemValueName = $"__elem_{EmitHelpers.NextEmitId()}";
 
             if (hasFirst)
             {
-                // 首元素：First 模式（无前导分隔符）
-                sb.AppendLine($"{indent}// first element");
-                sb.AppendLine($"{indent}{{");
-                sb.AppendLine($"{step}var {itemVar} = System.Linq.Enumerable.First(value);");
-                sb.AppendLine($"{step}var {elemValueName} = {itemVar};");
-                EmitNodeList(sb, rep.First!, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, step, isCollection, elemValueName);
-                sb.AppendLine($"{indent}}}");
-
-                // 后续元素：Body 模式，foreach 跳过首元素
-                sb.AppendLine($"{indent}// remaining elements");
+                // 统一 foreach：用标志位区分首元素（无分隔符）和后续元素（含分隔符），
+                // 避免 Enumerable.First() 在空集合上抛异常。
                 int flagId = EmitHelpers.NextEmitId();
-                sb.AppendLine($"{indent}bool __first_{flagId} = true;");
-                sb.AppendLine($"{indent}foreach (var {itemVar} in value)");
+                sb.AppendLine($"{indent}if ({iterSource} != null)");
                 sb.AppendLine($"{indent}{{");
-                sb.AppendLine($"{step}if (__first_{flagId}) {{ __first_{flagId} = false; continue; }}");
-                sb.AppendLine($"{step}var {elemValueName} = {itemVar};");
-                EmitNodeList(sb, rep.Body, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, step, isCollection, elemValueName);
+                sb.AppendLine($"{step}bool __first_{flagId} = true;");
+                sb.AppendLine($"{step}foreach (var {itemVar} in {iterSource})");
+                sb.AppendLine($"{step}{{");
+                sb.AppendLine($"{step}    var {elemValueName} = {itemVar};");
+                sb.AppendLine($"{step}    if (__first_{flagId})");
+                sb.AppendLine($"{step}    {{");
+                sb.AppendLine($"{step}        __first_{flagId} = false;");
+                EmitNodeList(sb, rep.First!, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, step + "    ", isCollection: true, elemValueName);
+                sb.AppendLine($"{step}    }}");
+                sb.AppendLine($"{step}    else");
+                sb.AppendLine($"{step}    {{");
+                EmitNodeList(sb, rep.Body, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, step + "    ", isCollection: true, elemValueName);
+                sb.AppendLine($"{step}    }}");
+                sb.AppendLine($"{step}}}");
                 sb.AppendLine($"{indent}}}");
             }
             else
             {
                 // 无 First：所有元素使用 Body 模式
-                sb.AppendLine($"{indent}foreach (var {itemVar} in value)");
+                sb.AppendLine($"{indent}if ({iterSource} != null)");
                 sb.AppendLine($"{indent}{{");
-                sb.AppendLine($"{step}var {elemValueName} = {itemVar};");
-                EmitNodeList(sb, rep.Body, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, step, isCollection, elemValueName);
+                sb.AppendLine($"{step}foreach (var {itemVar} in {iterSource})");
+                sb.AppendLine($"{step}{{");
+                sb.AppendLine($"{step}    var {elemValueName} = {itemVar};");
+                EmitNodeList(sb, rep.Body, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, step + "    ", isCollection: true, elemValueName);
+                sb.AppendLine($"{step}}}");
                 sb.AppendLine($"{indent}}}");
             }
+        }
+
+        /// <summary>
+        /// 从 repetition body 节点中递归查找第一个集合字段，返回 (fieldName, elemType)。
+        /// 注意：只返回第一个匹配——与 scan 侧的 <c>FindCollectionFields</c>（返回全部）不对称。
+        /// 若同一 repetition 中有多个集合字段，emit 只迭代第一个，其余被忽略。
+        /// 此场景在模板设计中极为罕见，如需支持应添加诊断而非并行迭代。
+        /// </summary>
+        private static (string FieldName, string ElemType)? FindCollectionField(
+            List<TemplateNode> nodes, Dictionary<string, FieldInfo> fieldTypes)
+        {
+            foreach (var node in nodes)
+            {
+                if (node is FieldDirectiveNode f
+                    && fieldTypes.TryGetValue(f.FieldName, out var ft)
+                    && ft.Kind != CollectionKind.None
+                    && ft.ElemType != null)
+                {
+                    return (f.FieldName, ft.ElemType!);
+                }
+                if (node is OptionalBlockNode opt)
+                {
+                    var r = FindCollectionField(opt.Body, fieldTypes);
+                    if (r != null) return r;
+                }
+                if (node is RepetitionNode nested)
+                {
+                    var r = FindCollectionField(nested.Body, fieldTypes);
+                    if (r != null) return r;
+                }
+            }
+            return null;
         }
 
     }

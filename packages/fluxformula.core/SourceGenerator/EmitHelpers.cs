@@ -17,7 +17,7 @@ namespace SourceSerializer.Generator
         public static int NextEmitId() => _emitCounter++;
 
         public static string GetMethodName(string prefix, string structTypeName)
-            => $"{prefix}_{structTypeName.Replace(".", "_").Replace("<", "_").Replace(">", "").Replace(",", "_")}";
+            => $"{prefix}_{structTypeName.Replace(".", "_").Replace("<", "_").Replace(">", "").Replace(",", "_").Replace("[]", "Arr").Replace("[", "_").Replace("]", "")}";
 
         public static string GetUniqueVar(string fieldName) => $"_{fieldName}_{_varCounter++}";
     }

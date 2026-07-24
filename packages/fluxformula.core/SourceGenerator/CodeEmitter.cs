@@ -85,12 +85,12 @@ namespace SourceSerializer.Generator
             sb.AppendLine();
             sb.AppendLine("namespace SourceSerializer");
             sb.AppendLine("{");
-            sb.AppendLine("    partial class SerializerBlocks");
+            sb.AppendLine("    partial class SerializerRegistry");
             sb.AppendLine("    {");
 
             foreach (var e in structs)
             {
-                sb.Append(EmitMethod(e.Common.StructName, e.Nodes, e.Common.NeedsHeapAlloc, e.Common.IsCollection, e.Common.MatchedCtorParams, dependencyGraph, tAliases, eTags, e.FieldTypes));
+                sb.Append(EmitMethod(e.Common.StructName, e.Nodes, e.Common.NeedsHeapAlloc, e.Common.IsCollection, e.Common.IsArrayCollection, e.Common.MatchedCtorParams, dependencyGraph, tAliases, eTags, e.FieldTypes));
                 sb.AppendLine();
             }
 
@@ -114,15 +114,14 @@ namespace SourceSerializer.Generator
         }
 
         /// <summary>
-        /// 为接口生成 dispatch 扫描方法：尝试全部实现，选推进最远的（长前缀匹配胜出）。
+        /// 为接口生成 dispatch 扫描方法：按声明顺序尝试，首个推进者胜出。
+        /// 模板歧义由 SSR006 在编译期拦截——此处假设所有实现类型模板互不包含。
         /// </summary>
         private static string EmitInterfaceDispatch(string ifaceName, List<string> concreteTypes,
             Dictionary<string, string> dependencyGraph)
         {
             var sb = new StringBuilder();
-            string methodName = EmitHelpers.GetMethodName("Scan",ifaceName);
-            string bestVar = EmitHelpers.GetUniqueVar("best");
-            string bestValueVar = EmitHelpers.GetUniqueVar("bestVal");
+            string methodName = EmitHelpers.GetMethodName("Scan", ifaceName);
 
             sb.AppendLine($"        /// <summary>接口分发扫描器：{ifaceName}</summary>");
             sb.AppendLine("        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
@@ -131,25 +130,22 @@ namespace SourceSerializer.Generator
             sb.AppendLine("            value = default;");
             sb.AppendLine("            if (pos >= src.Length) return pos;");
             sb.AppendLine("            int start = pos;");
-            sb.AppendLine($"            int {bestVar} = pos;");
-            sb.AppendLine($"            {ifaceName} {bestValueVar} = default;");
             sb.AppendLine();
 
             for (int i = 0; i < concreteTypes.Count; i++)
             {
                 string concrete = concreteTypes[i];
                 string scanMethod = dependencyGraph.TryGetValue(concrete, out var m)
-                    ? m : EmitHelpers.GetMethodName("Scan",concrete);
+                    ? m : EmitHelpers.GetMethodName("Scan", concrete);
                 string localVar = EmitHelpers.GetUniqueVar(concrete);
                 string rVar = EmitHelpers.GetUniqueVar("r");
 
                 sb.AppendLine($"            // try {concrete}");
                 sb.AppendLine($"            int {rVar} = {scanMethod}(src, pos, out {concrete} {localVar});");
-                sb.AppendLine($"            if ({rVar} > {bestVar}) {{ {bestVar} = {rVar}; {bestValueVar} = {localVar}; }}");
+                sb.AppendLine($"            if ({rVar} > pos) {{ value = {localVar}; return {rVar}; }}");
                 sb.AppendLine();
             }
 
-            sb.AppendLine($"            if ({bestVar} > pos) {{ value = {bestValueVar}; return {bestVar}; }}");
             sb.AppendLine("            return start;");
             sb.AppendLine("        }");
 
@@ -158,6 +154,7 @@ namespace SourceSerializer.Generator
 
         private static string EmitMethod(
             string structTypeName, List<TemplateNode> nodes, bool needsHeapAlloc, bool isCollection,
+            bool isArrayCollection,
             string[]? matchedCtorParams,
             Dictionary<string, string> dependencyGraph,
             Dictionary<string, string> typeAliases,
@@ -182,7 +179,9 @@ namespace SourceSerializer.Generator
             }
             else
             {
-                if (needsHeapAlloc)
+                if (isArrayCollection)
+                    sb.AppendLine("            value = null;  // filled by repetition buffer");
+                else if (needsHeapAlloc)
                     sb.AppendLine($"            value = new {structTypeName}();");
                 else
                     sb.AppendLine("            value = default;");
@@ -205,7 +204,7 @@ namespace SourceSerializer.Generator
             sb.AppendLine();
 
             // 顶层 failure mode: 直接 return start
-            EmitNodeList(sb, nodes, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, IndentTop, failureLabel: null, isInRepetition: false, isCollection: isCollection, strategy: strategy);
+            EmitNodeList(sb, nodes, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, IndentTop, failureLabel: null, isInRepetition: false, isCollection: isCollection, isArrayCollection: isArrayCollection, strategy: strategy);
 
             if (strategy.UseConstructor)
             {
@@ -235,11 +234,12 @@ namespace SourceSerializer.Generator
             Dictionary<string, List<(string, string)>> enumTags,
             Dictionary<string, FieldInfo> fieldTypes,
             string indent, string? failureLabel, bool isInRepetition, bool isCollection = false,
+            bool isArrayCollection = false,
             EmitStrategy strategy = default)
         {
             for (int i = 0; i < nodes.Count; i++)
             {
-                EmitNode(sb, nodes[i], structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, indent, failureLabel, isInRepetition, isCollection, strategy);
+                EmitNode(sb, nodes[i], structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, indent, failureLabel, isInRepetition, isCollection, isArrayCollection, strategy);
             }
         }
 
@@ -249,6 +249,7 @@ namespace SourceSerializer.Generator
             Dictionary<string, List<(string, string)>> enumTags,
             Dictionary<string, FieldInfo> fieldTypes,
             string indent, string? failureLabel, bool isInRepetition, bool isCollection = false,
+            bool isArrayCollection = false,
             EmitStrategy strategy = default)
         {
             switch (node)
@@ -257,13 +258,13 @@ namespace SourceSerializer.Generator
                     EmitLiteralText(sb, lit, indent, failureLabel);
                     break;
                 case FieldDirectiveNode field:
-                    EmitFieldDirective(sb, field, indent, dependencyGraph, typeAliases, enumTags, fieldTypes, failureLabel, isInRepetition, isCollection, strategy);
+                    EmitFieldDirective(sb, field, indent, dependencyGraph, typeAliases, enumTags, fieldTypes, failureLabel, isInRepetition, isCollection, isArrayCollection, strategy);
                     break;
                 case OptionalBlockNode opt:
                     EmitOptionalBlock(sb, opt, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, indent, isCollection, strategy);
                     break;
                 case RepetitionNode rep:
-                    EmitRepetitionBlock(sb, rep, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, indent, isCollection, strategy);
+                    EmitRepetitionBlock(sb, rep, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, indent, isCollection, isArrayCollection, strategy);
                     break;
             }
         }
@@ -305,6 +306,7 @@ namespace SourceSerializer.Generator
             Dictionary<string, List<(string, string)>> enumTags,
             Dictionary<string, FieldInfo> fieldTypes,
             string? failureLabel, bool isInRepetition, bool structIsCollection = false,
+            bool isArrayCollection = false,
             EmitStrategy strategy = default)
         {
             string typeAlias = field.TypeAlias;
@@ -319,9 +321,11 @@ namespace SourceSerializer.Generator
                 ? backing : typeAlias;
 
             // 决定赋值目标: repetition 内的集合字段走数组缓存索引，否则直接写 value.Field
+            // 自集合数组类型（如 float[]）也走 buffer——数组不支持 .Add()
             fieldTypes.TryGetValue(fieldName, out var ft);
             bool isCollection = ft.Kind != CollectionKind.None;
-            bool useBuffer = isInRepetition && isCollection;
+            bool useBuffer = (isInRepetition && isCollection)
+                || (structIsCollection && isArrayCollection);
 
             // 构造器路径：记录扫描变量名，跳过中间赋值，末尾直接用扫描变量构造
             bool skipAssign = strategy.UseConstructor && !useBuffer && !structIsCollection;
@@ -342,8 +346,11 @@ namespace SourceSerializer.Generator
                 : $" {localVar};";
 
             // 缓存数组扩容逻辑: 16 → ×4 → 1024 后 ×2
+            // 自集合数组类型 fieldTypes 为空，用 typeAlias 作为元素类型
+            string resizeElemType = ft.ElemType ?? (isArrayCollection ? typeAlias : null) ?? "object";
+            string resizeNewExpr = ArrayNewExpr(resizeElemType, $"__ns_{fieldName}");
             string bufferResize = useBuffer
-                ? $"{indent}if (__cnt_{fieldName} >= __buf_{fieldName}.Length)\n{indent}{{\n{indent}    int __ns_{fieldName} = __buf_{fieldName}.Length < 1024 ? __buf_{fieldName}.Length * 4 : __buf_{fieldName}.Length * 2;\n{indent}    var __tmp_{fieldName} = new {ft.ElemType}[__ns_{fieldName}];\n{indent}    Array.Copy(__buf_{fieldName}, __tmp_{fieldName}, __cnt_{fieldName});\n{indent}    __buf_{fieldName} = __tmp_{fieldName};\n{indent}}}\n"
+                ? $"{indent}if (__cnt_{fieldName} >= __buf_{fieldName}.Length)\n{indent}{{\n{indent}    int __ns_{fieldName} = __buf_{fieldName}.Length < 1024 ? __buf_{fieldName}.Length * 4 : __buf_{fieldName}.Length * 2;\n{indent}    var __tmp_{fieldName} = {resizeNewExpr};\n{indent}    Array.Copy(__buf_{fieldName}, __tmp_{fieldName}, __cnt_{fieldName});\n{indent}    __buf_{fieldName} = __tmp_{fieldName};\n{indent}}}\n"
                 : "";
             string bufferIncrement = useBuffer
                 ? $"{indent}__cnt_{fieldName}++;"
@@ -361,8 +368,9 @@ namespace SourceSerializer.Generator
                 sb.AppendLine($"{indent}int {preVar} = pos;");
                 string outDecl = isHoisted ? localVar : $"{csharpType} {localVar}";
                 sb.AppendLine($"{indent}pos = SerializerRegistry.{scannerMethod}(src, pos, out {outDecl});");
-                sb.AppendLine(isCollection
-                    ? $"{indent}// (collection — empty is valid)"
+                // 统一 fail 检查：<first> 失败 → 空集合；<body> 失败 → 停止迭代
+                sb.AppendLine(isInRepetition && isCollection
+                    ? $"{indent}if (pos == {preVar}) {{ /* no progress — empty or done */ {fail}; }}"
                     : $"{indent}if (pos == {preVar}) {fail}");
                 if (!skipAssign) sb.AppendLine($"{indent}{assignTarget}{assignOp}{assignSuffix}");
                 if (useBuffer) sb.AppendLine(bufferIncrement);
@@ -435,7 +443,8 @@ namespace SourceSerializer.Generator
             Dictionary<string, string> dependencyGraph, Dictionary<string, string> typeAliases,
             Dictionary<string, List<(string, string)>> enumTags,
             Dictionary<string, FieldInfo> fieldTypes,
-            string indent, bool isCollection = false, EmitStrategy strategy = default)
+            string indent, bool isCollection = false, bool isArrayCollection = false,
+            EmitStrategy strategy = default)
         {
             if (rep.Body.Count == 0) return;
 
@@ -447,12 +456,20 @@ namespace SourceSerializer.Generator
             var bodyNodes = rep.First != null ? rep.First.Concat(rep.Body).ToList() : rep.Body;
             var collectionFields = FindCollectionFields(bodyNodes, fieldTypes);
 
+            // ── 自集合数组类型：从模板 AST 提取字段名+元素类型，合成缓冲区 ──
+            if (isCollection && isArrayCollection)
+            {
+                var (fieldName, elemType) = FindElemField(bodyNodes);
+                if (fieldName != null)
+                    collectionFields.Add((fieldName, elemType));
+            }
+
             sb.AppendLine($"{indent}// <repetition>");
 
             // ── 循环前: 声明缓存数组 ──
             foreach (var (fieldName, elemType) in collectionFields)
             {
-                sb.AppendLine($"{indent}var __buf_{fieldName} = new {elemType}[16];");
+                sb.AppendLine($"{indent}var __buf_{fieldName} = {ArrayNewExpr(elemType, "16")};");
                 sb.AppendLine($"{indent}int __cnt_{fieldName} = 0;");
             }
 
@@ -465,7 +482,7 @@ namespace SourceSerializer.Generator
                 sb.AppendLine($"{indent}// <first> — try first element (no separator)");
                 sb.AppendLine($"{indent}int {savedVar} = pos;");
                 sb.AppendLine($"{indent}{{");
-                EmitNodeList(sb, rep.First, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, innerIndent, firstFail, isInRepetition: true, isCollection: isCollection);
+                EmitNodeList(sb, rep.First, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, innerIndent, firstFail, isInRepetition: true, isCollection: isCollection, isArrayCollection: isArrayCollection);
                 sb.AppendLine($"{innerIndent}goto repLoop_{id};");
                 sb.AppendLine($"{indent}}}");
                 sb.AppendLine($"{indent}{firstFail}:");
@@ -477,7 +494,7 @@ namespace SourceSerializer.Generator
                 sb.AppendLine($"{indent}while (true)");
                 sb.AppendLine($"{indent}{{");
                 sb.AppendLine($"{innerIndent}{savedVar} = pos;");
-                EmitNodeList(sb, rep.Body, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, innerIndent, failLabel, isInRepetition: true, isCollection: isCollection);
+                EmitNodeList(sb, rep.Body, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, innerIndent, failLabel, isInRepetition: true, isCollection: isCollection, isArrayCollection: isArrayCollection);
                 sb.AppendLine($"{innerIndent}continue;");
                 sb.AppendLine($"{innerIndent}{failLabel}:");
                 sb.AppendLine($"{innerIndent}    pos = saved_{id};");
@@ -491,7 +508,7 @@ namespace SourceSerializer.Generator
                 sb.AppendLine($"{indent}while (true)");
                 sb.AppendLine($"{indent}{{");
                 sb.AppendLine($"{innerIndent}int saved_{id} = pos;");
-                EmitNodeList(sb, rep.Body, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, innerIndent, failLabel, isInRepetition: true, isCollection: isCollection);
+                EmitNodeList(sb, rep.Body, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, innerIndent, failLabel, isInRepetition: true, isCollection: isCollection, isArrayCollection: isArrayCollection);
                 sb.AppendLine($"{innerIndent}continue;");
                 sb.AppendLine($"{innerIndent}{failLabel}:");
                 sb.AppendLine($"{innerIndent}    pos = saved_{id};");
@@ -503,16 +520,25 @@ namespace SourceSerializer.Generator
             string targetPrefix = strategy.RepetitionTargetPrefix;
             foreach (var (fieldName, elemType) in collectionFields)
             {
+                // 自集合数组类型：最终化到 value 自身
+                string finalNewExpr = ArrayNewExpr(elemType, $"__cnt_{fieldName}");
+                if (isArrayCollection)
+                {
+                    sb.AppendLine($"{indent}value = {finalNewExpr};");
+                    sb.AppendLine($"{indent}Array.Copy(__buf_{fieldName}, value, __cnt_{fieldName});");
+                    continue;
+                }
+
                 var ft = fieldTypes[fieldName];
                 if (ft.Kind == CollectionKind.Sequential)
                 {
-                    sb.AppendLine($"{indent}var __final_{fieldName} = new {elemType}[__cnt_{fieldName}];");
+                    sb.AppendLine($"{indent}var __final_{fieldName} = {finalNewExpr};");
                     sb.AppendLine($"{indent}Array.Copy(__buf_{fieldName}, __final_{fieldName}, __cnt_{fieldName});");
                     sb.AppendLine($"{indent}{targetPrefix}{fieldName} = {ResolveCollectionType(ft.TypeName, elemType!)}(__final_{fieldName});");
                 }
                 else // Array
                 {
-                    sb.AppendLine($"{indent}var __final_{fieldName} = new {elemType}[__cnt_{fieldName}];");
+                    sb.AppendLine($"{indent}var __final_{fieldName} = {finalNewExpr};");
                     sb.AppendLine($"{indent}Array.Copy(__buf_{fieldName}, __final_{fieldName}, __cnt_{fieldName});");
                     sb.AppendLine($"{indent}{targetPrefix}{fieldName} = __final_{fieldName};");
                 }
@@ -520,6 +546,27 @@ namespace SourceSerializer.Generator
 
             sb.AppendLine($"{indent}// </repetition>");
             sb.AppendLine();
+        }
+
+        /// <summary>从模板节点中提取第一个 FieldDirectiveNode 的 (FieldName, TypeAlias)。</summary>
+        private static (string? FieldName, string ElemType) FindElemField(List<TemplateNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                if (node is FieldDirectiveNode f)
+                    return (f.FieldName, f.TypeAlias);
+                if (node is OptionalBlockNode opt)
+                {
+                    var r = FindElemField(opt.Body);
+                    if (r.FieldName != null) return r;
+                }
+                if (node is RepetitionNode rep)
+                {
+                    var r = FindElemField(rep.Body);
+                    if (r.FieldName != null) return r;
+                }
+            }
+            return (null, "")!;
         }
 
         /// <summary>递归查找节点列表中的集合字段，返回 (fieldName, elementType)</summary>
@@ -679,5 +726,23 @@ namespace SourceSerializer.Generator
 
         private static string EscapeForComment(string text)
             => text.Replace("\n", "\\n").Replace("\r", "\\r");
+
+        /// <summary>
+        /// 生成数组 new 表达式。若 elemType 本身是数组（如 float[]），
+        /// C# 要求 new float[size][] 而非 new float[][size]。
+        /// </summary>
+        private static string ArrayNewExpr(string elemType, string sizeExpr)
+        {
+            // 收集末尾的 [] 层级
+            int brackets = 0;
+            string baseType = elemType;
+            while (baseType.EndsWith("[]"))
+            {
+                brackets++;
+                baseType = baseType.Substring(0, baseType.Length - 2);
+            }
+            // new baseType[size] + 末尾 []...​
+            return $"new {baseType}[{sizeExpr}]" + new string('[', brackets) + new string(']', brackets);
+        }
     }
 }

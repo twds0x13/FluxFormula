@@ -133,6 +133,7 @@ namespace SourceSerializer.Generator
                         string typeAlias = trimmed.Substring(0, spaceIdx);
                         string fieldName = trimmed.Substring(spaceIdx + 1).Trim();
 
+                        // 数组类型（如 float[]）不再内联展开——由 CollectGenericRefs 合成独立类型
                         current.Append($"<field type=\"{EscapeXml(typeAlias)}\" name=\"{EscapeXml(fieldName)}\"/>");
                     }
                 }
