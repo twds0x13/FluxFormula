@@ -1,3 +1,9 @@
+## [6.3.0](https://github.com/twds0x13/FluxFormula/compare/v6.2.0...v6.3.0) (2026-07-24)
+
+### Features
+
+* array emit, collection List() format, string always-quoted, T[] synthesis ([411a6e8](https://github.com/twds0x13/FluxFormula/commit/411a6e81c787ccec454a6cc0f6422de13ad53137))
+
 ## [6.2.0](https://github.com/twds0x13/FluxFormula/compare/v6.1.1...v6.2.0) (2026-07-24)
 
 ### Features
