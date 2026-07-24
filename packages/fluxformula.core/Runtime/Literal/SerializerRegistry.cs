@@ -16,7 +16,7 @@ namespace SourceSerializer
     /// <see cref="ExternalTemplateAttribute"/> 声明模板后，由 source generator
     /// 编译期生成对应的 <c>Scan_Xxx</c> 方法，递归进入嵌套类型的扫描器。</para>
     /// </remarks>
-    public static class SerializerRegistry
+    internal static partial class SerializerRegistry
     {
         // ═══════════════════════════════════════════════════════
         // 内置类型注册表
@@ -363,30 +363,19 @@ namespace SourceSerializer
         {
             return char.IsWhiteSpace(c)
                 || c == '|' || c == '>' || c == ','
-                || c == ')' || c == '}' || c == ']';
+                || c == ')' || c == '}' || c == ']'
+                || c == '(';  // 集合格式 List(...)、HashSet(...) 等的前缀边界
         }
 
         /// <summary>
-        /// 将字符串追加到 StringBuilder，必要时加引号转义。
+        /// 将字符串追加到 StringBuilder，始终加引号以消除与数值类型的歧义。
         /// </summary>
         internal static void Emit_String(System.Text.StringBuilder sb, string value)
         {
-            bool needsQuote = false;
-            for (int i = 0; i < value.Length; i++)
-            {
-                if (IsStringTerminator(value[i]) || value[i] == '"')
-                { needsQuote = true; break; }
-            }
-            if (needsQuote)
-            {
-                sb.Append('"');
-                sb.Append(value);
-                sb.Append('"');
-            }
-            else
-            {
-                sb.Append(value);
-            }
+            if (value == null) return;
+            sb.Append('"');
+            sb.Append(value);
+            sb.Append('"');
         }
 
         // ═══════════════════════════════════════════════════════
@@ -435,5 +424,77 @@ namespace SourceSerializer
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void Emit_Char(StringBuilder sb, char value) => sb.Append(value);
+
+        // ═══════════════════════════════════════════════════════
+        // 内置类型 ISerializerBlock<T> 包装器
+        // 每个内置类型一个 readonly struct，代理到同类的静态 Scan_*/Emit_* 方法。
+        // 通过 SerializerBlocks.AddBlock<T>() 统一注册。
+        // ═══════════════════════════════════════════════════════
+
+        internal readonly struct BuiltinBlock_Float : ISerializerBlock<float>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out float value) => Scan_Float(text, pos, out value);
+            public void Emit(StringBuilder sb, float value) => Emit_Float(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Double : ISerializerBlock<double>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out double value) => Scan_Double(text, pos, out value);
+            public void Emit(StringBuilder sb, double value) => Emit_Double(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Int : ISerializerBlock<int>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out int value) => Scan_Int(text, pos, out value);
+            public void Emit(StringBuilder sb, int value) => Emit_Int(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Uint : ISerializerBlock<uint>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out uint value) => Scan_Uint(text, pos, out value);
+            public void Emit(StringBuilder sb, uint value) => Emit_Uint(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Long : ISerializerBlock<long>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out long value) => Scan_Long(text, pos, out value);
+            public void Emit(StringBuilder sb, long value) => Emit_Long(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Ulong : ISerializerBlock<ulong>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out ulong value) => Scan_Ulong(text, pos, out value);
+            public void Emit(StringBuilder sb, ulong value) => Emit_Ulong(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Short : ISerializerBlock<short>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out short value) => Scan_Short(text, pos, out value);
+            public void Emit(StringBuilder sb, short value) => Emit_Short(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Ushort : ISerializerBlock<ushort>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out ushort value) => Scan_Ushort(text, pos, out value);
+            public void Emit(StringBuilder sb, ushort value) => Emit_Ushort(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Byte : ISerializerBlock<byte>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out byte value) => Scan_Byte(text, pos, out value);
+            public void Emit(StringBuilder sb, byte value) => Emit_Byte(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Sbyte : ISerializerBlock<sbyte>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out sbyte value) => Scan_Sbyte(text, pos, out value);
+            public void Emit(StringBuilder sb, sbyte value) => Emit_Sbyte(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Bool : ISerializerBlock<bool>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out bool value) => Scan_Bool(text, pos, out value);
+            public void Emit(StringBuilder sb, bool value) => Emit_Bool(sb, value);
+        }
+        internal readonly struct BuiltinBlock_Char : ISerializerBlock<char>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out char value) => Scan_Char(text, pos, out value);
+            public void Emit(StringBuilder sb, char value) => Emit_Char(sb, value);
+        }
+        internal readonly struct BuiltinBlock_String : ISerializerBlock<string>
+        {
+            public int Scan(ReadOnlySpan<char> text, int pos, out string value) => Scan_String(text, pos, out value);
+            public void Emit(StringBuilder sb, string value) => Emit_String(sb, value);
+        }
     }
 }
