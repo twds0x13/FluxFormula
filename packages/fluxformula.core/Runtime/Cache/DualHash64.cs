@@ -48,7 +48,7 @@ namespace FluxFormula.Core
 
         public DualHash64(ulong xxHash64, ulong fnvHash64)
         {
-            XxHash64  = xxHash64;
+            XxHash64 = xxHash64;
             FnvHash64 = fnvHash64;
         }
 
@@ -62,10 +62,7 @@ namespace FluxFormula.Core
         /// </summary>
         public static DualHash64 Compute(ReadOnlySpan<byte> data)
         {
-            return new DualHash64(
-                xxHash64(data, seed: 0),
-                Fnv1a64(data)
-            );
+            return new DualHash64(xxHash64(data, seed: 0), Fnv1a64(data));
         }
 
         /// <summary>
@@ -102,12 +99,15 @@ namespace FluxFormula.Core
 
                 do
                 {
-                    v1 = xxhRound(v1, BinaryFormat.ReadUInt64LE(data, p));      p += 8;
-                    v2 = xxhRound(v2, BinaryFormat.ReadUInt64LE(data, p));      p += 8;
-                    v3 = xxhRound(v3, BinaryFormat.ReadUInt64LE(data, p));      p += 8;
-                    v4 = xxhRound(v4, BinaryFormat.ReadUInt64LE(data, p));      p += 8;
-                }
-                while (p <= limit);
+                    v1 = xxhRound(v1, BinaryFormat.ReadUInt64LE(data, p));
+                    p += 8;
+                    v2 = xxhRound(v2, BinaryFormat.ReadUInt64LE(data, p));
+                    p += 8;
+                    v3 = xxhRound(v3, BinaryFormat.ReadUInt64LE(data, p));
+                    p += 8;
+                    v4 = xxhRound(v4, BinaryFormat.ReadUInt64LE(data, p));
+                    p += 8;
+                } while (p <= limit);
 
                 ulong h = RotL64(v1, 1) + RotL64(v2, 7) + RotL64(v3, 12) + RotL64(v4, 18);
 
@@ -134,7 +134,7 @@ namespace FluxFormula.Core
         private static ulong xxhRound(ulong acc, ulong input)
         {
             acc += input * XXH_PRIME_2;
-            acc  = RotL64(acc, 31);
+            acc = RotL64(acc, 31);
             acc *= XXH_PRIME_1;
             return acc;
         }
@@ -142,34 +142,39 @@ namespace FluxFormula.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ulong xxhMergeAccumulators(ulong acc, ulong lane)
         {
-            lane  = lane * XXH_PRIME_2;
-            lane  = RotL64(lane, 31);
+            lane = lane * XXH_PRIME_2;
+            lane = RotL64(lane, 31);
             lane *= XXH_PRIME_1;
-            acc  ^= lane;
-            acc   = acc * XXH_PRIME_1 + XXH_PRIME_4;
+            acc ^= lane;
+            acc = acc * XXH_PRIME_1 + XXH_PRIME_4;
             return acc;
         }
 
         /// <summary>余数处理：8 字节 → 4 字节 → 1 字节逐级消解，最后雪崩混合</summary>
-        private static ulong xxhRemainder(ReadOnlySpan<byte> data, int offset, int remaining, ulong h)
+        private static ulong xxhRemainder(
+            ReadOnlySpan<byte> data,
+            int offset,
+            int remaining,
+            ulong h
+        )
         {
             int end = offset + remaining;
-            int p   = offset;
+            int p = offset;
 
             // 8 字节块
             while (p + 8 <= end)
             {
-                ulong k1  = xxhRound(0, BinaryFormat.ReadUInt64LE(data, p));
-                h        ^= k1;
-                h         = RotL64(h, 27) * XXH_PRIME_1 + XXH_PRIME_4;
-                p        += 8;
+                ulong k1 = xxhRound(0, BinaryFormat.ReadUInt64LE(data, p));
+                h ^= k1;
+                h = RotL64(h, 27) * XXH_PRIME_1 + XXH_PRIME_4;
+                p += 8;
             }
 
             // 4 字节块
             if (p + 4 <= end)
             {
                 h ^= BinaryFormat.ReadUInt32LE(data, p) * XXH_PRIME_1;
-                h  = RotL64(h, 23) * XXH_PRIME_2 + XXH_PRIME_3;
+                h = RotL64(h, 23) * XXH_PRIME_2 + XXH_PRIME_3;
                 p += 4;
             }
 
@@ -177,7 +182,7 @@ namespace FluxFormula.Core
             while (p < end)
             {
                 h ^= data[p] * XXH_PRIME_5;
-                h  = RotL64(h, 11) * XXH_PRIME_1;
+                h = RotL64(h, 11) * XXH_PRIME_1;
                 p++;
             }
 
@@ -220,7 +225,6 @@ namespace FluxFormula.Core
         {
             return (value << bits) | (value >> (64 - bits));
         }
-
 
         // ═══════════════════════════════════════════════════════
         // 相等性
@@ -266,7 +270,9 @@ namespace FluxFormula.Core
         public static DualHash64 Parse(ReadOnlySpan<char> hex)
         {
             if (hex.Length != 32)
-                throw new FormatException($"DualHash64 要求 32 字符十六进制字符串，实际长度: {hex.Length}");
+                throw new FormatException(
+                    $"DualHash64 要求 32 字符十六进制字符串，实际长度: {hex.Length}"
+                );
 
             ulong xxh = ParseHexU64(hex.Slice(0, 16));
             ulong fnv = ParseHexU64(hex.Slice(16, 16));
@@ -284,7 +290,7 @@ namespace FluxFormula.Core
                     >= '0' and <= '9' => (uint)(c - '0'),
                     >= 'A' and <= 'F' => (uint)(c - 'A' + 10),
                     >= 'a' and <= 'f' => (uint)(c - 'a' + 10),
-                    _ => throw new FormatException($"非法十六进制字符: '{c}'")
+                    _ => throw new FormatException($"非法十六进制字符: '{c}'"),
                 };
                 v = (v << 4) | d;
             }
@@ -319,7 +325,7 @@ namespace FluxFormula.Core
         private static ulong xxHashCombine(ulong acc, ulong next)
         {
             acc += next * XXH_PRIME_2;
-            acc  = RotL64(acc, 31);
+            acc = RotL64(acc, 31);
             acc *= XXH_PRIME_1;
             return acc ^ (acc >> 33);
         }

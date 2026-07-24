@@ -101,7 +101,8 @@ namespace FluxFormula.Burst
         private static unsafe int[] ComputeSlotOffsets(byte[] bytecode, int immediateCount)
         {
             var offsets = new int[immediateCount];
-            if (immediateCount == 0) return offsets;
+            if (immediateCount == 0)
+                return offsets;
 
             int off = 0;
             int count = BinaryFormat.ReadInt32LE(new ReadOnlySpan<byte>(bytecode, 0, 4), ref off);
@@ -120,7 +121,8 @@ namespace FluxFormula.Burst
                     if (kind == OpType.Immediate)
                     {
                         // TData 紧跟在当前指令之后
-                        int byteOffset = FormulaFormat.HeaderSize + (ip + 1) * FormulaFormat.InstructionSize;
+                        int byteOffset =
+                            FormulaFormat.HeaderSize + (ip + 1) * FormulaFormat.InstructionSize;
                         offsets[slotIdx++] = byteOffset;
                         ip += dataSlots;
                     }
@@ -138,13 +140,15 @@ namespace FluxFormula.Burst
         public FluxBurstInstance<TData, TDef> SetIndex(int index, TData value)
         {
             CheckDisposed();
-            if ((uint)index >= (uint)_slotOffsets.Length) return this;
+            if ((uint)index >= (uint)_slotOffsets.Length)
+                return this;
 
             unsafe
             {
                 TData* pData = (TData*)((byte*)_bytecode.GetUnsafePtr() + _slotOffsets[index]);
                 *pData = value;
             }
+
             return this;
         }
 
@@ -154,7 +158,8 @@ namespace FluxFormula.Burst
         public FluxBurstInstance<TData, TDef> Set(string name, TData value)
         {
             CheckDisposed();
-            if (_varSlots == null) return this;
+            if (_varSlots == null)
+                return this;
 
             for (int i = 0; i < _varSlots.Length; i++)
             {
@@ -177,7 +182,8 @@ namespace FluxFormula.Burst
                 return FluxBurstEvaluator<TData, TDef>.Execute(
                     (byte*)_bytecode.GetUnsafePtr(),
                     (TData*)_registers.GetUnsafePtr(),
-                    _maxRegister);
+                    _maxRegister
+                );
             }
         }
 
@@ -191,7 +197,7 @@ namespace FluxFormula.Burst
             CheckDisposed();
             var job = new BurstJob
             {
-                Bytecode  = _bytecode,
+                Bytecode = _bytecode,
                 Registers = _registers,
                 MaxRegister = _maxRegister,
             };
@@ -229,7 +235,8 @@ namespace FluxFormula.Burst
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+                return;
 
             if (_ownsBytecode)
             {
@@ -241,7 +248,8 @@ namespace FluxFormula.Burst
                 _cache?.Release(_bytecodeHash);
             }
 
-            if (_registers.IsCreated) _registers.Dispose();
+            if (_registers.IsCreated)
+                _registers.Dispose();
             _disposed = true;
         }
 
@@ -254,12 +262,13 @@ namespace FluxFormula.Burst
         // ── Internal IJob ──
 
         /// <summary>
-        /// Burst 编译的内部 Job——单次公式求值。由 <see cref="Schedule()"/> 创建。
+        /// Burst 编译的内部 Job，负责单次公式求值。由 <see cref="Schedule()"/> 创建。
         /// </summary>
         [BurstCompile]
         struct BurstJob : IJob
         {
-            [ReadOnly] public NativeArray<byte> Bytecode;
+            [ReadOnly]
+            public NativeArray<byte> Bytecode;
             public NativeArray<TData> Registers;
             public byte MaxRegister;
 
@@ -268,7 +277,8 @@ namespace FluxFormula.Burst
                 FluxBurstEvaluator<TData, TDef>.Execute(
                     (byte*)Bytecode.GetUnsafeReadOnlyPtr(),
                     (TData*)Registers.GetUnsafePtr(),
-                    MaxRegister);
+                    MaxRegister
+                );
             }
         }
     }

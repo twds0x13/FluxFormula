@@ -25,18 +25,19 @@ namespace FluxFormula.Burst
         /// <param name="maxRegister">编译期分析的最高寄存器号（从 header 读取，0=回退到全量）</param>
         /// <returns>R1 总线中的结果，或 R0 中的错误哨兵</returns>
         [BurstCompile]
-        public static unsafe TData Execute(
-            byte* bytecode, TData* registers, byte maxRegister)
+        public static unsafe TData Execute(byte* bytecode, TData* registers, byte maxRegister)
         {
             // ── 解析 header ──
             int count = ReadInt32LE(bytecode);
+
             // byte type = bytecode[4];     // FluxType（未使用——调用方保证字节码有效性）
             // int immCount 在 header[5..8]; // 未使用——仅 SetIndex 偏移计算需要
             // int varSlots 在 header[9..12];// 未使用——变量名在胶水层解析
             byte headerMaxReg = bytecode[13];
 
             byte actualMax = headerMaxReg > Registers.Bus ? headerMaxReg : Registers.Bus;
-            if (maxRegister > actualMax) actualMax = maxRegister;
+            if (maxRegister > actualMax)
+                actualMax = maxRegister;
             int regCount = actualMax + 1;
 
             // ── 初始化寄存器 ──
@@ -82,6 +83,7 @@ namespace FluxFormula.Burst
                 else if (kind == OpType.Return)
                 {
                     returnReg = inst->Dest;
+
                     // 合并字节码（FluxChain.ToAtomic 产物）：Return 后还有指令 → 不退出
                     if (ip + 1 < count)
                     {
@@ -101,9 +103,11 @@ namespace FluxFormula.Burst
         private static unsafe bool IsDefault(TData* ptr)
         {
             byte* p = (byte*)ptr;
+
             for (int i = 0; i < sizeof(TData); i++)
                 if (p[i] != 0)
                     return false;
+
             return true;
         }
 
@@ -113,10 +117,10 @@ namespace FluxFormula.Burst
             return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
         }
 
-        /// <summary>ceil(sizeof(TData) / sizeof(Instruction))——Immediate 占用的槽位数</summary>
+        /// <summary>ceil(sizeof(TData) / sizeof(Instruction))，Immediate 占用的槽位数</summary>
         private static unsafe int DataSlotCount()
         {
-            return (sizeof(TData) + 7) / 8;
+            return (sizeof(TData) + sizeof(Instruction) - 1) / sizeof(Instruction);
         }
     }
 }
