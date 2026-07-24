@@ -1,3 +1,9 @@
+## [6.2.0](https://github.com/twds0x13/FluxFormula/compare/v6.1.1...v6.2.0) (2026-07-24)
+
+### Features
+
+* add check-derived-facts.py script ([ae69da1](https://github.com/twds0x13/FluxFormula/commit/ae69da1b864230cb2fef3b51a2f3871938a9fb65))
+
 ## [6.1.1](https://github.com/twds0x13/FluxFormula/compare/v6.1.0...v6.1.1) (2026-07-19)
 
 ### Bug Fixes
