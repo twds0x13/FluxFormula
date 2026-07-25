@@ -26,7 +26,7 @@ namespace SourceSerializer.Generator
             sb.AppendLine();
             sb.AppendLine("namespace SourceSerializer");
             sb.AppendLine("{");
-            sb.AppendLine("    partial class SerializerRegistry");
+            sb.AppendLine("    public static partial class GeneratedSerializers");
             sb.AppendLine("    {");
 
             foreach (var e in structs)
@@ -62,7 +62,7 @@ namespace SourceSerializer.Generator
             string methodName = EmitHelpers.GetMethodName("Emit",ifaceName);
 
             sb.AppendLine($"        /// <summary>接口分发序列化器：{ifaceName}</summary>");
-            sb.AppendLine($"        internal static void {methodName}(StringBuilder sb, {ifaceName} value)");
+            sb.AppendLine($"        public static void {methodName}(StringBuilder sb, {ifaceName} value)");
             sb.AppendLine("        {");
             sb.AppendLine("            switch (value)");
             sb.AppendLine("            {");
@@ -93,7 +93,7 @@ namespace SourceSerializer.Generator
 
             sb.AppendLine($"        /// <summary>序列化器：{structTypeName}</summary>");
             sb.AppendLine("        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
-            sb.AppendLine($"        internal static void {methodName}(StringBuilder sb, {structTypeName} value)");
+            sb.AppendLine($"        public static void {methodName}(StringBuilder sb, {structTypeName} value)");
             sb.AppendLine("        {");
 
             EmitNodeList(sb, nodes, structTypeName, dependencyGraph, typeAliases, enumTags, fieldTypes, "            ", isCollection: isCollection);
@@ -188,7 +188,7 @@ namespace SourceSerializer.Generator
             var sb = new StringBuilder();
             sb.AppendLine($"        /// <summary>枚举标签序列化器：{enumName}</summary>");
             sb.AppendLine("        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
-            sb.AppendLine($"        internal static void Emit_Enum_{enumName}(StringBuilder sb, {enumName} value)");
+            sb.AppendLine($"        public static void Emit_Enum_{enumName}(StringBuilder sb, {enumName} value)");
             sb.AppendLine("        {");
             sb.AppendLine($"            switch (value)");
             sb.AppendLine("            {");

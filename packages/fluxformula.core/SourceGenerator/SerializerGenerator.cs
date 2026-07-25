@@ -375,7 +375,7 @@ namespace SourceSerializer.Generator
         }
 
         /// <summary>从 [Tag("tag")] 提取枚举标签映射</summary>
-        private static (string EnumName, string EnumFullName, string MemberName, string Tag)? GetEnumTagInfo(GeneratorAttributeSyntaxContext ctx)
+        private static (string EnumName, string MemberName, string Tag)? GetEnumTagInfo(GeneratorAttributeSyntaxContext ctx)
         {
             var memberSymbol = ctx.TargetSymbol as IFieldSymbol;
             if (memberSymbol == null) return null;
@@ -392,17 +392,17 @@ namespace SourceSerializer.Generator
 
                 var tag = attr.ConstructorArguments[0].Value as string;
                 if (!string.IsNullOrEmpty(tag))
-                    return (enumType.Name, enumType.ToDisplayString(), memberSymbol.Name, tag!);
+                    return (enumType.Name, memberSymbol.Name, tag!);
             }
             return null;
         }
 
         /// <summary>将枚举标签列表按类型分组</summary>
         private static Dictionary<string, List<(string MemberName, string Tag)>> BuildEnumTagMap(
-            System.Collections.Immutable.ImmutableArray<(string EnumName, string EnumFullName, string MemberName, string Tag)> tags)
+            System.Collections.Immutable.ImmutableArray<(string EnumName, string MemberName, string Tag)> tags)
         {
             var map = new Dictionary<string, List<(string, string)>>(StringComparer.Ordinal);
-            foreach (var (name, _, member, tag) in tags)
+            foreach (var (name, member, tag) in tags)
             {
                 if (!map.ContainsKey(name))
                     map[name] = new List<(string, string)>();
@@ -1296,7 +1296,6 @@ namespace SourceSerializer.Generator
                 NeedsHeapAlloc = NeedsHeapAlloc,
                 IsCollection = IsCollection,
                 IsArrayCollection = IsArrayCollection,
-                IsReadonlyStruct = IsReadonlyStruct,
                 MatchedCtorParams = MatchedCtorParams,
             };
         }
@@ -1309,7 +1308,6 @@ namespace SourceSerializer.Generator
         public bool NeedsHeapAlloc;
         public bool IsCollection;
         public bool IsArrayCollection;
-        public bool IsReadonlyStruct;
         public string[]? MatchedCtorParams;
     }
 }

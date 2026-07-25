@@ -17,15 +17,20 @@ namespace SourceSerializer.Generator
             sb.AppendLine();
             sb.AppendLine("namespace SourceSerializer");
             sb.AppendLine("{");
-            sb.AppendLine("    partial class SerializerRegistry");
+            sb.AppendLine("    [ExcludeFromCodeCoverage]");
+            sb.AppendLine("    public static partial class GeneratedSerializers");
             sb.AppendLine("    {");
 
             bool hasAny = structs.Count > 0 || iMap.Count > 0;
             if (hasAny)
             {
+                sb.AppendLine("        private static bool _initCalled;");
+                sb.AppendLine();
                 sb.AppendLine("        [ExcludeFromCodeCoverage]");
-                sb.AppendLine("        static SerializerRegistry()");
+                sb.AppendLine("        public static void Init()");
                 sb.AppendLine("        {");
+                sb.AppendLine("            if (_initCalled) return;");
+                sb.AppendLine("            _initCalled = true;");
                 foreach (var e in structs)
                 {
                     string blockName = BlockName(e.Common.StructName);
@@ -65,17 +70,17 @@ namespace SourceSerializer.Generator
             string emitMethod = EmitHelpers.GetMethodName("Emit", typeName);
 
             sb.AppendLine("        [ExcludeFromCodeCoverage]");
-            sb.AppendLine($"        readonly struct {blockName} : ISerializerBlock<{typeName}>");
+            sb.AppendLine($"        public readonly struct {blockName} : ISerializerBlock<{typeName}>");
             sb.AppendLine("        {");
             sb.AppendLine($"            public int Scan(ReadOnlySpan<char> text, int pos, out {typeName} value)");
             sb.AppendLine("            {");
-            sb.AppendLine($"                int r = SerializerRegistry.{scanMethod}(text, pos, out value);");
+            sb.AppendLine($"                int r = GeneratedSerializers.{scanMethod}(text, pos, out value);");
             sb.AppendLine("                return r;");
             sb.AppendLine("            }");
             sb.AppendLine();
             sb.AppendLine($"            public void Emit(StringBuilder sb, {typeName} value)");
             sb.AppendLine("            {");
-            sb.AppendLine($"                SerializerRegistry.{emitMethod}(sb, value);");
+            sb.AppendLine($"                GeneratedSerializers.{emitMethod}(sb, value);");
             sb.AppendLine("            }");
             sb.AppendLine("        }");
             sb.AppendLine();

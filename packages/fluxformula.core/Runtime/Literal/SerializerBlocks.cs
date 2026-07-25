@@ -3,29 +3,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
+
+using System.Reflection;
 using System.Text;
 
 namespace SourceSerializer
 {
-    /// <summary>
-    /// 非泛型标记接口：使 <see cref="ISerializerBlock{TData}"/> 可被 <c>params ISerializerBlock[]</c> 接收。
-    /// </summary>
-    public interface ISerializerBlock { }
-
-    /// <summary>
-    /// 序列化器块接口：将 scan（反序列化）和 emit（序列化）合并为一个双向能力。
-    /// 每个标记了 [Template] 的类型在编译期由 SG 生成实现此接口的 struct。
-    /// </summary>
-    public interface ISerializerBlock<TData> : ISerializerBlock
-    {
-        /// <summary>从 text 的 pos 位置开始扫描，写入 out value，返回新的位置。返回 pos 表示失败。</summary>
-        int Scan(ReadOnlySpan<char> text, int pos, out TData value);
-
-        /// <summary>将 value 序列化到 sb。</summary>
-        void Emit(StringBuilder sb, TData value);
-    }
-
     /// <summary>
     /// 序列化器块注册表。跨程序集的中心注册点——SG 和外部代码均可通过
     /// <see cref="AddBlock{T}"/> / <see cref="AddBlocks"/> / <see cref="RemoveBlock{T}"/>
@@ -44,56 +27,124 @@ namespace SourceSerializer
         private static void EnsureInitialized()
         {
             if (_initialized) return;
-            RuntimeHelpers.RunClassConstructor(typeof(SerializerRegistry).TypeHandle);
-            // 内置类型与用户类型走同一 AddBlock 路径
-            AddBlock<float>(new SerializerRegistry.BuiltinBlock_Float());
-            AddBlock<double>(new SerializerRegistry.BuiltinBlock_Double());
-            AddBlock<int>(new SerializerRegistry.BuiltinBlock_Int());
-            AddBlock<uint>(new SerializerRegistry.BuiltinBlock_Uint());
-            AddBlock<long>(new SerializerRegistry.BuiltinBlock_Long());
-            AddBlock<ulong>(new SerializerRegistry.BuiltinBlock_Ulong());
-            AddBlock<short>(new SerializerRegistry.BuiltinBlock_Short());
-            AddBlock<ushort>(new SerializerRegistry.BuiltinBlock_Ushort());
-            AddBlock<byte>(new SerializerRegistry.BuiltinBlock_Byte());
-            AddBlock<sbyte>(new SerializerRegistry.BuiltinBlock_Sbyte());
-            AddBlock<bool>(new SerializerRegistry.BuiltinBlock_Bool());
-            AddBlock<char>(new SerializerRegistry.BuiltinBlock_Char());
-            AddBlock<string>(new SerializerRegistry.BuiltinBlock_String());
             _initialized = true;
+
+            // 1. Discover GeneratedSerializers.Init() in all loaded assemblies.
+            //    Works for same-assembly (NuGet) and cross-assembly (Unity UPM) identically.
+            foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    var type = assembly.GetType("SourceSerializer.GeneratedSerializers");
+                    type?.GetMethod("Init",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                         ?.Invoke(null, null);
+                }
+                catch { }
+            }
+
+            // 2. Register built-in types (always)
+            AddBlock<float>(new BuiltinBlocks.BuiltinBlock_Float());
+            AddBlock<double>(new BuiltinBlocks.BuiltinBlock_Double());
+            AddBlock<int>(new BuiltinBlocks.BuiltinBlock_Int());
+            AddBlock<uint>(new BuiltinBlocks.BuiltinBlock_Uint());
+            AddBlock<long>(new BuiltinBlocks.BuiltinBlock_Long());
+            AddBlock<ulong>(new BuiltinBlocks.BuiltinBlock_Ulong());
+            AddBlock<short>(new BuiltinBlocks.BuiltinBlock_Short());
+            AddBlock<ushort>(new BuiltinBlocks.BuiltinBlock_Ushort());
+            AddBlock<byte>(new BuiltinBlocks.BuiltinBlock_Byte());
+            AddBlock<sbyte>(new BuiltinBlocks.BuiltinBlock_Sbyte());
+            AddBlock<bool>(new BuiltinBlocks.BuiltinBlock_Bool());
+            AddBlock<char>(new BuiltinBlocks.BuiltinBlock_Char());
+            AddBlock<string>(new BuiltinBlocks.BuiltinBlock_String());
+        }
+
+        /// <summary>
+        /// 核心注册逻辑：接口类型做链式合并（后注册追加到分发链），非接口类型覆盖。
+        /// </summary>
+        private static void RegisterBlock<T>(ISerializerBlock<T> block)
+        {
+            lock (_syncRoot)
+            {
+                var key = typeof(T);
+                if (key.IsInterface && _blocks.TryGetValue(key, out var existing))
+                {
+                    if (existing is ChainBlock<T> chain)
+                    {
+                        chain.AddLink(block);
+                    }
+                    else
+                    {
+                        var newChain = new ChainBlock<T>();
+                        newChain.AddLink((ISerializerBlock<T>)existing);
+                        newChain.AddLink(block);
+                        _blocks[key] = newChain;
+                    }
+                }
+                else
+                {
+                    _blocks[key] = block;
+                }
+            }
         }
 
         /// <summary>
         /// 注册一个 block。返回 <see cref="Builder"/> 以支持流式链式调用。
-        /// 对于 T 的多次注册，后注册覆盖先注册。
+        /// 接口类型的多次注册做链式合并，非接口类型的后注册覆盖先注册。
         /// </summary>
         public static Builder AddBlock<T>(ISerializerBlock<T> block)
         {
             if (block == null) throw new ArgumentNullException(nameof(block));
-            lock (_syncRoot)
-            {
-                _blocks[typeof(T)] = block;
-            }
+            RegisterBlock(block);
             return new Builder();
         }
 
         /// <summary>
-        /// 批量注册异构 block。每个 block 的泛型参数通过反射推导。
+        /// 非泛型重载：通过 Type 和 block 实例注册。
+        /// 用于动态加载的程序集——调用方在编译期不持有类型。
+        /// 从 block 的 <see cref="ISerializerBlock{TData}"/> 接口提取泛型参数，
+        /// 委托到 <see cref="RegisterBlock{T}"/> 以复用接口链式合并逻辑。
+        /// </summary>
+        public static Builder AddBlock(Type dataType, ISerializerBlock block)
+        {
+            if (dataType == null) throw new ArgumentNullException(nameof(dataType));
+            if (block == null) throw new ArgumentNullException(nameof(block));
+
+            foreach (var iface in block.GetType().GetInterfaces())
+            {
+                if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(ISerializerBlock<>))
+                {
+                    var t = iface.GetGenericArguments()[0];
+                    typeof(SerializerBlocks)
+                        .GetMethod(nameof(RegisterBlock), BindingFlags.NonPublic | BindingFlags.Static)
+                        .MakeGenericMethod(t)
+                        .Invoke(null, new object[] { block });
+                    return new Builder();
+                }
+            }
+            throw new ArgumentException("block does not implement ISerializerBlock<T>", nameof(block));
+        }
+
+        /// <summary>
+        /// 批量注册异构 block。每个 block 的泛型参数通过反射推导，
+        /// 委托到 <see cref="RegisterBlock{T}"/> 以复用接口链式合并逻辑。
         /// </summary>
         public static void AddBlocks(params ISerializerBlock[] blocks)
         {
             if (blocks == null) throw new ArgumentNullException(nameof(blocks));
-            lock (_syncRoot)
+            foreach (var block in blocks)
             {
-                foreach (var block in blocks)
+                if (block == null) continue;
+                foreach (var iface in block.GetType().GetInterfaces())
                 {
-                    if (block == null) continue;
-                    foreach (var iface in block.GetType().GetInterfaces())
+                    if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(ISerializerBlock<>))
                     {
-                        if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(ISerializerBlock<>))
-                        {
-                            _blocks[iface.GetGenericArguments()[0]] = block;
-                            break;
-                        }
+                        var t = iface.GetGenericArguments()[0];
+                        typeof(SerializerBlocks)
+                            .GetMethod(nameof(RegisterBlock), BindingFlags.NonPublic | BindingFlags.Static)
+                            .MakeGenericMethod(t)
+                            .Invoke(null, new object[] { block });
+                        break;
                     }
                 }
             }
@@ -107,6 +158,18 @@ namespace SourceSerializer
             lock (_syncRoot)
             {
                 _blocks.Remove(typeof(T));
+            }
+        }
+
+        /// <summary>
+        /// 非泛型重载：通过 Type 移除 block。类型未注册时静默成功。
+        /// </summary>
+        public static void RemoveBlock(Type dataType)
+        {
+            if (dataType == null) throw new ArgumentNullException(nameof(dataType));
+            lock (_syncRoot)
+            {
+                _blocks.Remove(dataType);
             }
         }
 
@@ -167,6 +230,13 @@ namespace SourceSerializer
                 return this;
             }
 
+            /// <inheritdoc cref="SerializerBlocks.AddBlock(Type, ISerializerBlock)"/>
+            public Builder AddBlock(Type dataType, ISerializerBlock block)
+            {
+                SerializerBlocks.AddBlock(dataType, block);
+                return this;
+            }
+
             /// <inheritdoc cref="SerializerBlocks.AddBlocks"/>
             public Builder AddBlocks(params ISerializerBlock[] blocks)
             {
@@ -178,6 +248,13 @@ namespace SourceSerializer
             public Builder RemoveBlock<T>()
             {
                 SerializerBlocks.RemoveBlock<T>();
+                return this;
+            }
+
+            /// <inheritdoc cref="SerializerBlocks.RemoveBlock(Type)"/>
+            public Builder RemoveBlock(Type dataType)
+            {
+                SerializerBlocks.RemoveBlock(dataType);
                 return this;
             }
         }

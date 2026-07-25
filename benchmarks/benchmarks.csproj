@@ -30,8 +30,13 @@
     <Compile Include="../packages/fluxformula.core/Runtime/Cache/IFluxCacheProvider.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Format/BinaryFormat.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Format/FormulaFormat.cs" />
-    <Compile Include="../packages/fluxformula.core/Runtime/Core/SerializerScanners.cs" />
-    <Compile Include="../packages/fluxformula.core/Runtime/Core/SerializerEmitters.cs" />
+    <!-- SourceSerializer Runtime（供 FluxLexer 的 SerializerBlocks.TryGet<T> 使用） -->
+    <Compile Include="../packages/fluxformula.core/Runtime/Literal/ISerializerBlock.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Literal/ChainBlock.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Literal/BuiltinBlocks.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Literal/SerializerBlocks.cs" />
+    <Compile Include="../packages/fluxformula.core/Runtime/Literal/SerializerRegistry.cs" />
+
     <Compile Include="../packages/fluxformula.core/Runtime/Core/Registers.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Core/FluxConfig.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Format/VffFormat.cs" />

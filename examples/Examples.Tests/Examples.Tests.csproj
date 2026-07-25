@@ -29,6 +29,9 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Literal/TagAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Literal/SerializerRegistry.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Literal/SerializerBlocks.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/ISerializerBlock.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/ChainBlock.cs" />
+    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/BuiltinBlocks.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Literal/ExternalTemplateAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Literal/TypeAliasAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Cache/DualHash64.cs" />

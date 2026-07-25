@@ -12,7 +12,6 @@ namespace SourceSerializer.Generator
         {
             "float", "double", "int", "uint", "long", "ulong",
             "short", "ushort", "byte", "sbyte", "bool", "char", "string",
-            "decimal", "nint", "nuint", "Half",
         };
     }
 }

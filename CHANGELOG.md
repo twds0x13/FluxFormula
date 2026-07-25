@@ -1,3 +1,9 @@
+## [6.4.0](https://github.com/twds0x13/FluxFormula/compare/v6.3.0...v6.4.0) (2026-07-25)
+
+### Features
+
+* sync SourceSerializer v3.3.0 from upstream ([4f91fcd](https://github.com/twds0x13/FluxFormula/commit/4f91fcda08db0f4a2583fbd134b10998d9de8c16))
+
 ## [6.3.0](https://github.com/twds0x13/FluxFormula/compare/v6.2.0...v6.3.0) (2026-07-24)
 
 ### Features
