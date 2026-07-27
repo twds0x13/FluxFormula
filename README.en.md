@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" alt="FluxFormula" width="160" />
+  <img src="docs/public/logo.png" alt="FluxFormula" width="160" />
 </p>
 
 # FluxFormula
