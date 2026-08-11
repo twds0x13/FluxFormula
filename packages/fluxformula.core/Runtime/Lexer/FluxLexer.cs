@@ -198,11 +198,6 @@ namespace FluxFormula.Core
         /// <summary>括号映射列表</summary>
         public List<BracketRule> Brackets = new();
 
-        /// <summary>可隐式插入的运算符列表（如 Mul）。
-        /// 若仅配置一个，遇到 2(3) 或 (a)(b) 时自动插入。
-        /// 若配置多个且产生歧义（如 2 3），抛异常提醒用户显式书写。</summary>
-        public List<byte> ImplicitOperators = new();
-
         /// <summary>变量（未知数）模式列表，用前后缀定义包裹语法。
         /// 如 new("{var:", "}") 匹配 {var:a}，new("[", "]") 匹配 [enemy.def]</summary>
         public List<VariablePatternRule> VariablePatterns = new();
@@ -319,13 +314,14 @@ namespace FluxFormula.Core
                     Array.Empty<FluxToken<TData>>(),
                     Array.Empty<string>());
 
-            int maxTokens = source.Length;
+            using var compact = new WhitespaceStripper(source);
+            ReadOnlySpan<char> src = compact.Span;
+            int maxTokens = src.Length;
             var tokens   = new FluxToken<TData>[maxTokens];
             var varNames = new string[maxTokens];
             var syntaxes = new TokenSyntax[maxTokens];
             int tokenCount = 0;
             int pos = 0;
-            ReadOnlySpan<char> src = source.AsSpan();
 
             while (pos < src.Length)
             {
@@ -392,48 +388,6 @@ namespace FluxFormula.Core
             Array.Copy(tokens, resultTokens, tokenCount);
             Array.Copy(varNames, resultVarNames, tokenCount);
             Array.Copy(syntaxes, resultSyntax, tokenCount);
-
-            // ── 隐式运算符插入 ────────────────────────
-            if (_config.ImplicitOperators.Count > 0)
-            {
-                int maxResolved = resultTokens.Length * 2;
-                var resolvedTokens   = new FluxToken<TData>[maxResolved];
-                var resolvedVarNames = new string[maxResolved];
-                var resolvedSyntax   = new TokenSyntax[maxResolved];
-                int resolvedCount = 0;
-                for (int i = 0; i < resultTokens.Length; i++)
-                {
-                    resolvedTokens[resolvedCount]   = resultTokens[i];
-                    resolvedVarNames[resolvedCount] = resultVarNames[i];
-                    resolvedSyntax[resolvedCount]   = resultSyntax[i];
-                    resolvedCount++;
-                    if (i + 1 >= resultTokens.Length) break;
-
-                    if (IsJuxtaposition(resultTokens[i], resultTokens[i + 1]))
-                    {
-                        if (_config.ImplicitOperators.Count == 1)
-                        {
-                            resolvedTokens[resolvedCount] = new FluxToken<TData>
-                                { Oper = _config.ImplicitOperators[0] };
-                            resolvedVarNames[resolvedCount] = null;
-                            resolvedSyntax[resolvedCount] = new TokenSyntax(null);
-                            resolvedCount++;
-                        }
-                        else
-                        {
-                            throw new FormatException(
-                                $"Ambiguous implicit operator between '{resultTokens[i]}' and '{resultTokens[i + 1]}'. " +
-                                $"Use explicit operator.");
-                        }
-                    }
-                }
-                resultTokens   = new FluxToken<TData>[resolvedCount];
-                resultVarNames = new string[resolvedCount];
-                resultSyntax   = new TokenSyntax[resolvedCount];
-                Array.Copy(resolvedTokens, resultTokens, resolvedCount);
-                Array.Copy(resolvedVarNames, resultVarNames, resolvedCount);
-                Array.Copy(resolvedSyntax, resultSyntax, resolvedCount);
-            }
 
             return new LexResult<TData>(resultTokens, resultVarNames, resultSyntax);
         }
@@ -540,33 +494,5 @@ namespace FluxFormula.Core
             return matched.Substring(start, len);
         }
 
-        /// <summary>判断两个相邻 Token 是否需要隐式运算符。
-        /// 内联数组扫描替代 HashSet：括号对数极少（1-3），线性扫描零堆分配且更快。</summary>
-        private bool IsJuxtaposition(FluxToken<TData> left, FluxToken<TData> right)
-        {
-            bool leftEnd = left.Oper == _config.LiteralOper
-                        || IsRightBracket(left.Oper);
-
-            bool rightStart = right.Oper == _config.LiteralOper
-                           || IsLeftBracket(right.Oper);
-
-            return leftEnd && rightStart;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsLeftBracket(byte op)
-        {
-            for (int i = 0; i < _brLeftOpers.Length; i++)
-                if (_brLeftOpers[i] == op) return true;
-            return false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsRightBracket(byte op)
-        {
-            for (int i = 0; i < _brRightOpers.Length; i++)
-                if (_brRightOpers[i] == op) return true;
-            return false;
-        }
     }
 }

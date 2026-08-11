@@ -1,7 +1,12 @@
 using System;
 using FluxFormula.Core;
+
 using NUnit.Framework;
-using static TestHelper;
+
+using static FluxFormula.Tests.TestHelper;
+
+namespace FluxFormula.Tests
+{
 
 public class LexerTests
 {
@@ -120,54 +125,6 @@ public class LexerTests
         float jit    = Eval(tokens, jit: true);
         Assert.That(jit, Is.EqualTo(interp).Within(1e-6f));
         Assert.That(interp, Is.EqualTo(-15f).Within(1e-6f));
-    }
-
-    // ── 隐式乘法 ────────────────────────────────
-
-    [Test]
-    public void ImplicitMul_NumberBeforeParen()
-    {
-        var tokens = CreateImplicitMulLexer().Lex("2(3+4)").Tokens;
-        Assert.That(Eval(tokens), Is.EqualTo(14f).Within(1e-6f));
-    }
-
-    [Test]
-    public void ImplicitMul_ParenBeforeParen()
-    {
-        var tokens = CreateImplicitMulLexer().Lex("(2+3)(4+5)").Tokens;
-        Assert.That(Eval(tokens), Is.EqualTo(45f).Within(1e-6f));
-    }
-
-    [Test]
-    public void ImplicitMul_ParenBeforeNumber()
-    {
-        var tokens = CreateImplicitMulLexer().Lex("(2+3)4").Tokens;
-        Assert.That(Eval(tokens), Is.EqualTo(20f).Within(1e-6f));
-    }
-
-    [Test]
-    public void ImplicitMul_Chained()
-    {
-        // 2(3)4 → 2 * 3 * 4 = 24
-        var tokens = CreateImplicitMulLexer().Lex("2(3)4").Tokens;
-        Assert.That(Eval(tokens), Is.EqualTo(24f).Within(1e-6f));
-    }
-
-    [Test]
-    public void ImplicitMul_WithoutImplicitOperator_ReturnsFirstExprOnly()
-    {
-        // 默认 Lexer 无隐式乘法，2(3+4) 被解释为"2" + 独立的"(3+4)"，返回 2
-        var tokens = CreateMathLexer().Lex("2(3+4)").Tokens;
-        Assert.That(Eval(tokens), Is.EqualTo(2f).Within(1e-6f));
-    }
-
-    [Test]
-    public void ImplicitMul_RespectsExplicitOperator()
-    {
-        // 2 * (3+4) 和 2(3+4) 结果相同
-        float withStar = Eval(CreateMathLexer().Lex("2*(3+4)").Tokens);
-        float implicitR = Eval(CreateImplicitMulLexer().Lex("2(3+4)").Tokens);
-        Assert.That(withStar, Is.EqualTo(implicitR).Within(1e-6f));
     }
 
     // ── 变量（未知数）模式匹配 ─────────────────
@@ -294,34 +251,6 @@ public class LexerTests
         Assert.That(threw, Is.True, "Unknown variable should still throw");
     }
 
-    // ── 隐式运算符歧义 ─────────────────────────
-
-    [Test]
-    public void ImplicitMul_Ambiguous_ThrowsFormatException()
-    {
-        // 配置多个隐式运算符，遇到无法消歧的邻接时报错
-        var lexer = new FluxLexer<float>(new LexerConfig<float>
-        {
-            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
-            LiteralOper = (byte)FloatOp.Const,
-            Operators =
-            {
-                new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
-                new("*", (byte)FloatOp.Mul), new("/", (byte)FloatOp.Div),
-            },
-            Brackets =
-            {
-                new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen),
-            },
-            ImplicitOperators = { (byte)FloatOp.Mul, (byte)FloatOp.Add },
-        });
-
-        Assert.That(
-            () => lexer.Lex("2 3"),
-            Throws.TypeOf<FormatException>()
-                .And.Message.Contains("Ambiguous"));
-    }
-
     // ── 多变量模式共存 ─────────────────────────
 
     [Test]
@@ -357,4 +286,5 @@ public class LexerTests
         float v = inst.Set("a", 10f).Set("b", 7f).Run();
         Assert.That(v, Is.EqualTo(17f).Within(1e-6f));
     }
+}
 }
