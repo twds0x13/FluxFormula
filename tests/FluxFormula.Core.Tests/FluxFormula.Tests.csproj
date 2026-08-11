@@ -27,29 +27,21 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxJITInjector.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Lexer/FluxLexer.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/ISerializerBlock.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/ChainBlock.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/BuiltinBlocks.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/TemplateAttribute.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/SerializerRegistry.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/SerializerBlocks.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/TemplateIgnoreAttribute.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/ExternalTemplateAttribute.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/TypeAliasAttribute.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/TagAttribute.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/ISerializerBlock.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/WhitespaceStripper.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/ChainBlock.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/BuiltinBlocks.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/Attributes/TemplateAttribute.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/SerializerRegistry.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/SerializerBlocks.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/Attributes/TemplateIgnoreAttribute.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/Attributes/ExternalTemplateAttribute.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/Attributes/TypeAliasAttribute.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/Attributes/TagAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Cache/DualHash64.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Cache/FormulaCache.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Cache/IFluxCacheProvider.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Format/BinaryFormat.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/FramePtr.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/WALEntry.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/WALFormat.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/IWALStorage.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/WALFileStorage.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/NativeTruncateBuffer.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/WALReplay.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/FluxTransaction.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/FluxWAL.cs" />
 
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxArtifactKind.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxFileFormatter.cs" />
@@ -86,8 +78,6 @@
     <Compile Include="DualHashTests.cs" />            <!-- DualHash64 -->
     <Compile Include="DataStructsTests.cs" />         <!-- Instruction/OpPair/VariableSlot -->
     <Compile Include="BinaryFormatTests.cs" />        <!-- BinaryFormat -->
-    <Compile Include="FluxWALTests.cs" />            <!-- FluxWAL -->
-    <Compile Include="NativeTruncateBufferTests.cs" /> <!-- NativeTruncateBuffer -->
     <Compile Include="FormulaFormatTests.cs" />       <!-- FormulaFormat -->
     <Compile Include="FormulaCacheTests.cs" />        <!-- FormulaCache 核心 -->
     <Compile Include="FormulaCacheAndChainTests.cs" /> <!-- FormulaCache + Chain -->
@@ -120,7 +110,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../packages/fluxformula.core/SourceGenerator/SourceSerializer.Generator.csproj"
+    <ProjectReference Include="../../vendor/SourceSerializer/SourceGenerator~/SourceSerializer.Generator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
