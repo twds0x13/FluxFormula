@@ -5,7 +5,8 @@ using NUnit.Framework;
 
 using static TestHelper;
 
-namespace FluxFormula.Tests;
+namespace FluxFormula.Tests
+{
 
 public class FluxInstanceTests
 {
@@ -84,4 +85,5 @@ public class FluxInstanceTests
         catch (IndexOutOfRangeException) { threw = true; }
         Assert.That(threw, Is.True, "Out-of-bounds index should throw");
     }
+}
 }

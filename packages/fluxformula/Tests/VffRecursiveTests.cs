@@ -6,7 +6,8 @@ using NUnit.Framework;
 
 using static TestHelper;
 
-namespace FluxFormula.Tests;
+namespace FluxFormula.Tests
+{
 
 /// <summary>
 /// VFF 递归解析测试。
@@ -441,4 +442,5 @@ public class VffRecursiveTests
         Assert.That(result.Chain.Length, Is.EqualTo(3));
         Assert.That(result.Chain.ToAtomic().ImmediateCount, Is.EqualTo(3));
     }
+}
 }

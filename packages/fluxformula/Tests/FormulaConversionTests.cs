@@ -5,7 +5,8 @@ using NUnit.Framework;
 
 using static TestHelper;
 
-namespace FluxFormula.Tests;
+namespace FluxFormula.Tests
+{
 
 /// <summary>
 /// Formula ↔ Modifier 互转的边界测试。
@@ -341,4 +342,5 @@ public class FormulaConversionTests
         catch (InvalidOperationException) { threw = true; }
         Assert.That(threw, Is.True, "Empty formula should throw on ToModifier");
     }
+}
 }

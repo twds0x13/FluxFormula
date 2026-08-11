@@ -5,7 +5,8 @@ using NUnit.Framework;
 
 using static TestHelper;
 
-namespace FluxFormula.Tests;
+namespace FluxFormula.Tests
+{
 
 public class LexerTests
 {
@@ -361,4 +362,5 @@ public class LexerTests
         float v = inst.Set("a", 10f).Set("b", 7f).Run();
         Assert.That(v, Is.EqualTo(17f).Within(1e-6f));
     }
+}
 }

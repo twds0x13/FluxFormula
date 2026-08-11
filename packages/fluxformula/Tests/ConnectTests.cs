@@ -5,7 +5,8 @@ using NUnit.Framework;
 
 using static TestHelper;
 
-namespace FluxFormula.Tests;
+namespace FluxFormula.Tests
+{
 
 public class ConnectTests
 {
@@ -50,4 +51,5 @@ public class ConnectTests
         Assert.That(merged.VariableSlots.Length, Is.EqualTo(1));
         Assert.That(merged.VariableSlots[0].Name, Is.EqualTo("a"));
     }
+}
 }

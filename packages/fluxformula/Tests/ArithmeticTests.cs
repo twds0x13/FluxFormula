@@ -5,7 +5,8 @@ using NUnit.Framework;
 
 using static TestHelper;
 
-namespace FluxFormula.Tests;
+namespace FluxFormula.Tests
+{
 
 public class ArithmeticTests
 {
@@ -143,4 +144,5 @@ public class ArithmeticTests
             Throws.TypeOf<FormatException>()
         );
     }
+}
 }
