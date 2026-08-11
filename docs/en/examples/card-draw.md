@@ -8,7 +8,7 @@ Noita-style spell correction system. Each spell card has two attributes:
 - **Damage modifier**: float, positive = increase final damage, negative = decrease final damage
 - **Draw provision**: int, how many draws this card provides. Casting automatically consumes 1 draw; net change = provision − 1
 
-`10.5|idx:0` is a pure damage correction spell: provides 0 draws, card index 0. `0|draw 2|idx:1` is a double cast: `1 + 2 - 1 = 2`, the next two casts are free, card index 1. `-5|draw 2|idx:2` is a tradeoff draw spell: `1 + 2 - 1 = 2`, paying 5 damage for 2 free casts, card index 2. `20|draw 1|idx:3` is a self-paying spell: `1 + 1 - 1 = 1`, providing exactly enough draws to offset its own cost.
+`Spell(10.5, idx:0)` is a pure damage correction spell: provides 0 draws, card index 0. `Spell(0, draw:2, idx:1)` is a double cast: `1 + 2 - 1 = 2`, the next two casts are free, card index 1. `Spell(-5, draw:2, idx:2)` is a tradeoff draw spell: `1 + 2 - 1 = 2`, paying 5 damage for 2 free casts, card index 2. `Spell(20, draw:1, idx:3)` is a self-paying spell: `1 + 1 - 1 = 1`, providing exactly enough draws to offset its own cost.
 
 **Spell wrapping** (Noita machine-gun wand): the chain formula runs all cards, then the tracker formula updates the bitmask using `ConsumedThisRound`. The while loop wraps back to the chain head while the mask isn't full; terminates when full. `DrawsProvide` pass-through engages mid-chain when draws run out; each card executes at most twice (Noita double utilization).
 
@@ -52,7 +52,7 @@ public enum SpellOp : byte
 
 `Add` operates on both Damage and DrawsProvide, implicitly deducting the 1-draw casting cost.
 
-## LiteralScanner: `damage|draw N|idx:N` Named-Field Format
+## LiteralScanner: `Spell(damage, draw:N, idx:N)` Named-Field Format
 
 > **v5.2+ recommendation**: Prefer the `[Template]` source generator (see attribute on the struct declaration above). After adding the `SourceSerializer.Generator` analyzer to your csproj, omit the `LiteralScanner` field from `LexerConfig` — the `FluxLexer` constructor automatically injects the generated scanner. The template-first approach eliminates manual delegate maintenance.
 
@@ -111,9 +111,9 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value
 ```
 
 Format rules:
-- `10.5|idx:0` — 10.5 damage, 0 draw provision, card index 0
-- `0|draw 2|idx:1` — no damage change, 2 draw provision: `1 + 2 - 1 = 2`, card index 1
-- `-5|draw 2|idx:2` — decrease 5 damage, 2 draw provision: `1 + 2 - 1 = 2`, card index 2
+- `Spell(10.5, idx:0)` — 10.5 damage, 0 draw provision, card index 0
+- `Spell(0, draw:2, idx:1)` — no damage change, 2 draw provision: `1 + 2 - 1 = 2`, card index 1
+- `Spell(-5, draw:2, idx:2)` — decrease 5 damage, 2 draw provision: `1 + 2 - 1 = 2`, card index 2
 - `draw` field is optional (defaults to 0), `idx:` field is required
 
 ## Definition
@@ -436,11 +436,11 @@ Each card's `[prev] + card_face_value` reads the previous card's output through 
 
 ### Implicit Casting Cost
 
-Each card automatically costs 1 draw. `10.5|idx:0` provides 0 draws; the net −1 is implicit. `0|draw 2|idx:1`: 1 remaining + 2 provision − 1 cost = 2 draws. The 1-draw deduction is handled uniformly by the `Add` operator; card data only declares the damage modifier and draw provision.
+Each card automatically costs 1 draw. `Spell(10.5, idx:0)` provides 0 draws; the net −1 is implicit. `Spell(0, draw:2, idx:1)`: 1 remaining + 2 provision − 1 cost = 2 draws. The 1-draw deduction is handled uniformly by the `Add` operator; card data only declares the damage modifier and draw provision.
 
 ## Key Points
 
-- `damage|draw N|idx:N` named-field format: `draw` is optional (defaults to 0), `idx:` is required
+- `Spell(damage, draw:N, idx:N)` named-field format: `draw` is optional (defaults to 0), `idx:` is required
 - `Add` acts on both the damage modifier and draw provision; `a.DrawsProvide <= 0` writes R0 to interrupt the chain, `b.StartIndex < a.StartIndex` passes through to skip consumed cards
 - `ConsumedThisRound` increments inside the chain, consumed in batch by the tracker formula then reset
 - `StartIndex` is updated by the tracker to `pos + consumed`, so the next round resumes from the unconsumed position

@@ -9,7 +9,7 @@ using SourceSerializer;
 // TData 结构体
 // ═══════════════════════════════════════════════════════
 
-[Template("<float Damage>|<optional>draw <byte DrawsProvide>|</optional>idx:<byte StartIndex>")]
+[Template("Spell(<float Damage><optional>, draw:<byte DrawsProvide></optional>, idx:<byte StartIndex>)")]
 public struct SpellContext : IEquatable<SpellContext>
 {
     public float Damage; // 累积伤害

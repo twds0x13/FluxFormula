@@ -23,9 +23,9 @@ var lexer = new FluxLexer<SpellContext>(config);
 // 卡1: +10 伤害修正, 0 抽（仅消耗施法成本）
 // 卡2: +7 伤害修正,  0 抽
 // 卡3: +5 伤害修正,  0 抽
-var card1 = runner.Compile(lexer.Lex("[prev] + 10|idx:0")); // Formula（链首）
-var mod2 = runner.Compile(lexer.Lex("[prev] + 7|idx:1")).ToModifier();
-var mod3 = runner.Compile(lexer.Lex("[prev] + 5|idx:2")).ToModifier();
+var card1 = runner.Compile(lexer.Lex("[prev] + Spell(10, idx:0)")); // Formula（链首）
+var mod2 = runner.Compile(lexer.Lex("[prev] + Spell(7, idx:1)")).ToModifier();
+var mod3 = runner.Compile(lexer.Lex("[prev] + Spell(5, idx:2)")).ToModifier();
 
 // 所有卡串联为一条链
 var chain = card1.Connect(mod2).Connect(mod3);

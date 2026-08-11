@@ -36,7 +36,7 @@ var result = lexer.Lex("3.5 -2.1");
 public struct SpellCard { ... }
 ```
 
-`<type fieldname>` declares a field. Everything else is literal text matched character by character. The example above matches `10.5|draw 2|idx:1` or `10.5|idx:0` (the `draw` segment is optional).
+`<type fieldname>` declares a field. Everything else is literal text matched character by character. The example above matches `Spell(10.5, draw:2, idx:1)` or `Spell(10.5, idx:0)` (the `draw` segment is optional).
 
 ### XML Format
 
@@ -78,7 +78,7 @@ public struct SpellCard
 }
 ```
 
-`"10.5|draw 2|idx:1"` matches all fields. `"10.5|idx:0"` omits the `draw` segment; `DrawsProvide` retains its `default` value.
+`"Spell(10.5, draw:2, idx:1)"` matches all fields. `"Spell(10.5, idx:0)"` omits the `draw` segment; `DrawsProvide` retains its `default` value.
 
 ## Nested Structs
 

@@ -8,7 +8,7 @@ Noita 式法术修正系统。每张法术卡有两个属性：
 - **伤害修正**：浮点数，正值 = 增加最终伤害，负值 = 降低最终伤害
 - **抽牌提供**：整数，本张卡提供的抽牌次数。施法自动消耗 1 抽，净变化 = 提供量 - 1
 
-`10.5|idx:0` 是纯伤害修正法术：提供 0 抽，卡索引 0。`0|draw 2|idx:1` 是二重施法：`1 + 2 - 1 = 2`，后续两次施法免费，卡索引 1。`-5|draw 2|idx:2` 是含 tradeoff 的抽牌法术：`1 + 2 - 1 = 2`，以降低 5 点伤害为代价换取 2 次免费施法，卡索引 2。`20|draw 1|idx:3` 是自偿法术：`1 + 1 - 1 = 1`，提供 1 抽恰好抵消自身成本。
+`Spell(10.5, idx:0)` 是纯伤害修正法术：提供 0 抽，卡索引 0。`Spell(0, draw:2, idx:1)` 是二重施法：`1 + 2 - 1 = 2`，后续两次施法免费，卡索引 1。`Spell(-5, draw:2, idx:2)` 是含 tradeoff 的抽牌法术：`1 + 2 - 1 = 2`，以降低 5 点伤害为代价换取 2 次免费施法，卡索引 2。`Spell(20, draw:1, idx:3)` 是自偿法术：`1 + 1 - 1 = 1`，提供 1 抽恰好抵消自身成本。
 
 **法术回绕**（Noita 机枪法杖）：链公式执行完整条链后，追踪公式用 `ConsumedThisRound` 更新位掩码。掩码未全满时 while 循环回绕链首；掩码全满后终止。链中 `DrawsProvide` 归零后自动透传，每张卡最多被执行 2 次（Noita 双倍利用率）。
 
@@ -52,7 +52,7 @@ public enum SpellOp : byte
 
 `Add` 同时作用于 Damage 和 DrawsProvide，隐式扣除 1 抽施法成本。
 
-## LiteralScanner：`damage|draw N|idx:N` 命名字段格式
+## LiteralScanner：`Spell(damage, draw:N, idx:N)` 命名字段格式
 
 > **v5.2+ 推荐**：优先使用 `[Template]` Source Generator 自动生成扫描器（见 TData 结构体上的属性声明）。在 csproj 中引用 `SourceSerializer.Generator` analyzer 后，`LexerConfig` 无需设置 `LiteralScanner` 字段，`FluxLexer` 构造函数自动注入生成的扫描器。模板优先方案消除手写委托的维护成本。
 
@@ -111,9 +111,9 @@ config.LiteralScanner = (ReadOnlySpan<char> src, int pos, out SpellContext value
 ```
 
 格式规则：
-- `10.5|idx:0` — 伤害 10.5，不提供额外抽牌，卡索引 0
-- `0|draw 2|idx:1` — 不改变伤害，提供 2 抽：`1 + 2 - 1 = 2`，卡索引 1
-- `-5|draw 2|idx:2` — 降低 5 伤害，提供 2 抽：`1 + 2 - 1 = 2`，卡索引 2
+- `Spell(10.5, idx:0)` — 伤害 10.5，不提供额外抽牌，卡索引 0
+- `Spell(0, draw:2, idx:1)` — 不改变伤害，提供 2 抽：`1 + 2 - 1 = 2`，卡索引 1
+- `Spell(-5, draw:2, idx:2)` — 降低 5 伤害，提供 2 抽：`1 + 2 - 1 = 2`，卡索引 2
 - `draw` 字段可省略（默认 0），`idx:` 字段必填
 
 ## 定义体
@@ -438,11 +438,11 @@ do
 
 ### 隐式施法成本
 
-每张卡自动消耗 1 抽。`10.5|idx:0` 不提供额外抽牌，净消耗 1 抽。`0|draw 2|idx:1`：剩余 1 抽 + 提供 2 抽 - 成本 1 抽 = 2 抽。扣除 1 抽的逻辑由 `Add` 操作符统一处理，卡面数据只需声明伤害修正和抽牌提供量。
+每张卡自动消耗 1 抽。`Spell(10.5, idx:0)` 不提供额外抽牌，净消耗 1 抽。`Spell(0, draw:2, idx:1)`：剩余 1 抽 + 提供 2 抽 - 成本 1 抽 = 2 抽。扣除 1 抽的逻辑由 `Add` 操作符统一处理，卡面数据只需声明伤害修正和抽牌提供量。
 
 ## 要点
 
-- `damage|draw N|idx:N` 命名字段格式：`draw` 可省略（默认 0），`idx:` 必填
+- `Spell(damage, draw:N, idx:N)` 命名字段格式：`draw` 可省略（默认 0），`idx:` 必填
 - `Add` 同时作用于伤害修正和抽数修正，隐式扣除 1 抽施法成本；`a.DrawsProvide <= 0` 时写入 R0 中断链，`b.StartIndex < a.StartIndex` 时透传跳过已消费卡
 - `ConsumedThisRound` 在链内递增，由追踪公式批量消费后归零
 - `StartIndex` 由追踪公式更新为 `pos + consumed`，确保下一轮从未消费位置继续

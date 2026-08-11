@@ -25,7 +25,7 @@ public struct Point2D
 }
 
 /// <summary>卡牌上下文：带可选字段的复杂格式</summary>
-[Template("<float Damage>|<optional>draw <int DrawsProvide>|</optional>idx:<int StartIndex>")]
+[Template("Spell(<float Damage><optional>, draw:<int DrawsProvide></optional>, idx:<int StartIndex>)")]
 public struct SpellCard
 {
     public float Damage;
@@ -252,7 +252,7 @@ public class LiteralTemplateTests
     public void SpellCard_FullFormat_ParsesAllFields()
     {
         var lexer = CreateSpellCardLexer();
-        var result = lexer.Lex("10.5|draw 2|idx:1");
+        var result = lexer.Lex("Spell(10.5, draw:2, idx:1)");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(10.5f).Within(1e-5f));
@@ -264,7 +264,7 @@ public class LiteralTemplateTests
     public void SpellCard_WithoutDraw_ParsesDamageAndIndex()
     {
         var lexer = CreateSpellCardLexer();
-        var result = lexer.Lex("10.5|idx:0");
+        var result = lexer.Lex("Spell(10.5, idx:0)");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(10.5f).Within(1e-5f));
@@ -276,7 +276,7 @@ public class LiteralTemplateTests
     public void SpellCard_NegativeDamage_ParsesCorrectly()
     {
         var lexer = CreateSpellCardLexer();
-        var result = lexer.Lex("-5|draw 2|idx:2");
+        var result = lexer.Lex("Spell(-5, draw:2, idx:2)");
 
         Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(-5f).Within(1e-5f));
         Assert.That(result.Tokens[0].Data.DrawsProvide, Is.EqualTo(2));

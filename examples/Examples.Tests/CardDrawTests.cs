@@ -72,7 +72,7 @@ public class CardDrawTests
     [Test]
     public void Literal_DamageOnly()
     {
-        var ctx = EvalSpell("10|idx:0");
+        var ctx = EvalSpell("Spell(10, idx:0)");
         Assert.That(ctx.Damage, Is.EqualTo(10f));
         Assert.That(ctx.DrawsProvide, Is.EqualTo(0));
         Assert.That(ctx.StartIndex, Is.EqualTo(0));
@@ -81,7 +81,7 @@ public class CardDrawTests
     [Test]
     public void Literal_WithDrawField()
     {
-        var ctx = EvalSpell("0|draw 2|idx:1");
+        var ctx = EvalSpell("Spell(0, draw:2, idx:1)");
         Assert.That(ctx.Damage, Is.EqualTo(0f));
         Assert.That(ctx.DrawsProvide, Is.EqualTo(2));
         Assert.That(ctx.StartIndex, Is.EqualTo(1));
@@ -90,7 +90,7 @@ public class CardDrawTests
     [Test]
     public void Literal_NegativeDamage()
     {
-        var ctx = EvalSpell("-5|draw 2|idx:2");
+        var ctx = EvalSpell("Spell(-5, draw:2, idx:2)");
         Assert.That(ctx.Damage, Is.EqualTo(-5f));
         Assert.That(ctx.DrawsProvide, Is.EqualTo(2));
         Assert.That(ctx.StartIndex, Is.EqualTo(2));
@@ -99,7 +99,7 @@ public class CardDrawTests
     [Test]
     public void Literal_SelfSustaining()
     {
-        var ctx = EvalSpell("20|draw 1|idx:3");
+        var ctx = EvalSpell("Spell(20, draw:1, idx:3)");
         Assert.That(ctx.Damage, Is.EqualTo(20f));
         Assert.That(ctx.DrawsProvide, Is.EqualTo(1));  // 提供 1 抽刚好抵消成本
         Assert.That(ctx.StartIndex, Is.EqualTo(3));
@@ -108,7 +108,7 @@ public class CardDrawTests
     [Test]
     public void Literal_DecimalDamage()
     {
-        var ctx = EvalSpell("10.5|idx:0");
+        var ctx = EvalSpell("Spell(10.5, idx:0)");
         Assert.That(ctx.Damage, Is.EqualTo(10.5f));
     }
 
@@ -119,7 +119,7 @@ public class CardDrawTests
     [Test]
     public void Add_TwoCards_AccumulatesDamage()
     {
-        var ctx = EvalSpell("10|draw 1|idx:0 + 7|idx:1");
+        var ctx = EvalSpell("Spell(10, draw:1, idx:0) + Spell(7, idx:1)");
         Assert.That(ctx.Damage, Is.EqualTo(17f));
         Assert.That(ctx.ConsumedThisRound, Is.EqualTo(1));  // 1 次 Add 消耗
     }
@@ -137,7 +137,7 @@ public class CardDrawTests
     public void Add_DrawsExhausted_ShortCircuitsAtFirstCard()
     {
         // 首卡 DrawsProvide=0 → 短路，写入 R0 = a，返回 a（非 default）
-        var ctx = EvalSpell("5|idx:0 + 100|idx:1");
+        var ctx = EvalSpell("Spell(5, idx:0) + Spell(100, idx:1)");
         Assert.That(ctx.Damage, Is.EqualTo(5f));         // 返回首卡状态
         Assert.That(ctx.DrawsProvide, Is.EqualTo(0));    // 抽尽
     }
@@ -145,7 +145,7 @@ public class CardDrawTests
     [Test]
     public void Add_StartIndex_SkipsConsumedCard()
     {
-        var ctx = EvalSpell("10|draw 1|idx:0 + 5|idx:0");
+        var ctx = EvalSpell("Spell(10, draw:1, idx:0) + Spell(5, idx:0)");
         // 两卡同索引 → b.StartIndex(0) >= a.StartIndex(0) → 正常执行
         Assert.That(ctx.Damage, Is.EqualTo(15f));
         Assert.That(ctx.ConsumedThisRound, Is.EqualTo(1));
@@ -158,14 +158,14 @@ public class CardDrawTests
     [Test]
     public void Parentheses_GroupsAddition()
     {
-        var ctx = EvalSpell("(10|draw 1|idx:0 + 7|idx:1)");
+        var ctx = EvalSpell("(Spell(10, draw:1, idx:0) + Spell(7, idx:1))");
         Assert.That(ctx.Damage, Is.EqualTo(17f));
     }
 
     [Test]
     public void Parentheses_Nested()
     {
-        var ctx = EvalSpell("((10|draw 1|idx:0 + 7|draw 1|idx:1) + 5|idx:2)");
+        var ctx = EvalSpell("((Spell(10, draw:1, idx:0) + Spell(7, draw:1, idx:1)) + Spell(5, idx:2))");
         Assert.That(ctx.Damage, Is.EqualTo(22f));
         Assert.That(ctx.ConsumedThisRound, Is.EqualTo(2));  // 2 次 Add 操作
     }
@@ -179,7 +179,7 @@ public class CardDrawTests
     {
         var lexer  = CreateSpellLexer();
         var runner = new FluxAssembler<SpellContext, SpellDef>(SpellDefIns);
-        var r = lexer.Lex("[prev] + 10|idx:0");
+        var r = lexer.Lex("[prev] + Spell(10, idx:0)");
         var f = runner.Compile(r);
 
         var initial = new SpellContext(5, 3);  // 5 dmg, 3 draws
@@ -219,8 +219,8 @@ public class CardDrawTests
         var lexer  = CreateSpellLexer();
         var runner = new FluxAssembler<SpellContext, SpellDef>(SpellDefIns);
 
-        var card1 = runner.Compile(lexer.Lex("[prev] + 10|idx:0"));
-        var card2 = runner.Compile(lexer.Lex("[prev] + 7|idx:1")).ToModifier();
+        var card1 = runner.Compile(lexer.Lex("[prev] + Spell(10, idx:0)"));
+        var card2 = runner.Compile(lexer.Lex("[prev] + Spell(7, idx:1)")).ToModifier();
 
         var chain = card1.Connect(card2);
         var state = new SpellContext(0, 5);  // 5 draws
@@ -239,9 +239,9 @@ public class CardDrawTests
         var lexer  = CreateSpellLexer();
         var runner = new FluxAssembler<SpellContext, SpellDef>(SpellDefIns);
 
-        var card1 = runner.Compile(lexer.Lex("[prev] + 10|idx:0"));
-        var card2 = runner.Compile(lexer.Lex("[prev] + 7|idx:1")).ToModifier();
-        var card3 = runner.Compile(lexer.Lex("[prev] + 5|idx:2")).ToModifier();
+        var card1 = runner.Compile(lexer.Lex("[prev] + Spell(10, idx:0)"));
+        var card2 = runner.Compile(lexer.Lex("[prev] + Spell(7, idx:1)")).ToModifier();
+        var card3 = runner.Compile(lexer.Lex("[prev] + Spell(5, idx:2)")).ToModifier();
 
         var chain = card1.Connect(card2).Connect(card3);
         var state = new SpellContext(0, 7);
@@ -333,9 +333,9 @@ public class CardDrawTests
         var runner = new FluxAssembler<SpellContext, SpellDef>(SpellDefIns);
         var tracker = new FluxAssembler<SpellTracker, TrackerDef>(TrackerDefIns);
 
-        var card1 = runner.Compile(lexer.Lex("[prev] + 10|idx:0"));
-        var card2 = runner.Compile(lexer.Lex("[prev] + 7|idx:1")).ToModifier();
-        var card3 = runner.Compile(lexer.Lex("[prev] + 5|idx:2")).ToModifier();
+        var card1 = runner.Compile(lexer.Lex("[prev] + Spell(10, idx:0)"));
+        var card2 = runner.Compile(lexer.Lex("[prev] + Spell(7, idx:1)")).ToModifier();
+        var card3 = runner.Compile(lexer.Lex("[prev] + Spell(5, idx:2)")).ToModifier();
         var chain = card1.Connect(card2).Connect(card3);
 
         var trackFormula = tracker.Compile(
@@ -371,7 +371,7 @@ public class CardDrawTests
     {
         var lexer  = CreateSpellLexer();
         var runner = new FluxAssembler<SpellContext, SpellDef>(SpellDefIns);
-        var r = lexer.Lex("10|draw 1|idx:0 + 7|idx:1");
+        var r = lexer.Lex("Spell(10, draw:1, idx:0) + Spell(7, idx:1)");
         var f = runner.Compile(r);
 
         var interp = runner.Instantiate(f, jit: false).Run();
@@ -388,7 +388,7 @@ public class CardDrawTests
     {
         var lexer  = CreateSpellLexer();
         var runner = new FluxAssembler<SpellContext, SpellDef>(SpellDefIns);
-        var r = lexer.Lex("[prev] + 10|idx:0");
+        var r = lexer.Lex("[prev] + Spell(10, idx:0)");
         var f = runner.Compile(r);
         var initial = new SpellContext(5, 3);
 
@@ -404,7 +404,7 @@ public class CardDrawTests
     {
         var lexer  = CreateSpellLexer();
         var runner = new FluxAssembler<SpellContext, SpellDef>(SpellDefIns);
-        var r = lexer.Lex("5|idx:0 + 100|idx:1");
+        var r = lexer.Lex("Spell(5, idx:0) + Spell(100, idx:1)");
         var f = runner.Compile(r);
 
         var interp = runner.Instantiate(f, jit: false).Run();

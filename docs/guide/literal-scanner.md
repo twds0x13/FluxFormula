@@ -36,7 +36,7 @@ var result = lexer.Lex("3.5 -2.1");
 public struct SpellCard { ... }
 ```
 
-`<type fieldname>` 声明一个字段，其余裸文字按精确字符匹配。上例匹配 `10.5|draw 2|idx:1` 或 `10.5|idx:0`（`draw` 段可选）。
+`<type fieldname>` 声明一个字段，其余裸文字按精确字符匹配。上例匹配 `Spell(10.5, draw:2, idx:1)` 或 `Spell(10.5, idx:0)`（`draw` 段可选）。
 
 ### XML 格式
 
@@ -78,7 +78,7 @@ public struct SpellCard
 }
 ```
 
-`"10.5|draw 2|idx:1"` 完整匹配全部字段；`"10.5|idx:0"` 中 `draw` 段缺失，`DrawsProvide` 保持 `default`。
+`"Spell(10.5, draw:2, idx:1)"` 完整匹配全部字段；`"Spell(10.5, idx:0)"` 中 `draw` 段缺失，`DrawsProvide` 保持 `default`。
 
 ## 嵌套结构体
 
