@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.twds0x13.sourceserializer": "file:../../vendor/SourceSerializer",
     "com.twds0x13.fluxformula.core": "file:../../packages/fluxformula.core",
     "com.twds0x13.fluxformula": "file:../../packages/fluxformula",
     "com.twds0x13.fluxformula.burst": "file:../../packages/fluxformula.burst",

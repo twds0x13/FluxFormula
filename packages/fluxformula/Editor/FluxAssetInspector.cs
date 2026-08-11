@@ -2,6 +2,10 @@ using FluxFormula.Core;
 using UnityEditor;
 using UnityEditor.Callbacks;
 using UnityEngine;
+using Editor = UnityEditor.Editor;
+
+namespace FluxFormula.Inspector
+{
 
 /// <summary>
 /// FluxAsset 自定义 Inspector。
@@ -145,4 +149,5 @@ public class FluxAssetInspector : Editor
                 EditorStyles.miniLabel);
         }
     }
+}
 }

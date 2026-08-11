@@ -1,6 +1,11 @@
 using FluxFormula.Core;
+
 using NUnit.Framework;
-using static TestHelper;
+
+using static FluxFormula.Tests.TestHelper;
+
+namespace FluxFormula.Tests
+{
 
 public class JitConsistencyTests
 {
@@ -44,4 +49,5 @@ public class JitConsistencyTests
         Assert.That(jitVal, Is.EqualTo(intVal).Within(1e-6f));
         Assert.That(intVal, Is.EqualTo(7f).Within(1e-6f)); // 2*3+1=7
     }
+}
 }

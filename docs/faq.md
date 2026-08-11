@@ -45,7 +45,7 @@ var combined = f1.Connect(mod); // 10 + 5（Connect 接受 FluxModifier）
 ```csharp
 var formula = runner.Compile(lexer.Lex("1 + 2 * 3"));
 #if UNITY_EDITOR
-formula.Dump(); // 需要 using FluxFormula.Editor 扩展
+formula.Dump(); // 需要 using FluxFormula.Inspector 扩展
 #endif
 ```
 

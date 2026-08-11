@@ -1,7 +1,8 @@
 using System;
 using UnityEngine;
+using FluxFormula.Core;
 
-namespace FluxFormula.Core
+namespace FluxFormula
 {
     /// <summary>
     /// 公式库入口。泛型参数中 TDef 决定公式系统身份。

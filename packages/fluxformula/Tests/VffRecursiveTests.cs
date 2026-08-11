@@ -1,8 +1,13 @@
 using System;
 using System.Runtime.InteropServices;
 using FluxFormula.Core;
+
 using NUnit.Framework;
-using static TestHelper;
+
+using static FluxFormula.Tests.TestHelper;
+
+namespace FluxFormula.Tests
+{
 
 /// <summary>
 /// VFF 递归解析测试。
@@ -437,4 +442,5 @@ public class VffRecursiveTests
         Assert.That(result.Chain.Length, Is.EqualTo(3));
         Assert.That(result.Chain.ToAtomic().ImmediateCount, Is.EqualTo(3));
     }
+}
 }

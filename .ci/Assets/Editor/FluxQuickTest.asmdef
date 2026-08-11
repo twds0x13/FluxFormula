@@ -4,7 +4,7 @@
     "references": [
         "FluxFormula.Core",
         "FluxFormula",
-        "FluxFormula.Editor",
+        "FluxFormula.Inspector",
         "FluxFormula.Tests"
     ],
     "includePlatforms": [

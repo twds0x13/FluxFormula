@@ -1,6 +1,11 @@
 using FluxFormula.Core;
+
 using NUnit.Framework;
-using static TestHelper;
+
+using static FluxFormula.Tests.TestHelper;
+
+namespace FluxFormula.Tests
+{
 
 /// <summary>
 /// 冒烟测试：验证全链路（Lexer → Compile → Run）无崩溃。
@@ -15,4 +20,5 @@ public class SmokeTest
         Assert.That(Eval(lexResult.Tokens, jit: false), Is.EqualTo(9f).Within(1e-6f));
         Assert.That(Eval(lexResult.Tokens, jit: true), Is.EqualTo(9f).Within(1e-6f));
     }
+}
 }

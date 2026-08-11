@@ -147,7 +147,7 @@ graph LR
 
 - **`FluxFormula.Core`** — 所有公共类型与内部运行时类型
 - **`FluxFormula.Compiler`** — `FluxCompiler` 与 `FluxExprCompiler`（内部）
-- **`FluxFormula.Editor`** — `FluxAssetEditor`、`FluxAssetInspector`、Dump 扩展（Editor-only）
+- **`FluxFormula.Inspector`** — `FluxAssetEditor`、`FluxAssetInspector`、Dump 扩展（Editor-only）
 
 ## 泛型约束
 

@@ -1,5 +1,6 @@
 using FluxFormula.Core;
 using FluxFormula.Burst;
+using FluxFormula.Tests;
 using NUnit.Framework;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;

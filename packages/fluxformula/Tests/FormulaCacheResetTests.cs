@@ -1,7 +1,12 @@
 using System;
 using FluxFormula.Core;
+
 using NUnit.Framework;
-using static TestHelper;
+
+using static FluxFormula.Tests.TestHelper;
+
+namespace FluxFormula.Tests
+{
 
 /// <summary>
 /// FormulaCache 重置后的恢复路径测试。
@@ -87,4 +92,5 @@ public class FormulaCacheResetTests
             .Set("a", 5f).Set("b", 7f).Run();
         Assert.That(result, Is.EqualTo(expected).Within(1e-6f));
     }
+}
 }

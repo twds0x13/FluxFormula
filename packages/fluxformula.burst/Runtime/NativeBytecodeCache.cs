@@ -121,6 +121,22 @@ namespace FluxFormula.Burst
                 _count = 0;
                 _tombstoneCount = 0;
             }
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// 终结器：安全网，防止忘记调用 Dispose 时泄露 NativeArray 持久分配。
+        /// </summary>
+        ~NativeBytecodeCache()
+        {
+            for (int i = 0; i < Capacity; i++)
+            {
+                if (_lengths[i] >= 0 && _bytecodes[i].IsCreated)
+                {
+                    _bytecodes[i].Dispose();
+                    _lengths[i] = Empty;
+                }
+            }
         }
 
         // ═══════════════════════════════════════════════════════

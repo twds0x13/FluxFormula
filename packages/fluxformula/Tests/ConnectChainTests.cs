@@ -1,7 +1,12 @@
 using System;
 using FluxFormula.Core;
+
 using NUnit.Framework;
-using static TestHelper;
+
+using static FluxFormula.Tests.TestHelper;
+
+namespace FluxFormula.Tests
+{
 
 /// <summary>
 /// ChainLink 多层嵌套与边界测试。
@@ -192,4 +197,5 @@ public class ConnectChainTests
 
         Assert.That(result, Is.GreaterThan(0f));
     }
+}
 }

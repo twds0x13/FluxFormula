@@ -1,7 +1,12 @@
 using System;
 using FluxFormula.Core;
+
 using NUnit.Framework;
-using static TestHelper;
+
+using static FluxFormula.Tests.TestHelper;
+
+namespace FluxFormula.Tests
+{
 
 public class PersistenceTests
 {
@@ -200,4 +205,5 @@ public class PersistenceTests
 
         Assert.That(actual, Is.EqualTo(42f).Within(1e-6f));
     }
+}
 }

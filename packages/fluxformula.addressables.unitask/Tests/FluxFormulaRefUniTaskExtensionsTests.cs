@@ -1,6 +1,7 @@
 using System;
 using Cysharp.Threading.Tasks;
 using FluxFormula.Core;
+using FluxFormula.Addressable.UniTask;
 using NUnit.Framework;
 using UnityEngine;
 

@@ -1,20 +1,11 @@
-# CRITICAL RULES — READ BEFORE ANY ACTION
+# FluxFormula 项目规则
 
-## 1. No speculative coding
-Before committing or declaring done, verify:
-- [ ] Grep old type/symbol name — zero residual references across ALL csproj files
-- [ ] Full build all projects, not just the one you changed
-- [ ] IL emission: check ECMA-335 type compatibility rules (Mono verifier is stricter than CoreCLR)
-- [ ] Struct copy semantics: if a method takes `struct`, it modifies a copy
+通用行为规则见 `~/.claude/CLAUDE.md`。项目记忆见 `.claude/memory/MEMORY.md`。
 
-## 2. CHANGELOG is owned by semantic-release
-DO NOT manually edit CHANGELOG.md. `@semantic-release/changelog` generates it from conventional commit messages.
-DO NOT put verbose technical dumps in commit bodies — they become release notes verbatim.
-DO NOT include `[skip test]` or CI trailers in commit messages.
+## 1. CHANGELOG 由 semantic-release 管理
+禁止手动编辑 CHANGELOG.md。`@semantic-release/changelog` 从 conventional commit messages 自动生成。
+禁止在 commit body 中放冗长的技术清单——它们会原样进入 release notes。
+禁止在 commit message 中包含 `[skip test]` 或 CI trailers。
 
-## 3. CI is for confirmation, not discovery
-Test locally before pushing. If CI fails, observe first — do not guess-fix.
-Use `gh` to check CI logs before touching code.
-
-## 4. Search before you act
-When asked to do something, grep/Grep relevant code FIRST. Do not rely on memory or assumptions about the codebase.
+## 2. IL 发射：检查 ECMA-335
+Mono 验证器比 CoreCLR 更严格。发射 IL 前确认类型兼容性。

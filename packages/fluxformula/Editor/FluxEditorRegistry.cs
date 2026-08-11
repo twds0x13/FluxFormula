@@ -5,6 +5,9 @@ using FluxFormula.Core;
 using UnityEditor;
 using UnityEngine;
 
+namespace FluxFormula.Inspector
+{
+
 /// <summary>
 /// 非泛型窗口注册表——OnOpenAsset 与 Inspector 按钮共用入口。
 /// </summary>
@@ -134,4 +137,5 @@ internal static class FluxEditorRegistry
         }
         return null;
     }
+}
 }

@@ -7,7 +7,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace FluxFormula.Editor
+namespace FluxFormula.Inspector
 {
     /// <summary>
     /// Blob 构建管线：扫描项目所有 FluxAsset，拼接为单一二进制 .bytes 文件。

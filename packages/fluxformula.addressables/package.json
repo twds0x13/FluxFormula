@@ -17,8 +17,8 @@
   "license": "MIT",
   "documentationUrl": "https://twds0x13.github.io/FluxFormula/",
   "dependencies": {
-    "com.twds0x13.fluxformula.core": "3.6.0",
-    "com.twds0x13.fluxformula": "3.6.0"
+    "com.twds0x13.fluxformula.core": "6.4.0",
+    "com.twds0x13.fluxformula": "6.4.0"
   },
   "samples": [
     {

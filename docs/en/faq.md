@@ -45,7 +45,7 @@ The interpreter path is available on all platforms. `Expression.Compile()` is no
 ```csharp
 var formula = runner.Compile(lexer.Lex("1 + 2 * 3"));
 #if UNITY_EDITOR
-formula.Dump(); // Requires using FluxFormula.Editor extension
+formula.Dump(); // Requires using FluxFormula.Inspector extension
 #endif
 ```
 

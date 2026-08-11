@@ -1,7 +1,12 @@
 using System;
 using FluxFormula.Core;
+
 using NUnit.Framework;
-using static TestHelper;
+
+using static FluxFormula.Tests.TestHelper;
+
+namespace FluxFormula.Tests
+{
 
 public class ArithmeticTests
 {
@@ -139,4 +144,5 @@ public class ArithmeticTests
             Throws.TypeOf<FormatException>()
         );
     }
+}
 }

@@ -1,6 +1,7 @@
 using UnityEngine;
+using FluxFormula.Core;
 
-namespace FluxFormula.Core
+namespace FluxFormula
 {
     /// <summary>
     /// 公式资产的 Unity 序列化容器。
