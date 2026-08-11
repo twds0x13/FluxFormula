@@ -1,1 +1,171 @@
-# 核心概念理解这一页的流水线图和数据模型，你就理解了 FluxFormula 的全部核心机制。每个概念都对应一个具体的 API 类型，读完可以直接跳到 API 参考查细节。FluxFormula 的编译流水线与关键数据结构。## 流水线```mermaidgraph LR    A["string 表达式"] -->|"Lex()"| B["LexResult<br/>Token[] + VarNames"]    B -->|"Compile()"| C["Formula / Modifier<br/>不可变字节码"]    C -->|"Connect()"| C1["FluxChain<br/>链式引用"]    C -->|"Instantiate()"| D["Instance<br/>流式执行器"]    C1 -->|"Instantiate()"| D    D -->|"Set() + Run()"| E["TData<br/>求值结果"]```### Lexer（词法分析）`FluxLexer<TData>` 将字符串表达式解析为 Token 流。手写 `ReadOnlySpan<char>` 扫描器，零 Regex，零分配。配置项：- **Operators**：符号到操作码的映射（`"+" → (byte)MathOp.Add`，`"*" → (byte)MathOp.Mul`）- **Brackets**：括号对映射（`"(" ")" → LParen, RParen`）- **VariablePatterns**：变量前缀/后缀（`"[" "]"` 识别 `[atk]`）- **LiteralOper / LiteralScanner**：数字字面量的操作码和扫描器。v5.1 起可在 TData struct 上加 `[LiteralTemplate]` 自动生成扫描器，委托变为可选产出 `LexResult<TData>`，内含 Token 数组和变量名数组。### TokenContext：上下文消歧Lexer 扫描时遇到符号（如 `-`），无法判断当前期望操作数还是运算符。`ResolveToken(byte oper, TokenContext)` 在编译阶段根据上下文做二次消歧：| TokenContext | 触发条件 ||---|---|| `OperandExpected` | 表达式起点、左括号后、二元运算符后 || `OperatorExpected` | 操作数后、右括号后 |```csharp// '-' 在期望操作数时是一元取负，否则是二元减法public byte ResolveToken(byte oper, TokenContext ctx){    if (oper == (byte)MathOp.Sub && ctx == TokenContext.OperandExpected)        return (byte)MathOp.Neg;    return oper;}```### Token（词法层）`FluxToken<TData>` 是中缀表达式的原子构件。每个 Token 由 `Oper`（`byte` 操作码）和 `Data`（数据值）组成。- **Immediate Token**：携带具体值（如 `Const + 42f`）- **Operator Token**：运算符（如 `Add`、`Neg`），其 `Data` 为 `default`- **Pair Token**：括号（如 `LParen`、`RParen`）### Formula / Modifier / FluxChain（编译产物）`FluxFormula<TData, TDef>` 和 `FluxModifier<TData, TDef>` 是不可变的字节码容器。`Connect()` 返回 `FluxChain<TData, TDef>`，通过 `ToAtomic()` 可显式合并为原子 Formula。- **Formula**（完整公式）：可独立 `Instantiate` + `Run`- **Modifier**（缺左操作数）：只能通过 `Connect()` 拼接到 Formula 后方，或通过 `ToFormula(varName)` 转为完整 Formula。没有 `Instantiate()` 方法，编译期保证安全- **FluxChain**（链式引用）：`Connect()` 的返回值，持有一组 `ChainLink[]` 指向原始字节码，不合并。`Instantiate(FluxChain)` 逐 link 求值### Instance（执行器）`FluxInstance<TData, TDef>` 是 ref struct 流式执行器。栈分配，不可装箱，零 GC。## Formula vs Modifier：类型级区分v3.0.0 中 `FluxFormula` 和 `FluxModifier` 是两个独立类型，区分在**类型系统**而非运行时标签（内部 `FluxType` 枚举已改为 `internal`）：| 类型 | 首 Token | 能否 Instantiate | 用途 ||------|----------|:---:|------|| `FluxFormula<TData, TDef>` | Const 或 一元前缀 或 左括号 | 是 | 完整公式，可直接求值 || `FluxModifier<TData, TDef>` | 二元运算符（如 `+`） | **编译不过** | 缺少左操作数，需通过 `Connect()` 拼接到 Formula |```csharpvar f42 = runner.Compile(new[] { C(42f) });                        // FluxFormulavar mod = runner.Compile(new[] { Op((byte)MathOp.Add), C(5f) });   // FluxModifier// 编译期类型安全：Connect 只接受 FluxModifiervar combined = f42.Connect(mod);  // 42 + 5，编译通过// f42.Connect(someFormula) → CS1503 编译错误，无法将 FluxFormula 转为 FluxModifier```## Instruction 布局8 字节定长，显式内存布局（`LayoutKind.Explicit`）：| 字节偏移 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 ||----------|---|---|---|---|---|---|---|---|| **字段** | OpCode | Dest | Arg0 | Arg1 | Arg2 | Arg3 | Arg4 | Arg5 |- **OpCode**：`byte` 操作码- **Dest**：结果目标寄存器号- **Arg0-Arg5**：操作数寄存器号，最大 arity = 6## 寄存器模型最多 255 个虚拟寄存器（byte 可寻址范围），运行时按需动态分配（扫描字节码确定实际用量）：| 常量 | 寄存器 | 语义 ||------|--------|------|| `Registers.Error = 0` | R0 | 错误寄存器。非 default 值触发短路返回 || `Registers.Bus = 1` | R1 | 总线寄存器 / 默认结果 || `Registers.FirstAlloc = 2` | R2-R254 | 通用寄存器，编译器按需递增分配 |## 链式 Connect：延迟物化`Connect()` 不合并字节码，每次 Connect 追加一个 `ChainLink`（对原始公式字节码的引用切片）：```mermaidgraph LR    A["fA: x + y<br/>（Formula）"] -->|Connect| C["链: [Link(fA), Link(mod)]"]    B["fB: z * 2<br/>↓ ToModifier()<br/>（Modifier）"] -->|Connect| C    C -->|"Run"| D["解释器: 短链逐 link<br/>长链 ToAtomic"]    C -->|"Run (jit: true)"| E["JIT: 逐 link delegate 串联"]```**ChainLink 字段**（公开结构体，可通过 `FluxChain.GetLinks()` 访问）：| 字段 | 说明 ||------|------|| `Key` | 该片段字节码的 `DualHash64`，缓存查找键 || `Bytecode` | 指向原始 `Instruction[]` 的引用（不复制） || `InstructionCount` | 指令数 || `Type` | 内部 `FluxType`（Formula 或 Modifier） |## Formula ↔ Modifier 互转`ToModifier()` 移除第一数据操作数并将其寄存器引用重命名为 R1；`ToFormula(varName)` 插入命名变量替代 R1 输入。```csharpvar f = Compile("x + y");           // FluxFormulavar m = f.ToModifier();             // FluxModifier，没有 Instantiate()// m 不能独立求值，编译不过var restored = m.ToFormula("input"); // FluxFormula，可以求值了restored.Set("input", 5f).Run();     // works```> v3.0.0：`Connect` 签名只接受 `FluxModifier<TData, TDef>`。传入 `FluxFormula` 编译不过，不需要运行时 `ArgumentException`。## 三态求值器`FluxInstance` 支持三种执行模式，覆盖调试到生产的全场景：| 模式 | 创建方式 | 执行粒度 | 用途 ||------|---------|---------|------|| 热路径 | `Instantiate(formula)` | 全速 | 生产环境，零开销 || 柯里化 | `Instantiate(formula, curry: true)` | 变量级分步 | 渐进绑定，支持分叉 || 单步调试 | `Instantiate(formula, step: true)` | 指令级 | 逐指令排查 |参见 [分步求值器](/guide/curry-evaluator) 和 [单步调试器](/guide/step-debugger)。## Delegate 缓存JIT 编译的委托缓存在 `FormulaCache` 中，由 `DualHash64` 键索引。同一公式多次实例化只编译一次。IL2CPP/AOT 平台自动降级为解释器。## 解释器 vs JIT|------|------|------|| 机制 | `stackalloc` 寄存器 + 指针循环 | LINQ Expression Tree → `Compile()` 委托 || AOT 平台 | 可用 | 自动降级到解释器 || 选择方式 | `Instantiate(jit: false)` | `Instantiate(jit: true)` |
+# 核心概念
+
+理解这一页的流水线图和数据模型，你就理解了 FluxFormula 的全部核心机制。每个概念都对应一个具体的 API 类型，读完可以直接跳到 API 参考查细节。
+
+FluxFormula 的编译流水线与关键数据结构。
+
+## 流水线
+
+```mermaid
+graph LR
+    A["string 表达式"] -->|"Lex()"| B["LexResult<br/>Token[] + VarNames"]
+    B -->|"Compile()"| C["Formula / Modifier<br/>不可变字节码"]
+    C -->|"Connect()"| C1["FluxChain<br/>链式引用"]
+    C -->|"Instantiate()"| D["Instance<br/>流式执行器"]
+    C1 -->|"Instantiate()"| D
+    D -->|"Set() + Run()"| E["TData<br/>求值结果"]
+```
+
+### Lexer（词法分析）
+
+`FluxLexer<TData>` 将字符串表达式解析为 Token 流。手写 `ReadOnlySpan<char>` 扫描器，零 Regex，零分配。
+
+配置项：
+
+- **Operators**：符号到操作码的映射（`"+" → (byte)MathOp.Add`，`"*" → (byte)MathOp.Mul`）
+- **Brackets**：括号对映射（`"(" ")" → LParen, RParen`）
+- **VariablePatterns**：变量前缀/后缀（`"[" "]"` 识别 `[atk]`）
+
+- **LiteralOper / LiteralScanner**：数字字面量的操作码和扫描器。v5.1 起可在 TData struct 上加 `[LiteralTemplate]` 自动生成扫描器，委托变为可选
+
+产出 `LexResult<TData>`，内含 Token 数组和变量名数组。
+
+### TokenContext：上下文消歧
+
+Lexer 扫描时遇到符号（如 `-`），无法判断当前期望操作数还是运算符。`ResolveToken(byte oper, TokenContext)` 在编译阶段根据上下文做二次消歧：
+
+| TokenContext | 触发条件 |
+|---|---|
+| `OperandExpected` | 表达式起点、左括号后、二元运算符后 |
+| `OperatorExpected` | 操作数后、右括号后 |
+
+```csharp
+// '-' 在期望操作数时是一元取负，否则是二元减法
+public byte ResolveToken(byte oper, TokenContext ctx)
+{
+    if (oper == (byte)MathOp.Sub && ctx == TokenContext.OperandExpected)
+        return (byte)MathOp.Neg;
+    return oper;
+}
+```
+
+### Token（词法层）
+
+`FluxToken<TData>` 是中缀表达式的原子构件。每个 Token 由 `Oper`（`byte` 操作码）和 `Data`（数据值）组成。
+
+- **Immediate Token**：携带具体值（如 `Const + 42f`）
+- **Operator Token**：运算符（如 `Add`、`Neg`），其 `Data` 为 `default`
+- **Pair Token**：括号（如 `LParen`、`RParen`）
+
+### Formula / Modifier / FluxChain（编译产物）
+
+`FluxFormula<TData, TDef>` 和 `FluxModifier<TData, TDef>` 是不可变的字节码容器。`Connect()` 返回 `FluxChain<TData, TDef>`，通过 `ToAtomic()` 可显式合并为原子 Formula。
+
+- **Formula**（完整公式）：可独立 `Instantiate` + `Run`
+- **Modifier**（缺左操作数）：只能通过 `Connect()` 拼接到 Formula 后方，或通过 `ToFormula(varName)` 转为完整 Formula。没有 `Instantiate()` 方法，编译期保证安全
+- **FluxChain**（链式引用）：`Connect()` 的返回值，持有一组 `ChainLink[]` 指向原始字节码，不合并。`Instantiate(FluxChain)` 逐 link 求值
+
+### Instance（执行器）
+
+`FluxInstance<TData, TDef>` 是 ref struct 流式执行器。栈分配，不可装箱，零 GC。
+
+## Formula vs Modifier：类型级区分
+
+v3.0.0 中 `FluxFormula` 和 `FluxModifier` 是两个独立类型，区分在**类型系统**而非运行时标签（内部 `FluxType` 枚举已改为 `internal`）：
+
+| 类型 | 首 Token | 能否 Instantiate | 用途 |
+|------|----------|:---:|------|
+| `FluxFormula<TData, TDef>` | Const 或 一元前缀 或 左括号 | 是 | 完整公式，可直接求值 |
+| `FluxModifier<TData, TDef>` | 二元运算符（如 `+`） | **编译不过** | 缺少左操作数，需通过 `Connect()` 拼接到 Formula |
+
+```csharp
+var f42 = runner.Compile(new[] { C(42f) });                        // FluxFormula
+var mod = runner.Compile(new[] { Op((byte)MathOp.Add), C(5f) });   // FluxModifier
+
+// 编译期类型安全：Connect 只接受 FluxModifier
+var combined = f42.Connect(mod);  // 42 + 5，编译通过
+// f42.Connect(someFormula) → CS1503 编译错误，无法将 FluxFormula 转为 FluxModifier
+```
+
+## Instruction 布局
+
+8 字节定长，显式内存布局（`LayoutKind.Explicit`）：
+
+| 字节偏移 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|----------|---|---|---|---|---|---|---|---|
+| **字段** | OpCode | Dest | Arg0 | Arg1 | Arg2 | Arg3 | Arg4 | Arg5 |
+
+- **OpCode**：`byte` 操作码
+- **Dest**：结果目标寄存器号
+- **Arg0-Arg5**：操作数寄存器号，最大 arity = 6
+
+## 寄存器模型
+
+最多 255 个虚拟寄存器（byte 可寻址范围），运行时按需动态分配（扫描字节码确定实际用量）：
+
+| 常量 | 寄存器 | 语义 |
+|------|--------|------|
+| `Registers.Error = 0` | R0 | 错误寄存器。非 default 值触发短路返回 |
+| `Registers.Bus = 1` | R1 | 总线寄存器 / 默认结果 |
+| `Registers.FirstAlloc = 2` | R2-R254 | 通用寄存器，编译器按需递增分配 |
+
+## 链式 Connect：延迟物化
+
+`Connect()` 不合并字节码，每次 Connect 追加一个 `ChainLink`（对原始公式字节码的引用切片）：
+
+```mermaid
+graph LR
+    A["fA: x + y<br/>（Formula）"] -->|Connect| C["链: [Link(fA), Link(mod)]"]
+    B["fB: z * 2<br/>↓ ToModifier()<br/>（Modifier）"] -->|Connect| C
+    C -->|"Run"| D["解释器: 短链逐 link<br/>长链 ToAtomic"]
+    C -->|"Run (jit: true)"| E["JIT: 逐 link delegate 串联"]
+```
+
+**ChainLink 字段**（公开结构体，可通过 `FluxChain.GetLinks()` 访问）：
+
+| 字段 | 说明 |
+|------|------|
+| `Key` | 该片段字节码的 `DualHash64`，缓存查找键 |
+| `Bytecode` | 指向原始 `Instruction[]` 的引用（不复制） |
+| `InstructionCount` | 指令数 |
+| `Type` | 内部 `FluxType`（Formula 或 Modifier） |
+
+## Formula ↔ Modifier 互转
+
+`ToModifier()` 移除第一数据操作数并将其寄存器引用重命名为 R1；`ToFormula(varName)` 插入命名变量替代 R1 输入。
+
+```csharp
+var f = Compile("x + y");           // FluxFormula
+
+var m = f.ToModifier();             // FluxModifier，没有 Instantiate()
+// m 不能独立求值，编译不过
+
+var restored = m.ToFormula("input"); // FluxFormula，可以求值了
+restored.Set("input", 5f).Run();     // works
+```
+
+> v3.0.0：`Connect` 签名只接受 `FluxModifier<TData, TDef>`。传入 `FluxFormula` 编译不过，不需要运行时 `ArgumentException`。
+
+## 三态求值器
+
+`FluxInstance` 支持三种执行模式，覆盖调试到生产的全场景：
+
+| 模式 | 创建方式 | 执行粒度 | 用途 |
+|------|---------|---------|------|
+| 热路径 | `Instantiate(formula)` | 全速 | 生产环境，零开销 |
+| 柯里化 | `Instantiate(formula, curry: true)` | 变量级分步 | 渐进绑定，支持分叉 |
+| 单步调试 | `Instantiate(formula, step: true)` | 指令级 | 逐指令排查 |
+
+参见 [分步求值器](/guide/curry-evaluator) 和 [单步调试器](/guide/step-debugger)。
+
+## Delegate 缓存
+
+JIT 编译的委托缓存在 `FormulaCache` 中，由 `DualHash64` 键索引。同一公式多次实例化只编译一次。IL2CPP/AOT 平台自动降级为解释器。
+
+## 解释器 vs JIT
+
+| | 解释器 | JIT |
+|------|------|------|
+| 机制 | `stackalloc` 寄存器 + 指针循环 | LINQ Expression Tree → `Compile()` 委托 |
+| AOT 平台 | 可用 | 自动降级到解释器 |
+| 选择方式 | `Instantiate(jit: false)` | `Instantiate(jit: true)` |
