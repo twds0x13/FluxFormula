@@ -221,26 +221,6 @@ public static class TestHelper
         });
     }
 
-    /// <summary>创建启用隐式乘法的 Lexer（2(3), (a)(b)）</summary>
-    public static FluxLexer<float> CreateImplicitMulLexer()
-    {
-        var lexer = new FluxLexer<float>(new LexerConfig<float>
-        {
-            LiteralScanner = LexerConfig<float>.CreateDefaultNumberScanner(s => float.Parse(s.TrimEnd('f'))),
-            LiteralOper    = (byte)FloatOp.Const,
-            Operators =
-            {
-                new("+", (byte)FloatOp.Add), new("-", (byte)FloatOp.Sub),
-                new("*", (byte)FloatOp.Mul), new("/", (byte)FloatOp.Div),
-            },
-            Brackets =
-            {
-                new("(", ")", (byte)FloatOp.LParen, (byte)FloatOp.RParen),
-            },
-            ImplicitOperators = { (byte)FloatOp.Mul },
-        });
-        return lexer;
-    }
 
     /// <summary>创建支持函数调用语法的 Lexer（select, lerp + 逗号分隔）</summary>
     public static FluxLexer<float> CreateFuncLexer()

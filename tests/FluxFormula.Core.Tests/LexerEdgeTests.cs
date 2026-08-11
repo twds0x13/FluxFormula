@@ -62,20 +62,6 @@ public class LexerEdgeTests
     }
 
     // ═══════════════════════════════════════════════════════
-    // 隐式乘法
-    // ═══════════════════════════════════════════════════════
-
-    [Test]
-    public void ImplicitMultiplication_Compiles()
-    {
-        var lexer = CreateImplicitMulLexer();
-        var f = new FluxAssembler<float, FloatMathDef>(Def)
-            .Compile(lexer.Lex("2(3+4)"));
-        float result = new FluxAssembler<float, FloatMathDef>(Def).Instantiate(f).Run();
-        Assert.That(result, Is.EqualTo(14f).Within(1e-6f));
-    }
-
-    // ═══════════════════════════════════════════════════════
     // 变量扫描
     // ═══════════════════════════════════════════════════════
 

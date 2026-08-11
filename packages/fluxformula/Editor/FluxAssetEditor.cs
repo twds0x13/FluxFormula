@@ -58,7 +58,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
     private List<byte>                _brRights          = new();
 
     // 隐式运算符
-    private List<byte>                _implicitOpers     = new();
 
     // 编译结果
     private string                    _statusMessage     = "";
@@ -71,7 +70,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
     private bool                      _showGrammar       = true;
     private bool                      _showOperators;
     private bool                      _showBrackets;
-    private bool                      _showImplicit;
 
     // 编辑缓冲：借壳临时 ScriptableObject，利用 Unity 原生 Undo 系统
     private FluxEditState             _editState;
@@ -184,7 +182,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
         DrawGrammarRules();
         DrawOperators();
         DrawBrackets();
-        DrawImplicitOperators();
         EditorGUILayout.EndScrollView();
 
         DrawStatus();
@@ -446,45 +443,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
     }
 
     // ═══════════════════════════════════════════════
-    // 隐式运算符
-    // ═══════════════════════════════════════════════
-
-    private void DrawImplicitOperators()
-    {
-        var def = default(TDef);
-
-        _showImplicit = EditorGUILayout.BeginFoldoutHeaderGroup(_showImplicit,
-            _implicitOpers.Count > 0
-                ? $"Implicit Operators ({string.Join(", ", _implicitOpers.Select(b => def.GetOperatorName(b) ?? b.ToString()))})"
-                : "Implicit Operators (none)");
-
-        if (!_showImplicit) { EditorGUILayout.EndFoldoutHeaderGroup(); return; }
-
-        EditorGUI.indentLevel++;
-
-        EditorGUILayout.HelpBox(
-            "Implicit operators are auto-inserted at juxtaposition sites (e.g., 2(3) → 2*(3)).\n" +
-            "Only ONE implicit operator is supported; more than one causes ambiguity errors.",
-            MessageType.None);
-
-        EditorGUILayout.LabelField("Check to auto-insert at juxtaposition sites:", EditorStyles.miniLabel);
-
-        EditorGUI.indentLevel++;
-        foreach (var op in _allOpers)
-        {
-            bool current = _implicitOpers.Contains(op);
-            string name = def.GetOperatorName(op) ?? op.ToString();
-            bool toggle = EditorGUILayout.Toggle(name, current);
-            if (toggle && !current) _implicitOpers.Add(op);
-            if (!toggle && current) _implicitOpers.Remove(op);
-        }
-        EditorGUI.indentLevel--;
-
-        EditorGUI.indentLevel--;
-        EditorGUILayout.EndFoldoutHeaderGroup();
-    }
-
-    // ═══════════════════════════════════════════════
     // 字面量配置
     // ═══════════════════════════════════════════════
 
@@ -605,9 +563,8 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
         var formatted = System.Text.RegularExpressions.Regex.Replace(
             sb.ToString(), @"\s+", " ").Trim();
 
-        // 如果没有启用隐式运算符，合并被空格隔开的相邻数字片段
+        // 合併被空格隔开的相邻数字片段
         // 例如 "6 7" → "67", "3. 14" → "3.14"（循环处理 "6 7 8" → "67 8" → "678"）
-        if (_implicitOpers.Count == 0)
         {
             string prevFmt;
             do
@@ -745,8 +702,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
         for (int i = 0; i < _brOpens.Count; i++)
             config.Brackets.Add(new BracketRule(_brOpens[i], _brCloses[i], _brLefts[i], _brRights[i]));
 
-        for (int i = 0; i < _implicitOpers.Count; i++)
-            config.ImplicitOperators.Add(_implicitOpers[i]);
 
         for (int i = 0; i < _varPrefixes.Count; i++)
             if (!string.IsNullOrEmpty(_varPrefixes[i]))
@@ -841,7 +796,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
         SaveStringList("brCloses",      _brCloses);
         SaveOpList("brLefts",           _brLefts);
         SaveOpList("brRights",          _brRights);
-        SaveOpList("implicitOpers",     _implicitOpers);
     }
 
     private void LoadState()
@@ -855,7 +809,6 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
         _brCloses        = LoadStringList("brCloses");
         _brLefts         = LoadOpList("brLefts");
         _brRights        = LoadOpList("brRights");
-        _implicitOpers   = LoadOpList("implicitOpers");
     }
 
     private List<string> LoadStringList(string key)

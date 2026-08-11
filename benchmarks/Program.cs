@@ -33,20 +33,16 @@ namespace FluxFormula.Benchmarks
     {
         private FluxLexer<float> _mathLexer;
         private FluxLexer<float> _varLexer;
-        private FluxLexer<float> _implicitMulLexer;
-
         [GlobalSetup]
         public void Setup()
         {
             _mathLexer       = CreateMathLexer();
             _varLexer        = CreateVarLexer("[", "]");
-            _implicitMulLexer = CreateImplicitMulLexer();
         }
 
         [Benchmark] public void Simple()          => _mathLexer.Lex("1 + 2 * 3");
         [Benchmark] public void Complex()         => _mathLexer.Lex("(1.5 + 2.5) * (3 - 1) / 2 + 5 * 3");
         [Benchmark] public void WithVariables()   => _varLexer.Lex("[atk] * (1 + [crit_rate]) - [target_def]");
-        [Benchmark] public void ImplicitMul()     => _implicitMulLexer.Lex("2(3+4) + (1+2)(3+4)");
         [Benchmark] public void ManyTokens()      => _mathLexer.Lex("1+2+3+4+5+6+7+8+9+10+11+12+13+14+15");
     }
 
