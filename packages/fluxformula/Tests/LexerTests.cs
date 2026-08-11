@@ -127,12 +127,6 @@ public class LexerTests
         Assert.That(interp, Is.EqualTo(-15f).Within(1e-6f));
     }
 
-    [Test]
-    [Test]
-    [Test]
-    [Test]
-    [Test]
-    [Test]
     // ── 变量（未知数）模式匹配 ─────────────────
 
     [Test]
