@@ -1,3 +1,4 @@
+using FluxFormula.Inspector;
 using UnityEditor;
 namespace FluxFormula.Tests
 {

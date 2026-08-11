@@ -2,7 +2,7 @@ using FluxFormula.Core;
 
 using NUnit.Framework;
 
-using static TestHelper;
+using static FluxFormula.Tests.TestHelper;
 
 namespace FluxFormula.Tests
 {

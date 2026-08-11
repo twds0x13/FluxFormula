@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SourceSerializer.Generator")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f7b17c65891cd56bbe6996cb47d5b9f7629a7423")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+378b98bf088fb235d7f9d374de6ccc79bf40bf34")]
 [assembly: System.Reflection.AssemblyProductAttribute("SourceSerializer.Generator")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SourceSerializer.Generator")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
