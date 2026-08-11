@@ -5,7 +5,7 @@ using System.Threading;
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula.Tests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula.Burst")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula.Editor")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFormula.Inspector")]
 
 namespace FluxFormula.Core
 {

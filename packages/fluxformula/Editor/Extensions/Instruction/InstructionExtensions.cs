@@ -1,7 +1,7 @@
 using System;
 using FluxFormula.Core;
 
-namespace FluxFormula.Editor
+namespace FluxFormula.Inspector
 {
 
 public static class InstructionExtensions

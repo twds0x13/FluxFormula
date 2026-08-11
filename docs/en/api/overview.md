@@ -147,7 +147,7 @@ The following types are not Public API and are listed for reference only:
 
 - **`FluxFormula.Core`** — All public types and internal runtime types
 - **`FluxFormula.Compiler`** — `FluxCompiler` and `FluxExprCompiler` (internal)
-- **`FluxFormula.Editor`** — `FluxAssetEditor`, `FluxAssetInspector`, Dump extensions (Editor-only)
+- **`FluxFormula.Inspector`** — `FluxAssetEditor`, `FluxAssetInspector`, Dump extensions (Editor-only)
 
 ## Generic Constraints
 

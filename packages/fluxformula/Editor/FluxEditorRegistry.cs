@@ -5,7 +5,7 @@ using FluxFormula.Core;
 using UnityEditor;
 using UnityEngine;
 
-namespace FluxFormula.Editor
+namespace FluxFormula.Inspector
 {
 
 /// <summary>

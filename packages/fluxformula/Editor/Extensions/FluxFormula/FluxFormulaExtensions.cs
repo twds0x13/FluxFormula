@@ -2,7 +2,7 @@ using FluxFormula.Core;
 using System;
 using System.Text;
 
-namespace FluxFormula.Editor
+namespace FluxFormula.Inspector
 {
 
 public static class FluxFormulaExtensions

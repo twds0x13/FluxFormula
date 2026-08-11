@@ -4,7 +4,7 @@ using UnityEditor.Callbacks;
 using UnityEngine;
 using Editor = UnityEditor.Editor;
 
-namespace FluxFormula.Editor
+namespace FluxFormula.Inspector
 {
 
 /// <summary>
