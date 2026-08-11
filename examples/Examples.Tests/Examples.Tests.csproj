@@ -88,7 +88,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../vendor/SourceSerializer/Generator/SourceSerializer.Generator.csproj"
+    <ProjectReference Include="$(SourceSerializerGeneratorPath)"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>

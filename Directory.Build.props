@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <SourceSerializerGeneratorPath>$(MSBuildThisFileDirectory)vendor/SourceSerializer/SourceGenerator~/SourceSerializer.Generator.csproj</SourceSerializerGeneratorPath>
+  </PropertyGroup>
+</Project>
