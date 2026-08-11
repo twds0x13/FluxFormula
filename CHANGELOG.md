@@ -1,3 +1,12 @@
+## [6.4.1](https://github.com/twds0x13/FluxFormula/compare/v6.4.0...v6.4.1) (2026-08-11)
+
+### Bug Fixes
+
+* add missing using directives for FluxQuickTest and Burst tests ([36bef55](https://github.com/twds0x13/FluxFormula/commit/36bef558f920608f064f70a256eeb153a8aef37d))
+* convert file-scoped namespace in Tests/ to block-scoped for C# 9.0 ([378b98b](https://github.com/twds0x13/FluxFormula/commit/378b98bf088fb235d7f9d374de6ccc79bf40bf34))
+* qualify TestHelper and add FluxFormula.Inspector using in Tests/ ([c9c67d0](https://github.com/twds0x13/FluxFormula/commit/c9c67d06c06f8f777223f0343dd135bd434c1c39))
+* remove duplicate [Test] attributes left by regex cleanup ([b39a862](https://github.com/twds0x13/FluxFormula/commit/b39a8623d3bda48670d925fbe19207d47991ef31))
+
 ## [6.4.0](https://github.com/twds0x13/FluxFormula/compare/v6.3.0...v6.4.0) (2026-07-25)
 
 ### Features
