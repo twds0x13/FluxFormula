@@ -1,6 +1,10 @@
 using FluxFormula.Core;
+
 using NUnit.Framework;
+
 using static TestHelper;
+
+namespace FluxFormula.Tests;
 
 /// <summary>
 /// 冒烟测试：验证全链路（Lexer → Compile → Run）无崩溃。

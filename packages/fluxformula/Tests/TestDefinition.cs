@@ -3,6 +3,8 @@ using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using FluxFormula.Core;
 
+namespace FluxFormula.Tests;
+
 // ============================================================
 // 测试用操作符定义：单精度浮点四则运算 + 取负 + 多元函数 + 三元
 // ============================================================

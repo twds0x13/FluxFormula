@@ -5,14 +5,15 @@
   "description": "Unity Jobs + Burst evaluator for FluxFormula — concurrent, allocation-free formula evaluation in worker threads.",
   "unity": "2021.3",
   "dependencies": {
-    "com.twds0x13.fluxformula.core": "5.12.2",
+    "com.twds0x13.fluxformula.core": "6.4.0",
     "com.unity.burst": "1.8.0",
     "com.unity.collections": "1.2.4"
   },
   "keywords": ["formula", "burst", "jobs", "evaluator", "fluxformula"],
   "author": {
-    "name": "twds0x13",
+    "name": "Twds0x13",
     "url": "https://github.com/twds0x13/FluxFormula"
   },
+  "documentationUrl": "https://twds0x13.github.io/FluxFormula/",
   "license": "MIT"
 }

@@ -1,7 +1,11 @@
 using System;
 using FluxFormula.Core;
+
 using NUnit.Framework;
+
 using static TestHelper;
+
+namespace FluxFormula.Tests;
 
 public class LexerTests
 {

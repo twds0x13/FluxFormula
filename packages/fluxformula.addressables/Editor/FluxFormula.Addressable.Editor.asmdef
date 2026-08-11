@@ -1,0 +1,25 @@
+{
+    "name": "FluxFormula.Addressable.Editor",
+    "rootNamespace": "",
+    "references": [
+        "FluxFormula.Core",
+        "FluxFormula",
+        "FluxFormula.Editor",
+        "FluxFormula.Addressable",
+        "Unity.Addressables",
+        "Unity.Addressables.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "FLUX_ADDRESSABLES"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

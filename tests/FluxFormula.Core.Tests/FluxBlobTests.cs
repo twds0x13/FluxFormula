@@ -1,5 +1,6 @@
 using System;
 using FluxFormula.Core;
+using FluxFormula;
 using NUnit.Framework;
 
 /// <summary>

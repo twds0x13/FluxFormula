@@ -5,6 +5,9 @@ using FluxFormula.Core;
 using UnityEditor;
 using UnityEngine;
 
+namespace FluxFormula.Editor
+{
+
 /// <summary>
 /// 公式资产编辑器基类——泛型驱动的文本编辑窗口。
 /// 用户在项目中创建一行字的子类即可使用。
@@ -892,4 +895,5 @@ public class FluxAssetEditor<TData, TDef> : EditorWindow
 internal class FluxEditState : ScriptableObject
 {
     public string formulaText;
+}
 }

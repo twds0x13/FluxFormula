@@ -1,7 +1,11 @@
 using System;
 using FluxFormula.Core;
+
 using NUnit.Framework;
+
 using static TestHelper;
+
+namespace FluxFormula.Tests;
 
 /// <summary>
 /// FormulaCache 重置后的恢复路径测试。

@@ -1,8 +1,12 @@
 using System;
 using System.Runtime.InteropServices;
 using FluxFormula.Core;
+
 using NUnit.Framework;
+
 using static TestHelper;
+
+namespace FluxFormula.Tests;
 
 /// <summary>
 /// VFF 递归解析测试。

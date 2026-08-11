@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using FluxFormula.Core;
 
-namespace FluxFormula.Core
+namespace FluxFormula
 {
     /// <summary>
     /// Blob 公式数据库——管理预编译公式字节码的 pinned 内存块和偏移表注册。
@@ -273,6 +274,18 @@ namespace FluxFormula.Core
         }
 
         /// <summary>释放此 blob 及其所有注册条目。等价于 <c>FluxBlob.Unload(this)</c>。</summary>
-        public void Dispose() => FluxBlob.Unload(this);
+        public void Dispose()
+        {
+            FluxBlob.Unload(this);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// 终结器：安全网，防止忘记调用 Dispose 时泄露 GCHandle。
+        /// </summary>
+        ~FluxBlobHandle()
+        {
+            FluxBlob.Unload(this);
+        }
     }
 }

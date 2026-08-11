@@ -26,14 +26,15 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxJITInjector.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxInstance.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Lexer/FluxLexer.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/TemplateAttribute.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/SerializerRegistry.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/SerializerBlocks.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/ISerializerBlock.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/ChainBlock.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/BuiltinBlocks.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/ExternalTemplateAttribute.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/Literal/TypeAliasAttribute.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/Attributes/TemplateAttribute.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/SerializerRegistry.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/SerializerBlocks.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/ISerializerBlock.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/WhitespaceStripper.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/ChainBlock.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/BuiltinBlocks.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/Attributes/ExternalTemplateAttribute.cs" />
+    <Compile Include="../../vendor/SourceSerializer/Runtime/Attributes/TypeAliasAttribute.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Cache/DualHash64.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Cache/FormulaCache.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Cache/IFluxCacheProvider.cs" />
@@ -67,7 +68,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../packages/fluxformula.core/SourceGenerator/SourceSerializer.Generator.csproj"
+    <ProjectReference Include="../../vendor/SourceSerializer/Generator/SourceSerializer.Generator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>

@@ -1,4 +1,5 @@
 using UnityEditor;
+namespace FluxFormula.Tests;
 
 public class TestEditor : FluxAssetEditor<float, FloatMathDef>
 {

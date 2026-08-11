@@ -6,7 +6,7 @@ using SourceSerializer;
 
 /// <summary>
 /// SerializerBlocks 公共 API 测试：AddBlock/AddBlocks/RemoveBlock/Builder/内置类型。
-/// 所有 fake-block 测试使用非内置类型（T1-T5），避免覆盖/移除 13 种内置 block。
+/// 所有 fake-block 测试使用非内置类型（T1-T5），避免覆盖/移除 16 种内置 block。
 /// SetUp/TearDown 确保测试间状态隔离。
 /// </summary>
 public class SerializerBlocksTests
@@ -24,25 +24,14 @@ public class SerializerBlocksTests
     public void SetUp()
     {
         foreach (var t in TestTypes)
-        {
-            // 用反射调用 RemoveBlock<type> 清理前一测试的残留
-            typeof(SerializerBlocks)
-                .GetMethod("RemoveBlock", Type.EmptyTypes)!
-                .MakeGenericMethod(t)
-                .Invoke(null, null);
-        }
+            SerializerBlocks.RemoveBlock(t);
     }
 
     [TearDown]
     public void TearDown()
     {
         foreach (var t in TestTypes)
-        {
-            typeof(SerializerBlocks)
-                .GetMethod("RemoveBlock", Type.EmptyTypes)!
-                .MakeGenericMethod(t)
-                .Invoke(null, null);
-        }
+            SerializerBlocks.RemoveBlock(t);
     }
 
     // 测试用 fake block
@@ -234,7 +223,7 @@ public class SerializerBlocksTests
     }
 
     [Test]
-    public void BuiltinTypes_All13_HaveBlock()
+    public void BuiltinTypes_All16_HaveBlock()
     {
         Assert.That(SerializerBlocks.TryGet<float>(out _), Is.True);
         Assert.That(SerializerBlocks.TryGet<double>(out _), Is.True);
@@ -249,6 +238,9 @@ public class SerializerBlocksTests
         Assert.That(SerializerBlocks.TryGet<bool>(out _), Is.True);
         Assert.That(SerializerBlocks.TryGet<char>(out _), Is.True);
         Assert.That(SerializerBlocks.TryGet<string>(out _), Is.True);
+        Assert.That(SerializerBlocks.TryGet<IntPtr>(out _), Is.True);
+        Assert.That(SerializerBlocks.TryGet<UIntPtr>(out _), Is.True);
+        Assert.That(SerializerBlocks.TryGet<Guid>(out _), Is.True);
     }
 
     // ═══════════════════════════════════════════════════════
@@ -372,6 +364,31 @@ public class SerializerBlocksTests
         Assert.That(deserialized, Is.EqualTo(value));
     }
 
+    // ═══════════════════════════════════════════════════════
+    // 空白处理（TryScan / Deserialize 内部经 WhitespaceStripper）
+    // ═══════════════════════════════════════════════════════
+
+    [Test]
+    public void Deserialize_HandlesWhitespaceInInput()
+    {
+        var deserialized = SerializerBlocks.Deserialize<float>("  3.14  ");
+        Assert.That(deserialized, Is.EqualTo(3.14f).Within(1e-5f));
+    }
+
+    [Test]
+    public void TryScan_HandlesWhitespaceInInput()
+    {
+        Assert.That(SerializerBlocks.TryScan<float>("  42  ", out var value), Is.True);
+        Assert.That(value, Is.EqualTo(42f).Within(1e-5f));
+    }
+
+    [Test]
+    public void Deserialize_PreservesWhitespaceInsideQuotedStrings()
+    {
+        var deserialized = SerializerBlocks.Deserialize<string>("\"hello world\"");
+        Assert.That(deserialized, Is.EqualTo("hello world"));
+    }
+
     [Test]
     public void Serialize_AfterManualAddBlock_Roundtrip()
     {
@@ -399,7 +416,7 @@ public class SerializerBlocksTests
     [Test]
     public void EnsureInitialized_BuiltinsAvailable_WithoutManualRegistration()
     {
-        // 13 种内置类型应在首次 TryGet 时自动注册，无需手动 AddBlock
+        // 16 种内置类型应在首次 TryGet 时自动注册，无需手动 AddBlock
         Assert.That(SerializerBlocks.TryGet<float>(out _), Is.True);
         Assert.That(SerializerBlocks.TryGet<int>(out _), Is.True);
         Assert.That(SerializerBlocks.TryGet<string>(out _), Is.True);
@@ -413,6 +430,9 @@ public class SerializerBlocksTests
         Assert.That(SerializerBlocks.TryGet<sbyte>(out _), Is.True);
         Assert.That(SerializerBlocks.TryGet<uint>(out _), Is.True);
         Assert.That(SerializerBlocks.TryGet<char>(out _), Is.True);
+        Assert.That(SerializerBlocks.TryGet<IntPtr>(out _), Is.True);
+        Assert.That(SerializerBlocks.TryGet<UIntPtr>(out _), Is.True);
+        Assert.That(SerializerBlocks.TryGet<Guid>(out _), Is.True);
     }
 
     [Test]
@@ -432,7 +452,7 @@ public class SerializerBlocksTests
         {
             Parallel.For(0, 50, i =>
             {
-                int idx = i % 13;
+                int idx = i % 16;
                 bool ok = idx switch
                 {
                     0 => SerializerBlocks.TryGet<float>(out _),
@@ -447,7 +467,10 @@ public class SerializerBlocksTests
                     9 => SerializerBlocks.TryGet<byte>(out _),
                     10 => SerializerBlocks.TryGet<sbyte>(out _),
                     11 => SerializerBlocks.TryGet<uint>(out _),
-                    _ => SerializerBlocks.TryGet<char>(out _),
+                    12 => SerializerBlocks.TryGet<char>(out _),
+                    13 => SerializerBlocks.TryGet<IntPtr>(out _),
+                    14 => SerializerBlocks.TryGet<UIntPtr>(out _),
+                    _ => SerializerBlocks.TryGet<Guid>(out _),
                 };
                 Assert.That(ok, Is.True);
             });

@@ -1,5 +1,6 @@
 using System;
 using FluxFormula.Core;
+using FluxFormula.Addressable;
 using NUnit.Framework;
 using UnityEngine;
 

@@ -1,7 +1,9 @@
 {
     "name": "FluxFormula.Core",
     "rootNamespace": "",
-    "references": [],
+    "references": [
+        "SourceSerializer"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": true,

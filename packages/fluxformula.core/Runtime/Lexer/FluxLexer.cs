@@ -319,6 +319,7 @@ namespace FluxFormula.Core
                     Array.Empty<FluxToken<TData>>(),
                     Array.Empty<string>());
 
+            source = WhitespaceStripper.Strip(source);
             int maxTokens = source.Length;
             var tokens   = new FluxToken<TData>[maxTokens];
             var varNames = new string[maxTokens];

@@ -1,6 +1,9 @@
 using System;
 using FluxFormula.Core;
 
+namespace FluxFormula.Editor
+{
+
 public static class InstructionExtensions
 {
     /// <summary>
@@ -15,4 +18,5 @@ public static class InstructionExtensions
 
     // 快速将字节转换为8位二进制
     private static string ByteToB(byte b) => Convert.ToString(b, 2).PadLeft(8, '0');
+}
 }

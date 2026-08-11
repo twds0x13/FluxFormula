@@ -5,8 +5,7 @@ using FluxFormula.Core;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 
-// 此文件物理位于 fluxformula.addressables 包，namespace 声明为 FluxFormula.Core。
-namespace FluxFormula.Core
+namespace FluxFormula.Addressable
 {
     /// <summary>
     /// Blob 加载的统一入口——扫描所有 <see cref="IFluxBlobRegistry"/> 实现，

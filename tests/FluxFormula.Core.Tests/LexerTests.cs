@@ -317,7 +317,7 @@ public class LexerTests
         });
 
         Assert.That(
-            () => lexer.Lex("2 3"),
+            () => lexer.Lex("2(3)"),
             Throws.TypeOf<FormatException>()
                 .And.Message.Contains("Ambiguous"));
     }

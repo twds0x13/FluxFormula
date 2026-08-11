@@ -6,7 +6,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace FluxFormula.Editor
+namespace FluxFormula.Addressable.Editor
 {
     /// <summary>
     /// 在 Player Build 前自动将 .bytes 文件注册到 Addressables 系统。

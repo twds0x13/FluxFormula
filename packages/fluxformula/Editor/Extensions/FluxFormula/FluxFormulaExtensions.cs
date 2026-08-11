@@ -2,6 +2,9 @@ using FluxFormula.Core;
 using System;
 using System.Text;
 
+namespace FluxFormula.Editor
+{
+
 public static class FluxFormulaExtensions
 {
     public static void Dump<TData, TDef>(this FluxFormula<TData, TDef> formula)
@@ -27,4 +30,5 @@ public static class FluxFormulaExtensions
             UnityEngine.Debug.Log(sb.ToString());
         }
     }
+}
 }
