@@ -11,7 +11,7 @@ public enum Element : byte
     [Tag("magic")] Magic,
 }
 
-[Template("<float Amount><optional>:<Element Element></optional>")]
+[Template("Elem(<float Amount><optional>, <Element Element></optional>)")]
 public struct ElemValue : IEquatable<ElemValue>
 {
     public float Amount;

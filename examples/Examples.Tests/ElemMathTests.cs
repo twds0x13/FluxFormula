@@ -39,7 +39,7 @@ public class ElemMathTests
     [Test]
     public void Const_PlainNumber()
     {
-        var v = Eval("42");
+        var v = Eval("Elem(42)");
         Assert.That(v.Amount, Is.EqualTo(42f));
         Assert.That(v.Element, Is.EqualTo(Element.Physical));
     }
@@ -47,7 +47,7 @@ public class ElemMathTests
     [Test]
     public void Const_WithElementTag()
     {
-        var v = Eval("1.5:fire");
+        var v = Eval("Elem(1.5, fire)");
         Assert.That(v.Amount, Is.EqualTo(1.5f));
         Assert.That(v.Element, Is.EqualTo(Element.Fire));
     }
@@ -55,7 +55,7 @@ public class ElemMathTests
     [Test]
     public void Add_SameElement_KeepsLeft()
     {
-        var v = Eval("1:fire + 2:fire");
+        var v = Eval("Elem(1, fire) + Elem(2, fire)");
         Assert.That(v.Amount, Is.EqualTo(3f));
         Assert.That(v.Element, Is.EqualTo(Element.Fire));
     }
@@ -63,7 +63,7 @@ public class ElemMathTests
     [Test]
     public void Add_DifferentElements_SumAmounts()
     {
-        var v = Eval("1:fire + 2:ice");
+        var v = Eval("Elem(1, fire) + Elem(2, ice)");
         Assert.That(v.Amount, Is.EqualTo(3f));
         Assert.That(v.Element, Is.EqualTo(Element.Fire)); // keep a.Element
     }
@@ -71,21 +71,21 @@ public class ElemMathTests
     [Test]
     public void Sub_SameElement_Deducts()
     {
-        var v = Eval("10:fire - 3:fire");
+        var v = Eval("Elem(10, fire) - Elem(3, fire)");
         Assert.That(v.Amount, Is.EqualTo(7f));
     }
 
     [Test]
     public void Sub_DifferentElements_IgnoresDefense()
     {
-        var v = Eval("10:fire - 3:ice");
+        var v = Eval("Elem(10, fire) - Elem(3, ice)");
         Assert.That(v.Amount, Is.EqualTo(10f)); // true damage
     }
 
     [Test]
     public void Mul_KeepsMultiplierElement()
     {
-        var v = Eval("100:Physical * 1.5:fire");
+        var v = Eval("Elem(100, Physical) * Elem(1.5, fire)");
         Assert.That(v.Amount, Is.EqualTo(150f));
         Assert.That(v.Element, Is.EqualTo(Element.Fire)); // b.Element
     }
@@ -93,7 +93,7 @@ public class ElemMathTests
     [Test]
     public void Div_KeepsDivisorElement()
     {
-        var v = Eval("100:Physical / 2:ice");
+        var v = Eval("Elem(100, Physical) / Elem(2, ice)");
         Assert.That(v.Amount, Is.EqualTo(50f));
         Assert.That(v.Element, Is.EqualTo(Element.Ice));
     }
@@ -101,7 +101,7 @@ public class ElemMathTests
     [Test]
     public void Neg_KeepsElement()
     {
-        var v = Eval("-5:fire");
+        var v = Eval("Elem(-5, fire)");
         Assert.That(v.Amount, Is.EqualTo(-5f));
         Assert.That(v.Element, Is.EqualTo(Element.Fire));
     }
@@ -118,7 +118,7 @@ public class ElemMathTests
         // 300:Fire - 30:Fire = 270:Fire
         var lexer  = CreateLexer();
         var runner = new FluxAssembler<ElemValue, ElemDef>(Def);
-        var f = runner.Compile(lexer.Lex("[atk] * 2.5:fire + [bonus] - [def]"));
+        var f = runner.Compile(lexer.Lex("[atk] * Elem(2.5, fire) + [bonus] - [def]"));
         var result = runner.Instantiate(f)
             .Set("atk",   new ElemValue(100f, Element.Physical))
             .Set("bonus", new ElemValue(50f,  Element.Ice))
@@ -135,24 +135,24 @@ public class ElemMathTests
     [Test]
     public void Jit_MatchesInterp_Add()
     {
-        var interp = Eval("1:fire + 2:fire", jit: false);
-        var jit    = Eval("1:fire + 2:fire", jit: true);
+        var interp = Eval("Elem(1, fire) + Elem(2, fire)", jit: false);
+        var jit    = Eval("Elem(1, fire) + Elem(2, fire)", jit: true);
         Assert.That(jit, Is.EqualTo(interp));
     }
 
     [Test]
     public void Jit_MatchesInterp_Sub()
     {
-        var interp = Eval("10:fire - 3:ice", jit: false);
-        var jit    = Eval("10:fire - 3:ice", jit: true);
+        var interp = Eval("Elem(10, fire) - Elem(3, ice)", jit: false);
+        var jit    = Eval("Elem(10, fire) - Elem(3, ice)", jit: true);
         Assert.That(jit, Is.EqualTo(interp));
     }
 
     [Test]
     public void Jit_MatchesInterp_Chain()
     {
-        var interp = Eval("100:Physical * 2.5:fire + 50:ice - 30:fire", jit: false);
-        var jit    = Eval("100:Physical * 2.5:fire + 50:ice - 30:fire", jit: true);
+        var interp = Eval("Elem(100, Physical) * Elem(2.5, fire) + Elem(50, ice) - Elem(30, fire)", jit: false);
+        var jit    = Eval("Elem(100, Physical) * Elem(2.5, fire) + Elem(50, ice) - Elem(30, fire)", jit: true);
         Assert.That(jit, Is.EqualTo(interp));
     }
 }

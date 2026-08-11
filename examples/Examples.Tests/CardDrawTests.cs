@@ -128,7 +128,7 @@ public class CardDrawTests
     public void Add_ConsumesOneDrawPerCast()
     {
         // 首卡提供 2 抽，净剩 = 2-1=1；次卡无提供，再消耗 1 抽；总共剩余 0
-        var ctx = EvalSpell("0|draw 2|idx:0 + 10|idx:1");
+        var ctx = EvalSpell("Spell(0, draw:2, idx:0) + Spell(10, idx:1)");
         Assert.That(ctx.Damage, Is.EqualTo(10f));
         Assert.That(ctx.DrawsProvide, Is.EqualTo(1));
     }

@@ -7,7 +7,7 @@ using static TestHelper;
 // 注册自定义类型别名——模板中可以用 <Distance range> 替代 <float range>
 [assembly: TypeAlias("Distance", "float")]
 // 为 ExternalPoint 注册外部模板（Priority B：覆盖 [Template]）
-[assembly: ExternalTemplate(typeof(ExternalPoint), "<float A>, <float B>")]
+[assembly: ExternalTemplate(typeof(ExternalPoint), "Point(<float A>, <float B>)")]
 
 // ═══════════════════════════════════════════════════════
 // 测试用 struct：带 [Template] 标记
@@ -15,7 +15,7 @@ using static TestHelper;
 // ═══════════════════════════════════════════════════════
 
 /// <summary>简单结构体：两个 float 字段，空格分隔</summary>
-[Template("<float X>, <float Y>")]
+[Template("Point(<float X>, <float Y>)")]
 public struct Point2D
 {
     public float X;
@@ -37,7 +37,7 @@ public struct SpellCard
 }
 
 /// <summary>bool 字段测试</summary>
-[Template("<bool Flag>")]
+[Template("Bool(<bool Flag>)")]
 public struct BoolWrapper
 {
     public bool Flag;
@@ -45,8 +45,10 @@ public struct BoolWrapper
 
 /// <summary>多行模板测试：等价于 &lt;float X&gt; &lt;float Y&gt;</summary>
 [Template(@"
-    <float X>,
-    <float Y>
+    Point(
+        <float X>,
+        <float Y>
+    )
 ")]
 public struct PointMultiLine
 {
@@ -62,7 +64,7 @@ public struct ExternalPoint
 }
 
 /// <summary>使用 LiteralTypeAlias 注册的自定义类型名</summary>
-[Template("<Distance X>, <Distance Y>")]
+[Template("DistancePoint(<Distance X>, <Distance Y>)")]
 public struct DistancePoint
 {
     public float X;
@@ -99,7 +101,7 @@ public struct XmlEntity
 // ═══════════════════════════════════════════════════════
 
 /// <summary>叶子结构体：三维坐标</summary>
-[Template("<float X>, <float Y>, <float Z>")]
+[Template("Vec3(<float X>, <float Y>, <float Z>)")]
 public struct Vec3
 {
     public float X;
@@ -109,21 +111,21 @@ public struct Vec3
 }
 
 /// <summary>包含 Vec3 的复合结构体：用括号包裹</summary>
-[Template("(<Vec3 Pos>)")]
+[Template("Entity(<Vec3 Pos>)")]
 public struct Entity
 {
     public Vec3 Pos;
 }
 
 /// <summary>二级嵌套：Team 包含 Entity，Entity 包含 Vec3</summary>
-[Template("[<Entity Member>]")]
+[Template("Team(<Entity Member>)")]
 public struct Team
 {
     public Entity Member;
 }
 
 /// <summary>构造器 struct + optional block：验证构造器策略下可选块变量的作用域不被 if/scope 块限制</summary>
-	[Template("<float X><optional>, <float Y></optional>")]
+	[Template("Point(<float X><optional>, <float Y></optional>)")]
 	public struct PointWithOptional
 	{
 	    public float X;
@@ -187,7 +189,7 @@ public enum DamageType : byte
     [Tag("magic")] Magic,
 }
 
-[Template("<DamageType Type>|<float Power>")]
+[Template("TaggedSpell(<DamageType Type>, <float Power>)")]
 public struct TaggedSpell
 {
     public DamageType Type;
@@ -204,7 +206,7 @@ public class LiteralTemplateTests
     [Test]
     public void Point2D_Template_ParsesTwoFloats()
     {
-        var result = CreatePointLexer().Lex("3.5,-2.1");
+        var result = CreatePointLexer().Lex("Point(3.5,-2.1)");
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         Assert.That(result.Tokens[0].Data.X, Is.EqualTo(3.5f).Within(1e-5f));
         Assert.That(result.Tokens[0].Data.Y, Is.EqualTo(-2.1f).Within(1e-5f));
@@ -213,15 +215,13 @@ public class LiteralTemplateTests
     [Test]
     public void Point2D_Template_GreedyScanConsumesPlusPrefix()
     {
-        // Point2D 模板 "<float X>, <float Y>" 的 Scan_Float 将 +3,4 整体
-        // 解析为 Point2D(3,4)，因为 + 是合法的浮点数正号前缀。
-        // 字面量扫描优先于运算符识别，所以 + 不会作为二元运算符出现。
-        var result = CreatePointLexer().Lex("1,2+3,4");
-        Assert.That(result.Tokens.Length, Is.EqualTo(2));
+        // Point() 包装提供清晰边界，不再依赖贪婪扫描。+ 作为运算符分割两个字面量。
+        var result = CreatePointLexer().Lex("Point(1,2)+Point(+3,4)");
+        Assert.That(result.Tokens.Length, Is.EqualTo(3));
         Assert.That(result.Tokens[0].Data.X, Is.EqualTo(1f));
         Assert.That(result.Tokens[0].Data.Y, Is.EqualTo(2f));
-        Assert.That(result.Tokens[1].Data.X, Is.EqualTo(3f));
-        Assert.That(result.Tokens[1].Data.Y, Is.EqualTo(4f));
+        Assert.That(result.Tokens[2].Data.X, Is.EqualTo(3f));
+        Assert.That(result.Tokens[2].Data.Y, Is.EqualTo(4f));
     }
 
     [Test]
@@ -297,7 +297,7 @@ public class LiteralTemplateTests
     public void BoolWrapper_ParsesTrue()
     {
         var lexer = CreateBoolLexer();
-        var result = lexer.Lex("true");
+        var result = lexer.Lex("Bool(true)");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         Assert.That(result.Tokens[0].Data.Flag, Is.True);
@@ -307,7 +307,7 @@ public class LiteralTemplateTests
     public void BoolWrapper_ParsesFalse()
     {
         var lexer = CreateBoolLexer();
-        var result = lexer.Lex("false");
+        var result = lexer.Lex("Bool(false)");
 
         Assert.That(result.Tokens[0].Data.Flag, Is.False);
     }
@@ -318,7 +318,7 @@ public class LiteralTemplateTests
     public void Point2D_FullPipeline_LexAndRun()
     {
         var lexer = CreatePointLexer();
-        var tokens = lexer.Lex("3,2");
+        var tokens = lexer.Lex("Point(3,2)");
 
         // Point2D 目前没有对应的 TDef，只验证 lexer 输出
         Assert.That(tokens.Tokens.Length, Is.EqualTo(1));
@@ -344,7 +344,7 @@ public class LiteralTemplateTests
     public void NestedStruct_ParsesInnerStruct()
     {
         var lexer = CreateEntityLexer();
-        var result = lexer.Lex("(10,20,30)");
+        var result = lexer.Lex("Entity(Vec3(10,20,30))");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         var entity = result.Tokens[0].Data;
@@ -357,7 +357,7 @@ public class LiteralTemplateTests
     public void NestedStruct_MultipleTokens()
     {
         var lexer = CreateEntityLexer();
-        var result = lexer.Lex("(1,2,3)+(4,5,6)");
+        var result = lexer.Lex("Entity(Vec3(1,2,3))+Entity(Vec3(4,5,6))");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(3));
         Assert.That(result.Tokens[0].Data.Pos.X, Is.EqualTo(1f));
@@ -371,7 +371,7 @@ public class LiteralTemplateTests
         // Entity template is "(<Vec3 Pos>)"
         // So Team full format: [(10 20 30)]
         var lexer = CreateTeamLexer();
-        var result = lexer.Lex("[(10,20,30)]");
+        var result = lexer.Lex("Team(Entity(Vec3(10,20,30)))");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         var team = result.Tokens[0].Data;
@@ -392,7 +392,7 @@ public class LiteralTemplateTests
             Operators = { new("+", 1) },
         };
         var lexer = new FluxLexer<PointMultiLine>(config);
-        var result = lexer.Lex("3.5,-2.1");
+        var result = lexer.Lex("Point(3.5,-2.1)");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         Assert.That(result.Tokens[0].Data.X, Is.EqualTo(3.5f).Within(1e-5f));
@@ -411,7 +411,7 @@ public class LiteralTemplateTests
             Operators = { new("+", 1) },
         };
         var lexer = new FluxLexer<ExternalPoint>(config);
-        var result = lexer.Lex("1.5,2.5");
+        var result = lexer.Lex("Point(1.5,2.5)");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         Assert.That(result.Tokens[0].Data.A, Is.EqualTo(1.5f).Within(1e-5f));
@@ -696,7 +696,7 @@ public class LiteralTemplateTests
             Operators = { new("+", 1) },
         };
         var lexer = new FluxLexer<DistancePoint>(config);
-        var result = lexer.Lex("5.5,-3.2");
+        var result = lexer.Lex("DistancePoint(5.5,-3.2)");
 
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         Assert.That(result.Tokens[0].Data.X, Is.EqualTo(5.5f).Within(1e-5f));
@@ -769,7 +769,7 @@ public class LiteralTemplateTests
     public void PointWithOptional_FullFormat_ParsesBothFields()
     {
         var lexer = CreatePointWithOptionalLexer();
-        var result = lexer.Lex("3.5,2.1");
+        var result = lexer.Lex("Point(3.5,2.1)");
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         Assert.That(result.Tokens[0].Data.X, Is.EqualTo(3.5f).Within(1e-5f));
         Assert.That(result.Tokens[0].Data.Y, Is.EqualTo(2.1f).Within(1e-5f));
@@ -779,7 +779,7 @@ public class LiteralTemplateTests
     public void PointWithOptional_OmitOptional_DefaultsToZero()
     {
         var lexer = CreatePointWithOptionalLexer();
-        var result = lexer.Lex("3.5");
+        var result = lexer.Lex("Point(3.5)");
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         Assert.That(result.Tokens[0].Data.X, Is.EqualTo(3.5f).Within(1e-5f));
         Assert.That(result.Tokens[0].Data.Y, Is.EqualTo(0f));
@@ -843,7 +843,7 @@ public class LiteralTemplateTests
     public void TaggedSpell_KnownTag_ParsesCorrectly()
     {
         var lexer = CreateTaggedSpellLexer();
-        var result = lexer.Lex("fire|5");
+        var result = lexer.Lex("TaggedSpell(fire, 5)");
         Assert.That(result.Tokens.Length, Is.EqualTo(1));
         Assert.That(result.Tokens[0].Data.Type, Is.EqualTo(DamageType.Fire));
         Assert.That(result.Tokens[0].Data.Power, Is.EqualTo(5f).Within(1e-5f));
@@ -855,7 +855,7 @@ public class LiteralTemplateTests
         Assert.That(SerializerBlocks.TryGet<TaggedSpell>(out var block), Is.True);
         // 使用 block.Scan 而非 TryScan：需要断言失败时精确位置返回值 r == 0，
         // TryScan 会将此折叠为 bool + default!，丢失位置信息。
-        int r = block.Scan("water|10".AsSpan(), 0, out _);
+        int r = block.Scan("TaggedSpell(water, 10)".AsSpan(), 0, out _);
         Assert.That(r, Is.EqualTo(0));
     }
 

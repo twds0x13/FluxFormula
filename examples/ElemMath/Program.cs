@@ -32,7 +32,7 @@ var def    = new ElemDef();
 var runner = new FluxAssembler<ElemValue, ElemDef>(def);
 var lexer  = new FluxLexer<ElemValue>(config);
 
-var lexResult = lexer.Lex("[atk] * 2.5:fire + [bonus] - [def]");
+var lexResult = lexer.Lex("[atk] * Elem(2.5, fire) + [bonus] - [def]");
 var formula   = runner.Compile(lexResult);
 
 ElemValue result = runner.Instantiate(formula)
