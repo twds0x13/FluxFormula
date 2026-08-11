@@ -43,7 +43,6 @@ FluxFormula/
 │   │       ├── Format/              # BinaryFormat, FormulaFormat, VffFormat
 │   │       ├── Literal/             # LiteralScanner attributes + serializer
 │   │       ├── Blob/                # IFluxBlobRegistry, BlobFormat, BlobEntry
-│   │       ├── WAL/                 # FluxWAL, WALEntry, NativeTruncateBuffer
 │   │       └── SourceGenerator/     # C# source generators
 │   ├── fluxformula/                 # Unity integration (ScriptableObject + Editor)
 │   │   ├── Runtime/Unity/           # FluxAsset, FormulaLibrary

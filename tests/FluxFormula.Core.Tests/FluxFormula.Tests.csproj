@@ -41,15 +41,6 @@
     <Compile Include="../../packages/fluxformula.core/Runtime/Cache/FormulaCache.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Cache/IFluxCacheProvider.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Format/BinaryFormat.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/FramePtr.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/WALEntry.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/WALFormat.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/IWALStorage.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/WALFileStorage.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/NativeTruncateBuffer.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/WALReplay.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/FluxTransaction.cs" />
-    <Compile Include="../../packages/fluxformula.core/Runtime/WAL/FluxWAL.cs" />
 
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/FluxArtifactKind.cs" />
     <Compile Include="../../packages/fluxformula.core/Runtime/Core/IFluxFileFormatter.cs" />
@@ -86,8 +77,6 @@
     <Compile Include="DualHashTests.cs" />            <!-- DualHash64 -->
     <Compile Include="DataStructsTests.cs" />         <!-- Instruction/OpPair/VariableSlot -->
     <Compile Include="BinaryFormatTests.cs" />        <!-- BinaryFormat -->
-    <Compile Include="FluxWALTests.cs" />            <!-- FluxWAL -->
-    <Compile Include="NativeTruncateBufferTests.cs" /> <!-- NativeTruncateBuffer -->
     <Compile Include="FormulaFormatTests.cs" />       <!-- FormulaFormat -->
     <Compile Include="FormulaCacheTests.cs" />        <!-- FormulaCache 核心 -->
     <Compile Include="FormulaCacheAndChainTests.cs" /> <!-- FormulaCache + Chain -->
