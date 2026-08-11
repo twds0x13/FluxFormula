@@ -1,0 +1,19 @@
+{
+  "name": "com.twds0x13.sourceserializer",
+  "displayName": "Source Serializer",
+  "version": "3.5.2",
+  "unity": "2021.3",
+  "description": "A C# source-generator-powered serialization framework. XML-based attribute templates drive recursive-descent parsers emitted at compile time, with zero reflection, zero boxing, and zero GC pressure on hot paths. Supports generics, nested types, and cross-assembly plug-and-play.",
+  "keywords": [
+    "serializer",
+    "source-generator",
+    "compile-time",
+    "zero-allocation",
+    "source-generation"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Twds0x13"
+  },
+  "dependencies": {}
+}

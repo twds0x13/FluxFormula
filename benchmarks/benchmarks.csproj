@@ -46,8 +46,8 @@
     <Compile Include="../packages/fluxformula.core/Runtime/Compiler/FluxILCompiler.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Compiler/IFluxILDefinition.cs" />
     <Compile Include="../packages/fluxformula.core/Runtime/Compiler/FluxExprCompiler.cs" />
-    <!-- 测试定义 -->
-    <Compile Include="../packages/fluxformula/Tests/TestDefinition.cs" />
+    <!-- 测试定义（含 FloatMathDef + TestHelper） -->
+    <Compile Include="../tests/FluxFormula.Core.Tests/TestDefinition.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -119,7 +119,7 @@ namespace SourceSerializer
                 {
                     var t = iface.GetGenericArguments()[0];
                     typeof(SerializerBlocks)
-                        .GetMethod(nameof(RegisterBlock), BindingFlags.NonPublic | BindingFlags.Static)
+                        .GetMethod(nameof(RegisterBlock), BindingFlags.NonPublic | BindingFlags.Static)!
                         .MakeGenericMethod(t)
                         .Invoke(null, new object[] { block });
                     return new Builder();
@@ -144,7 +144,7 @@ namespace SourceSerializer
                     {
                         var t = iface.GetGenericArguments()[0];
                         typeof(SerializerBlocks)
-                            .GetMethod(nameof(RegisterBlock), BindingFlags.NonPublic | BindingFlags.Static)
+                            .GetMethod(nameof(RegisterBlock), BindingFlags.NonPublic | BindingFlags.Static)!
                             .MakeGenericMethod(t)
                             .Invoke(null, new object[] { block });
                         break;
@@ -212,8 +212,8 @@ namespace SourceSerializer
         {
             if (TryGet<TData>(out var block))
             {
-                string compact = WhitespaceStripper.Strip(text);
-                int r = block.Scan(compact.AsSpan(), 0, out var value);
+                using var compact = new WhitespaceStripper(text);
+                int r = block.Scan(compact.Span, 0, out var value);
                 if (r > 0) return value;
                 throw new FormatException($"Failed to deserialize '{text}' as {typeof(TData).Name}.");
             }
@@ -228,8 +228,8 @@ namespace SourceSerializer
         {
             if (TryGet<TData>(out var block))
             {
-                string compact = WhitespaceStripper.Strip(text);
-                int r = block.Scan(compact.AsSpan(), 0, out value);
+                using var compact = new WhitespaceStripper(text);
+                int r = block.Scan(compact.Span, 0, out value);
                 if (r > 0) return true;
             }
             value = default!;

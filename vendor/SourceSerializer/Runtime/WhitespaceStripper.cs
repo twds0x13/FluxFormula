@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Runtime.InteropServices;
 
 namespace SourceSerializer
 {
@@ -9,24 +10,28 @@ namespace SourceSerializer
     /// 保护引号字符串内部区域（含 <c>\"</c> 转义），其余空白符全部移除。
     /// </summary>
     /// <remarks>
-    /// 两阶段 <see cref="string.Create"/> 实现，零堆分配。
+    /// 两遍扫描：第一遍计数，第二遍填充。无空白符时 Span 直接回指原串（零分配），
+    /// 有空白符时通过 <see cref="Marshal.AllocHGlobal"/> 分配 native memory 存储结果。
     /// 这是紧凑模板架构的运行时基础——预处理后 Scan 管线对空白符零感知。
+    /// <para>通过 duck-typed <c>Dispose()</c> 支持 <c>using var</c> 模式，兼容 C# 8+。</para>
     /// </remarks>
-    public static class WhitespaceStripper
+    public readonly unsafe ref struct WhitespaceStripper
     {
-        /// <summary>剔除给定字符串的字符串外部空白符。</summary>
-        public static string Strip(string input)
-        {
-            if (string.IsNullOrEmpty(input))
-                return input ?? string.Empty;
-            return Strip(input.AsSpan());
-        }
+        private readonly char* _buffer;
+        /// <summary>已剥离空白符的结果 span。无空白符时回指原串，全空白时为 Empty。</summary>
+        public readonly ReadOnlySpan<char> Span;
 
-        /// <summary>剔除给定 span 的字符串外部空白符。</summary>
-        public static string Strip(ReadOnlySpan<char> input)
+        /// <summary>构造即完成剥离。两遍扫描，仅在有空白符需剔除时分配 native memory。</summary>
+        public WhitespaceStripper(string text)
         {
-            if (input.IsEmpty)
-                return string.Empty;
+            if (string.IsNullOrEmpty(text))
+            {
+                _buffer = null;
+                Span = text ?? string.Empty;
+                return;
+            }
+
+            ReadOnlySpan<char> input = text.AsSpan();
 
             // ── 第一遍：计算输出长度 ──────────────────────
             int outputLen = 0;
@@ -68,59 +73,75 @@ namespace SourceSerializer
                 }
             }
 
-            // 无空白符需剔除 → 直接返回原字符串
+            // 无空白符需剔除 → 直接回指原串
             if (outputLen == input.Length)
-                return input.ToString();
-
-            // 全空白 → 返回空串
-            if (outputLen == 0)
-                return string.Empty;
-
-            // ── 第二遍：填充输出 ──────────────────────────
-            // string.Create 的 TState 不能是 ReadOnlySpan<char>——通过元组绕行
-            string inputStr = input.ToString();
-            return string.Create(outputLen, (Src: inputStr, Idx: 0), (span, state) =>
             {
-                int pos = 0;
-                bool inStr = false;
-                var src = state.Src.AsSpan();
+                _buffer = null;
+                Span = input;
+                return;
+            }
 
-                for (int i = 0; i < src.Length; i++)
+            // 全空白 → 返回空 span
+            if (outputLen == 0)
+            {
+                _buffer = null;
+                Span = ReadOnlySpan<char>.Empty;
+                return;
+            }
+
+            // ── 第二遍：填充 native buffer ──────────────────
+            _buffer = (char*)Marshal.AllocHGlobal(outputLen * sizeof(char));
+            var dest = new Span<char>(_buffer, outputLen);
+
+            int pos = 0;
+            bool inStr = false;
+
+            for (int i = 0; i < input.Length; i++)
+            {
+                char c = input[i];
+
+                if (inStr)
                 {
-                    char c = src[i];
-
-                    if (inStr)
+                    if (c == '\\' && i + 1 < input.Length && input[i + 1] == '"')
                     {
-                        if (c == '\\' && i + 1 < src.Length && src[i + 1] == '"')
-                        {
-                            span[pos++] = '\\';
-                            span[pos++] = '"';
-                            i++;
-                        }
-                        else if (c == '"')
-                        {
-                            span[pos++] = c;
-                            inStr = false;
-                        }
-                        else
-                        {
-                            span[pos++] = c;
-                        }
+                        dest[pos++] = '\\';
+                        dest[pos++] = '"';
+                        i++;
+                    }
+                    else if (c == '"')
+                    {
+                        dest[pos++] = c;
+                        inStr = false;
                     }
                     else
                     {
-                        if (c == '"')
-                        {
-                            span[pos++] = c;
-                            inStr = true;
-                        }
-                        else if (!char.IsWhiteSpace(c))
-                        {
-                            span[pos++] = c;
-                        }
+                        dest[pos++] = c;
                     }
                 }
-            });
+                else
+                {
+                    if (c == '"')
+                    {
+                        dest[pos++] = c;
+                        inStr = true;
+                    }
+                    else if (!char.IsWhiteSpace(c))
+                    {
+                        dest[pos++] = c;
+                    }
+                }
+            }
+
+            Span = dest;
+        }
+
+        /// <summary>释放 native memory（如有分配）。支持 duck-typed <c>using var</c> 模式。</summary>
+        public void Dispose()
+        {
+            if (_buffer != null)
+            {
+                Marshal.FreeHGlobal((IntPtr)_buffer);
+            }
         }
     }
 }

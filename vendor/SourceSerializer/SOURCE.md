@@ -1,7 +1,7 @@
 # SourceSerializer
 
 - **上游仓库**: https://github.com/twds0x13/SourceSerializer
-- **Vendored 版本**: v3.5.0
+- **Vendored 版本**: v3.5.2
 - **Vendored 日期**: 2026-07-28
 - **本地修改**: 无（纯净 vendor，直接从上游复制）
 - **许可证**: MIT（与 FluxFormula 相同）

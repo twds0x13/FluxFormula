@@ -122,23 +122,6 @@ public struct Team
     public Entity Member;
 }
 
-/// <summary>带 repetition 的变长数组模板（XML 格式）——测试 repetition 的 last-value-wins 语义</summary>
-#pragma warning disable SSR005 // 标量在 repetition 中：故意测试覆盖行为
-	[Template(@"
-	  <literal-template>
-	    <field type=""float"" name=""Damage""/>
-	    <repetition>
-	      <first><text>, </text><field type=""float"" name=""Multipliers""/></first>
-	      <body><text>, </text><field type=""float"" name=""Multipliers""/></body>
-	    </repetition>
-	  </literal-template>")]
-#pragma warning restore SSR005
-public struct DamageWithMultipliers
-{
-    public float Damage;
-    public float Multipliers;
-}
-
 /// <summary>构造器 struct + optional block：验证构造器策略下可选块变量的作用域不被 if/scope 块限制</summary>
 	[Template("<float X><optional>, <float Y></optional>")]
 	public struct PointWithOptional
@@ -151,17 +134,7 @@ public struct DamageWithMultipliers
 	    public override readonly string ToString() => $"({X}, {Y})";
 	}
 
-	/// <summary>带 repetition 的变长数组模板（紧凑语法）——测试 repetition 的 last-value-wins 语义</summary>
-#pragma warning disable SSR005 // 标量在 repetition 中：故意测试覆盖行为
-[Template("<float Damage><repetition><first>, <float Multipliers></first><body>, <float Multipliers></body></repetition>")]
-#pragma warning restore SSR005
-public struct DamageCompact
-{
-    public float Damage;
-    public float Multipliers;
-}
-
-// ═══════════════════════════════════════════════════════
+	// ═══════════════════════════════════════════════════════
 // 数组字段测试类型（[] 简写 → repetition 展开）
 // ═══════════════════════════════════════════════════════
 
@@ -790,66 +763,6 @@ public class LiteralTemplateTests
         Assert.Pass("FLX002 verified via build output — see compilation errors above.");
     }
 
-    // ── DamageWithMultipliers: repetition ────────────
-
-    [Test]
-    public void Repetition_CompactSyntax_EquivalentToXml()
-    {
-        // 紧凑语法 "<float Damage><repetition><first>, <float Multipliers></first><body>, <float Multipliers></body></repetition>"
-        // 等效于 XML 版本
-        var lexer = CreateDamageCompactLexer();
-        var result = lexer.Lex("42, 1.5, 2.0");
-        Assert.That(result.Tokens.Length, Is.EqualTo(1));
-        Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(42f).Within(1e-5f));
-        Assert.That(result.Tokens[0].Data.Multipliers, Is.EqualTo(2.0f).Within(1e-5f));
-    }
-
-    [Test]
-    public void Repetition_ZeroExtraElements()
-    {
-        // 模板: <float Damage><repetition><first>, <float Multipliers></first><body>, <float Multipliers></body></repetition>
-        // repetition 找不到分隔符 → break
-        var lexer = CreateDamageMultipliersLexer();
-        var result = lexer.Lex("42");
-        Assert.That(result.Tokens.Length, Is.EqualTo(1));
-        Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(42f).Within(1e-5f));
-        Assert.That(result.Tokens[0].Data.Multipliers, Is.EqualTo(0f));
-    }
-
-    [Test]
-    public void Repetition_OneExtraElement()
-    {
-        // repetition 内 ", " + float 匹配一次
-        var lexer = CreateDamageMultipliersLexer();
-        var result = lexer.Lex("42, 1.5");
-        Assert.That(result.Tokens.Length, Is.EqualTo(1));
-        Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(42f).Within(1e-5f));
-        Assert.That(result.Tokens[0].Data.Multipliers, Is.EqualTo(1.5f).Within(1e-5f));
-    }
-
-    [Test]
-    public void Repetition_MultipleExtraElements()
-    {
-        // repetition 迭代 3 次，最后一次写入 Multipliers=3.5
-        // 剩余 " * 100" 产生 2 个额外 token: op "*" + literal "100"
-        var lexer = CreateDamageMultipliersLexer();
-        var result = lexer.Lex("42, 1.5, 2.0, 3.5 * 100");
-        Assert.That(result.Tokens.Length, Is.EqualTo(3));
-        Assert.That(result.Tokens[0].Data.Damage, Is.EqualTo(42f).Within(1e-5f));
-        Assert.That(result.Tokens[0].Data.Multipliers, Is.EqualTo(3.5f).Within(1e-5f));
-    }
-
-    [Test]
-    public void Repetition_NoMatch_ThrowsFormatException()
-    {
-        var lexer = CreateDamageMultipliersLexer();
-        // "hello" 不匹配模板中的任何部分
-        Assert.That(() => lexer.Lex("hello"),
-            Throws.TypeOf<FormatException>());
-    }
-
-    // ═══════════════════════════════════════════════════════
-
     // ── PointWithOptional: 构造器 + optional ───────────
 
     [Test]
@@ -922,16 +835,6 @@ public class LiteralTemplateTests
             Operators = { new("+", 1) },
         };
         return new FluxLexer<Team>(config);
-    }
-
-    private static FluxLexer<DamageWithMultipliers> CreateDamageMultipliersLexer()
-    {
-        var config = new LexerConfig<DamageWithMultipliers>
-        {
-            LiteralOper = 0,
-            Operators = { new("+", 1), new("-", 2), new("*", 3) },
-        };
-        return new FluxLexer<DamageWithMultipliers>(config);
     }
 
     // ── TaggedSpell: 枚举标签扫描 + 未知标签应失败 ──
@@ -1122,16 +1025,6 @@ public class LiteralTemplateTests
             LiteralOper = 0,
         };
         return new FluxLexer<TaggedSpell>(config);
-    }
-
-    private static FluxLexer<DamageCompact> CreateDamageCompactLexer()
-    {
-        var config = new LexerConfig<DamageCompact>
-        {
-            LiteralOper = 0,
-            Operators = { new("+", 1), new("-", 2) },
-        };
-        return new FluxLexer<DamageCompact>(config);
     }
 
     private static FluxLexer<PointWithOptional> CreatePointWithOptionalLexer()

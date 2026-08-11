@@ -319,14 +319,14 @@ namespace FluxFormula.Core
                     Array.Empty<FluxToken<TData>>(),
                     Array.Empty<string>());
 
-            source = WhitespaceStripper.Strip(source);
-            int maxTokens = source.Length;
+            using var compact = new WhitespaceStripper(source);
+            ReadOnlySpan<char> src = compact.Span;
+            int maxTokens = src.Length;
             var tokens   = new FluxToken<TData>[maxTokens];
             var varNames = new string[maxTokens];
             var syntaxes = new TokenSyntax[maxTokens];
             int tokenCount = 0;
             int pos = 0;
-            ReadOnlySpan<char> src = source.AsSpan();
 
             while (pos < src.Length)
             {

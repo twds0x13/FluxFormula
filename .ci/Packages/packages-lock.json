@@ -15,6 +15,12 @@
       "source": "local",
       "dependencies": {}
     },
+    "com.twds0x13.sourceserializer": {
+      "version": "file:../../vendor/SourceSerializer",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {}
+    },
     "com.twds0x13.fluxformula": {
       "version": "file:../../packages/fluxformula",
       "depth": 0,

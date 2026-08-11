@@ -391,11 +391,29 @@ namespace SourceSerializer
 
             pos++;
             int contentStart = pos;
-            while (pos < src.Length && src[pos] != '"')
-                pos++;
+            bool hasEscapes = false;
+            while (pos < src.Length)
+            {
+                if (src[pos] == '\\' && pos + 1 < src.Length && src[pos + 1] == '"')
+                {
+                    hasEscapes = true;
+                    pos += 2;
+                }
+                else if (src[pos] == '"')
+                {
+                    break;
+                }
+                else
+                {
+                    pos++;
+                }
+            }
             if (pos >= src.Length)
                 return start;
-            value = src.Slice(contentStart, pos - contentStart).ToString();
+            int contentLen = pos - contentStart;
+            value = hasEscapes
+                ? src.Slice(contentStart, contentLen).ToString().Replace("\\\"", "\"")
+                : src.Slice(contentStart, contentLen).ToString();
             pos++;
             return pos;
         }
